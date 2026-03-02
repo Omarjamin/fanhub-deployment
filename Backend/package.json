@@ -3,13 +3,11 @@
   "version": "1.0.0",
   "type": "module",
   "description": "1. Retrieve all posts\r Method: GET\r URL: /api/posts",
-  "main": "src/app.js",
-
- 
+  "main": "dist/app.js",
   "scripts": {
     "start": "node src/app.js",
     "dev": "nodemon --watch src src/app.js",
-    "build": "parcel build src/index.js",
+    "build": "parcel build src/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -37,5 +35,8 @@
     "socket.io": "^4.8.1",
     "streamifier": "^0.1.1",
     "tmux": "^1.0.0"
+  },
+  "devDependencies": {
+    "parcel": "^2.16.4"
   }
 }
