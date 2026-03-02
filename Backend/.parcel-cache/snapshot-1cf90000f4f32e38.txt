@@ -74,7 +74,7 @@
 72C:\deployment\Thesis-Uniteam\Backend\node_modules\lodash\fp\transform.js134156204134299489 0
 65C:\deployment\Thesis-Uniteam\Backend\node_modules\lodash\fp\lt.js134156204115881037 0
 75C:\deployment\Thesis-Uniteam\Backend\node_modules\math-intrinsics\constants134169421196078565 1
-68C:\deployment\Thesis-Uniteam\Backend\node_modules\.package-lock.json134169451334198904 0
+68C:\deployment\Thesis-Uniteam\Backend\node_modules\.package-lock.json134169455179927412 0
 101C:\deployment\Thesis-Uniteam\Backend\node_modules\protobufjs\cli\node_modules\underscore\amd\mixin.js134162255563247927 0
 64C:\deployment\Thesis-Uniteam\Backend\node_modules\uuid\README.md134156204020884116 0
 104C:\deployment\Thesis-Uniteam\Backend\node_modules\protobufjs\cli\node_modules\underscore\cjs\isObject.js134162255548668071 0
@@ -93,7 +93,7 @@
 73C:\deployment\Thesis-Uniteam\Backend\node_modules\validator\lib\isIMEI.js134156204048718803 0
 111C:\deployment\Thesis-Uniteam\Backend\node_modules\sharp\vendor\8.14.5\win32-x64\include\fribidi\fribidi-flags.h133395305960000000 0
 79C:\deployment\Thesis-Uniteam\Backend\node_modules\math-intrinsics\test\index.js134156203951238073 0
-54C:\deployment\Thesis-Uniteam\Backend\package-lock.json134169451328990176 0
+54C:\deployment\Thesis-Uniteam\Backend\package-lock.json134169455173393194 0
 57C:\deployment\Thesis-Uniteam\Backend\node_modules\@parcel134169450130441419 1
 84C:\deployment\Thesis-Uniteam\Backend\node_modules\node-addon-api\tools\check-napi.js134162255290568325 0
 67C:\deployment\Thesis-Uniteam\Backend\src\Routers\index.ecommerce.js134169029960348958 0
