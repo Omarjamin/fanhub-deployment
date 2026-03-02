@@ -1,0 +1,51 @@
+Table comments {
+  comment_id int [pk, increment]
+  post_id int [ref: > posts.post_id]
+  user_id int [ref: > users.user_id]
+  content text
+  parent_comment_id int [ref: > comments.comment_id]
+  created_at datetime [default: `current_timestamp()`]
+}
+
+Table follows {
+  follow_id int [pk, increment]
+  follower_id int [ref: > users.user_id]
+  followed_id int [ref: > users.user_id]
+  created_at datetime [default: `current_timestamp()`]
+}
+
+Table likes {
+  like_id int [pk, increment]
+  post_id int [ref: > posts.post_id]
+  user_id int [ref: > users.user_id]
+  created_at datetime [default: `current_timestamp()`]
+}
+
+Table notifications {
+  notification_id int [pk, increment]
+  user_id int [ref: > users.user_id]
+  activity_type enum('like', 'comment', 'repost', 'follow')
+  source_user_id int [ref: > users.user_id]
+  post_id int [ref: > posts.post_id]
+  created_at datetime [default: `current_timestamp()`]
+}
+
+Table posts {
+  post_id int [pk, increment]
+  user_id int [ref: > users.user_id]
+  content text
+  img_url varchar(255)
+  created_at datetime [default: `current_timestamp()`]
+  updated_at datetime [default: `current_timestamp()`]
+  repost_id int [ref: > posts.post_id]
+}
+
+Table users {
+  user_id int [pk, increment]
+  username varchar(50) [unique]
+  email varchar(100) [unique]
+  fullname varchar(50)
+  password varchar(255)
+  profile_picture varchar(255)
+  created_at datetime [default: `current_timestamp()`]
+}

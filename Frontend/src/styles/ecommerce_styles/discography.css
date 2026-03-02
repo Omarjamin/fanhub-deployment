@@ -1,0 +1,257 @@
+
+:root {
+  --primary-color: #000000;   /* default */
+  --secondary-color: #ffffff; /* default */
+  --accent-color: #ff0000;    /* default */
+}
+
+
+/*
+========================================
+DISCOGRAPHY CAROUSEL - PROFESSIONAL DESIGN
+========================================
+
+Design Approach:
+- Modern glassmorphism cards with backdrop blur
+- Professional gradient backgrounds and shadows
+- Smooth cubic-bezier transitions for premium feel
+- SVG chevron navigation with micro-interactions
+- Enhanced visual hierarchy with proper spacing
+- Mobile-responsive with optimized touch targets
+
+Key Features:
+- Glass effect cards (backdrop-filter: blur)
+- Gradient title with underline accent
+- Hover states with lift and scale effects
+- Professional navigation arrows
+- Improved typography and color contrast
+========================================
+*/
+
+/* Discography slider styles */
+.discography-section {
+  width: 100%;
+  padding: 3rem 0;
+  background: var(--secondary-background, linear-gradient(135deg, rgba(255, 20, 147, 0.02) 0%, rgba(255, 112, 184, 0.05) 100%));
+}
+
+.section-title {
+  text-align: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 3rem;
+  letter-spacing: 0.05em;
+  color: var(--accent-color, #ff1493);
+  text-transform: uppercase;
+  position: relative;
+}
+
+.section-title::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80px;
+  height: 3px;
+  background: var(--primary-color);
+  border-radius: 2px;
+}
+
+.album-carousel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem;
+  background: rgba(0, 0, 0, 0.04);
+  backdrop-filter: blur(10px);
+  padding: 3rem 2rem;
+  border-radius: 1.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  margin: 0 auto;
+  max-width: 95%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+}
+
+.album-container {
+  position: relative;
+  width: 100%;
+  max-width: 320px;
+  height: 420px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.album-card {
+  position: absolute;
+  width: 100%;
+  max-width: 320px;
+  background: #ffffff;
+  backdrop-filter: blur(8px);
+  padding: 2rem;
+  border-radius: 1.5rem;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  /* baseline: center the card; JS will add translateX/scale after this */
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%) scale(0.8);
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  transform-origin: center center;
+  will-change: transform, opacity;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.album-card.active {
+  opacity: 1;
+  pointer-events: auto;
+  z-index: 2;
+  box-shadow: 0 20px 40px color-mix(in srgb, var(--accent-color, #ff1493) 30%, transparent);
+}
+
+.album-card img {
+  width: 100%;
+  max-width: 260px;
+  border-radius: 1rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+  transition: all 0.4s ease;
+}
+
+.album-card:hover img {
+  transform: scale(1.03) translateY(-5px);
+  box-shadow: 0 20px 45px color-mix(in srgb, var(--accent-color, #ff1493) 40%, transparent);
+}
+
+.album-card a {
+  text-decoration: none;
+  color: #0f172a;
+  display: block;
+  transition: transform 0.3s ease;
+}
+
+.album-card:hover a {
+  transform: translateY(-2px);
+}
+
+.album-card h3 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+  color: #0f172a;
+  text-shadow: none;
+}
+
+.album-card p {
+  font-size: 0.95rem;
+  color: #334155;
+  margin-bottom: 0;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+.carousel-btn {
+  background: var(--primary-color);
+  border: none;
+  padding: 0;
+  border-radius: 50%;
+  color: var(--text-on-primary, #ffffff);
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 15px color-mix(in srgb, var(--accent-color, #ff1493) 30%, transparent);
+  position: relative;
+  overflow: hidden;
+}
+
+.carousel-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.2), transparent);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.carousel-btn:hover::before {
+  opacity: 1;
+}
+
+.carousel-btn:hover {
+  transform: scale(1.1);
+  background: var(--hover-background, var(--accent-color, #ff1493));
+  color: var(--hover-text-color, #ffffff);
+  box-shadow: 0 6px 20px color-mix(in srgb, var(--accent-color, #ff1493) 50%, transparent);
+}
+
+.carousel-btn:active {
+  transform: scale(0.95);
+}
+
+.carousel-btn svg {
+  width: 24px;
+  height: 24px;
+  transition: transform 0.3s ease;
+}
+
+.carousel-btn:hover svg {
+  transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+  .discography-section {
+    padding: 2rem 0;
+  }
+
+  .album-carousel {
+    gap: 1.5rem;
+    padding: 2rem 1.5rem;
+    border-radius: 1rem;
+  }
+
+  .section-title {
+    font-size: 2rem;
+    margin-bottom: 2rem;
+  }
+
+  .carousel-btn {
+    width: 48px;
+    height: 48px;
+  }
+
+  .carousel-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .album-container {
+    max-width: 280px;
+    height: 360px;
+  }
+
+  .album-card {
+    max-width: 280px;
+    padding: 1.5rem;
+  }
+
+  .album-card img {
+    max-width: 220px;
+    margin-bottom: 1rem;
+  }
+
+  .album-card h3 {
+    font-size: 1.4rem;
+  }
+}

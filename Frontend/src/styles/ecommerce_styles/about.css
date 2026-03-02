@@ -1,0 +1,99 @@
+.member-card.fixed-card {
+  display: flex;
+  flex-direction: column;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+  height: 320px;
+  transition: transform 0.3s, background 0.3s;
+}
+.member-card.fixed-card:hover {
+  transform: translateY(-5px);
+  background: rgba(255, 255, 255, 0.25);
+}
+.member-card .role {
+  font-size: 0.9rem;
+  margin: 6px 0 8px;
+  color: #ffffff;
+  font-weight: 600;
+}
+.see-details-btn {
+  background: #ff70b8;
+  color: #ffffff;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.3s, transform 0.2s, box-shadow 0.2s;
+}
+.see-details-btn:hover {
+  background: #ffffff;
+  color: #ff70b8;
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(255, 112, 184, 0.4);
+}
+.desc-box {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, padding 0.4s ease;
+  text-align: left;
+  color: #ffffff;
+  font-size: 0.85rem;
+  line-height: 1.45;
+  margin-top: 8px;
+}
+.desc-box p {
+  padding: 0 6px;
+}
+.member-card.active .desc-box {
+  max-height: 120px;
+  padding-top: 8px;
+}
+.member-card.active .see-details-btn {
+  background: #ffffff;
+  color: #ff70b8;
+}
+
+.about-bini {
+  width: min(1000px, 92vw);
+  max-width: 1000px;
+  margin: 0 auto 40px;
+  text-align: center;
+  color: #000000;
+  font-weight: 600;
+  font-size: 1.6rem;
+  padding: 0 20px;
+}
+
+.about-bini p {
+  text-align: justify;
+  text-justify: inter-word;
+  text-align-last: center;
+  -moz-text-align-last: center;
+  color: #000000;
+  text-shadow: none;
+  font-weight: 400;
+  font-size: clamp(1.16rem, 1.05rem + 0.5vw, 1.34rem);
+  line-height: 1.7;
+  margin-top: 12px;
+}
+
+.about-bini p .about-highlight {
+  color: #000000;
+  font-weight: 700;
+  text-shadow: none;
+}
+
+@media (max-width: 600px) {
+  .about-bini {
+    margin: 0 auto 28px;
+    font-size: 1.35rem;
+    padding: 0 14px;
+  }
+
+  .about-bini p {
+    text-align: left;
+  }
+}

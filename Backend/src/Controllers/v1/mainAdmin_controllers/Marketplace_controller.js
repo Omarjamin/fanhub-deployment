@@ -1,0 +1,351 @@
+import MarketplaceModel from '../../../Models/mainAdmin_model/Marketplace-Model.js';
+
+class MarketplaceController {
+  constructor() {
+    this.marketplaceModel = new MarketplaceModel();
+  }
+
+  /**
+   * GET /v1/admin/marketplace
+   * Optional query:
+   *  - community: community key (e.g. 'bini') or 'all'
+   */
+  async listProducts(req, res) {
+    try {
+      const communityKey = String(req.query.community || 'all').toLowerCase();
+      const scopedCommunity = communityKey === 'all' ? '' : communityKey;
+      const filtered = await this.marketplaceModel.getProducts(scopedCommunity);
+
+      return res.status(200).json({
+        success: true,
+        data: filtered,
+        count: filtered.length,
+      });
+    } catch (error) {
+      if (
+        error?.code === 'ER_NO_SUCH_TABLE' ||
+        /doesn'?t exist|no such table/i.test(String(error?.message || ''))
+      ) {
+        return res.status(200).json({
+          success: true,
+          data: [],
+          count: 0,
+          warning:
+            'Marketplace tables are missing in the selected community database.',
+        });
+      }
+      console.error('Error fetching marketplace products:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch marketplace products',
+        details:
+          process.env.NODE_ENV === 'development'
+            ? error.message
+            : undefined,
+      });
+    }
+  }
+
+  /**
+   * GET /v1/admin/marketplace/collections
+   */
+  async listCollections(req, res) {
+    try {
+      const communityKey = String(req.query.community || 'all').toLowerCase();
+      const scopedCommunity = communityKey === 'all' ? '' : communityKey;
+      const data = await this.marketplaceModel.getCollections(scopedCommunity);
+      return res.status(200).json({ success: true, data });
+    } catch (error) {
+      if (
+        error?.code === 'ER_NO_SUCH_TABLE' ||
+        /doesn'?t exist|no such table/i.test(String(error?.message || ''))
+      ) {
+        return res.status(200).json({
+          success: true,
+          data: [],
+          warning:
+            'Collection table is missing in the selected community database.',
+        });
+      }
+      console.error('Error fetching collections:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch collections',
+      });
+    }
+  }
+
+  /**
+   * POST /v1/admin/marketplace/collections
+   * Body: { community, name }
+   */
+  async createCollection(req, res) {
+    try {
+      const body = req.body || {};
+      const scopedCommunity = String(body.community || '')
+        .trim()
+        .toLowerCase();
+      const name = String(body.name || '').trim();
+      if (!scopedCommunity) {
+        return res.status(400).json({
+          success: false,
+          error: 'community is required',
+        });
+      }
+      if (!name) {
+        return res.status(400).json({
+          success: false,
+          error: 'Collection name is required',
+        });
+      }
+      const imgUrl = String(body.img_url || body.image_url || '').trim() || null;
+      const data = await this.marketplaceModel.createCollection(
+        scopedCommunity,
+        name,
+        imgUrl,
+      );
+      return res.status(201).json({
+        success: true,
+        data,
+      });
+    } catch (error) {
+      console.error('Error creating collection:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create collection',
+        details:
+          process.env.NODE_ENV === 'development'
+            ? error.message
+            : undefined,
+      });
+    }
+  }
+
+  /**
+   * GET /v1/admin/marketplace/categories?community=&collection_id=
+   */
+  async listCategories(req, res) {
+    try {
+      const scopedCommunity = String(req.query.community || '')
+        .trim()
+        .toLowerCase();
+      const collectionId = req.query.collection_id;
+      if (!scopedCommunity) {
+        return res.status(400).json({
+          success: false,
+          error: 'community is required',
+        });
+      }
+
+      const data = await this.marketplaceModel.getCategories(
+        scopedCommunity,
+        collectionId,
+      );
+      return res.status(200).json({ success: true, data });
+    } catch (error) {
+      console.error('Error fetching categories:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch categories',
+        details:
+          process.env.NODE_ENV === 'development'
+            ? error.message
+            : undefined,
+      });
+    }
+  }
+
+  /**
+   * POST /v1/admin/marketplace/categories
+   * Body: { community, collection_id?, collection?, category_name }
+   */
+  async createCategory(req, res) {
+    try {
+      const body = req.body || {};
+      const scopedCommunity = String(body.community || '')
+        .trim()
+        .toLowerCase();
+      const categoryName = String(body.category_name || body.category || '')
+        .trim();
+      let collectionId = body.collection_id;
+
+      if (!scopedCommunity) {
+        return res.status(400).json({
+          success: false,
+          error: 'community is required',
+        });
+      }
+
+      if (collectionId == null && body.collection) {
+        collectionId = await this.marketplaceModel.resolveCollectionId(
+          scopedCommunity,
+          body.collection,
+        );
+      }
+
+      if (!collectionId) {
+        return res.status(400).json({
+          success: false,
+          error: 'collection_id or valid collection is required',
+        });
+      }
+
+      if (!categoryName) {
+        return res.status(400).json({
+          success: false,
+          error: 'category_name is required',
+        });
+      }
+
+      const data = await this.marketplaceModel.createCategory(
+        scopedCommunity,
+        collectionId,
+        categoryName,
+      );
+      return res.status(201).json({
+        success: true,
+        data,
+      });
+    } catch (error) {
+      console.error('Error creating category:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create category',
+        details:
+          process.env.NODE_ENV === 'development'
+            ? error.message
+            : undefined,
+      });
+    }
+  }
+
+  /**
+   * POST /v1/admin/marketplace
+   * Body: { name, collection_id?, community?, collection?, product_category?, image_url?, variants[] }
+   */
+  async createProduct(req, res) {
+    try {
+      const body = req.body || {};
+      const scopedCommunity = String(body.community || '').trim().toLowerCase();
+      let collectionId = body.collection_id;
+      if (collectionId == null && body.community && body.collection) {
+        collectionId = await this.marketplaceModel.resolveCollectionId(
+          body.community,
+          body.collection,
+        );
+      }
+      const payload = {
+        name: body.name,
+        collection_id: collectionId,
+        product_category: body.product_category || 'Apparel',
+        image_url: body.image_url || null,
+        variants: body.variants || [],
+      };
+      const { product_id } = await this.marketplaceModel.createProduct(
+        payload,
+        scopedCommunity,
+      );
+      return res.status(201).json({
+        success: true,
+        message: 'Product created successfully',
+        data: { product_id },
+      });
+    } catch (error) {
+      console.error('Error creating product:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to create product',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+  }
+
+  /**
+   * PUT /v1/admin/marketplace/:productId
+   * Body: { name?, collection_id?, community?, collection?, product_category?, image_url?, variants[] }
+   */
+  async updateProduct(req, res) {
+    try {
+      const productId = req.params.productId;
+      const body = req.body || {};
+      const scopedCommunity = String(
+        body.community || req.query.community || '',
+      )
+        .trim()
+        .toLowerCase();
+      let collectionId = body.collection_id;
+      if (collectionId == null && body.community && body.collection) {
+        collectionId = await this.marketplaceModel.resolveCollectionId(
+          body.community,
+          body.collection,
+        );
+      }
+      const payload = {
+        name: body.name,
+        collection_id: collectionId,
+        product_category: body.product_category,
+        image_url: body.image_url,
+        variants: body.variants,
+      };
+      Object.keys(payload).forEach((k) => {
+        if (payload[k] === undefined) delete payload[k];
+      });
+      await this.marketplaceModel.updateProduct(
+        productId,
+        payload,
+        scopedCommunity,
+      );
+      return res.status(200).json({
+        success: true,
+        message: 'Product updated successfully',
+      });
+    } catch (error) {
+      console.error('Error updating product:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update product',
+        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      });
+    }
+  }
+
+  /**
+   * DELETE /v1/admin/marketplace/:productId
+   */
+  async deleteProduct(req, res) {
+    try {
+      const productId = req.params.productId;
+      const scopedCommunity = String(req.query.community || '')
+        .trim()
+        .toLowerCase();
+      const { deleted } = await this.marketplaceModel.deleteProduct(
+        productId,
+        scopedCommunity,
+      );
+
+      if (!deleted) {
+        return res.status(404).json({
+          success: false,
+          error: 'Product not found',
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: 'Product deleted successfully',
+      });
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to delete product',
+        details:
+          process.env.NODE_ENV === 'development'
+            ? error.message
+            : undefined,
+      });
+    }
+  }
+}
+
+export default MarketplaceController;

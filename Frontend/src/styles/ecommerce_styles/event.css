@@ -1,0 +1,35 @@
+.event-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 100px;
+}
+.event-list .card {
+  background: rgba(255, 255, 255, 0.15);
+  padding: 8px;
+  border-radius: 12px;
+  text-align: center;
+  width: 45%;
+  max-width: 300px;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.event-list .event-empty-card {
+  width: 100%;
+  max-width: 520px;
+  padding: 18px;
+  text-align: center;
+}
+
+.event-list .event-empty-card p {
+  margin: 8px 0 2px;
+  opacity: 0.8;
+}
+.event-list img {
+  width: 100%;
+  border-radius: 10px;
+}

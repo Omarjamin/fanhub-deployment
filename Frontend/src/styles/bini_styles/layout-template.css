@@ -1,0 +1,66 @@
+:root {
+  --bini-left-nav-width: 150px;
+  --bini-right-panel-width: clamp(15.625rem, 30vw, 40rem);
+  --bini-content-max: 1280px;
+  --bini-gap: clamp(12px, 2vw, 24px);
+  --bini-card-radius: 16px;
+}
+
+/* Unified page frame for BINI community views */
+#container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+}
+
+#main {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  flex: 1 0 auto;
+  min-height: 0;
+}
+
+#footer {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+/* Desktop: account for fixed left nav so content is centered and proportional */
+@media (min-width: 769px) {
+  body.has-community-side-nav #main {
+    margin-left: var(--bini-left-nav-width);
+    width: calc(100% - var(--bini-left-nav-width));
+  }
+}
+
+/* Core surface alignment for common BINI page wrappers */
+:where(.homepage-container, .search-page, .search-container, .profile-container, .notifications-page, .thread-topic-container) {
+  box-sizing: border-box;
+}
+
+/* Normalize card-like containers for better proportion */
+:where(.profile-container, .thread-topic-container, .search-live-preview, .suggested-follow-list) {
+  width: min(100%, var(--bini-content-max));
+  margin-left: auto;
+  margin-right: auto;
+  border-radius: var(--bini-card-radius);
+}
+
+/* Keep media elements aligned in cards/feeds */
+:where(.post-card img, .event-item img, .thread-item img, .profile-picture, .profile-picture1) {
+  object-fit: cover;
+}
+
+/* Mobile/tablet breathing room */
+@media (max-width: 768px) {
+  :where(.homepage-container, .search-page, .search-container, .profile-container, .notifications-page, .thread-topic-container) {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}

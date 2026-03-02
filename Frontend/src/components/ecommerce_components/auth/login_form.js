@@ -1,0 +1,166 @@
+import { loginUser } from '../../../services/ecommerce_services/auth/signin.js';
+import { continueWithGoogle } from '../../../services/ecommerce_services/auth/signin.js';
+import { getAuthToken } from '../../../services/ecommerce_services/auth/auth.js';
+import { getRecaptchaToken, renderGoogleButton, renderRecaptchaWidget, getIdentityProviderStatus } from '../../../services/ecommerce_services/auth/identity_providers.js';
+import '../user/request_password_reset.js';
+import { showToast } from '../../../utils/toast.js';
+
+function resolveSiteSlug(data = {}) {
+  const fromData = data?.siteSlug || data?.site_slug || data?.siteData?.site_slug;
+  if (fromData) return String(fromData).trim().toLowerCase();
+
+  const match = window.location.pathname.match(/^\/fanhub\/([^/]+)/i);
+  return match ? String(match[1]).trim().toLowerCase() : '';
+}
+
+export default function LoginForm(root, data = {}) {
+  const siteSlug = resolveSiteSlug(data);
+
+  if (siteSlug) {
+    sessionStorage.setItem('site_slug', siteSlug);
+  }
+
+  const homePath = siteSlug ? `/fanhub/${siteSlug}` : '/';
+  const signupPath = siteSlug ? `/fanhub/${siteSlug}/signup` : '/signup';
+
+  if (getAuthToken()) {
+    window.location.href = homePath;
+    return;
+  }
+
+  root.innerHTML = `
+    <section class="auth-section">
+      <h2 class="section-title">Login to ${siteSlug || 'Site'}</h2>
+
+      <form class="auth-form1">
+        <input type="email" name="email" placeholder="Email" required>
+        <input type="password" name="password" placeholder="Password" required>
+        <button type="submit" class="mv-btn">Login</button>
+
+        <div style="margin-top:14px; text-align:center; color:#777; letter-spacing:0.6px;">------or--------</div>
+
+        <div class="google-auth-wrap" style="margin-top:12px; display:flex; justify-content:center;">
+          <div id="googleLoginBtn"></div>
+        </div>
+        <small id="googleLoginHint" style="display:block; text-align:center; margin-top:6px; color:#666;"></small>
+
+        <p style="margin-top:14px;">Don't have an account? <a href="${signupPath}">Sign up</a></p>
+        <p>Forgot Password? <a href="#" class="forgot-password-link">Click Here</a></p>
+
+        <div class="recaptcha-wrap" style="display:flex; margin-top:14px; justify-content:center;">
+          <div id="recaptchaLoginBox" style="min-height:78px; min-width:304px;"></div>
+        </div>
+        <small id="recaptchaLoginHint" style="display:block; text-align:center; margin-top:6px; color:#666;"></small>
+      </form>
+    </section>
+  `;
+
+  const form = root.querySelector('.auth-form1');
+  const forgotPasswordLink = root.querySelector('.forgot-password-link');
+  const googleLoginBtn = root.querySelector('#googleLoginBtn');
+  const googleLoginHint = root.querySelector('#googleLoginHint');
+  const recaptchaLoginBox = root.querySelector('#recaptchaLoginBox');
+  const recaptchaLoginHint = root.querySelector('#recaptchaLoginHint');
+  const identityStatus = getIdentityProviderStatus();
+
+  if (identityStatus.hasRecaptchaV2) {
+    recaptchaLoginHint.textContent = 'Please complete reCAPTCHA before login.';
+  } else if (identityStatus.hasRecaptchaV3) {
+    recaptchaLoginHint.textContent = 'reCAPTCHA v3 enabled (invisible).';
+  } else {
+    recaptchaLoginHint.textContent = `reCAPTCHA is not configured yet. (v2=${identityStatus.hasRecaptchaV2}, v3=${identityStatus.hasRecaptchaV3})`;
+  }
+
+  if (!identityStatus.hasGoogle) {
+    googleLoginHint.textContent = `Google login is not configured yet. (hasGoogle=${identityStatus.hasGoogle})`;
+  }
+
+  forgotPasswordLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    window.showPasswordResetModal();
+  });
+
+  (async () => {
+    try {
+      await renderRecaptchaWidget(recaptchaLoginBox);
+    } catch (err) {
+      recaptchaLoginHint.textContent = `reCAPTCHA render error: ${err?.message || 'Unknown error'}`;
+      console.error('Login reCAPTCHA render error:', err);
+    }
+
+    try {
+      await renderGoogleButton(googleLoginBtn, async (credential) => {
+        if (!credential) {
+          showToast('Google login failed. Missing credential.', 'error');
+          return;
+        }
+
+        try {
+          const recaptchaToken = await getRecaptchaToken('google_auth', recaptchaLoginBox);
+          if (!recaptchaToken) {
+            showToast('Please complete reCAPTCHA first.', 'error');
+            return;
+          }
+
+          const googleResult = await continueWithGoogle({
+            credential,
+            site_slug: siteSlug,
+            recaptcha_token: recaptchaToken,
+          });
+          void googleResult;
+
+          showToast('Google login successful!', 'success');
+          setTimeout(() => {
+            window.location.href = homePath;
+          }, 700);
+        } catch (err) {
+          showToast(`Google login failed: ${err.message}`, 'error');
+        }
+      });
+    } catch (err) {
+      if (googleLoginHint) {
+        googleLoginHint.textContent = `Google button error: ${err?.message || 'Unknown error'}`;
+      }
+      console.error('Google button render error:', err);
+    }
+  })();
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+
+    const formData = new FormData(form);
+    const email = String(formData.get('email') || '').trim();
+    const password = String(formData.get('password') || '').trim();
+
+    const recaptchaToken = await getRecaptchaToken('login', recaptchaLoginBox).catch(() => '');
+    if (!recaptchaToken) {
+      showToast('Please complete reCAPTCHA before login.', 'error');
+      return;
+    }
+
+    const payload = {
+      email,
+      password,
+      site_slug: siteSlug,
+      recaptcha_token: recaptchaToken,
+    };
+
+    try {
+      await loginUser(payload);
+      showToast('Login successful! Welcome back!', 'success');
+      setTimeout(() => {
+        window.location.href = homePath;
+      }, 1500);
+    } catch (err) {
+      console.error('Failed to login:', err);
+      if (err?.code === 'PASSWORD_RESET_REQUIRED') {
+        showToast('Too many failed attempts. Please reset your password.', 'error');
+        if (typeof window.showPasswordResetModal === 'function') {
+          window.showPasswordResetModal(err?.email || payload.email);
+        }
+        return;
+      }
+      showToast('Login failed: ' + err.message, 'error');
+    }
+  });
+}

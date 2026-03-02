@@ -1,0 +1,113 @@
+@import "../theme-overrides.css";
+
+:root {
+  --primary-color: #000000;   /* default  button*/
+  --secondary-color: #ffffff; /* default for bg */ 
+  --accent-color: #ff0000;    /* default  then font  and border */
+  --secondary-background: var(--secondary-color);
+  --hover-background: var(--accent-color);
+  --hover-text-color: #ffffff;
+  --text-on-primary: #ffffff;
+  --theme-font-family: Arial, sans-serif;
+  --theme-button-radius: 12px;
+  --theme-button-border: none;
+  --theme-button-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+
+body {
+  font-family: var(--theme-font-family) !important;
+}
+
+
+section {
+  padding-bottom: 50px;
+}
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+body {
+  font-family: var(--theme-font-family);
+  background: var(--secondary-background, var(--secondary-color));
+  background-size: cover;
+  color: var(--primary-color);
+}
+
+button,
+.btn,
+.btn-link,
+.btn-primary,
+.btn-secondary,
+.mv-btn,
+.nav-link,
+.auth-form1 .mv-btn {
+  font-family: var(--theme-font-family) !important;
+  border-radius: var(--theme-button-radius);
+  border: var(--theme-button-border);
+  box-shadow: var(--theme-button-shadow);
+}
+
+button:hover,
+.btn:hover,
+.btn-link:hover,
+.btn-primary:hover,
+.btn-secondary:hover,
+.mv-btn:hover,
+.nav-link:hover,
+.auth-form1 .mv-btn:hover {
+  background: var(--hover-background, var(--accent-color));
+  color: var(--hover-text-color, var(--text-on-primary, #ffffff));
+}
+
+
+#app,
+#container,
+#main {
+  background: transparent;
+}
+
+@keyframes rainbow {
+  0%   { background-position: 0% 50%; }
+  20%  { background-position: 100% 0%; }
+  40%  { background-position: 100% 100%; }
+  60%  { background-position: 0% 100%; }
+  80%  { background-position: 0% 0%; }
+  100% { background-position: 0% 50%; }
+}
+
+
+.section-title {
+  color: var(--primary-color) !important;
+  text-align: center;
+  margin: 30px 0 15px;
+}
+
+/* Container for better desktop layout */
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 3vw, 2rem);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Main content area */
+main {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Better desktop spacing */
+@media (min-width: 1200px) {
+  .container {
+    padding: 0 2rem;
+  }
+  
+  section {
+    padding-bottom: 60px;
+  }
+}
+

@@ -1,0 +1,233 @@
+import { connect } from "../../core/database.js";
+import { encryptPassword } from "../../utils/hash.js";
+import nodemailer from "nodemailer";
+
+class UserModel {
+  constructor() {
+    this.connect();
+  }
+  async connect() {
+    this.db = await connect();
+  }
+  async ensureConnection(community_type) {
+    try {
+      this.db = await connect(community_type);
+    } catch (err) {
+      console.error("<error> UserModel.ensureConnection failed:", err?.message || err);
+      this.db = await connect();
+    }
+    return this.db;
+  }
+  // request password reset
+  async requestPasswordReset(email) {
+    try {
+      const otp = Math.floor(1000 + Math.random() * 9000);
+      const otpExpiry = new Date();
+      otpExpiry.setMinutes(otpExpiry.getMinutes() + 5);
+
+      const success = await this.saveResetToken(email, otp, otpExpiry);
+      if (!success) {
+        throw new Error("No user found with that email address.");
+      }
+
+      await this.sendOtpEmail(email, otp);
+      return { message: "Password reset token sent to your email." };
+    } catch (err) {
+      console.error("<error> user.requestPasswordReset", err);
+      throw err;
+    }
+  }
+  // send OTP email
+  async sendOtpEmail(email, otp) {
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    await transporter.sendMail({
+      to: email,
+      subject: "Password Reset OTP",
+      text: `Your OTP for password reset is: ${otp}`,
+    });
+  }
+  // save reset token and expiry to database
+  async saveResetToken(email, otp, otpExpiry) {
+    const query =
+      "UPDATE users SET reset_otp = ?, reset_expr = ? WHERE email = ?";
+    const [result] = await this.db.query(query, [otp, otpExpiry, email]);
+    return result.affectedRows > 0;
+  }
+  // verify OTP and reset password
+  async verifyOtpAndResetPassword(email, otp, newPassword) {
+    const query = "SELECT reset_otp, reset_expr FROM users WHERE email = ?";
+    const [results] = await this.db.query(query, [email]);
+    const user = results?.[0];
+
+    if (!user) {
+      throw new Error("No user found with that email address.");
+    }
+
+    const isOtpValid = String(user.reset_otp).trim() === String(otp).trim();
+    const isOtpExpired = new Date() > new Date(user.reset_expr);
+
+    if (!isOtpValid || isOtpExpired) {
+      throw new Error("Invalid or expired OTP.");
+    }
+
+    const hashedPassword = await encryptPassword(newPassword);
+    const updateQuery =
+      "UPDATE users SET password = ?, reset_otp = NULL, reset_expr = NULL WHERE email = ?";
+    const [result] = await this.db.query(updateQuery, [hashedPassword, email]);
+
+    return result.affectedRows > 0;
+  }
+  // create user
+  async createUser({ password, email, fullname, imageUrl }) {
+    try {
+      const hashedPassword = await encryptPassword(password);
+      const query =
+        "INSERT INTO users (email, password, fullname, profile_picture) VALUES (?, ?, ?, ?)";
+      const [result] = await this.db.query(query, [
+        email,
+        hashedPassword,
+        fullname,
+        imageUrl,
+      ]);
+      return result.insertId;
+    } catch (error) {
+      console.error("<error> user.createUser  ", error);
+      throw new Error("Error inserting user");
+    }
+  }
+  // verify user credentials
+  async verify(email, password) {
+    try {
+      const query =
+        "SELECT user_id, email, password, fullname FROM users WHERE email = ?";
+      const [results] = await this.db.query(query, [email]);
+      const user = results?.[0];
+
+      if (!user) {
+        return null;
+      }
+
+      const hashedPassword = await encryptPassword(password);
+      if (user.password === hashedPassword) {
+        return user;
+      } else {
+        return null;
+      }
+    } catch (error) {
+      console.error("<error> user.verify", error);
+      throw new Error("User  verification failed");
+    }
+  }
+
+  async getActiveSuspensionByUserId(userId) {
+    const query = `
+      SELECT suspension_id, starts_at, ends_at, reason
+      FROM user_suspensions
+      WHERE user_id = ?
+        AND status = 'active'
+        AND starts_at <= NOW()
+        AND ends_at > NOW()
+      ORDER BY created_at DESC
+      LIMIT 1
+    `;
+    const [rows] = await this.db.query(query, [userId]);
+    return rows[0] || null;
+  }
+  // logout user
+  async logoutUser(req, res) {
+    const token = req.headers["authorization"]?.split(" ")[1];
+    if (!token) {
+      return res.status(400).json({ error: "Token is required" });
+    }
+
+    return res.status(200).json({ message: "Logged out successfully" });
+  }
+  // get user by ID
+  async getUserById(userId) {
+    const query = "SELECT * FROM users WHERE user_id = ?";
+    const [result] = await this.db.query(query, [userId]);
+    return result[0];
+  }
+  // get all users
+  async getAllUsers() {
+    const query = "SELECT * FROM users";
+    const [result] = await this.db.query(query);
+    return result;
+  }
+  // get user by username
+  async getUserByUsername(username) {
+    const query = "SELECT * FROM users WHERE username = ?";
+    const [result] = await this.db.query(query, [username]);
+    return result[0];
+  }
+  // follow a user
+  async follow(followerId, followedId) {
+    const query =
+      "INSERT INTO follows (follower_id, followed_id) VALUES (?, ?)";
+    const [result] = await this.db.query(query, [followerId, followedId]);
+
+    if (result.affectedRows > 0) {
+      await this.createFollowNotification(followerId, followedId);
+      return { message: "Followed successfully" };
+    } else {
+      throw new Error("Failed to follow user");
+    }
+  }
+  // unfollow a user
+  async unfollow(followerId, followedId) {
+    const query =
+      "DELETE FROM follows WHERE follower_id = ? AND followed_id = ?";
+    const [result] = await this.db.query(query, [followerId, followedId]);
+
+    if (result.affectedRows > 0) {
+      await this.deleteFollowNotification(followerId, followedId);
+      return { message: "Unfollowed successfully" };
+    } else {
+      throw new Error("Failed to unfollow user");
+    }
+  }
+  // check if a user is following another user
+  async isFollowing(followerId, followedId) {
+    const query =
+      "SELECT * FROM follows WHERE follower_id = ? AND followed_id = ?";
+    const [result] = await this.db.query(query, [followerId, followedId]);
+    return result.length > 0;
+  }
+  // create follow notification
+  async createFollowNotification(followerId, followedId) {
+    const notificationQuery =
+      "INSERT INTO notifications (user_id, activity_type, source_user_id) VALUES (?, ?, ?)";
+    await this.db.query(notificationQuery, [followedId, "follow", followerId]);
+  }
+  // delete follow notification
+  async deleteFollowNotification(followerId, followedId) {
+    const notificationQuery =
+      "DELETE FROM notifications WHERE user_id = ? AND activity_type = ? AND source_user_id = ?";
+    await this.db.query(notificationQuery, [followedId, "follow", followerId]);
+  }
+  // update user profile
+  async updateUser(userId, { fullname, profile_picture }) {
+    try {
+      const query =
+        "UPDATE users SET fullname = ?, profile_picture = ? WHERE user_id = ?";
+      const [result] = await this.db.query(query, [
+        fullname,
+        profile_picture,
+        userId,
+      ]);
+      return result.affectedRows > 0;
+    } catch (error) {
+      console.error("<error> user.updateUser", error);
+      throw new Error("Failed to update user profile");
+    }
+  }
+}
+
+export default UserModel;

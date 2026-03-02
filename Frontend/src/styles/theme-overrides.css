@@ -1,0 +1,104 @@
+:root {
+  --primary-color: var(--primary-color, #000000);
+  --secondary-color: var(--secondary-color, #ffffff);
+  --accent-color: var(--accent-color, #ff1493);
+  --secondary-background: var(--secondary-background, var(--secondary-color));
+  --hover-background: var(--hover-background, var(--accent-color));
+  --hover-text-color: var(--hover-text-color, #ffffff);
+  --theme-font-family: var(--theme-font-family, Arial, sans-serif);
+  --text-on-primary: var(--text-on-primary, #ffffff);
+  --border: var(--border, #d1d5db);
+}
+
+html,
+body,
+#app,
+#main,
+#container {
+  font-family: var(--theme-font-family) !important;
+}
+
+body {
+  background: var(--secondary-background, var(--secondary-color));
+  color: var(--primary-color);
+}
+
+a,
+.link,
+.nav-link,
+.menu-link {
+  color: var(--primary-color);
+}
+
+a:hover,
+.link:hover,
+.nav-link:hover,
+.menu-link:hover {
+  color: var(--hover-text-color);
+}
+
+button,
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-link,
+.mv-btn,
+input[type="button"],
+input[type="submit"] {
+  font-family: var(--theme-font-family) !important;
+}
+
+button:hover,
+.btn:hover,
+.btn-primary:hover,
+.btn-secondary:hover,
+.btn-link:hover,
+.mv-btn:hover,
+input[type="button"]:hover,
+input[type="submit"]:hover {
+  background: var(--hover-background) !important;
+  color: var(--hover-text-color) !important;
+}
+
+input,
+select,
+textarea {
+  font-family: var(--theme-font-family) !important;
+  border-color: var(--border);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--accent-color) !important;
+  outline-color: var(--accent-color) !important;
+}
+
+.card,
+.panel,
+.modal-content,
+.table,
+.widget,
+.tile {
+  background: var(--secondary-color);
+  color: var(--primary-color);
+}
+
+.section-title,
+.title,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  color: var(--primary-color);
+}
+
+.badge,
+.tag,
+.chip {
+  background: color-mix(in srgb, var(--accent-color) 18%, #ffffff);
+  color: var(--primary-color);
+  border-color: color-mix(in srgb, var(--accent-color) 35%, #ffffff);
+}

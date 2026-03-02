@@ -1,0 +1,379 @@
+
+
+:root {
+  --primary-color: #000000;   /* default  button*/
+  --secondary-color: #ffffff; /* default for bg */ 
+  --accent-color: #ff0000;    /* default  then font  and border */
+  --theme-font-family: Arial, sans-serif;
+  --theme-button-radius: 12px;
+  --theme-button-border: none;
+  --theme-button-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+
+
+/* Notifications page specific styles */
+.notifications-container,
+#main-container {
+  margin: 0 auto;
+  background: linear-gradient(to bottom, var(--secondary-color), var(--accent-color));
+  min-height: 100vh;
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 1rem;
+  padding: 1rem;
+  box-sizing: border-box;
+  margin-bottom: clamp(24px, 4vh, 48px);
+  max-width: min(1320px, calc(100% - 24px));
+}
+
+/* Override homepage-right hiding for notifications page */
+.notifications-container .homepage-right,
+#main-container .homepage-right {
+  display: flex !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+  width: auto !important;
+  height: auto !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  overflow: visible !important;
+  position: static !important;
+  background: transparent !important;
+  width: clamp(280px, 26vw, 360px) !important;
+  flex: 0 0 clamp(280px, 26vw, 360px);
+  align-self: stretch;
+}
+
+.notif-header {
+  font-size: 32px;
+  font-weight: bold;
+  color: #39BDFE;
+  margin-bottom: 10px;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  position: relative;
+  right: 16px;
+  text-shadow: 2px 2px 8px rgba(235, 76, 187, 0.4), 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+/* Notification header */
+.notif-header {
+  text-align: center;
+  padding: 1.5rem 0;
+  margin: 1rem auto 2rem auto;
+  width: 100%;
+  max-width: 800px;
+  position: relative;
+}
+
+/* Main notifications panel */
+.notifications-panel {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(235, 76, 187, 0.15), 0 4px 16px rgba(0,0,0,0.1);
+  padding: clamp(1.5rem, 3vw, 2.5rem);
+  width: auto;
+  max-width: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0 0 2rem 0;
+  border: 2px solid #EB4CBB;
+  backdrop-filter: blur(10px);
+  
+  /* Scroll properties */
+  overflow-y: auto;
+  max-height: 70vh;
+  
+  /* Minimal scrollbar */
+  scrollbar-width: thin;
+}
+
+.notif-item {
+  padding: 10px 12px !important;
+  border-bottom: 1px solid color-mix(in srgb, var(--border, #d1d5db) 65%, #ffffff 35%) !important;
+  border-radius: 10px;
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
+.notif-item span {
+  font-size: 0.88rem;
+}
+
+.notifications-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.notifications-panel::-webkit-scrollbar-thumb {
+  background: #ccc;
+  border-radius: 2px;
+}
+
+.notifications-panel::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* Individual notification items */
+.notification-panel {
+  display: flex;
+  align-items: center;
+  padding: 1.25rem;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+  background: white;
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+}
+
+.notification-panel:hover {
+  background: rgba(255, 182, 193, 0.1);
+  transform: translateX(5px);
+}
+
+/* Notification content */
+.notification-content {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 1rem;
+}
+
+.notification-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ADD8E6, #FFB6C1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.notification-text {
+  flex: 1;
+}
+
+.notification-title {
+  font-weight: 600;
+  color: #2c3e50;
+  font-size: 1rem;
+  margin-bottom: 0.25rem;
+}
+
+.notification-time {
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.notification-action {
+  margin-left: auto;
+}
+
+.notification-btn {
+  background: #EB4CBB;
+  color: white;
+  border: none;
+  border-radius: 20px;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.notification-btn:hover {
+  background: #d43caa;
+  transform: scale(1.05);
+}
+
+/* Empty state */
+.notifications-empty {
+  text-align: center;
+  padding: 3rem 1rem;
+  color: #666;
+}
+
+/* btn-primary class for consistency across the app */
+.btn-primary {
+  padding: 12px 35px;
+  border-radius: 30px;
+  border: none;
+  background-color: #e75480;
+  color: #fff;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 16px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  min-width: 110px;
+  height: 50px;
+}
+
+.btn-primary:hover {
+  background-color: #d64672;
+  box-shadow: 0 4px 12px rgba(231,84,128,0.3);
+  transform: translateY(-1px);
+}
+
+.btn-primary:active {
+  transform: translateY(0);
+}
+
+/* ===== RESPONSIVE MEDIA QUERIES ===== */
+
+/* Small devices (phones) */
+@media (max-width: 480px) {
+  .notifications-container,
+  #main-container {
+    padding: 0.5rem;
+    flex-direction: column;
+  }
+  .notif-title {
+    transform: none;
+    font-size:100%;
+  }
+
+  .notifications-panel {
+    width: 95%;
+    padding: 1.25rem;
+    border-radius: 16px;
+    margin: 1rem auto;
+  }
+
+  .notification-panel {
+    padding: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .notification-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.75rem;
+  }
+
+  .notification-action {
+    margin-left: 0;
+    margin-top: 0.75rem;
+    width: 100%;
+  }
+
+  .notification-btn {
+    width: 100%;
+  }
+
+  .notif-header {
+    margin: 0.5rem auto 1.5rem auto;
+  }
+  .notif-item {
+    font-size: 0.9rem;
+  }
+
+  .btn-primary {
+    padding: 8px 20px;
+    font-size: 14px;
+    min-width: 90px;
+    height: 40px;
+  }
+}
+
+/* Medium devices (tablets) */
+@media (min-width: 481px) and (max-width: 768px) {
+  .notifications-container {
+    flex-direction: column;
+  }
+
+  .notifications-panel {
+    width: 85%;
+    padding: 2rem;
+    margin: 1rem auto 2rem auto;
+  }
+
+  .notification-panel {
+    padding: 1.5rem;
+  }
+
+  .notif-header {
+    margin: 1rem auto 2rem auto;
+  }
+}
+
+/* Large devices (desktops) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .notifications-panel {
+    width: 55%;
+    max-width: 700px;
+    margin: 0 0 2rem 0;
+  }
+}
+
+/* Extra large devices */
+@media (min-width: 1025px) and (max-width: 1500px) {
+  .notifications-panel {
+      width: 52%;
+      margin-left: 0;
+  }
+}
+
+/* Keep your existing threads styles, they're already responsive */
+.threads-sidebar {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+}
+
+/* Threads responsive adjustments */
+@media (max-width: 768px) {
+  .threads-sidebar {
+    margin: 0;
+    padding: 0;
+  }
+  
+  .thread-item {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 1024px) {
+  .notifications-container,
+  #main-container {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .notifications-container .homepage-right,
+  #main-container .homepage-right {
+    width: 100% !important;
+    flex: 1 1 auto;
+  }
+
+  .notifications-panel {
+    width: 100%;
+  }
+}
+/* Thread Sidebar Professional UI */
+.thread-item-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.thread-pin-tag {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 0.2rem 0.55rem;
+  background: #fdf2f8;
+  color: #be185d;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}

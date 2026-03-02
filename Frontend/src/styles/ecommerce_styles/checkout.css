@@ -1,0 +1,1849 @@
+/* ======================= CHECKOUT BANNER ======================= */
+.checkout-banner {
+  text-align: center;
+  padding: clamp(1rem, 3vw, 24px) clamp(0.75rem, 2vw, 12px);
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: clamp(4px, 1.5vw, 8px);
+  margin: clamp(2rem, 5vw, 60px) clamp(0.75rem, 2vw, 12px);
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+/* ======================= CHECKOUT TITLE ======================= */
+.checkout-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: clamp(1rem, 2vw, 20px) clamp(1rem, 2vw, 20px) 0;
+  margin-top: clamp(4rem, 8vw, 6rem);
+  box-sizing: border-box;
+  position: relative;
+}
+
+.checkout-title {
+  font-size: clamp(1.5rem, 4vw, 2.5rem);
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+  margin: 8rem 0 0 0;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: clamp(0.5px, 1vw, 2px);
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+  padding: 0;
+  box-sizing: border-box;
+  flex: 1;
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  z-index: 100;
+}
+
+/* ======================= BACK TO SHOP BUTTON ======================= */
+#back-to-shop.btn-link {
+  display: inline-flex;
+  align-items: center;
+  gap: clamp(0.3rem, 0.8vw, 8px);
+  background: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: clamp(6px, 1.5vw, 12px);
+  padding: clamp(0.5rem, 1.2vw, 10px) clamp(0.8rem, 1.5vw, 16px);
+  color: #000000;
+  text-decoration: none;
+  font-size: clamp(0.8rem, 1.5vw, 0.9rem);
+  font-weight: 600;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  min-height: clamp(36px, 6vw, 44px);
+  box-sizing: border-box;
+  position: top;
+  z-index: 101;
+  margin-bottom: 1rem;
+}
+
+#back-to-shop.btn-link:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+#back-to-shop.btn-link:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.back-arrow {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  color: #000000;
+}
+
+.back-arrow::before {
+  content: "❮";
+  color: #000000;
+}
+
+#back-to-shop.btn-link:hover .back-arrow {
+  transform: translateX(-2px);
+}
+
+.back-label {
+  white-space: nowrap;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  color: #000000;
+}
+
+.checkout-banner h2 {
+  font-size: clamp(1.2rem, 3vw, 1.8em);
+  margin-bottom: clamp(0.3rem, 1vw, 6px);
+  color: #fff;
+  line-height: 1.2;
+  margin-top: 3rem;
+}
+
+.checkout-banner p {
+  font-size: clamp(0.8rem, 2vw, 1em);
+  color: #fff;
+  line-height: 1.3;
+  margin: 0;
+}
+
+/* ======================= CHECKOUT STEPS ======================= */
+.checkout-steps {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 8rem 0 clamp(2rem, 5vw, 40px) 0;
+  flex-wrap: nowrap;
+  gap: clamp(0.5rem, 1.5vw, 10px);
+  overflow-x: auto;
+  padding: 0 clamp(1rem, 2vw, 20px);
+  box-sizing: border-box;
+}
+
+.step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin: 0;
+  opacity: 0.5;
+  position: relative;
+  padding: clamp(0.4rem, 1vw, 8px);
+  border-radius: clamp(6px, 1.5vw, 8px);
+  transition: all 0.3s;
+  min-width: clamp(60px, 12vw, 100px);
+  max-width: clamp(100px, 18vw, 140px);
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.step img {
+  width: clamp(24px, 4vw, 32px);
+  height: clamp(24px, 4vw, 32px);
+  margin-bottom: clamp(0.3rem, 1vw, 6px);
+  transition: transform 0.3s;
+  flex-shrink: 0;
+}
+
+.step-label {
+  font-size: clamp(0.7rem, 1.5vw, 0.8em);
+  text-align: center;
+  color: #ccc;
+  transition: color 0.3s, font-weight 0.3s;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.step-line {
+  width: clamp(40px, 8vw, 80px);
+  height: clamp(1px, 0.2vw, 2px);
+  background-color: #fff;
+  align-self: center;
+  margin-top: clamp(0.8rem, 2vw, 16px);
+  transition: background-color 0.3s;
+  flex-shrink: 0;
+  min-width: 20px;
+}
+
+/* Highlight current step */
+.step.current {
+  opacity: 1 !important;
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.3) !important;
+  border: 2px solid rgba(255, 255, 255, 0.4) !important;
+}
+
+.step.current img {
+  transform: scale(1.2);
+  filter: brightness(1.3) drop-shadow(0 0 10px rgba(255, 255, 255, 0.4));
+}
+
+.step-shipping-info,
+.step-payment,
+.step-overview {
+  transition: all 0.3s;
+}
+
+.step.current .step-shipping-info,
+.step.current .step-payment,
+.step.current .step-overview {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.step.current .step-label {
+  color: #fff !important;
+  font-weight: bold;
+  text-shadow: 0 0 5px rgba(255, 255, 255, 0.4);
+}
+
+
+/* Completed steps */
+.step.completed {
+  opacity: 0.8;
+}
+
+.step.completed .step-label {
+  color: #fff;
+}
+
+/* ======================= CHECKOUT SECTIONS ======================= */
+.checkout-section {
+  display: none; /* JS will display current step */
+  flex-direction: column;
+  gap: 20px;
+  min-height: 400px; /* prevents layout jumping */
+  margin: 20px;
+}
+
+/* ======================= CHECKOUT FORM WITH SUMMARY LAYOUT ======================= */
+.checkout-form-with-summary {
+  display: flex;
+  gap: clamp(0.5rem, 2vw, 16px);
+  margin: clamp(1rem, 2.5vw, 20px) clamp(0.75rem, 2vw, 12px);
+  flex-wrap: wrap;
+  align-items: flex-start;
+  flex: 1;
+  min-height: calc(100vh - clamp(150px, 20vw, 200px));
+  overflow-y: auto;
+  padding-bottom: clamp(40px, 10vw, 80px);
+  box-sizing: border-box;
+}
+
+/* Step 3 (Order Review) - improved responsive layout */
+.checkout-form-with-summary.review-only {
+  display: block;
+  max-width: 100%;
+  margin: 0 auto;
+  padding: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.checkout-form-with-summary .form-container {
+  background: rgba(255, 255, 255, 0.08);
+  padding: clamp(0.75rem, 2vw, 16px);
+  border-radius: clamp(6px, 1.5vw, 10px);
+  flex: 1.4;
+  min-width: clamp(240px, 35vw, 300px);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  box-sizing: border-box;
+}
+
+.checkout-form-with-summary .summary-container {
+  background: rgba(255, 255, 255, 0.08);
+  padding: clamp(0.75rem, 2vw, 16px);
+  border-radius: clamp(6px, 1.5vw, 10px);
+  flex: 1;
+  min-width: clamp(200px, 30vw, 250px);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  box-sizing: border-box;
+}
+
+.checkout-form-with-summary .form-container h3 {
+  color: brown;
+  margin-bottom: clamp(0.5rem, 1.5vw, 12px);
+  text-align: center;
+  font-size: clamp(0.875rem, 2vw, 1.1em);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.form-group {
+  margin-bottom: clamp(0.5rem, 1.5vw, 12px);
+  box-sizing: border-box;
+}
+
+.form-row {
+  display: flex;
+  gap: clamp(0.5rem, 1.5vw, 12px);
+  margin-bottom: clamp(0.5rem, 1.5vw, 12px);
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.form-row .form-group {
+  flex: 1;
+  min-width: 0;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: clamp(0.2rem, 0.8vw, 4px);
+  font-weight: 500;
+  color: #e9ecef;
+  font-size: clamp(0.75rem, 1.5vw, 0.85rem);
+  line-height: 1.3;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: clamp(0.4rem, 1vw, 8px);
+  border: 1px solid #e9ecef;
+  border-radius: clamp(3px, 0.8vw, 6px);
+  font-size: clamp(0.75rem, 1.5vw, 0.9rem);
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(100, 4, 4, 0.788);
+  transition: all 0.3s ease;
+  box-sizing: border-box;
+  min-height: clamp(30px, 5vw, 36px);
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  border-color: #ff69b4;
+  outline: none;
+  box-shadow: 0 0 0 clamp(1px, 0.3vw, 2px) rgba(255, 105, 180, 0.2);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #adb5bd;
+  font-size: clamp(0.75rem, 1.5vw, 0.9rem);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: clamp(60px, 10vw, 80px);
+  line-height: 1.4;
+}
+
+.form-group input[type="checkbox"] {
+  width: clamp(12px, 2.5vw, 16px);
+  height: clamp(12px, 2.5vw, 16px);
+  margin-right: clamp(0.3rem, 0.8vw, 6px);
+  accent-color: #ff69b4;
+}
+
+.form-group input[type="radio"] {
+  width: clamp(12px, 2.5vw, 16px);
+  height: clamp(12px, 2.5vw, 16px);
+  margin-right: clamp(0.3rem, 0.8vw, 6px);
+  accent-color: #ff69b4;
+}
+
+/* ======================= EMPTY CONTAINER / ORDER SUMMARY ======================= */
+.empty-container {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 24px;
+  border-radius: 12px;
+  min-height: 100px;
+  flex: 1;
+  min-width: 300px;
+  border: 1px solid rgba(139, 92, 246, 0.15);
+}
+
+.order-summary {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: auto;
+}
+
+.order-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: clamp(0.5rem, 1.5vw, 12px);
+  font-size: clamp(0.7rem, 1.5vw, 0.85em);
+  box-sizing: border-box;
+}
+
+.order-table th,
+.order-table td {
+  padding: clamp(0.4rem, 1vw, 8px);
+  text-align: left;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+  color: black;
+  line-height: 1.3;
+  box-sizing: border-box;
+}
+
+.order-table th {
+  background: rgba(139, 92, 246, 0.1);
+  font-weight: 600;
+  color: #fff;
+  text-transform: uppercase;
+  font-size: clamp(0.65rem, 1.2vw, 0.75em);
+  letter-spacing: clamp(0.05px, 0.1vw, 0.2px);
+  white-space: nowrap;
+  color: black;
+}
+
+.order-table tbody tr:hover {
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.product-image {
+  width: clamp(24px, 4vw, 36px);
+  height: clamp(24px, 4vw, 36px);
+  object-fit: cover;
+  border-radius: clamp(3px, 0.8vw, 5px);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  flex-shrink: 0;
+}
+
+.summary-totals {
+  border-top: clamp(1px, 0.2vw, 1.5px) solid rgba(139, 92, 246, 0.15);
+  padding-top: clamp(0.5rem, 1.5vw, 12px);
+  margin-top: clamp(0.5rem, 1.5vw, 10px);
+  box-sizing: border-box;
+}
+
+/* ======================= STEP CONTENT WRAPPER ======================= */
+.checkout-step-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin-bottom: 0;
+  position: relative;
+  min-height: 100vh;
+  padding-bottom: 100px;
+}
+
+/* ======================= BUTTONS ======================= */
+
+.btn-next {
+  background: linear-gradient(135deg, #ff8fab, #ff6b9d);
+  color: white;
+  border: 2px solid #ff70b8;
+  padding: clamp(0.75rem, 1.8vw, 12px) clamp(1.5rem, 3vw, 28px);
+  margin: 0;
+  border-radius: clamp(8px, 1.5vw, 12px);
+  font-weight: 700;
+  font-size: clamp(0.875rem, 1.8vw, 1em);
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: clamp(120px, 20vw, 160px);
+  letter-spacing: clamp(0.3px, 0.3vw, 0.5px);
+  min-height: clamp(44px, 7vw, 52px);
+  box-sizing: border-box;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.btn-next:hover {
+  background: linear-gradient(135deg, #ff70b8, #ff3d8b);
+  border-color: #ff3d8b;
+  color: #ffffff;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 28px rgba(255, 112, 184, 0.45), 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 112, 184, 0.8);
+}
+
+.btn-next:active {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 4px 16px rgba(255, 112, 184, 0.35);
+}
+
+.btn-next:disabled {
+  background: linear-gradient(135deg, #ccc, #999);
+  border-color: #666;
+  color: #666;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.checkout-buttons-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: clamp(12px, 2vw, 20px);
+  padding: clamp(16px, 2.5vw, 24px) clamp(20px, 3vw, 30px);
+  margin: 0;
+  width: 100%;
+  position: sticky;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(20, 20, 30, 0.98) 0%, rgba(30, 30, 45, 0.95) 100%);
+  backdrop-filter: blur(12px);
+  border-top: 2px solid rgba(139, 92, 246, 0.3);
+  border-radius: 16px 16px 0 0;
+  z-index: 200;
+  box-shadow: 0 -8px 32px rgba(0, 0, 0, 0.4), 0 -2px 8px rgba(139, 92, 246, 0.1);
+  box-sizing: border-box;
+}
+
+#nextbtn,
+#backbtn {
+  padding: clamp(0.75rem, 1.8vw, 12px) clamp(1.5rem, 3vw, 28px);
+  margin: 0;
+  border: none;
+  border-radius: clamp(8px, 1.5vw, 12px);
+  font-weight: 700;
+  font-size: clamp(0.875rem, 1.8vw, 1em);
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: clamp(120px, 20vw, 160px);
+  letter-spacing: clamp(0.3px, 0.3vw, 0.5px);
+  min-height: clamp(44px, 7vw, 52px);
+  box-sizing: border-box;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+#nextbtn {
+  background: linear-gradient(135deg, #ff8fab, #ff6b9d);
+  color: white;
+  border: 2px solid #ff70b8;
+  padding: clamp(0.75rem, 1.8vw, 12px) clamp(1.5rem, 3vw, 28px);
+  margin: 0;
+  border-radius: clamp(8px, 1.5vw, 12px);
+  font-weight: 700;
+  font-size: clamp(0.875rem, 1.8vw, 1em);
+  cursor: pointer;
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: clamp(120px, 20vw, 160px);
+  letter-spacing: clamp(0.3px, 0.3vw, 0.5px);
+  min-height: clamp(44px, 7vw, 52px);
+  box-sizing: border-box;
+  text-transform: uppercase;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+#nextbtn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.6s;
+}
+
+#nextbtn:hover::before {
+  left: 100%;
+}
+
+#nextbtn:hover {
+  background: linear-gradient(135deg, #ff70b8, #ff3d8b);
+  border-color: #ff3d8b;
+  color: #ffffff;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 28px rgba(255, 112, 184, 0.45), 0 4px 12px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 112, 184, 0.8);
+}
+
+#nextbtn:active {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 4px 16px rgba(255, 112, 184, 0.35);
+}
+
+#backbtn:hover {
+  background: rgba(255, 112, 184, 0.35);
+  border-color: rgba(255, 112, 184, 0.9);
+  color: #ffffff;
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 8px 24px rgba(255, 112, 184, 0.3), 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+#backbtn:active {
+  transform: translateY(-1px) scale(1.01);
+  background: rgba(255, 112, 184, 0.4);
+}
+
+/* ======================= RESPONSIVE ======================= */
+@media screen and (max-width: 1400px) {
+  .checkout-form-with-summary {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+  
+  .checkout-steps {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    margin: 8rem 0 clamp(2rem, 5vw, 40px) 0;
+  }
+}
+
+@media screen and (max-width: 1200px) {
+  .checkout-form-with-summary {
+    gap: clamp(1.5rem, 3vw, 24px);
+    margin: clamp(2rem, 4vw, 40px) clamp(1.5rem, 3vw, 20px);
+  }
+  
+  .checkout-form-with-summary .form-container {
+    flex: 1.3;
+    min-width: clamp(320px, 35vw, 360px);
+  }
+  
+  .checkout-form-with-summary .summary-container {
+    flex: 0.7;
+    min-width: clamp(280px, 30vw, 300px);
+  }
+  
+  .checkout-steps {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: clamp(0.4rem, 1.2vw, 8px);
+  }
+  
+  .step {
+    min-width: clamp(50px, 10vw, 80px);
+    max-width: clamp(80px, 15vw, 120px);
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .checkout-form-with-summary {
+    gap: clamp(1rem, 2.5vw, 20px);
+    margin: clamp(1.5rem, 3vw, 30px) clamp(1rem, 2vw, 15px);
+  }
+  
+  .checkout-form-with-summary .form-container {
+    flex: 1.2;
+    min-width: clamp(280px, 40vw, 320px);
+  }
+  
+  .checkout-form-with-summary .summary-container {
+    flex: 0.8;
+    min-width: clamp(250px, 35vw, 280px);
+  }
+  
+  .checkout-buttons-container {
+    gap: 16px;
+    padding: 16px 20px;
+  }
+  
+  #nextbtn, #backbtn {
+    padding: 11px 30px;
+    font-size: 0.94em;
+  }
+  
+  .checkout-steps {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: clamp(0.3rem, 1vw, 6px);
+    padding: 0 clamp(0.8rem, 1.5vw, 15px);
+  }
+  
+  .step {
+    min-width: clamp(45px, 8vw, 70px);
+    max-width: clamp(70px, 12vw, 100px);
+    padding: clamp(0.3rem, 0.8vw, 6px);
+  }
+  
+  .step img {
+    width: clamp(20px, 3vw, 28px);
+    height: clamp(20px, 3vw, 28px);
+  }
+  
+  .checkout-header {
+    margin-top: clamp(3rem, 6vw, 4.5rem);
+    padding: clamp(0.8rem, 1.5vw, 15px) clamp(0.8rem, 1.5vw, 15px) 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+  }
+  
+  .checkout-title {
+    font-size: clamp(1.3rem, 3.5vw, 2rem);
+    margin: 8rem 0 0 0;
+    letter-spacing: clamp(0.4px, 0.8vw, 1.5px);
+    text-align: center;
+    padding: 0;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 100%;
+    z-index: 100;
+  }
+  
+  #back-to-shop.btn-link {
+    padding: clamp(0.4rem, 1vw, 8px) clamp(0.6rem, 1.2vw, 12px);
+    font-size: clamp(0.7rem, 1.3vw, 0.8rem);
+    min-height: clamp(32px, 5vw, 38px);
+    gap: clamp(0.25rem, 0.6vw, 6px);
+    position: absolute;
+    top: 1rem;
+    left: 0;
+    z-index: 101;
+  }
+  
+  .back-arrow {
+    border-top-width: clamp(2.5px, 0.5vw, 4px);
+    border-bottom-width: clamp(2.5px, 0.5vw, 4px);
+    border-right-width: clamp(5px, 0.8vw, 8px);
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .checkout-form-with-summary {
+    flex-direction: column;
+    gap: clamp(0.75rem, 2vw, 16px);
+    margin: clamp(1.5rem, 3vw, 30px) clamp(0.75rem, 2vw, 15px);
+  }
+  
+  .checkout-form-with-summary .form-container,
+  .checkout-form-with-summary .summary-container {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .checkout-form-with-summary .form-container h3,
+  .checkout-form-with-summary .summary-container h3 {
+    font-size: clamp(0.9rem, 2.5vw, 1.1em);
+    margin-bottom: clamp(0.5rem, 1.5vw, 16px);
+    text-align: center;
+  }
+  
+  .checkout-buttons-container {
+    gap: clamp(8px, 2vw, 14px);
+    padding: clamp(14px, 2.5vw, 20px) clamp(16px, 3vw, 24px);
+    margin: 0;
+    flex-direction: column-reverse;
+    width: 100%;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -6px 24px rgba(0, 0, 0, 0.35), 0 -2px 8px rgba(139, 92, 246, 0.15);
+  }
+  
+  #nextbtn, #backbtn {
+    padding: clamp(0.875rem, 2.5vw, 14px) clamp(2rem, 4vw, 32px);
+    font-size: clamp(0.9rem, 2.2vw, 1em);
+    width: 100%;
+    min-height: clamp(48px, 8vw, 56px);
+    border-radius: clamp(10px, 2vw, 14px);
+    font-weight: 700;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+  }
+  
+  .checkout-title {
+    font-size: clamp(1.3rem, 3.5vw, 2rem);
+    margin: 8rem 0 0 0;
+    letter-spacing: clamp(0.4px, 0.8vw, 1.5px);
+    text-align: center;
+    width: 100%;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+  }
+  
+  #back-to-shop.btn-link {
+    padding: clamp(0.5rem, 1.2vw, 10px) clamp(0.75rem, 1.5vw, 14px);
+    font-size: clamp(0.7rem, 1.5vw, 0.85rem);
+    min-height: clamp(32px, 5vw, 40px);
+    gap: clamp(0.3rem, 0.8vw, 8px);
+    margin: 0;
+    background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.1) 100%);
+    border: 2px solid rgba(139, 92, 246, 0.5);
+    border-radius: clamp(8px, 1.5vw, 12px);
+    backdrop-filter: blur(12px);
+    box-shadow: 0 4px 16px rgba(139, 92, 246, 0.2);
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    font-weight: 600;
+    position: absolute;
+    top: 2rem;
+    left: 0;
+    z-index: 101;
+  }
+  
+  .back-arrow {
+    border-top-width: clamp(2px, 0.4vw, 3px);
+    border-bottom-width: clamp(2px, 0.4vw, 3px);
+    border-right-width: clamp(4px, 0.7vw, 6px);
+  }
+  
+  /* MAINTAIN HORIZONTAL LAYOUT FOR CHECKOUT STEPS */
+  .checkout-steps {
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    flex-direction: row !important;
+    gap: clamp(0.25rem, 1vw, 5px);
+    padding: 0 clamp(0.5rem, 1.5vw, 12px);
+    margin: 8rem 0 clamp(2rem, 5vw, 40px) 0 !important;
+  }
+  
+  .step {
+    min-width: clamp(40px, 10vw, 60px) !important;
+    max-width: clamp(60px, 15vw, 80px) !important;
+    padding: clamp(0.2rem, 0.8vw, 5px) !important;
+    margin: 0 !important;
+  }
+  
+  .step img {
+    width: clamp(18px, 3vw, 24px) !important;
+    height: clamp(18px, 3vw, 24px) !important;
+    margin-bottom: clamp(0.2rem, 0.8vw, 4px) !important;
+  }
+  
+  .step-label {
+    font-size: clamp(0.6rem, 1.2vw, 0.7em) !important;
+    line-height: 1.1 !important;
+  }
+  
+  .step-line {
+    width: clamp(20px, 5vw, 40px) !important;
+    height: clamp(1px, 0.2vw, 1.5px) !important;
+    margin-top: clamp(0.6rem, 1.5vw, 12px) !important;
+  }
+  
+/* Review-only responsive styles for mobile */
+  .checkout-form-with-summary.review-only {
+    margin: clamp(1rem, 2.5vw, 20px) auto;
+    padding: 0 clamp(0.75rem, 2vw, 15px);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .order-review-card {
+    padding: clamp(16px, 2.5vw, 20px);
+    margin: clamp(15px, 2.5vw, 20px) auto clamp(60px, 8vw, 80px) auto;
+    max-width: 98%;
+  }
+  
+  .order-review-title {
+    font-size: clamp(0.95em, 2vw, 1.1em);
+    margin-bottom: clamp(6px, 1.2vw, 10px);
+  }
+  
+  .review-wrapper {
+    grid-template-columns: 1fr;
+    gap: clamp(10px, 2vw, 14px);
+    max-width: 100%;
+  }
+  
+  .review-wrapper h3 {
+    font-size: clamp(1.2em, 2.5vw, 1.4em);
+    margin-bottom: clamp(15px, 2vw, 20px);
+  }
+  
+  .review-section {
+    padding: clamp(10px, 2vw, 14px);
+    margin-bottom: clamp(8px, 1.5vw, 12px);
+  }
+  
+  .review-section h4 {
+    font-size: clamp(0.9em, 2vw, 1em);
+    margin-bottom: clamp(8px, 1.5vw, 12px);
+  }
+  
+  .review-content {
+    font-size: clamp(0.85em, 1.5vw, 0.9em);
+    line-height: 1.5;
+  }
+  
+  .review-content p {
+    margin: clamp(8px, 1.5vw, 10px) 0;
+    padding: clamp(6px, 1vw, 8px) 0;
+  }
+  
+  .review-order-table {
+    font-size: clamp(0.8em, 1.5vw, 0.85em);
+  }
+  
+  .review-order-table th,
+  .review-order-table td {
+    padding: clamp(8px, 1.5vw, 10px);
+  }
+  
+  .product-image-small {
+    width: clamp(40px, 5vw, 45px);
+    height: clamp(40px, 5vw, 45px);
+  }
+  
+  .review-totals {
+    padding: clamp(15px, 2vw, 18px);
+  }
+  
+  .total-row {
+    padding: clamp(8px, 1.5vw, 10px) 0;
+    font-size: clamp(0.85em, 1.5vw, 0.9em);
+  }
+  
+  .total-row.total-final {
+    padding: clamp(12px, 2vw, 15px) 0;
+    font-size: clamp(1em, 2vw, 1.1em);
+  }
+  
+  .edit-link {
+    padding: clamp(5px, 1vw, 6px) clamp(8px, 1.5vw, 10px);
+    font-size: clamp(0.75em, 1.5vw, 0.8em);
+  }
+}
+
+@media screen and (max-width: 480px) {
+  .btn-next {
+    background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+    color: white;
+    padding: 12px 40px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1em;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+  }
+  
+  .checkout-form-with-summary .form-container,
+  .checkout-form-with-summary .summary-container {
+    padding: clamp(0.5rem, 2vw, 12px);
+    border-radius: clamp(6px, 2vw, 8px);
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .checkout-form-with-summary .form-container h3,
+  .checkout-form-with-summary .summary-container h3 {
+    font-size: clamp(0.8rem, 2.5vw, 1em);
+    margin-bottom: clamp(0.4rem, 1.5vw, 12px);
+  }
+  
+  .checkout-header {
+    margin-top: clamp(2rem, 4vw, 3rem);
+    padding: clamp(0.5rem, 1vw, 10px) clamp(0.5rem, 1vw, 10px) 0;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    position: relative;
+  }
+  
+  .checkout-title {
+    font-size: clamp(1.2rem, 3.5vw, 1.8rem);
+    margin: 8rem 0 0 0;
+    letter-spacing: clamp(0.4px, 0.8vw, 1.2px);
+    padding: 0;
+    font-weight: 800;
+    background: linear-gradient(135deg, #ffffff 0%, #e9ecef 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 2px 8px rgba(139, 92, 246, 0.3);
+    text-align: center;
+    width: 100%;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 100;
+  }
+  
+  #back-to-shop.btn-link {
+    padding: clamp(0.3rem, 0.7vw, 6px) clamp(0.4rem, 0.8vw, 8px);
+    font-size: clamp(0.6rem, 1.1vw, 0.7rem);
+    min-height: clamp(24px, 4vw, 30px);
+    gap: clamp(0.15rem, 0.4vw, 4px);
+    position: absolute;
+    top: 3rem;
+    left: 0;
+    z-index: 101;
+  }
+  
+  .back-arrow {
+    border-top-width: clamp(1.5px, 0.3vw, 2.5px);
+    border-bottom-width: clamp(1.5px, 0.3vw, 2.5px);
+    border-right-width: clamp(3px, 0.5vw, 5px);
+  }
+  
+  .back-label {
+    font-size: clamp(0.55rem, 1vw, 0.65rem);
+  }
+  
+  /* Review-only responsive styles for small mobile */
+  .checkout-form-with-summary.review-only {
+    margin: clamp(0.8rem, 2vw, 15px) auto;
+    padding: 0 clamp(0.5rem, 1.5vw, 12px);
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+  
+  .order-review-card {
+    padding: clamp(12px, 2vw, 16px);
+    margin: clamp(12px, 2vw, 16px) auto clamp(50px, 6vw, 60px) auto;
+    max-width: 99%;
+    border-radius: clamp(8px, 1.5vw, 10px);
+  }
+  
+  .order-review-title {
+    font-size: clamp(0.85em, 2vw, 0.95em);
+    margin-bottom: clamp(5px, 1vw, 8px);
+  }
+  
+  .review-wrapper {
+    grid-template-columns: 1fr;
+    gap: clamp(8px, 1.5vw, 12px);
+    max-width: 100%;
+  }
+  
+  .review-wrapper h3 {
+    font-size: clamp(1.1em, 2.5vw, 1.2em);
+    margin-bottom: clamp(12px, 2vw, 16px);
+  }
+  
+  .review-section {
+    padding: clamp(8px, 1.5vw, 12px);
+    margin-bottom: clamp(6px, 1.2vw, 10px);
+  }
+  
+  .review-section h4 {
+    font-size: clamp(0.8em, 2vw, 0.9em);
+    margin-bottom: clamp(6px, 1.2vw, 10px);
+  }
+  
+  .review-content {
+    font-size: clamp(0.8em, 1.5vw, 0.85em);
+    line-height: 1.4;
+  }
+  
+  .review-content p {
+    margin: clamp(6px, 1.2vw, 8px) 0;
+    padding: clamp(4px, 0.8vw, 6px) 0;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: clamp(3px, 0.8vw, 5px);
+  }
+  
+  .review-order-table {
+    font-size: clamp(0.75em, 1.5vw, 0.8em);
+    margin: clamp(8px, 1.5vw, 10px) 0;
+  }
+  
+  .review-order-table th,
+  .review-order-table td {
+    padding: clamp(6px, 1.2vw, 8px);
+    font-size: clamp(0.7em, 1.2vw, 0.75em);
+  }
+  
+  .product-image-small {
+    width: clamp(35px, 4vw, 40px);
+    height: clamp(35px, 4vw, 40px);
+  }
+  
+  .product-info {
+    gap: clamp(6px, 1.2vw, 8px);
+  }
+  
+  .review-totals {
+    padding: clamp(12px, 1.5vw, 15px);
+  }
+  
+  .total-row {
+    padding: clamp(6px, 1.2vw, 8px) 0;
+    font-size: clamp(0.8em, 1.5vw, 0.85em);
+  }
+  
+  .total-row.total-final {
+    padding: clamp(10px, 1.5vw, 12px) 0;
+    font-size: clamp(0.95em, 2vw, 1em);
+  }
+  
+  .total-row.total-final span:last-child {
+    font-size: clamp(1em, 2vw, 1.1em);
+  }
+  
+  .edit-link {
+    padding: clamp(4px, 0.8vw, 5px) clamp(6px, 1.2vw, 8px);
+    font-size: clamp(0.7em, 1.2vw, 0.75em);
+    margin-top: clamp(8px, 1.5vw, 10px);
+  }
+  
+  .edit-link.small {
+    padding: clamp(3px, 0.6vw, 4px) clamp(5px, 1vw, 6px);
+    font-size: clamp(0.65em, 1vw, 0.7em);
+    margin-left: clamp(5px, 1vw, 6px);
+  }
+  
+  /* ORDER-SUMMARY SPECIFIC RESPONSIVE RULES */
+  .order-summary {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow-x: auto;
+    font-size: clamp(0.65rem, 2vw, 0.75em);
+  }
+  
+  .order-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: clamp(0.3rem, 1.5vw, 8px);
+    font-size: clamp(0.65rem, 2vw, 0.75em);
+    box-sizing: border-box;
+  }
+  
+  .order-table th,
+  .order-table td {
+    padding: clamp(0.3rem, 1vw, 6px);
+    text-align: left;
+    border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+    color: brown;
+    line-height: 1.2;
+    box-sizing: border-box;
+    font-size: clamp(0.6rem, 1.5vw, 0.7em);
+  }
+  
+  .order-table th {
+    background: rgba(139, 92, 246, 0.1);
+    font-weight: 600;
+    color: #000000;
+    text-transform: uppercase;
+    font-size: clamp(0.55rem, 1.2vw, 0.65em);
+    letter-spacing: clamp(0.02px, 0.08vw, 0.15px);
+    white-space: nowrap;
+    padding: clamp(0.25rem, 0.8vw, 4px);
+  }
+  
+  .product-image {
+    width: clamp(16px, 4vw, 24px);
+    height: clamp(16px, 4vw, 24px);
+    object-fit: cover;
+    border-radius: clamp(2px, 0.6vw, 4px);
+    border: 1px solid rgba(139, 92, 246, 0.15);
+    flex-shrink: 0;
+  }
+  
+  .summary-totals {
+    border-top: clamp(0.5px, 0.15vw, 1px) solid rgba(139, 92, 246, 0.15);
+    padding-top: clamp(0.3rem, 1vw, 8px);
+    margin-top: clamp(0.3rem, 1vw, 6px);
+    box-sizing: border-box;
+    font-size: clamp(0.65rem, 2vw, 0.75em);
+  }
+  
+  .checkout-buttons-container {
+    gap: 8px;
+    padding: 12px 15px;
+    margin: 0 10px;
+  }
+  
+  #nextbtn, #backbtn {
+    padding: clamp(0.6rem, 2vw, 10px) clamp(1.2rem, 3vw, 20px);
+    font-size: clamp(0.75rem, 2vw, 0.85em);
+    min-height: clamp(36px, 8vw, 44px);
+  }
+}
+
+/* ======================= ORDER REVIEW ======================= */
+.review-only {
+  max-width: 100%;
+  margin: 0 auto;
+  width: 100%;
+  box-sizing: border-box;
+  padding: clamp(1rem, 2vw, 20px) !important;
+}
+
+/* Single container card for Step 3 Order Review */
+.order-review-card {
+  background: #ffffff;
+  border: 1px solid rgba(139, 92, 246, 0.18);
+  border-radius: 12px;
+  padding: 28px;
+  max-width: 1000px;
+  margin: 30px auto 120px auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  backdrop-filter: blur(4px);
+}
+
+.order-review-title {
+  margin: 0 0 10px 0;
+  font-size: 1.35em;
+  color: #333;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.order-review-card .section {
+  padding: 12px 0;
+}
+
+.order-review-card .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-weight: 700;
+  color: #333 ;
+  margin-bottom: 12px;
+  font-size: 1.05em;
+  text-transform: capitalize;
+}
+
+.order-review-card .section-body {
+  color: #555;
+  font-size: 0.97em;
+  line-height: 1.6;
+}
+
+.divider {
+  height: 1px;
+  background: #ddd;
+  border-radius: 2px;
+  margin: 12px 0;
+}
+
+.items-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-row {
+  color: #333;
+  font-size: 0.96em;
+  padding: 10px 8px;
+  border-radius: 6px;
+  background: #f5f5f5;
+  border-left: 3px solid #8b5cf6;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.totals-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  color: #555;
+  font-size: 0.98em;
+  padding: 8px 0;
+}
+
+.total-row span:last-child {
+  font-weight: 600;
+  color: #333;
+}
+
+.total-row.total-final {
+  font-weight: 800;
+  font-size: 1.15em;
+  color: #333;
+  border-top: 2px solid #ddd;
+  padding-top: 12px;
+  margin-top: 8px;
+}
+
+.total-row.total-final span:last-child {
+  color: #8b5cf6;
+  font-size: 1.2em;
+  font-weight: 800;
+}
+
+.order-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.order-actions .btn-confirm-order {
+  width: 100%;
+  max-width: 360px;
+}
+
+/* Responsive: keep same single container but adjust spacing */
+@media (max-width: 1024px) {
+  .order-review-card { 
+    padding: clamp(16px, 2vw, 20px); 
+    gap: clamp(10px, 1.5vw, 14px); 
+    margin: clamp(20px, 3vw, 30px) auto clamp(80px, 10vw, 120px) auto;
+  }
+  .order-review-title { font-size: clamp(1.1em, 2vw, 1.25em); }
+  .item-price { width: clamp(70px, 8vw, 80px); }
+  .item-qty { width: clamp(40px, 5vw, 44px); }
+  .order-actions .btn-confirm-order { max-width: 100%; }
+  
+  .review-wrapper {
+    grid-template-columns: 1fr 1.4fr;
+    gap: clamp(10px, 1.5vw, 16px);
+  }
+}
+
+@media (max-width: 768px) {
+  .order-review-card { 
+    padding: clamp(12px, 2vw, 16px); 
+    gap: clamp(8px, 1.5vw, 12px); 
+    margin: clamp(15px, 3vw, 25px) auto clamp(60px, 8vw, 100px) auto;
+  }
+  .order-review-title { font-size: clamp(1em, 2vw, 1.15em); }
+  .item-price { width: clamp(60px, 8vw, 70px); }
+  .item-qty { width: clamp(35px, 5vw, 40px); }
+  .order-actions .btn-confirm-order { max-width: 100%; }
+  
+  .review-wrapper {
+    grid-template-columns: 1fr;
+    gap: clamp(8px, 1.5vw, 12px);
+  }
+  
+  /* Stack all review sections vertically on mobile */
+  .review-wrapper > .review-section:nth-of-type(1) { 
+    grid-column: 1 / -1; 
+    grid-row: 1; 
+  }
+  .review-wrapper > .review-section:nth-of-type(2) { 
+    grid-column: 1 / -1; 
+    grid-row: 2; 
+  }
+  .review-wrapper > .review-section:nth-of-type(3) { 
+    grid-column: 1 / -1; 
+    grid-row: 3; 
+  }
+  .review-wrapper > .review-section:nth-of-type(4) { 
+    grid-column: 1 / -1; 
+    grid-row: 4; 
+  }
+}
+
+@media (max-width: 480px) {
+  .order-review-card { 
+    padding: clamp(10px, 2vw, 14px); 
+    gap: clamp(6px, 1.5vw, 10px); 
+    margin: clamp(12px, 3vw, 20px) auto clamp(50px, 6vw, 80px) auto;
+  }
+  .order-review-title { font-size: clamp(0.95em, 2vw, 1.05em); }
+  .item-price { width: clamp(50px, 8vw, 60px); }
+  .item-qty { width: clamp(30px, 5vw, 35px); }
+  .order-actions .btn-confirm-order { max-width: 100%; }
+  
+  .review-wrapper {
+    grid-template-columns: 1fr;
+    gap: clamp(6px, 1.5vw, 10px);
+  }
+}
+
+.review-only > div {
+  background: transparent !important;
+  padding: clamp(20px, 3vw, 40px) clamp(15px, 2vw, 20px) !important;
+  flex: 1;
+  min-width: unset;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.review-wrapper {
+  display: grid;
+  grid-template-columns: 1fr 1.6fr;
+  grid-auto-rows: minmax(80px, auto);
+  gap: clamp(12px, 2vw, 18px);
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+  align-items: start;
+  box-sizing: border-box;
+}
+
+.review-wrapper h3 {
+  grid-column: 1 / -1;
+  margin: 0 0 10px 0;
+  font-size: 1.6em;
+  color: #fff;
+  font-weight: 700;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.review-section {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(139, 92, 246, 0.28);
+  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.05);
+  transition: all 0.22s ease;
+  backdrop-filter: blur(4px);
+}
+
+/* Place the four review sections into a 2x2 grid:
+   1: Shipping (top-left)
+   2: Payment  (bottom-left)
+   3: Items    (top-right)
+   4: Totals   (bottom-right)
+*/
+.review-wrapper > .review-section:nth-of-type(1) { grid-column: 1 / 2; grid-row: 1; }
+.review-wrapper > .review-section:nth-of-type(2) { grid-column: 1 / 2; grid-row: 2; }
+.review-wrapper > .review-section:nth-of-type(3) { grid-column: 2 / 3; grid-row: 1; }
+.review-wrapper > .review-section:nth-of-type(4) { grid-column: 2 / 3; grid-row: 2; }
+
+.review-section:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(139, 92, 246, 0.6);
+  box-shadow: 0 12px 48px rgba(139, 92, 246, 0.2);
+  transform: translateY(-2px);
+}
+
+.review-section h4 {
+  font-size: 1.3em;
+  margin-bottom: 20px;
+  color: #fff;
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 15px;
+  border-bottom: 2px solid rgba(139, 92, 246, 0.5);
+}
+
+.review-content {
+  color: rgba(255, 255, 255, 0.85);
+  line-height: 2;
+  margin-bottom: 15px;
+  font-size: 0.95em;
+}
+
+.review-content p {
+  margin: 12px 0;
+  padding: 8px 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+}
+
+.review-content strong {
+  color: rgba(139, 92, 246, 0.9);
+  font-weight: 600;
+  min-width: 150px;
+}
+
+.edit-link {
+  color: #8b5cf6;
+  text-decoration: none;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  margin-top: 15px;
+  display: inline-block;
+  padding: 8px 16px;
+  background: rgba(139, 92, 246, 0.15);
+  border-radius: 6px;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+}
+
+.edit-link:hover {
+  color: #fff;
+  background: rgba(139, 92, 246, 0.3);
+  border-color: rgba(139, 92, 246, 0.8);
+  box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25);
+}
+
+/* Small edit link for order review */
+.edit-link.small {
+  margin-top: 0;
+  margin-left: 10px;
+  padding: 6px 12px;
+  font-size: 0.8em;
+  background: transparent;
+  border: 1px solid #8b5cf6;
+  color: #8b5cf6;
+}
+
+.edit-link.small:hover {
+  background: #8b5cf6;
+  color: #fff;
+  border-color: #8b5cf6;
+}
+
+/* Review Order Table */
+.review-order-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  max-height: 240px;
+  overflow: auto;
+}
+
+.review-order-table thead {
+  background: rgba(139, 92, 246, 0.15);
+}
+
+.review-order-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 700;
+  color: #fff;
+  border-bottom: 2px solid rgba(139, 92, 246, 0.5);
+  font-size: 0.85em;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.review-order-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.review-order-table tbody tr:hover {
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.product-info {
+  display: flex;
+  gap: 15px;
+  align-items: flex-start;
+}
+
+.product-image-small {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: 1px solid rgba(139, 92, 246, 0.22);
+  flex-shrink: 0;
+}
+
+.product-info p {
+  margin: 0;
+  font-size: 0.9em;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.product-info .variant-text {
+  font-size: 0.8em;
+  color: rgba(139, 92, 246, 0.8);
+  margin-top: 5px;
+}
+
+/* Review Totals */
+.review-totals {
+  background: rgba(139, 92, 246, 0.1);
+  padding: 25px;
+  border-radius: 10px;
+  margin: 15px 0;
+  border: 1px solid rgba(139, 92, 246, 0.3);
+}
+
+.total-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+  font-size: 0.95em;
+  color: rgba(12, 9, 9, 0.85);
+}
+
+.total-row span:last-child {
+  font-weight: 600;
+  color: rgba(8, 8, 8, 0.9);
+}
+
+.total-row.total-final {
+  border-bottom: 2px solid rgba(139, 92, 246, 0.8);
+  border-top: 2px solid rgba(139, 92, 246, 0.8);
+  padding: 18px 0;
+  margin-top: 15px;
+  font-size: 1.2em;
+  font-weight: 700;
+}
+
+.total-row.total-final span:last-child {
+  color: #8b5cf6;
+  font-size: 1.4em;
+  font-weight: 700;
+}
+
+/* Review Actions */
+.review-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 30px;
+  justify-content: center;
+}
+
+.btn-confirm-order {
+  background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  color: white;
+  padding: 12px 40px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+.btn-confirm-order:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+}
+
+.btn-confirm-order:active {
+  transform: translateY(0);
+}
+
+/* Responsive Design for Order Review */
+@media (max-width: 1024px) {
+  .review-only {
+    max-width: 100%;
+    padding: clamp(15px, 2vw, 25px) !important;
+  }
+
+  .review-only > div {
+    padding: clamp(25px, 3vw, 35px) clamp(15px, 2vw, 20px) !important;
+  }
+
+  .review-wrapper h3 {
+    font-size: clamp(1.4em, 2vw, 1.55em);
+    margin-bottom: clamp(20px, 3vw, 30px);
+  }
+
+  .review-section {
+    padding: clamp(14px, 2vw, 18px);
+    margin-bottom: clamp(12px, 2vw, 15px);
+  }
+
+  .review-section h4 {
+    font-size: clamp(1.15em, 2vw, 1.25em);
+    margin-bottom: clamp(15px, 2vw, 18px);
+  }
+
+  .review-content p {
+    align-items: flex-start;
+    gap: clamp(8px, 1.5vw, 12px);
+  }
+
+  .review-content strong {
+    min-width: unset;
+  }
+
+  .review-order-table {
+    font-size: clamp(0.85em, 1.5vw, 0.9em);
+  }
+
+  .review-order-table th,
+  .review-order-table td {
+    padding: clamp(10px, 1.5vw, 12px);
+  }
+
+  .product-image-small {
+    width: clamp(48px, 4vw, 52px);
+    height: clamp(48px, 4vw, 52px);
+  }
+
+  .product-info {
+    gap: clamp(10px, 1.5vw, 12px);
+  }
+
+  .review-totals {
+    padding: clamp(20px, 2.5vw, 25px);
+  }
+
+  .total-row {
+    padding: clamp(10px, 1.5vw, 12px) 0;
+  }
+
+  .total-row.total-final span:last-child {
+    font-size: clamp(1.25em, 2vw, 1.35em);
+  }
+
+  .edit-link {
+    padding: clamp(6px, 1vw, 8px) clamp(12px, 1.5vw, 14px);
+    font-size: clamp(0.8em, 1.5vw, 0.85em);
+  }
+}
+
+@media (max-width: 768px) {
+  .review-only {
+    max-width: 100%;
+    padding: clamp(12px, 2vw, 20px) !important;
+  }
+
+  .review-only > div {
+    padding: clamp(20px, 3vw, 30px) clamp(12px, 2vw, 18px) !important;
+  }
+
+  .review-wrapper h3 {
+    font-size: clamp(1.3em, 2vw, 1.45em);
+    margin-bottom: clamp(18px, 3vw, 25px);
+  }
+
+  .review-section {
+    padding: clamp(12px, 2vw, 16px);
+    margin-bottom: clamp(10px, 2vw, 12px);
+  }
+
+  .review-section h4 {
+    font-size: clamp(1.05em, 2vw, 1.15em);
+    margin-bottom: clamp(12px, 2vw, 15px);
+  }
+
+  .review-content p {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: clamp(5px, 1vw, 8px);
+  }
+
+  .review-content strong {
+    min-width: unset;
+  }
+
+  .review-order-table {
+    font-size: clamp(0.8em, 1.5vw, 0.85em);
+  }
+
+  .review-order-table th,
+  .review-order-table td {
+    padding: clamp(8px, 1.5vw, 10px);
+  }
+
+  .product-image-small {
+    width: clamp(44px, 4vw, 48px);
+    height: clamp(44px, 4vw, 48px);
+  }
+
+  .product-info {
+    gap: clamp(8px, 1.5vw, 10px);
+  }
+
+  .review-totals {
+    padding: clamp(16px, 2vw, 20px);
+  }
+
+  .total-row {
+    padding: clamp(8px, 1.5vw, 10px) 0;
+  }
+
+  .total-row.total-final span:last-child {
+    font-size: clamp(1.15em, 2vw, 1.25em);
+  }
+
+  .edit-link {
+    padding: clamp(5px, 1vw, 7px) clamp(10px, 1.5vw, 12px);
+    font-size: clamp(0.75em, 1.5vw, 0.8em);
+  }
+}
+
+@media (max-width: 480px) {
+  .review-only {
+    max-width: 100%;
+    padding: clamp(10px, 2vw, 15px) !important;
+  }
+
+  .review-only > div {
+    padding: clamp(15px, 3vw, 25px) clamp(10px, 2vw, 15px) !important;
+  }
+
+  .review-wrapper h3 {
+    font-size: clamp(1.2em, 2vw, 1.35em);
+    margin-bottom: clamp(15px, 3vw, 20px);
+  }
+
+  .review-section {
+    padding: clamp(10px, 2vw, 14px);
+    margin-bottom: clamp(8px, 2vw, 10px);
+  }
+
+  .review-section h4 {
+    font-size: clamp(0.95em, 2vw, 1.05em);
+    margin-bottom: clamp(10px, 2vw, 12px);
+  }
+
+  .review-content p {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: clamp(4px, 1vw, 6px);
+  }
+
+  .review-content strong {
+    min-width: unset;
+  }
+
+  .review-order-table {
+    font-size: clamp(0.75em, 1.5vw, 0.8em);
+  }
+
+  .review-order-table th,
+  .review-order-table td {
+    padding: clamp(6px, 1.5vw, 8px);
+  }
+
+  .product-image-small {
+    width: clamp(40px, 4vw, 44px);
+    height: clamp(40px, 4vw, 44px);
+  }
+
+  .product-info {
+    gap: clamp(6px, 1.5vw, 8px);
+  }
+
+  .review-totals {
+    padding: clamp(12px, 2vw, 16px);
+  }
+
+  .total-row {
+    padding: clamp(6px, 1.5vw, 8px) 0;
+  }
+
+  .total-row.total-final span:last-child {
+    font-size: clamp(1.05em, 2vw, 1.15em);
+  }
+
+  .edit-link {
+    padding: clamp(4px, 1vw, 6px) clamp(8px, 1.5vw, 10px);
+    font-size: clamp(0.7em, 1.5vw, 0.75em);
+  }
+}

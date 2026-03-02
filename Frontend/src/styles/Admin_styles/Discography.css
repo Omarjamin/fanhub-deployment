@@ -1,0 +1,285 @@
+.discography {
+  width: calc(100% - 250px);
+  margin-left: 250px;
+  box-sizing: border-box;
+  padding: 1rem;
+  background: #f8fafc;
+  min-height: 100vh;
+}
+
+.dg-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.dg-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dg-filters {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.dg-select {
+  min-width: 220px;
+  padding: 0.55rem 0.85rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #374151;
+  background: #fff;
+}
+
+.dg-table-wrap {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow-x: auto;
+}
+
+.dg-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dg-table th,
+.dg-table td {
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.dg-table th {
+  background: #f8fafc;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.35px;
+  color: #64748b;
+  font-weight: 700;
+}
+
+.dg-table tbody tr:hover {
+  background: #f8fafc;
+}
+
+.dg-album-cell {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+}
+
+.dg-album-image {
+  width: 46px;
+  height: 46px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid #e2e8f0;
+}
+
+.dg-album-name {
+  margin: 0;
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.dg-album-id {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.dg-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.dg-action-btn,
+.dg-btn-primary,
+.dg-btn-secondary,
+.dg-btn-danger {
+  min-height: 34px;
+  padding: 0.45rem 0.8rem;
+  border-radius: 8px;
+  border: 1px solid;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.25px;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.dg-btn-primary {
+  background: #1f2937;
+  border-color: #111827;
+  color: #fff;
+}
+
+.dg-btn-primary:hover {
+  background: #111827;
+}
+
+.dg-btn-secondary {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #1f2937;
+}
+
+.dg-btn-secondary:hover {
+  background: #f8fafc;
+}
+
+.dg-btn-danger {
+  background: #b91c1c;
+  border-color: #991b1b;
+  color: #fff;
+}
+
+.dg-btn-danger:hover {
+  background: #991b1b;
+}
+
+.dg-action-btn.edit {
+  background: #fff;
+  border-color: #cbd5e1;
+  color: #1f2937;
+}
+
+.dg-action-btn.edit:hover {
+  background: #f8fafc;
+}
+
+.dg-action-btn.delete {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #b91c1c;
+}
+
+.dg-action-btn.delete:hover {
+  background: #fecaca;
+}
+
+.dg-modal {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(15 23 42 / 45%);
+  z-index: 1200;
+  padding: 1rem;
+}
+
+.dg-modal.hidden {
+  display: none;
+}
+
+.dg-modal-card {
+  width: min(520px, 100%);
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-shadow: 0 20px 45px rgb(15 23 42 / 22%);
+  overflow: hidden;
+}
+
+.dg-modal-card-sm {
+  width: min(380px, 100%);
+}
+
+.dg-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.9rem 1rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.dg-modal-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: #0f172a;
+}
+
+.dg-close-btn {
+  width: 34px;
+  height: 34px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.dg-form {
+  padding: 1rem;
+}
+
+.dg-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  margin-bottom: 0.8rem;
+}
+
+.dg-form-group span {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #334155;
+}
+
+.dg-form-group input,
+.dg-form-group select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 0.55rem 0.7rem;
+  font-size: 0.9rem;
+}
+
+.dg-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0 1rem 1rem;
+}
+
+.dg-delete-body {
+  padding: 1rem;
+}
+
+.dg-delete-body p {
+  margin: 0;
+  color: #374151;
+}
+
+@media (width <= 768px) {
+  .discography {
+    width: 100%;
+    margin-left: 0;
+    padding: 0.8rem;
+  }
+
+  .dg-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.7rem;
+  }
+
+  .dg-select {
+    width: 100%;
+  }
+
+  .dg-actions {
+    flex-direction: column;
+  }
+}
