@@ -1,8 +1,22 @@
 import OrdersModel from '../../../Models/mainAdmin_model/Orders-Model.js';
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
 class OrdersController {
   constructor() {
     this.ordersModel = new OrdersModel();
+  }
+
+  resolveCommunity(req, res, { fallbackAll = true } = {}) {
+    const scoped = String(
+      req.query?.community ||
+      req.body?.community ||
+      resolveSiteSlug(req, res) ||
+      '',
+    )
+      .trim()
+      .toLowerCase();
+    if (!scoped && fallbackAll) return 'all';
+    return scoped;
   }
 
   /**
@@ -13,9 +27,7 @@ class OrdersController {
    */
   async listOrders(req, res) {
     try {
-      const communityType = String(
-        req.query.community || 'all',
-      ).toLowerCase();
+      const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
       const status = req.query.status || null;
 
       const orders = await this.ordersModel.getOrdersForCommunity(
@@ -50,9 +62,7 @@ class OrdersController {
    */
   async listOrdersWithItems(req, res) {
     try {
-      const communityType = String(
-        req.query.community || 'all',
-      ).toLowerCase();
+      const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
       const status = req.query.status || null;
 
       const orders = await this.ordersModel.getOrdersWithItems(
@@ -88,13 +98,7 @@ class OrdersController {
     try {
       const { orderId } = req.params;
       const { db_name, status } = req.body || {};
-
-      if (!db_name) {
-        return res.status(400).json({
-          success: false,
-          error: 'db_name is required',
-        });
-      }
+      const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
 
       if (!orderId) {
         return res.status(400).json({
@@ -114,6 +118,7 @@ class OrdersController {
         db_name,
         orderId,
         status,
+        communityType,
       );
 
       return res.status(200).json({
@@ -141,4 +146,3 @@ class OrdersController {
 }
 
 export default OrdersController;
-

@@ -1,8 +1,23 @@
 import MarketplaceModel from '../../../Models/mainAdmin_model/Marketplace-Model.js';
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
 class MarketplaceController {
   constructor() {
     this.marketplaceModel = new MarketplaceModel();
+  }
+
+  resolveCommunity(req, res, { fallbackAll = true } = {}) {
+    const scoped = String(
+      req.query?.community ||
+      req.body?.community ||
+      resolveSiteSlug(req, res) ||
+      '',
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!scoped && fallbackAll) return 'all';
+    return scoped;
   }
 
   /**
@@ -12,7 +27,7 @@ class MarketplaceController {
    */
   async listProducts(req, res) {
     try {
-      const communityKey = String(req.query.community || 'all').toLowerCase();
+      const communityKey = this.resolveCommunity(req, res, { fallbackAll: true });
       const scopedCommunity = communityKey === 'all' ? '' : communityKey;
       const filtered = await this.marketplaceModel.getProducts(scopedCommunity);
 
@@ -51,7 +66,7 @@ class MarketplaceController {
    */
   async listCollections(req, res) {
     try {
-      const communityKey = String(req.query.community || 'all').toLowerCase();
+      const communityKey = this.resolveCommunity(req, res, { fallbackAll: true });
       const scopedCommunity = communityKey === 'all' ? '' : communityKey;
       const data = await this.marketplaceModel.getCollections(scopedCommunity);
       return res.status(200).json({ success: true, data });
@@ -82,9 +97,7 @@ class MarketplaceController {
   async createCollection(req, res) {
     try {
       const body = req.body || {};
-      const scopedCommunity = String(body.community || '')
-        .trim()
-        .toLowerCase();
+      const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
       const name = String(body.name || '').trim();
       if (!scopedCommunity) {
         return res.status(400).json({
@@ -126,9 +139,7 @@ class MarketplaceController {
    */
   async listCategories(req, res) {
     try {
-      const scopedCommunity = String(req.query.community || '')
-        .trim()
-        .toLowerCase();
+      const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
       const collectionId = req.query.collection_id;
       if (!scopedCommunity) {
         return res.status(400).json({
@@ -162,9 +173,7 @@ class MarketplaceController {
   async createCategory(req, res) {
     try {
       const body = req.body || {};
-      const scopedCommunity = String(body.community || '')
-        .trim()
-        .toLowerCase();
+      const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
       const categoryName = String(body.category_name || body.category || '')
         .trim();
       let collectionId = body.collection_id;
@@ -226,13 +235,19 @@ class MarketplaceController {
   async createProduct(req, res) {
     try {
       const body = req.body || {};
-      const scopedCommunity = String(body.community || '').trim().toLowerCase();
+      const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
       let collectionId = body.collection_id;
-      if (collectionId == null && body.community && body.collection) {
+      if (collectionId == null && scopedCommunity && body.collection) {
         collectionId = await this.marketplaceModel.resolveCollectionId(
-          body.community,
+          scopedCommunity,
           body.collection,
         );
+      }
+      if (!scopedCommunity) {
+        return res.status(400).json({
+          success: false,
+          error: 'community is required',
+        });
       }
       const payload = {
         name: body.name,
@@ -268,17 +283,19 @@ class MarketplaceController {
     try {
       const productId = req.params.productId;
       const body = req.body || {};
-      const scopedCommunity = String(
-        body.community || req.query.community || '',
-      )
-        .trim()
-        .toLowerCase();
+      const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
       let collectionId = body.collection_id;
-      if (collectionId == null && body.community && body.collection) {
+      if (collectionId == null && scopedCommunity && body.collection) {
         collectionId = await this.marketplaceModel.resolveCollectionId(
-          body.community,
+          scopedCommunity,
           body.collection,
         );
+      }
+      if (!scopedCommunity) {
+        return res.status(400).json({
+          success: false,
+          error: 'community is required',
+        });
       }
       const payload = {
         name: body.name,
@@ -315,9 +332,13 @@ class MarketplaceController {
   async deleteProduct(req, res) {
     try {
       const productId = req.params.productId;
-      const scopedCommunity = String(req.query.community || '')
-        .trim()
-        .toLowerCase();
+      const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
+      if (!scopedCommunity) {
+        return res.status(400).json({
+          success: false,
+          error: 'community is required',
+        });
+      }
       const { deleted } = await this.marketplaceModel.deleteProduct(
         productId,
         scopedCommunity,

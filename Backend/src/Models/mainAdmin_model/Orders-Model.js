@@ -1,9 +1,20 @@
-import { connect } from '../../core/database.js';
+import { connect, resolveCommunityContext } from '../../core/database.js';
 import { getDBNamesByCommunityType } from './site-model.js';
 
 class OrdersModel {
   normalizeStatus(status) {
     return String(status || '').trim().toLowerCase();
+  }
+
+  normalizeCommunityType(communityType = 'all') {
+    return String(communityType || 'all').trim().toLowerCase() || 'all';
+  }
+
+  async resolveScopedCommunityId(communityType = 'all') {
+    const normalized = this.normalizeCommunityType(communityType);
+    if (!normalized || normalized === 'all') return null;
+    const ctx = await resolveCommunityContext(normalized);
+    return Number(ctx?.community_id || 0) || null;
   }
 
   async tableHasColumn(db, tableName, columnName) {
@@ -124,8 +135,10 @@ class OrdersModel {
    */
   async getOrdersForCommunity(communityType = 'all', status = null) {
     try {
+      const normalizedCommunity = this.normalizeCommunityType(communityType);
+      const scopedCommunityId = await this.resolveScopedCommunityId(normalizedCommunity);
       const dbNames = await getDBNamesByCommunityType(
-        String(communityType || 'all').toLowerCase(),
+        normalizedCommunity,
       );
 
       if (!dbNames || dbNames.length === 0) return [];
@@ -139,14 +152,26 @@ class OrdersModel {
         let siteDB;
         try {
           siteDB = await connect(dbName);
+          const hasCommunityId = await this.tableHasColumn(
+            siteDB,
+            'orders',
+            'community_id',
+          );
 
           const params = [];
-          let whereClause = '';
+          const whereParts = [];
 
           if (status) {
-            whereClause = 'WHERE status = ?';
+            whereParts.push('status = ?');
             params.push(status);
           }
+          if (scopedCommunityId && hasCommunityId) {
+            whereParts.push('COALESCE(o.community_id, 0) = ?');
+            params.push(scopedCommunityId);
+          }
+          const whereClause = whereParts.length
+            ? `WHERE ${whereParts.join(' AND ')}`
+            : '';
 
           const [rows] = await siteDB.query(
             `
@@ -212,8 +237,10 @@ class OrdersModel {
    */
   async getOrdersWithItems(communityType = 'all', status = null) {
     try {
+      const normalizedCommunity = this.normalizeCommunityType(communityType);
+      const scopedCommunityId = await this.resolveScopedCommunityId(normalizedCommunity);
       const dbNames = await getDBNamesByCommunityType(
-        String(communityType || 'all').toLowerCase(),
+        normalizedCommunity,
       );
 
       if (!dbNames || dbNames.length === 0) return [];
@@ -225,14 +252,26 @@ class OrdersModel {
         let siteDB;
         try {
           siteDB = await connect(dbName);
+          const hasCommunityId = await this.tableHasColumn(
+            siteDB,
+            'orders',
+            'community_id',
+          );
 
           const params = [];
-          let whereClause = '';
+          const whereParts = [];
 
           if (status) {
-            whereClause = 'WHERE o.status = ?';
+            whereParts.push('o.status = ?');
             params.push(status);
           }
+          if (scopedCommunityId && hasCommunityId) {
+            whereParts.push('COALESCE(o.community_id, 0) = ?');
+            params.push(scopedCommunityId);
+          }
+          const whereClause = whereParts.length
+            ? `WHERE ${whereParts.join(' AND ')}`
+            : '';
 
           const [rows] = await siteDB.query(
             `
@@ -311,10 +350,45 @@ class OrdersModel {
    * @param {string} status - new status value
    * @returns {Promise<Object>} - updated order record
    */
-  async updateOrderStatus(dbName, orderId, status) {
-    if (!dbName) {
-      throw new Error('db_name is required to update order status');
+  async resolveOrderDbName(dbName, communityType, orderId) {
+    const provided = String(dbName || '').trim();
+    if (provided) return provided;
+
+    const scope = String(communityType || 'all').trim().toLowerCase() || 'all';
+    const scopedCommunityId = await this.resolveScopedCommunityId(scope);
+    const dbNames = await getDBNamesByCommunityType(scope);
+    const uniqueDbNames = Array.from(new Set((dbNames || []).map((x) => String(x || '').trim()).filter(Boolean)));
+
+    for (const name of uniqueDbNames) {
+      try {
+        const siteDB = await connect(name);
+        const hasCommunityId = await this.tableHasColumn(
+          siteDB,
+          'orders',
+          'community_id',
+        );
+        const params = [orderId];
+        let extraScope = '';
+        if (scopedCommunityId && hasCommunityId) {
+          extraScope = ' AND COALESCE(community_id, 0) = ?';
+          params.push(scopedCommunityId);
+        }
+        const [rows] = await siteDB.query(
+          `SELECT order_id FROM orders WHERE order_id = ?${extraScope} LIMIT 1`,
+          params,
+        );
+        if (Array.isArray(rows) && rows.length > 0) return name;
+      } catch (_) {}
     }
+
+    throw new Error(
+      scope && scope !== 'all'
+        ? `Order not found in community "${scope}"`
+        : 'Order not found',
+    );
+  }
+
+  async updateOrderStatus(dbName, orderId, status, communityType = 'all') {
     if (!orderId) {
       throw new Error('orderId is required to update order status');
     }
@@ -322,7 +396,8 @@ class OrdersModel {
       throw new Error('status is required to update order status');
     }
 
-    const siteDB = await connect(dbName);
+    const resolvedDbName = await this.resolveOrderDbName(dbName, communityType, orderId);
+    const siteDB = await connect(resolvedDbName);
     const normalizedNextStatus = this.normalizeStatus(status);
 
     const [beforeRows] = await siteDB.query(
@@ -381,7 +456,7 @@ class OrdersModel {
     }
 
     return {
-      db_name: dbName,
+      db_name: resolvedDbName,
       ...updated,
     };
   }

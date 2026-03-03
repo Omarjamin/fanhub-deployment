@@ -1,8 +1,118 @@
-import { connect, connectAdmin } from '../../core/database.js';
+import { connect, connectAdmin, resolveCommunityContext } from '../../core/database.js';
 
 class ThreadModel {
   constructor() {
     this.adminDb = null;
+    this.columnCache = new Map();
+  }
+
+  async hasColumn(db, tableName, columnName) {
+    const [dbRows] = await db.query('SELECT DATABASE() AS current_db');
+    const currentDb = String(dbRows?.[0]?.current_db || '').trim().toLowerCase();
+    const cacheKey = `${currentDb}:${String(tableName || '').toLowerCase()}:${String(columnName || '').toLowerCase()}`;
+    if (this.columnCache.has(cacheKey)) return this.columnCache.get(cacheKey);
+
+    const [rows] = await db.query(
+      `
+        SELECT COUNT(*) AS count
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+          AND COLUMN_NAME = ?
+      `,
+      [tableName, columnName],
+    );
+    const exists = Number(rows?.[0]?.count || 0) > 0;
+    this.columnCache.set(cacheKey, exists);
+    return exists;
+  }
+
+  async hasTable(db, tableName) {
+    const [dbRows] = await db.query('SELECT DATABASE() AS current_db');
+    const currentDb = String(dbRows?.[0]?.current_db || '').trim().toLowerCase();
+    const cacheKey = `${currentDb}:table:${String(tableName || '').toLowerCase()}`;
+    if (this.columnCache.has(cacheKey)) return this.columnCache.get(cacheKey);
+
+    const [rows] = await db.query(
+      `
+        SELECT COUNT(*) AS count
+        FROM INFORMATION_SCHEMA.TABLES
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = ?
+      `,
+      [tableName],
+    );
+    const exists = Number(rows?.[0]?.count || 0) > 0;
+    this.columnCache.set(cacheKey, exists);
+    return exists;
+  }
+
+  async resolveScopedCommunityId(siteDb, site = {}) {
+    const siteKey = String(site?.domain || site?.site_name || '').trim().toLowerCase();
+    if (siteKey) {
+      try {
+        const ctx = await resolveCommunityContext(siteKey);
+        const mapped = Number(ctx?.community_id || 0) || null;
+        if (mapped) return mapped;
+      } catch (_) {}
+    }
+
+    const explicitSiteCommunity = Number(site?.community_id || 0) || null;
+    if (explicitSiteCommunity) return explicitSiteCommunity;
+
+    try {
+      const hasCommunitiesTable = await this.hasTable(siteDb, 'communities');
+      const hasCommunityIdColumn = hasCommunitiesTable
+        ? await this.hasColumn(siteDb, 'communities', 'community_id')
+        : false;
+      if (hasCommunitiesTable && hasCommunityIdColumn) {
+        const [rows] = await siteDb.query(
+          'SELECT community_id FROM communities ORDER BY community_id ASC LIMIT 1',
+        );
+        const fromDb = Number(rows?.[0]?.community_id || 0) || null;
+        if (fromDb) return fromDb;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  async buildCommunityScope(siteDb, site = {}, alias = '') {
+    await this.ensureCommunityThreadsScopeSchema(siteDb);
+    const scopedCommunityId = await this.resolveScopedCommunityId(siteDb, site);
+    const hasCommunityId = await this.hasColumn(siteDb, 'community_threads', 'community_id');
+    if (!hasCommunityId || !scopedCommunityId) return { sql: '', params: [] };
+    const col = alias ? `${alias}.community_id` : 'community_id';
+    return {
+      sql: ` AND COALESCE(${col}, 0) = ?`,
+      params: [scopedCommunityId],
+    };
+  }
+
+  async ensureCommunityThreadsScopeSchema(siteDb) {
+    const hasTable = await this.hasTable(siteDb, 'community_threads');
+    if (!hasTable) return;
+
+    const hasCommunityId = await this.hasColumn(siteDb, 'community_threads', 'community_id');
+    if (!hasCommunityId) {
+      await siteDb.query(
+        'ALTER TABLE community_threads ADD COLUMN community_id INT(11) NOT NULL DEFAULT 0 AFTER id',
+      );
+    }
+
+    const [idxRows] = await siteDb.query(
+      `
+        SELECT COUNT(*) AS count
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'community_threads'
+          AND INDEX_NAME = 'idx_community_threads_community_id'
+      `,
+    );
+    if (Number(idxRows?.[0]?.count || 0) === 0) {
+      await siteDb.query(
+        'ALTER TABLE community_threads ADD INDEX idx_community_threads_community_id (community_id)',
+      );
+    }
   }
 
   async getAdminDb() {
@@ -50,27 +160,60 @@ class ThreadModel {
     return rows?.[0] || null;
   }
 
+  async getSiteByKey(siteKey) {
+    const raw = String(siteKey || '').trim();
+    if (!raw) return null;
+
+    const numeric = Number(raw);
+    if (!Number.isNaN(numeric) && numeric > 0) {
+      return this.getSiteById(numeric);
+    }
+
+    const normalized = raw.toLowerCase();
+    const db = await this.getAdminDb();
+    const [rows] = await db.query(
+      `
+        SELECT
+          s.site_id,
+          s.site_name,
+          s.domain,
+          s.status
+        FROM sites s
+        WHERE LOWER(TRIM(s.domain)) = LOWER(TRIM(?))
+           OR LOWER(TRIM(s.site_name)) = LOWER(TRIM(?))
+        LIMIT 1
+      `,
+      [normalized, normalized],
+    );
+    return rows?.[0] || null;
+  }
+
   async connectSiteDb(site) {
     const key = String(site?.domain || site?.site_name || '').trim().toLowerCase();
     if (!key) throw new Error('Invalid site database mapping');
     return connect(key);
   }
 
-  async enforceSinglePinnedThread(siteDb) {
+  async enforceSinglePinnedThread(siteDb, site = null) {
+    const scoped = await this.buildCommunityScope(siteDb, site);
     const [pinnedRows] = await siteDb.query(
       `
         SELECT id
         FROM community_threads
-        WHERE is_pinned = 1
+        WHERE is_pinned = 1${scoped.sql}
         ORDER BY updated_at DESC, created_at DESC, id DESC
       `,
+      scoped.params,
     );
 
     if (!Array.isArray(pinnedRows) || pinnedRows.length <= 1) return;
     const keepId = pinnedRows[0].id;
     await siteDb.query(
-      'UPDATE community_threads SET is_pinned = 0 WHERE is_pinned = 1 AND id <> ?',
-      [keepId],
+      `UPDATE community_threads
+       SET is_pinned = 0
+       WHERE is_pinned = 1
+         AND id <> ?${scoped.sql}`,
+      [keepId, ...scoped.params],
     );
   }
 
@@ -82,13 +225,16 @@ class ThreadModel {
       if (!site) return [];
       try {
         const siteDb = await this.connectSiteDb(site);
-        await this.enforceSinglePinnedThread(siteDb);
+        await this.enforceSinglePinnedThread(siteDb, site);
+        const scoped = await this.buildCommunityScope(siteDb, site);
         const [threads] = await siteDb.query(
           `
             SELECT *
             FROM community_threads
+            WHERE 1=1${scoped.sql}
             ORDER BY is_pinned DESC, created_at DESC
           `,
+          scoped.params,
         );
         return (threads || []).map((thread) => ({
           ...thread,
@@ -109,13 +255,16 @@ class ThreadModel {
     for (const site of sites) {
       try {
         const siteDb = await this.connectSiteDb(site);
-        await this.enforceSinglePinnedThread(siteDb);
+        await this.enforceSinglePinnedThread(siteDb, site);
+        const scoped = await this.buildCommunityScope(siteDb, site);
         const [threads] = await siteDb.query(
           `
             SELECT *
             FROM community_threads
+            WHERE 1=1${scoped.sql}
             ORDER BY is_pinned DESC, created_at DESC
           `,
+          scoped.params,
         );
         for (const thread of threads || []) {
           allThreads.push({
@@ -150,9 +299,10 @@ class ThreadModel {
       const site = await this.getSiteById(numericSiteId);
       if (!site) return null;
       const siteDb = await this.connectSiteDb(site);
+      const scoped = await this.buildCommunityScope(siteDb, site);
       const [rows] = await siteDb.query(
-        'SELECT * FROM community_threads WHERE id = ? LIMIT 1',
-        [numericId],
+        `SELECT * FROM community_threads WHERE id = ?${scoped.sql} LIMIT 1`,
+        [numericId, ...scoped.params],
       );
       const row = rows?.[0] || null;
       if (!row) return null;
@@ -169,9 +319,10 @@ class ThreadModel {
     for (const site of sites) {
       try {
         const siteDb = await this.connectSiteDb(site);
+        const scoped = await this.buildCommunityScope(siteDb, site);
         const [rows] = await siteDb.query(
-          'SELECT * FROM community_threads WHERE id = ? LIMIT 1',
-          [numericId],
+          `SELECT * FROM community_threads WHERE id = ?${scoped.sql} LIMIT 1`,
+          [numericId, ...scoped.params],
         );
         const row = rows?.[0] || null;
         if (!row) continue;
@@ -201,21 +352,35 @@ class ThreadModel {
 
     const siteDb = await this.connectSiteDb(site);
     const shouldPin = Boolean(is_pinned);
+    const scoped = await this.buildCommunityScope(siteDb, site);
+    const hasCommunityId = await this.hasColumn(siteDb, 'community_threads', 'community_id');
+    const scopedCommunityId = await this.resolveScopedCommunityId(siteDb, site);
 
     const conn = await siteDb.getConnection();
     try {
       await conn.beginTransaction();
       if (shouldPin) {
-        await conn.query('UPDATE community_threads SET is_pinned = 0 WHERE is_pinned = 1');
+        await conn.query(
+          `UPDATE community_threads
+           SET is_pinned = 0
+           WHERE is_pinned = 1${scoped.sql}`,
+          scoped.params,
+        );
       }
 
-      const [result] = await conn.query(
-        `
-          INSERT INTO community_threads (title, venue, date, author, is_pinned)
-          VALUES (?, ?, ?, ?, ?)
-        `,
-        [title, venue, parsedDate, author, shouldPin ? 1 : 0],
-      );
+      let insertSql = `
+        INSERT INTO community_threads (title, venue, date, author, is_pinned)
+        VALUES (?, ?, ?, ?, ?)
+      `;
+      const insertParams = [title, venue, parsedDate, author, shouldPin ? 1 : 0];
+      if (hasCommunityId) {
+        insertSql = `
+          INSERT INTO community_threads (title, venue, date, author, is_pinned, community_id)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `;
+        insertParams.push(scopedCommunityId || 0);
+      }
+      const [result] = await conn.query(insertSql, insertParams);
 
       await conn.commit();
       return await this.findById(result.insertId, site.site_id);
@@ -234,64 +399,128 @@ class ThreadModel {
     if (!numericId || Number.isNaN(numericId)) throw new Error('Thread not found');
     if (!site) throw new Error('Selected site does not exist');
 
-    const siteDb = await this.connectSiteDb(site);
-    const conn = await siteDb.getConnection();
-    try {
+    const buildUpdateParts = () => {
       const updates = [];
-      const params = [];
-
+      const values = [];
       if (title !== undefined) {
         updates.push('title = ?');
-        params.push(title);
+        values.push(title);
       }
       if (venue !== undefined) {
         updates.push('venue = ?');
-        params.push(venue);
+        values.push(venue);
       }
       if (date !== undefined) {
         updates.push('date = ?');
-        params.push(new Date(date));
+        values.push(new Date(date));
       }
       if (is_pinned !== undefined) {
         updates.push('is_pinned = ?');
-        params.push(is_pinned ? 1 : 0);
+        values.push(is_pinned ? 1 : 0);
       }
+      return { updates, values };
+    };
 
-      if (!updates.length) {
-        throw new Error('Thread not found');
-      }
+    const applyUpdateInSite = async (targetSite, { syncCommunityId = null } = {}) => {
+      const targetDb = await this.connectSiteDb(targetSite);
+      const scoped = await this.buildCommunityScope(targetDb, targetSite);
+      const hasCommunityId = await this.hasColumn(targetDb, 'community_threads', 'community_id');
+      const conn = await targetDb.getConnection();
+      try {
+        const { updates, values } = buildUpdateParts();
+        if (!updates.length) throw new Error('Thread not found');
 
-      await conn.beginTransaction();
-      if (Boolean(is_pinned)) {
-        await conn.query(
-          'UPDATE community_threads SET is_pinned = 0 WHERE id <> ? AND is_pinned = 1',
-          [numericId],
+        await conn.beginTransaction();
+        if (Boolean(is_pinned)) {
+          await conn.query(
+            `UPDATE community_threads
+             SET is_pinned = 0
+             WHERE id <> ?
+               AND is_pinned = 1${scoped.sql}`,
+            [numericId, ...scoped.params],
+          );
+        }
+
+        let result = null;
+        const scopedParams = [...values, numericId, ...scoped.params];
+        [result] = await conn.query(
+          `
+            UPDATE community_threads
+            SET ${updates.join(', ')}, updated_at = NOW()
+            WHERE id = ?${scoped.sql}
+          `,
+          scopedParams,
         );
+
+        if (!result.affectedRows) {
+          const fallbackUpdates = [...updates];
+          const fallbackParams = [...values];
+
+          if (hasCommunityId && syncCommunityId) {
+            fallbackUpdates.push('community_id = ?');
+            fallbackParams.push(syncCommunityId);
+          }
+
+          fallbackParams.push(numericId);
+          [result] = await conn.query(
+            `
+              UPDATE community_threads
+              SET ${fallbackUpdates.join(', ')}, updated_at = NOW()
+              WHERE id = ?
+            `,
+            fallbackParams,
+          );
+        }
+
+        if (!result.affectedRows) {
+          throw new Error('Thread not found');
+        }
+
+        await conn.commit();
+        return true;
+      } catch (err) {
+        try { await conn.rollback(); } catch (_) {}
+        throw err;
+      } finally {
+        conn.release();
       }
+    };
 
-      params.push(numericId);
-      const [result] = await conn.query(
-        `
-          UPDATE community_threads
-          SET ${updates.join(', ')}, updated_at = NOW()
-          WHERE id = ?
-        `,
-        params,
-      );
-
-      if (!result.affectedRows) {
-        throw new Error('Thread not found');
-      }
-
-      await conn.commit();
-      return await this.findById(numericId, site.site_id);
+    const siteDbForCommunity = await this.connectSiteDb(site);
+    const scopedCommunityId = await this.resolveScopedCommunityId(siteDbForCommunity, site);
+    try {
+      await applyUpdateInSite(site, { syncCommunityId: scopedCommunityId });
+      const updatedInTarget = await this.findById(numericId, site.site_id);
+      if (updatedInTarget) return updatedInTarget;
+      const updatedAny = await this.findById(numericId, null);
+      if (updatedAny) return updatedAny;
+      throw new Error('Thread not found');
     } catch (err) {
-      try { await conn.rollback(); } catch (_) {}
-      if (err.message === 'Thread not found') throw err;
-      console.error(`Error updating thread with ID ${numericId}:`, err);
-      throw new Error('Failed to update thread');
-    } finally {
-      conn.release();
+      if (err.message !== 'Thread not found') {
+        console.error(`Error updating thread with ID ${numericId}:`, err);
+        throw new Error('Failed to update thread');
+      }
+
+      // Cross-site fallback: update the site where the thread currently exists,
+      // then sync community_id to selected target (single-db safe).
+      const located = await this.findById(numericId, null);
+      if (!located?.site_id) throw err;
+      const sourceSite = await this.getSiteById(located.site_id);
+      if (!sourceSite) throw err;
+
+      try {
+        await applyUpdateInSite(sourceSite, { syncCommunityId: scopedCommunityId });
+      } catch (innerErr) {
+        if (innerErr.message === 'Thread not found') throw err;
+        console.error(`Error updating fallback thread with ID ${numericId}:`, innerErr);
+        throw new Error('Failed to update thread');
+      }
+
+      const updatedInTarget = await this.findById(numericId, site.site_id);
+      if (updatedInTarget) return updatedInTarget;
+      const updatedInSource = await this.findById(numericId, sourceSite.site_id);
+      if (updatedInSource) return updatedInSource;
+      throw err;
     }
   }
 
@@ -303,9 +532,10 @@ class ThreadModel {
 
     const siteDb = await this.connectSiteDb(site);
     try {
+      const scoped = await this.buildCommunityScope(siteDb, site);
       const [result] = await siteDb.query(
-        'DELETE FROM community_threads WHERE id = ?',
-        [numericId],
+        `DELETE FROM community_threads WHERE id = ?${scoped.sql}`,
+        [numericId, ...scoped.params],
       );
       if (!result.affectedRows) {
         throw new Error('Thread not found');

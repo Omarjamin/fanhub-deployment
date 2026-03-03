@@ -1,8 +1,28 @@
 import ThreadModel from '../../../Models/mainAdmin_model/Thread-Model.js';
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
 class ThreadController {
   constructor() {
     this.threadModel = new ThreadModel();
+  }
+
+  async resolveSiteId(req, res, explicit = null) {
+    const candidateRaw = String(
+      explicit ??
+      req.query?.community ??
+      req.body?.community ??
+      req.query?.site_id ??
+      req.body?.site_id ??
+      resolveSiteSlug(req, res) ??
+      ''
+    ).trim();
+    if (!candidateRaw) return null;
+
+    const numeric = Number(candidateRaw);
+    if (!Number.isNaN(numeric) && numeric > 0) return numeric;
+
+    const site = await this.threadModel.getSiteByKey(candidateRaw);
+    return Number(site?.site_id || 0) || null;
   }
 
   // =========================
@@ -10,8 +30,8 @@ class ThreadController {
   // =========================
   async getAllThreads(req, res) {
     try {
-      const { site_id } = req.query;
-      const threads = await this.threadModel.findAll(site_id);
+      const siteId = await this.resolveSiteId(req, res);
+      const threads = await this.threadModel.findAll(siteId);
       
       return res.status(200).json({
         success: true,
@@ -34,7 +54,7 @@ class ThreadController {
   async getThreadById(req, res) {
     try {
       const { id } = req.params;
-      const siteId = req.query.site_id || req.body?.site_id || null;
+      const siteId = await this.resolveSiteId(req, res);
       
       if (!id) {
         return res.status(400).json({
@@ -75,7 +95,8 @@ class ThreadController {
   // =========================
   async createThread(req, res) {
     try {
-      const { title, venue, date, is_pinned, site_id } = req.body;
+      const { title, venue, date, is_pinned } = req.body;
+      const site_id = await this.resolveSiteId(req, res, req.body?.community ?? req.body?.site_id);
       const author = req.user?.username || 'Admin';
 
       // Input validation
@@ -124,7 +145,8 @@ class ThreadController {
   async updateThread(req, res) {
     try {
       const { id } = req.params;
-      const { title, venue, date, is_pinned, site_id } = req.body;
+      const { title, venue, date, is_pinned } = req.body;
+      const site_id = await this.resolveSiteId(req, res, req.body?.community ?? req.body?.site_id);
 
       if (!id) {
         return res.status(400).json({
@@ -190,7 +212,7 @@ class ThreadController {
   async deleteThread(req, res) {
     try {
       const { id } = req.params;
-      const siteId = req.query.site_id || req.body?.site_id || null;
+      const siteId = await this.resolveSiteId(req, res);
 
       if (!id) {
         return res.status(400).json({

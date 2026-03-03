@@ -16,9 +16,13 @@ class SettingsController {
     return String(raw || '').trim().toLowerCase();
   }
 
+  resolveShippingScope() {
+    return 'global';
+  }
+
   async getShippingRegions(req, res) {
     try {
-      const community = this.resolveCommunity(req, res);
+      const community = this.resolveShippingScope();
 
       const data = await this.settingsModel.getShippingRegions(community);
       return res.status(200).json({
@@ -38,7 +42,7 @@ class SettingsController {
 
   async saveShippingRegions(req, res) {
     try {
-      const community = this.resolveCommunity(req, res);
+      const community = this.resolveShippingScope();
 
       const provinceRegions =
         req.body?.province_regions ||

@@ -200,10 +200,16 @@ class LikesModel {
 
       
         if (sourceUserId !== postOwnerId) {
-          const query = `
-            INSERT INTO notifications (user_id, activity_type, source_user_id, post_id)
-            VALUES (?, 'like', ?, ?)`;
-          const [result] = await this.db.query(query, [postOwnerId, sourceUserId, postId]);
+          const hasNotifCommunity = await this.hasColumn('notifications', 'community_id');
+          const query = hasNotifCommunity
+            ? `INSERT INTO notifications (user_id, activity_type, source_user_id, post_id, community_id)
+               VALUES (?, 'like', ?, ?, ?)`
+            : `INSERT INTO notifications (user_id, activity_type, source_user_id, post_id)
+               VALUES (?, 'like', ?, ?)`;
+          const params = hasNotifCommunity
+            ? [postOwnerId, sourceUserId, postId, this.activeCommunityId]
+            : [postOwnerId, sourceUserId, postId];
+          const [result] = await this.db.query(query, params);
           return result;
         }
       } else if (commentId) {
@@ -222,10 +228,16 @@ class LikesModel {
 
         
         if (sourceUserId !== commentOwnerId) {
-          const query = `
-            INSERT INTO notifications (user_id, activity_type, source_user_id, comment_id)
-            VALUES (?, 'like', ?, ?)`;
-          const [result] = await this.db.query(query, [commentOwnerId, sourceUserId, commentId]);
+          const hasNotifCommunity = await this.hasColumn('notifications', 'community_id');
+          const query = hasNotifCommunity
+            ? `INSERT INTO notifications (user_id, activity_type, source_user_id, comment_id, community_id)
+               VALUES (?, 'like', ?, ?, ?)`
+            : `INSERT INTO notifications (user_id, activity_type, source_user_id, comment_id)
+               VALUES (?, 'like', ?, ?)`;
+          const params = hasNotifCommunity
+            ? [commentOwnerId, sourceUserId, commentId, this.activeCommunityId]
+            : [commentOwnerId, sourceUserId, commentId];
+          const [result] = await this.db.query(query, params);
           return result;
         }
       }
@@ -237,17 +249,18 @@ class LikesModel {
   async deleteLikeNotification(userId, postId, commentId) {
     try {
       let query;
+      const notifScoped = await this.getScopedCondition('notifications');
       if (postId) {
         query = `
           DELETE FROM notifications
-          WHERE source_user_id = ? AND post_id = ? AND activity_type = 'like'`;
-        const [result] = await this.db.query(query, [userId, postId]);
+          WHERE source_user_id = ? AND post_id = ? AND activity_type = 'like'${notifScoped.sql}`;
+        const [result] = await this.db.query(query, [userId, postId, ...notifScoped.params]);
         return result;
       } else if (commentId) {
         query = `
           DELETE FROM notifications
-          WHERE source_user_id = ? AND comment_id = ? AND activity_type = 'like'`;
-        const [result] = await this.db.query(query, [userId, commentId]);
+          WHERE source_user_id = ? AND comment_id = ? AND activity_type = 'like'${notifScoped.sql}`;
+        const [result] = await this.db.query(query, [userId, commentId, ...notifScoped.params]);
         return result;
       }
     } catch (err) {

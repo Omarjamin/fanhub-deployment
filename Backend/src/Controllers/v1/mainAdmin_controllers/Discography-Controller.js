@@ -1,14 +1,34 @@
 import DiscographyModel from '../../../Models/mainAdmin_model/Discography-Model.js';
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
 class DiscographyController {
   constructor() {
     this.discModel = new DiscographyModel();
   }
 
+  async resolveSiteId(req, res, explicit = null) {
+    const candidateRaw = String(
+      explicit ??
+      req.query?.site_id ??
+      req.query?.community_id ??
+      req.body?.site_id ??
+      req.body?.community_id ??
+      req.body?.group_community_id ??
+      resolveSiteSlug(req, res) ??
+      ''
+    ).trim();
+    if (!candidateRaw) return null;
+
+    const numeric = Number(candidateRaw);
+    if (!Number.isNaN(numeric) && numeric > 0) return numeric;
+
+    const site = await this.discModel.getSiteByKey(candidateRaw);
+    return Number(site?.site_id || 0) || null;
+  }
+
   async list(req, res) {
     try {
-      const { site_id, community_id } = req.query;
-      const selectedSiteId = site_id || community_id || null;
+      const selectedSiteId = await this.resolveSiteId(req, res);
       const albums = await this.discModel.findAll(selectedSiteId);
       return res.status(200).json({ success: true, data: albums, message: 'Discography list retrieved' });
     } catch (err) {
@@ -20,9 +40,9 @@ class DiscographyController {
   async getById(req, res) {
     try {
       const { id } = req.params;
-      const { site_id, community_id } = req.query;
       if (!id) return res.status(400).json({ success: false, error: 'ID required', message: 'Provide an album ID' });
-      const album = await this.discModel.findById(id, site_id || community_id || null);
+      const selectedSiteId = await this.resolveSiteId(req, res);
+      const album = await this.discModel.findById(id, selectedSiteId);
       if (!album) return res.status(404).json({ success: false, error: 'Not found', message: 'Album not found' });
       return res.status(200).json({ success: true, data: album, message: 'Album retrieved' });
     } catch (err) {
@@ -34,7 +54,11 @@ class DiscographyController {
   async create(req, res) {
     try {
       const body = req.body || {};
-      const site_id = body.site_id || body.community_id || body.group_community_id || null;
+      const site_id = await this.resolveSiteId(
+        req,
+        res,
+        body.site_id || body.community_id || body.group_community_id || null,
+      );
       const name = body.name || body.title || null;
       const songs = body.songs ?? body.count_songs ?? null;
       const year = body.year || body.release_date || null;
@@ -66,7 +90,11 @@ class DiscographyController {
     try {
       const { id } = req.params;
       const body = req.body || {};
-      const site_id = body.site_id || body.community_id || body.group_community_id || null;
+      const site_id = await this.resolveSiteId(
+        req,
+        res,
+        body.site_id || body.community_id || body.group_community_id || null,
+      );
       if (!site_id) {
         return res.status(400).json({ success: false, error: 'Validation error', message: 'site_id is required' });
       }
@@ -94,9 +122,8 @@ class DiscographyController {
   async remove(req, res) {
     try {
       const { id } = req.params;
-      const { site_id, community_id } = req.query;
       if (!id) return res.status(400).json({ success: false, error: 'ID required', message: 'Provide an album ID' });
-      const selectedSiteId = site_id || community_id || null;
+      const selectedSiteId = await this.resolveSiteId(req, res);
       if (!selectedSiteId) {
         return res.status(400).json({ success: false, error: 'Validation error', message: 'site_id is required' });
       }

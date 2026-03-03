@@ -156,7 +156,9 @@ export default function createSettings() {
   const shippingCategoryDefaults = { Luzon: 95, VisMin: 120 };
   const provinceShippingCategory = {};
   const regionOptions = Object.keys(regionProvinceMap);
-  let selectedSite = String(sessionStorage.getItem('admin_selected_site') || '').trim().toLowerCase();
+  let selectedSite = String(
+    sessionStorage.getItem('admin_selected_site') || getActiveSiteSlug() || '',
+  ).trim().toLowerCase();
   let eventPosters = [...defaultEventPosters];
 
   function eventRowsTemplate() {
@@ -265,11 +267,16 @@ export default function createSettings() {
       const select = section.querySelector('#settingsSiteSelect');
       if (!select) return;
       const persisted = String(sessionStorage.getItem('admin_selected_site') || '').trim().toLowerCase();
+      const activeSite = String(getActiveSiteSlug() || '').trim().toLowerCase();
       select.innerHTML = `
         <option value="">All Sites</option>
         ${sites.map((site) => `<option value="${site.domain}">${site.site_name}</option>`).join('')}
       `;
-      if (persisted) select.value = persisted;
+      if (persisted) {
+        select.value = persisted;
+      } else if (activeSite) {
+        select.value = activeSite;
+      }
       selectedSite = String(select.value || '').trim().toLowerCase();
       eventPosters = await fetchEventPosters(selectedSite);
       await refreshEventPosterManager();
@@ -304,9 +311,15 @@ export default function createSettings() {
 
     try {
       await saveShippingRegionOverrides(provinceShippingCategory, shippingRates);
-      await saveEventPosters(selectedSite, eventPosters);
+      if (selectedSite) {
+        await saveEventPosters(selectedSite, eventPosters);
+      }
       console.log('[Settings] Saved:', { selectedSite, shippingRates, provinceShipping, eventPosters });
-      alert('Settings saved successfully.');
+      if (selectedSite) {
+        alert('Settings saved successfully.');
+      } else {
+        alert('Shipping settings saved. Select a site to save event posters.');
+      }
     } catch (error) {
       console.error('[Settings] Save failed:', error);
       alert(error?.message || 'Failed to save settings.');

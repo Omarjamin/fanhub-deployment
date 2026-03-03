@@ -77,7 +77,7 @@ const highSeverityWordsEn = [
   'faggot', 'motherfucker', 'cockroach', 'burn in hell',
   'kill yourself', 'die motherfucker', 'massacre', 'exterminate', 'lynch', 'assassinate', 'hang',
   'rapist', 'child molester', 'molest', 'genocide', 'terror attack', 'destroy', 'devastate',
-  'smash your head', 'cut your throat', 'shoot you', 'stab you'
+  'smash your head', 'cut your throat', 'shoot you', 'stab you, bobo. tanga, fuck you, fck u, bobo, mabaho, panot'
 ];
 
 // English medium severity
@@ -160,6 +160,38 @@ function ruleBasedModeration(text) {
   };
 }
 
+function buildModerationResponse({
+  risk = 'safe',
+  flagged = false,
+  categories = {},
+  scores = {},
+  method = 'rule_based',
+  detected_high_severity = [],
+  detected_medium_severity = [],
+  detected_patterns = 0,
+}) {
+  const detectedTerms = [
+    ...new Set([
+      ...(Array.isArray(detected_high_severity) ? detected_high_severity : []),
+      ...(Array.isArray(detected_medium_severity) ? detected_medium_severity : []),
+    ]),
+  ];
+  const blocked = Boolean(flagged && (risk === 'medium' || risk === 'high'));
+  const warning = blocked ? 'Suspicious words detected. Please revise your post.' : '';
+
+  return {
+    risk,
+    flagged,
+    blocked,
+    warning,
+    categories,
+    scores,
+    method,
+    detected_terms: detectedTerms,
+    detected_patterns: Number(detected_patterns || 0),
+  };
+}
+
 /** =========================
  * Xenova ML pipeline init
  * ========================= */
@@ -193,7 +225,7 @@ export async function moderateContent(text) {
       if (ruleResult.score >= 0.7) risk = 'high';
       else if (ruleResult.score >= 0.3) risk = 'medium';
 
-      return {
+      return buildModerationResponse({
         risk,
         flagged: ruleResult.flagged,
         categories: ruleResult.categories,
@@ -202,8 +234,11 @@ export async function moderateContent(text) {
           toxic: ruleResult.score,
           non_toxic: 1 - ruleResult.score
         },
-        method: 'rule_based'
-      };
+        method: 'rule_based',
+        detected_high_severity: ruleResult.detected_high_severity,
+        detected_medium_severity: ruleResult.detected_medium_severity,
+        detected_patterns: ruleResult.detected_patterns,
+      });
     }
 
     // Run ML model
@@ -229,7 +264,13 @@ export async function moderateContent(text) {
       else if (toxicityScore >= 0.3) { risk = 'medium'; flagged = true; }
     }
 
-    return { risk, flagged, categories, scores, method: 'ml_model' };
+    return buildModerationResponse({
+      risk,
+      flagged,
+      categories,
+      scores,
+      method: 'ml_model',
+    });
   } catch (error) {
     console.error('Moderation failed, fallback to rule-based:', error.message);
     const ruleResult = ruleBasedModeration(text);
@@ -237,7 +278,7 @@ export async function moderateContent(text) {
     if (ruleResult.score >= 0.7) risk = 'high';
     else if (ruleResult.score >= 0.3) risk = 'medium';
 
-    return {
+    return buildModerationResponse({
       risk,
       flagged: ruleResult.flagged,
       categories: ruleResult.categories,
@@ -246,7 +287,10 @@ export async function moderateContent(text) {
         toxic: ruleResult.score,
         non_toxic: 1 - ruleResult.score
       },
-      method: 'rule_based_fallback'
-    };
+      method: 'rule_based_fallback',
+      detected_high_severity: ruleResult.detected_high_severity,
+      detected_medium_severity: ruleResult.detected_medium_severity,
+      detected_patterns: ruleResult.detected_patterns,
+    });
   }
 }

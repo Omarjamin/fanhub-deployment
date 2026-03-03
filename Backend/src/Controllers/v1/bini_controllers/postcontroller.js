@@ -71,6 +71,13 @@ class PostController {
       );
       res.status(201).json(newPost);
     } catch (err) {
+      if (err?.code === "CONTENT_MODERATION_BLOCKED") {
+        return res.status(400).json({
+          error: err.message || "Suspicious words detected. Please revise your post.",
+          warning: "Suspicious words detected",
+          moderation: err?.moderation || null,
+        });
+      }
       res.status(500).json({ error: err.message });
     }
   }

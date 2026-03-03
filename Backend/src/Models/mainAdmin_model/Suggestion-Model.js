@@ -53,19 +53,31 @@ class SuggestionModel {
     return rows?.[0] || null;
   }
 
-  async getUnreadSuggestions(limit = 30) {
+  normalizeScope(scope = '') {
+    return String(scope || '').trim().toLowerCase();
+  }
+
+  async getUnreadSuggestions(limit = 30, community = '') {
     await this.ensureTable();
     const db = await this.connect();
     const safeLimit = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(200, Number(limit))) : 30;
+    const scoped = this.normalizeScope(community);
+    const whereParts = ['is_read = 0'];
+    const params = [];
+    if (scoped) {
+      whereParts.push('LOWER(TRIM(community_name)) = LOWER(TRIM(?))');
+      params.push(scoped);
+    }
+    params.push(safeLimit);
     const [rows] = await db.query(
       `
         SELECT suggestion_id, community_name, suggestion_text, contact_email, is_read, read_at, created_at
         FROM community_suggestions
-        WHERE is_read = 0
+        WHERE ${whereParts.join(' AND ')}
         ORDER BY created_at DESC
         LIMIT ?
       `,
-      [safeLimit],
+      params,
     );
     return Array.isArray(rows) ? rows : [];
   }
@@ -88,16 +100,24 @@ class SuggestionModel {
     return Number(result?.affectedRows || 0) > 0;
   }
 
-  async markAllRead() {
+  async markAllRead(community = '') {
     await this.ensureTable();
     const db = await this.connect();
+    const scoped = this.normalizeScope(community);
+    const whereParts = ['is_read = 0'];
+    const params = [];
+    if (scoped) {
+      whereParts.push('LOWER(TRIM(community_name)) = LOWER(TRIM(?))');
+      params.push(scoped);
+    }
     const [result] = await db.query(
       `
         UPDATE community_suggestions
         SET is_read = 1,
             read_at = NOW()
-        WHERE is_read = 0
+        WHERE ${whereParts.join(' AND ')}
       `,
+      params,
     );
     return Number(result?.affectedRows || 0);
   }

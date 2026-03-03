@@ -125,8 +125,12 @@ class PostModel {
     try {
       // Moderate content before creating post
       const moderation = await moderateContent(content);
-      if (moderation.risk === 'high') {
-        throw new Error('Content not allowed due to policy violation');
+      if (moderation?.blocked || moderation?.flagged || moderation?.risk === 'high' || moderation?.risk === 'medium') {
+        const moderationError = new Error(moderation?.warning || 'Suspicious words detected. Please revise your post.');
+        moderationError.code = 'CONTENT_MODERATION_BLOCKED';
+        moderationError.statusCode = 400;
+        moderationError.moderation = moderation;
+        throw moderationError;
       }
 
       await this.ensureConnection(community_type);
@@ -500,11 +504,19 @@ class PostModel {
   }
   // Create Notification for Repost
   async createNotificationForRepost(originalPostOwnerId, sourceUserId, postId) {
-    const query = `
+    const hasNotifCommunity = await this.hasColumn('notifications', 'community_id');
+    const query = hasNotifCommunity
+      ? `
+      INSERT INTO notifications (user_id, activity_type, source_user_id, post_id, community_id, created_at) 
+      VALUES (?, ?, ?, ?, ?, ?)
+    `
+      : `
       INSERT INTO notifications (user_id, activity_type, source_user_id, post_id, created_at) 
       VALUES (?, ?, ?, ?, ?)
     `;
-    const params = [originalPostOwnerId, 'repost', sourceUserId, postId, new Date()];
+    const params = hasNotifCommunity
+      ? [originalPostOwnerId, 'repost', sourceUserId, postId, this.activeCommunityId, new Date()]
+      : [originalPostOwnerId, 'repost', sourceUserId, postId, new Date()];
     await this.db.query(query, params);
   }
   // Get Other User Posts

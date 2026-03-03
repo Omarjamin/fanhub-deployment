@@ -1,10 +1,11 @@
-import { connect } from '../../core/database.js';
+import { connect, resolveCommunityContext } from '../../core/database.js';
 import { getSiteCommunityTypeMap } from './site-model.js';
 
 class ReportModel {
   constructor() {
     this.connect();
     this.tableColumnsCache = new Map();
+    this.contextCommunityIdCache = new Map();
   }
 
   async connect() {
@@ -17,8 +18,10 @@ class ReportModel {
     const contexts = [];
     for (const row of rows || []) {
       const dbName = String(row?.db_name || '').trim();
-      if (!dbName || seen.has(dbName)) continue;
-      seen.add(dbName);
+      if (!dbName) continue;
+      const dedupeKey = String(row?.domain || row?.site_name || dbName).trim().toLowerCase();
+      if (seen.has(dedupeKey)) continue;
+      seen.add(dedupeKey);
       contexts.push({
         db_name: dbName,
         site_name: row?.site_name || dbName,
@@ -26,6 +29,66 @@ class ReportModel {
       });
     }
     return contexts;
+  }
+
+  normalizeScope(scope = '') {
+    return String(scope || '').trim().toLowerCase();
+  }
+
+  isScopeAll(scope = '') {
+    const normalized = this.normalizeScope(scope);
+    return !normalized || normalized === 'all';
+  }
+
+  matchesScope(ctx = {}, scope = '') {
+    if (this.isScopeAll(scope)) return true;
+    const normalized = this.normalizeScope(scope);
+    const candidates = [
+      ctx?.domain,
+      ctx?.site_name,
+      ctx?.community_type,
+      ctx?.db_name,
+    ]
+      .map((value) => this.normalizeScope(value))
+      .filter(Boolean);
+    return candidates.includes(normalized);
+  }
+
+  async getScopedContexts(communityType = 'all') {
+    const contexts = await this.getSiteDbContexts();
+    if (this.isScopeAll(communityType)) return contexts;
+    return contexts.filter((ctx) => this.matchesScope(ctx, communityType));
+  }
+
+  async resolveScopedCommunityId(communityType = 'all') {
+    const normalized = this.normalizeScope(communityType);
+    if (!normalized || normalized === 'all') return null;
+    const ctx = await resolveCommunityContext(normalized);
+    return Number(ctx?.community_id || 0) || null;
+  }
+
+  async resolveDbCommunityId(connection) {
+    try {
+      const communityCols = await this.getTableColumns(connection, 'communities');
+      if (!communityCols.has('community_id')) return null;
+      const [rows] = await connection.query(
+        'SELECT community_id FROM communities ORDER BY community_id ASC LIMIT 1',
+      );
+      return Number(rows?.[0]?.community_id || 0) || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  async resolveContextCommunityId(ctx = {}) {
+    const key = this.normalizeScope(ctx?.domain || ctx?.site_name || ctx?.db_name || '');
+    if (!key) return null;
+    if (this.contextCommunityIdCache.has(key)) {
+      return this.contextCommunityIdCache.get(key);
+    }
+    const resolved = await this.resolveScopedCommunityId(key);
+    this.contextCommunityIdCache.set(key, resolved || null);
+    return resolved || null;
   }
 
   async getTableColumns(db, tableName) {
@@ -277,9 +340,9 @@ class ReportModel {
    * Get all reported posts for admin
    * @returns {Promise<Array>} List of reported posts with aggregation
    */
-  async getReportedPosts() {
+  async getReportedPosts(communityType = 'all') {
     try {
-      const contexts = await this.getSiteDbContexts();
+      const contexts = await this.getScopedContexts(communityType);
       const allRows = [];
 
       for (const ctx of contexts) {
@@ -297,11 +360,34 @@ class ReportModel {
           const hasCreatedAt = cols.has('created_at');
           const hasReason = cols.has('reason');
           const hasStatus = cols.has('status');
+          const hasReportCommunityId = cols.has('community_id');
+          const postCols = await this.getTableColumns(db, 'posts');
+          const hasPostCommunityId = postCols.has('community_id');
+          const userCols = await this.getTableColumns(db, 'users');
+          const hasUserCommunityId = userCols.has('community_id');
+          const contextCommunityId = await this.resolveContextCommunityId(ctx);
 
-          const filterParts = [];
-          if (hasPostId) filterParts.push('pr.post_id IS NOT NULL');
-          if (hasReportType) filterParts.push(`pr.report_type = 'post'`);
-          const whereSql = filterParts.length ? `WHERE (${filterParts.join(' OR ')})` : '';
+          const typeFilterParts = [];
+          const scopeFilterParts = [];
+          const queryParams = [];
+          if (hasPostId) typeFilterParts.push('pr.post_id IS NOT NULL');
+          if (hasReportType) typeFilterParts.push(`pr.report_type = 'post'`);
+          if (contextCommunityId) {
+            if (hasPostCommunityId) {
+              scopeFilterParts.push('COALESCE(p.community_id, 0) = ?');
+              queryParams.push(contextCommunityId);
+            } else if (hasUserCommunityId) {
+              scopeFilterParts.push('COALESCE(u.community_id, 0) = ?');
+              queryParams.push(contextCommunityId);
+            } else if (hasReportCommunityId) {
+              scopeFilterParts.push('COALESCE(pr.community_id, 0) = ?');
+              queryParams.push(contextCommunityId);
+            }
+          }
+          const whereClauses = [];
+          if (typeFilterParts.length) whereClauses.push(`(${typeFilterParts.join(' OR ')})`);
+          if (scopeFilterParts.length) whereClauses.push(`(${scopeFilterParts.join(' AND ')})`);
+          const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
           const uniqueReportersExpr = hasReporterId ? 'COUNT(DISTINCT pr.reporter_id)' : 'COUNT(*)';
           const totalReportsExpr = hasReportId ? 'COUNT(pr.report_id)' : 'COUNT(*)';
@@ -332,12 +418,13 @@ class ReportModel {
             GROUP BY p.post_id, u.user_id, u.fullname, u.email, u.profile_picture
             HAVING unique_reporters >= 1
             ORDER BY unique_reporters DESC, latest_report DESC
-          `);
+          `, queryParams);
 
           console.log('[reports] getReportedPosts', {
             db: ctx.db_name,
             rows: rows?.length || 0,
-            usedFilters: filterParts,
+            usedTypeFilters: typeFilterParts,
+            usedScopeFilters: scopeFilterParts,
           });
 
           (rows || []).forEach((row) => {
@@ -366,9 +453,9 @@ class ReportModel {
    * Get all reported users for admin
    * @returns {Promise<Array>} List of reported users with aggregation
    */
-  async getReportedUsers() {
+  async getReportedUsers(communityType = 'all') {
     try {
-      const contexts = await this.getSiteDbContexts();
+      const contexts = await this.getScopedContexts(communityType);
       const allRows = [];
 
       for (const ctx of contexts) {
@@ -386,11 +473,29 @@ class ReportModel {
           const hasCreatedAt = cols.has('created_at');
           const hasReason = cols.has('reason');
           const hasStatus = cols.has('status');
+          const hasReportCommunityId = cols.has('community_id');
+          const userCols = await this.getTableColumns(db, 'users');
+          const hasUserCommunityId = userCols.has('community_id');
+          const contextCommunityId = await this.resolveContextCommunityId(ctx);
 
-          const filterParts = [];
-          if (hasMessageId) filterParts.push('ur.message_id IS NOT NULL');
-          if (hasReportType) filterParts.push(`ur.report_type = 'chat'`);
-          const whereSql = filterParts.length ? `WHERE (${filterParts.join(' OR ')})` : '';
+          const typeFilterParts = [];
+          const scopeFilterParts = [];
+          const queryParams = [];
+          if (hasMessageId) typeFilterParts.push('ur.message_id IS NOT NULL');
+          if (hasReportType) typeFilterParts.push(`ur.report_type = 'chat'`);
+          if (contextCommunityId) {
+            if (hasUserCommunityId) {
+              scopeFilterParts.push('COALESCE(u.community_id, 0) = ?');
+              queryParams.push(contextCommunityId);
+            } else if (hasReportCommunityId) {
+              scopeFilterParts.push('COALESCE(ur.community_id, 0) = ?');
+              queryParams.push(contextCommunityId);
+            }
+          }
+          const whereClauses = [];
+          if (typeFilterParts.length) whereClauses.push(`(${typeFilterParts.join(' OR ')})`);
+          if (scopeFilterParts.length) whereClauses.push(`(${scopeFilterParts.join(' AND ')})`);
+          const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
           const uniqueReportersExpr = hasReporterId ? 'COUNT(DISTINCT ur.reporter_id)' : 'COUNT(*)';
           const totalReportsExpr = hasReportId ? 'COUNT(ur.report_id)' : 'COUNT(*)';
@@ -417,12 +522,13 @@ class ReportModel {
             GROUP BY u.user_id, u.fullname, u.email, u.profile_picture
             HAVING unique_reporters >= 1
             ORDER BY unique_reporters DESC, latest_report DESC
-          `);
+          `, queryParams);
 
           console.log('[reports] getReportedUsers', {
             db: ctx.db_name,
             rows: rows?.length || 0,
-            usedFilters: filterParts,
+            usedTypeFilters: typeFilterParts,
+            usedScopeFilters: scopeFilterParts,
           });
 
           (rows || []).forEach((row) => {
@@ -452,14 +558,30 @@ class ReportModel {
    * @param {number} postId - ID of the post
    * @returns {Promise<Array>} List of detailed reports
    */
-  async getPostReports(postId) {
+  async getPostReports(postId, communityType = 'all') {
     try {
-      const contexts = await this.getSiteDbContexts();
+      const contexts = await this.getScopedContexts(communityType);
       const allRows = [];
 
       for (const ctx of contexts) {
         try {
           const db = await connect(ctx.db_name);
+          const reportCols = await this.getTableColumns(db, 'reports');
+          const postCols = await this.getTableColumns(db, 'posts');
+          const contextCommunityId = await this.resolveContextCommunityId(ctx);
+          const hasReportCommunityId = reportCols.has('community_id');
+          const hasPostCommunityId = postCols.has('community_id');
+          const whereParts = ['pr.post_id = ?'];
+          const queryParams = [postId];
+          if (contextCommunityId) {
+            if (hasPostCommunityId) {
+              whereParts.push('COALESCE(p.community_id, 0) = ?');
+              queryParams.push(contextCommunityId);
+            } else if (hasReportCommunityId) {
+              whereParts.push('COALESCE(pr.community_id, 0) = ?');
+              queryParams.push(contextCommunityId);
+            }
+          }
           const [rows] = await db.query(
             `
               SELECT
@@ -471,10 +593,10 @@ class ReportModel {
               FROM reports pr
               JOIN users r ON pr.reporter_id = r.user_id
               LEFT JOIN posts p ON pr.post_id = p.post_id
-              WHERE pr.post_id = ?
+              WHERE ${whereParts.join(' AND ')}
               ORDER BY pr.created_at DESC
             `,
-            [postId],
+            queryParams,
           );
           (rows || []).forEach((row) => allRows.push({ ...row, db_name: ctx.db_name, site_name: ctx.site_name, domain: ctx.domain }));
         } catch (dbErr) {
@@ -494,14 +616,30 @@ class ReportModel {
    * @param {number} userId - ID of the user
    * @returns {Promise<Array>} List of detailed reports
    */
-  async getUserReports(userId) {
+  async getUserReports(userId, communityType = 'all') {
     try {
-      const contexts = await this.getSiteDbContexts();
+      const contexts = await this.getScopedContexts(communityType);
       const allRows = [];
 
       for (const ctx of contexts) {
         try {
           const db = await connect(ctx.db_name);
+          const reportCols = await this.getTableColumns(db, 'reports');
+          const userCols = await this.getTableColumns(db, 'users');
+          const contextCommunityId = await this.resolveContextCommunityId(ctx);
+          const hasReportCommunityId = reportCols.has('community_id');
+          const hasUserCommunityId = userCols.has('community_id');
+          const whereParts = ['ur.reported_user_id = ?', 'ur.message_id IS NOT NULL'];
+          const queryParams = [userId];
+          if (contextCommunityId) {
+            if (hasUserCommunityId) {
+              whereParts.push('COALESCE(reported.community_id, 0) = ?');
+              queryParams.push(contextCommunityId);
+            } else if (hasReportCommunityId) {
+              whereParts.push('COALESCE(ur.community_id, 0) = ?');
+              queryParams.push(contextCommunityId);
+            }
+          }
           const [rows] = await db.query(
             `
               SELECT
@@ -515,10 +653,10 @@ class ReportModel {
               JOIN users reporter ON ur.reporter_id = reporter.user_id
               JOIN users reported ON ur.reported_user_id = reported.user_id
               LEFT JOIN messages m ON ur.message_id = m.message_id
-              WHERE ur.reported_user_id = ? AND ur.message_id IS NOT NULL
+              WHERE ${whereParts.join(' AND ')}
               ORDER BY ur.created_at DESC
             `,
-            [userId],
+            queryParams,
           );
           (rows || []).forEach((row) => allRows.push({ ...row, db_name: ctx.db_name, site_name: ctx.site_name, domain: ctx.domain }));
         } catch (dbErr) {
@@ -533,24 +671,48 @@ class ReportModel {
     }
   }
 
-  async findDbContextByUserId(userId) {
-    const contexts = await this.getSiteDbContexts();
+  async findDbContextByUserId(userId, communityType = 'all') {
+    const contexts = await this.getScopedContexts(communityType);
     for (const ctx of contexts) {
       try {
         const db = await connect(ctx.db_name);
-        const [rows] = await db.query('SELECT user_id FROM users WHERE user_id = ? LIMIT 1', [userId]);
+        const userCols = await this.getTableColumns(db, 'users');
+        const hasUserCommunityId = userCols.has('community_id');
+        const contextCommunityId = await this.resolveContextCommunityId(ctx);
+        const whereParts = ['user_id = ?'];
+        const queryParams = [userId];
+        if (contextCommunityId && hasUserCommunityId) {
+          whereParts.push('COALESCE(community_id, 0) = ?');
+          queryParams.push(contextCommunityId);
+        }
+        const [rows] = await db.query(
+          `SELECT user_id FROM users WHERE ${whereParts.join(' AND ')} LIMIT 1`,
+          queryParams,
+        );
         if (Array.isArray(rows) && rows.length > 0) return ctx;
       } catch (_) {}
     }
     return null;
   }
 
-  async findDbContextByPostId(postId) {
-    const contexts = await this.getSiteDbContexts();
+  async findDbContextByPostId(postId, communityType = 'all') {
+    const contexts = await this.getScopedContexts(communityType);
     for (const ctx of contexts) {
       try {
         const db = await connect(ctx.db_name);
-        const [rows] = await db.query('SELECT post_id FROM posts WHERE post_id = ? LIMIT 1', [postId]);
+        const postCols = await this.getTableColumns(db, 'posts');
+        const hasPostCommunityId = postCols.has('community_id');
+        const contextCommunityId = await this.resolveContextCommunityId(ctx);
+        const whereParts = ['post_id = ?'];
+        const queryParams = [postId];
+        if (contextCommunityId && hasPostCommunityId) {
+          whereParts.push('COALESCE(community_id, 0) = ?');
+          queryParams.push(contextCommunityId);
+        }
+        const [rows] = await db.query(
+          `SELECT post_id FROM posts WHERE ${whereParts.join(' AND ')} LIMIT 1`,
+          queryParams,
+        );
         if (Array.isArray(rows) && rows.length > 0) return ctx;
       } catch (_) {}
     }
@@ -565,8 +727,8 @@ class ReportModel {
    * @param {string} reason - Reason for the action
    * @returns {Promise<Object>} Action result
    */
-  async takeUserAction(userId, action, adminId, reason) {
-    const ctx = await this.findDbContextByUserId(userId);
+  async takeUserAction(userId, action, adminId, reason, communityType = 'all') {
+    const ctx = await this.findDbContextByUserId(userId, communityType);
     if (!ctx?.db_name) {
       throw new Error('User not found in any site database');
     }
@@ -586,15 +748,27 @@ class ReportModel {
         throw new Error('Invalid action. Must be "warning" or "suspend"');
       }
 
+      const userColumns = await this.getTableColumns(connection, 'users');
+      const hasUserCommunityId = userColumns.has('community_id');
+
       // Check if user exists
       const [user] = await connection.query(
-        'SELECT user_id, fullname, email FROM users WHERE user_id = ?',
+        `SELECT user_id, fullname, email${hasUserCommunityId ? ', community_id' : ''}
+         FROM users
+         WHERE user_id = ?`,
         [userId]
       );
 
       if (!user || user.length === 0) {
         throw new Error('User not found');
       }
+
+      const scopedCommunityId = await this.resolveScopedCommunityId(communityType);
+      const userCommunityId = hasUserCommunityId
+        ? Number(user?.[0]?.community_id || 0) || null
+        : null;
+      const dbCommunityId = await this.resolveDbCommunityId(connection);
+      const notificationCommunityId = userCommunityId || scopedCommunityId || dbCommunityId || null;
 
       // Schema-compatible action handling:
       // no user_actions/admin_logs/users.status fields in current DB dump.
@@ -616,7 +790,13 @@ class ReportModel {
       // warning -> policy warning message
       // ban -> account banned message
       try {
-        await this.createAdminActionNotification(connection, userId, effectiveAction, adminId);
+        await this.createAdminActionNotification(
+          connection,
+          userId,
+          effectiveAction,
+          adminId,
+          notificationCommunityId,
+        );
       } catch (notifyErr) {
         console.warn("Failed to create admin action notification:", notifyErr?.message || notifyErr);
       }
@@ -640,7 +820,7 @@ class ReportModel {
     }
   }
 
-  async createAdminActionNotification(connection, userId, action, adminId) {
+  async createAdminActionNotification(connection, userId, action, adminId, communityId = null) {
     const normalizedAction = String(action || "").toLowerCase();
     const activityType = normalizedAction === "suspend" || normalizedAction === "ban"
       ? "suspended"
@@ -650,10 +830,23 @@ class ReportModel {
     // still only contains like/comment/repost/follow.
     await this.ensureNotificationActivityType(connection, activityType);
 
+    const notificationColumns = await this.getTableColumns(connection, 'notifications');
+    const hasCommunityId = notificationColumns.has('community_id');
+
+    if (hasCommunityId) {
+      const safeCommunityId = Number(communityId || 0) || null;
+      await connection.query(
+        `INSERT INTO notifications (user_id, activity_type, source_user_id, post_id, community_id, created_at)
+         VALUES (?, ?, ?, NULL, ?, NOW())`,
+        [userId, activityType, adminId || null, safeCommunityId],
+      );
+      return;
+    }
+
     await connection.query(
       `INSERT INTO notifications (user_id, activity_type, source_user_id, post_id, created_at)
        VALUES (?, ?, ?, NULL, NOW())`,
-      [userId, activityType, adminId || null]
+      [userId, activityType, adminId || null],
     );
   }
 
@@ -718,8 +911,8 @@ class ReportModel {
    * @param {string} reason - Reason for the action
    * @returns {Promise<Object>} Action result
    */
-  async takePostAction(postId, action, adminId, reason) {
-    const ctx = await this.findDbContextByPostId(postId);
+  async takePostAction(postId, action, adminId, reason, communityType = 'all') {
+    const ctx = await this.findDbContextByPostId(postId, communityType);
     if (!ctx?.db_name) {
       throw new Error('Post not found in any site database');
     }
@@ -785,10 +978,10 @@ class ReportModel {
    * Get combined report statistics
    * @returns {Promise<Object>} Report statistics
    */
-  async getReportStatistics() {
+  async getReportStatistics(communityType = 'all') {
     try {
-      const reportedPosts = await this.getReportedPosts();
-      const reportedUsers = await this.getReportedUsers();
+      const reportedPosts = await this.getReportedPosts(communityType);
+      const reportedUsers = await this.getReportedUsers(communityType);
 
       return {
         total_reported_posts: reportedPosts.length,

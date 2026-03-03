@@ -1,6 +1,9 @@
 import { io } from "socket.io-client";
+import { getActiveSiteSlug, getSessionToken } from "../../lib/site-context.js";
 
-const API_URL = "http://localhost:4000";
+const API_URL =
+  (typeof window !== "undefined" && window.__API_ORIGIN__) ||
+  "http://localhost:4000";
 
 let socket = null;
 
@@ -28,7 +31,7 @@ function resolveUserId(token) {
   const payload = parseJwtPayload(token);
   const fromToken = payload?.id || payload?.user_id || payload?.sub;
   if (fromToken) {
-    localStorage.setItem("userId", String(fromToken));
+    sessionStorage.setItem("userId", String(fromToken));
     return String(fromToken);
   }
 
@@ -36,7 +39,9 @@ function resolveUserId(token) {
 }
 
 const setupSocket = () => {
-  const currentToken = sessionStorage.getItem("authToken");
+  const siteSlug = getActiveSiteSlug();
+  const currentToken =
+    getSessionToken(siteSlug) || sessionStorage.getItem("authToken");
   if (!currentToken) {
     if (socket?.connected) socket.disconnect();
     return null;

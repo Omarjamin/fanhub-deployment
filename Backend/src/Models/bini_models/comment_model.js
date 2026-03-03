@@ -146,11 +146,16 @@ class Comment {
   // create a notification
   async createNotification(user_id, activity_type, source_user_id, post_id) {
     try {
-      const [results] = await this.db.execute(
-        `INSERT INTO notifications(user_id, activity_type, source_user_id, post_id, created_at)
-         VALUES (?, ?, ?, ?, NOW())`,
-        [user_id, activity_type, source_user_id, post_id]
-      );
+      const hasNotifCommunity = await this.hasColumn("notifications", "community_id");
+      const query = hasNotifCommunity
+        ? `INSERT INTO notifications(user_id, activity_type, source_user_id, post_id, community_id, created_at)
+           VALUES (?, ?, ?, ?, ?, NOW())`
+        : `INSERT INTO notifications(user_id, activity_type, source_user_id, post_id, created_at)
+           VALUES (?, ?, ?, ?, NOW())`;
+      const params = hasNotifCommunity
+        ? [user_id, activity_type, source_user_id, post_id, this.activeCommunityId]
+        : [user_id, activity_type, source_user_id, post_id];
+      const [results] = await this.db.execute(query, params);
       return results;
     } catch (err) {
       console.error('<error> comment.createNotification', err);

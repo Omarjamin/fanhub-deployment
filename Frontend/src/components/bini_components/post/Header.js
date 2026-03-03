@@ -1,6 +1,7 @@
 import api from "../../../services/bini_services/api.js";
 import { fetchProfileData } from "../../../services/bini_services/user/fetchprofiledata.js";
 import { getActiveSiteSlug, getSessionToken } from "../../../lib/site-context.js";
+import { showToast } from "../../../utils/toast.js";
 
 export default async function Header(root) {
   let profilePicUrl = "";
@@ -288,7 +289,7 @@ export default async function Header(root) {
         }),
       );
 
-      alert("Post created successfully!");
+      showToast("Post created successfully!", "success");
 
       form.reset();
       textarea.style.height = "auto";
@@ -303,11 +304,19 @@ export default async function Header(root) {
 
       submitButton.disabled = false;
     } catch (error) {
-      const message =
-        error.response?.data?.message ||
-        "Error creating post. Please try again.";
+      const payload = error?.response?.data || {};
+      const rawMessage = String(payload?.error || payload?.message || "");
+      const isModerationBlocked =
+        Boolean(payload?.warning) ||
+        Boolean(payload?.moderation) ||
+        /suspicious words detected/i.test(rawMessage);
 
-      alert(message);
+      if (isModerationBlocked) {
+        showToast("Bad detected words, please try another.", "error");
+      } else {
+        const message = rawMessage || "Error creating post. Please try again.";
+        showToast(message, "error");
+      }
       submitButton.disabled = false;
     }
   });

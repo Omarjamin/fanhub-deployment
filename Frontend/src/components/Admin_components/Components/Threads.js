@@ -239,8 +239,8 @@ export default function Threads() {
             <div class="thread-card-date">${formatDate(thread.date)} • ${formatDateTime(thread.created_at)}</div>
 
             <div class="thread-card-actions">
-              <button class="btn-edit" type="button" data-action="edit" data-id="${id}" data-site-id="${thread.site_id || ''}">Edit</button>
-              <button class="btn-delete" type="button" data-action="delete" data-id="${id}" data-site-id="${thread.site_id || ''}">Delete</button>
+              <button class="btn-edit" type="button" data-action="edit" data-id="${id}" data-site-id="${thread.site_id || ''}" data-community="${thread.community_type || thread.domain || ''}">Edit</button>
+              <button class="btn-delete" type="button" data-action="delete" data-id="${id}" data-site-id="${thread.site_id || ''}" data-community="${thread.community_type || thread.domain || ''}">Delete</button>
             </div>
           </article>
         `;
@@ -287,6 +287,7 @@ export default function Threads() {
         .map((row) => ({
           site_id: row.id ?? row.site_id,
           site_name: row.site_name,
+          community: row.domain || row.community_type || row.site_name || '',
           domain: row.domain,
           status: row.status,
         }))
@@ -304,9 +305,14 @@ export default function Threads() {
     renderThreadsList();
 
     try {
-      const url = state.selectedSite === 'all'
-        ? `${BASE_V1}/admin/threads`
-        : `${BASE_V1}/admin/threads?site_id=${state.selectedSite}`;
+      let url = `${BASE_V1}/admin/threads`;
+      if (state.selectedSite !== 'all') {
+        const site = state.sites.find((item) => String(item.site_id) === String(state.selectedSite));
+        const params = new URLSearchParams();
+        params.set('site_id', String(state.selectedSite));
+        if (site?.community) params.set('community', String(site.community).toLowerCase());
+        url = `${BASE_V1}/admin/threads?${params.toString()}`;
+      }
 
       const res = await fetch(url, { headers: authHeaders() });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -386,12 +392,21 @@ export default function Threads() {
     }
   }
 
+  function resolveCommunityForSiteId(siteId) {
+    const site = state.sites.find((item) => String(item.site_id) === String(siteId));
+    return String(site?.community || site?.domain || '').trim().toLowerCase();
+  }
+
   async function removeThread(id, siteId) {
     const confirmed = window.confirm('Delete this thread permanently?');
     if (!confirmed) return;
 
     try {
-      const res = await fetch(`${BASE_V1}/admin/threads/${id}?site_id=${encodeURIComponent(siteId)}`, { method: 'DELETE', headers: authHeaders() });
+      const params = new URLSearchParams();
+      params.set('site_id', String(siteId));
+      const community = resolveCommunityForSiteId(siteId);
+      if (community) params.set('community', community);
+      const res = await fetch(`${BASE_V1}/admin/threads/${id}?${params.toString()}`, { method: 'DELETE', headers: authHeaders() });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.message || data.error || `HTTP ${res.status}`);
@@ -473,12 +488,14 @@ export default function Threads() {
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const selectedSiteId = Number.parseInt(section.querySelector('#threadSite').value, 10);
 
     const payload = {
       title: section.querySelector('#threadTitle').value.trim(),
       venue: section.querySelector('#threadVenue').value.trim(),
       date: section.querySelector('#threadDate').value,
-      site_id: Number.parseInt(section.querySelector('#threadSite').value, 10),
+      site_id: selectedSiteId,
+      community: resolveCommunityForSiteId(selectedSiteId),
       is_pinned: section.querySelector('#threadPinned').checked
     };
 

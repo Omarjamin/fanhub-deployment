@@ -12,6 +12,9 @@ function resolveSelectedAdminSite() {
   if (fromStorage && fromStorage !== 'all') return fromStorage;
 
   const parts = String(window?.location?.pathname || '').split('/').filter(Boolean);
+  if (parts[0] === 'fanhub' && parts[1] === 'community-platform' && parts[2]) {
+    return String(parts[2]).trim().toLowerCase();
+  }
   if (parts[0] === 'fanhub' && parts[1] && parts[1] !== 'community-platform') {
     return String(parts[1]).trim().toLowerCase();
   }

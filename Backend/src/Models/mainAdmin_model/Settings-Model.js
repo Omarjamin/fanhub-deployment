@@ -1,4 +1,4 @@
-import { connectAdmin, connect } from '../../core/database.js';
+import { connectAdmin, connect, resolveCommunityContext } from '../../core/database.js';
 
 class SettingsModel {
   tableName = 'site_province_shipping_regions';
@@ -84,16 +84,22 @@ class SettingsModel {
     throw new Error(`Site DB not resolved for "${siteSlug}"`);
   }
 
-  async readEventRows(db) {
+  async readEventRows(db, scopedCommunityId = null) {
     await this.ensureEventColumns(db);
     const columns = await this.getTableColumns(db, 'events');
     const hasEventName = Boolean(columns.event_name);
     const nameSelect = hasEventName ? ', event_name' : '';
+    const hasGroupCommunityId = Boolean(columns.group_community_id);
+    const hasCommunityId = Boolean(columns.community_id);
+    const scopeColumn = hasGroupCommunityId ? 'group_community_id' : (hasCommunityId ? 'community_id' : null);
+    const scopeWhere = scopeColumn && scopedCommunityId ? ` AND COALESCE(${scopeColumn}, 0) = ?` : '';
+    const params = scopeWhere ? [scopedCommunityId] : [];
     const [rows] = await db.query(
       `SELECT event_id, ticket_link, image_url${nameSelect}
        FROM events
-       WHERE COALESCE(ticket_link, '') <> '' OR COALESCE(image_url, '') <> ''
+       WHERE (COALESCE(ticket_link, '') <> '' OR COALESCE(image_url, '') <> '')${scopeWhere}
        ORDER BY event_id ASC`,
+      params,
     );
     return rows || [];
   }
@@ -233,6 +239,7 @@ class SettingsModel {
   async getEventPosters(communityType) {
     const scoped = this.normalizeSiteSlug(communityType);
     if (!scoped || scoped === this.globalSlug) return [];
+    const scopedCommunityId = Number((await resolveCommunityContext(scoped))?.community_id || 0) || null;
 
     const variants = this.buildSiteSlugVariants(scoped);
     console.log('[settings-model] getEventPosters variants', {
@@ -247,7 +254,7 @@ class SettingsModel {
         const db = await connect(candidate);
         const [dbRows] = await db.query('SELECT DATABASE() AS current_db');
         const currentDb = String(dbRows?.[0]?.current_db || '').trim();
-        const candidateRows = await this.readEventRows(db);
+        const candidateRows = await this.readEventRows(db, scopedCommunityId);
         console.log('[settings-model] candidate read', {
           candidate,
           currentDb,
@@ -286,10 +293,14 @@ class SettingsModel {
     if (!scoped || scoped === this.globalSlug) {
       throw new Error('site/community is required');
     }
+    const scopedCommunityId = Number((await resolveCommunityContext(scoped))?.community_id || 0) || null;
 
     const db = await this.resolveStrictSiteDb(scoped);
     await this.ensureEventColumns(db);
     const columns = await this.getTableColumns(db, 'events');
+    const hasGroupCommunityId = Boolean(columns.group_community_id);
+    const hasCommunityId = Boolean(columns.community_id);
+    const scopeColumn = hasGroupCommunityId ? 'group_community_id' : (hasCommunityId ? 'community_id' : null);
 
     const normalized = (Array.isArray(posters) ? posters : [])
       .map((item, index) => this.normalizePosterPayload(item, index))
@@ -311,6 +322,10 @@ class SettingsModel {
       }
       updateSql += ` WHERE event_id = ?`;
       updateParams.push(poster.event_id);
+      if (scopeColumn && scopedCommunityId) {
+        updateSql += ` AND COALESCE(${scopeColumn}, 0) = ?`;
+        updateParams.push(scopedCommunityId);
+      }
 
       const [updated] = await db.query(updateSql, updateParams);
       if (Number(updated?.affectedRows || 0) > 0) continue;
@@ -336,7 +351,10 @@ class SettingsModel {
       }
       if (columns.group_community_id) {
         insertCols.push('group_community_id');
-        insertVals.push(1);
+        insertVals.push(scopedCommunityId || 0);
+      } else if (columns.community_id) {
+        insertCols.push('community_id');
+        insertVals.push(scopedCommunityId || 0);
       }
 
       const placeholders = insertCols.map(() => '?').join(', ');

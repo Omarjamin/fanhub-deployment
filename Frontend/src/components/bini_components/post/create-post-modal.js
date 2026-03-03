@@ -1,5 +1,6 @@
 import api from '../../../services/bini_services/api.js';
 import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
+import { showToast } from '../../../utils/toast.js';
 export default function CreatePost(root) {
 
   const modal = document.createElement('div');
@@ -82,15 +83,26 @@ export default function CreatePost(root) {
 
       try {
         await api.post('/bini/posts/create', postData);
-        alert('Post created successfully!');
+        showToast('Post created successfully!', 'success');
         closeModal();
         window.location.href = `/fanhub/community-platform/${encodeURIComponent(siteSlug)}`;
       } catch (error) {
         console.error('Error creating post:', error);
-        alert('Error creating post. Please check your internet connection.');
+        const payload = error?.response?.data || {};
+        const rawMessage = String(payload?.error || payload?.message || "");
+        const isModerationBlocked =
+          Boolean(payload?.warning) ||
+          Boolean(payload?.moderation) ||
+          /suspicious words detected/i.test(rawMessage);
+
+        if (isModerationBlocked) {
+          showToast('Bad detected words, please try another.', 'error');
+        } else {
+          showToast(rawMessage || 'Error creating post. Please check your internet connection.', 'error');
+        }
       }
     } else {
-      alert('Please fill out the content field.');
+      showToast('Please fill out the content field.', 'error');
     }
   });
 

@@ -1,4 +1,4 @@
-import { connect, connectAdmin } from '../../core/database.js';
+import { connect, connectAdmin, resolveCommunityContext } from '../../core/database.js';
 
 class DiscographyModel {
   constructor() {
@@ -43,10 +43,46 @@ class DiscographyModel {
     return rows?.[0] || null;
   }
 
+  async getSiteByKey(siteKey) {
+    const raw = String(siteKey || '').trim();
+    if (!raw) return null;
+
+    const numeric = Number(raw);
+    if (!Number.isNaN(numeric) && numeric > 0) {
+      return this.getSiteById(numeric);
+    }
+
+    const normalized = raw.toLowerCase();
+    const db = await this.getAdminDb();
+    const [rows] = await db.query(
+      `
+        SELECT site_id, site_name, domain, status
+        FROM sites
+        WHERE LOWER(TRIM(domain)) = LOWER(TRIM(?))
+           OR LOWER(TRIM(site_name)) = LOWER(TRIM(?))
+        LIMIT 1
+      `,
+      [normalized, normalized],
+    );
+    return rows?.[0] || null;
+  }
+
   async connectSiteDb(site) {
     const key = String(site?.domain || site?.site_name || '').trim().toLowerCase();
     if (!key) throw new Error('Invalid site database mapping');
     return connect(key);
+  }
+
+  async resolveSiteCommunityId(site) {
+    const key = String(site?.domain || site?.site_name || '').trim().toLowerCase();
+    if (!key) return Number(site?.site_id || 0) || null;
+    const ctx = await resolveCommunityContext(key);
+    return Number(ctx?.community_id || site?.community_id || site?.site_id || 0) || null;
+  }
+
+  async getPhysicalDbName(siteDb) {
+    const [rows] = await siteDb.query('SELECT DATABASE() AS current_db');
+    return String(rows?.[0]?.current_db || '').trim().toLowerCase();
   }
 
   async getSchema(siteDb, cacheKey = 'default') {
@@ -76,6 +112,7 @@ class DiscographyModel {
       albumLink: names.includes('album_link')
         ? 'album_link'
         : (names.includes('album_lnk') ? 'album_lnk' : null),
+      communityId: names.includes('community_id') ? 'community_id' : null,
       description: names.includes('description') ? 'description' : null,
       hasCreatedAt: names.includes('created_at'),
       hasUpdatedAt: names.includes('updated_at'),
@@ -86,6 +123,9 @@ class DiscographyModel {
   }
 
   mapAlbumRow(row, schema, site) {
+    const resolvedCommunityId = Number(
+      site?.resolved_community_id || site?.community_id || site?.site_id || 0,
+    ) || null;
     return {
       album_id: row?.[schema.albumId || 'album_id'] ?? row?.album_id ?? row?.id ?? null,
       name: row?.[schema.title || 'title'] ?? row?.title ?? row?.name ?? '',
@@ -101,7 +141,7 @@ class DiscographyModel {
       created_at: schema.hasCreatedAt ? row?.created_at : null,
       updated_at: schema.hasUpdatedAt ? row?.updated_at : null,
       site_id: site.site_id,
-      community_id: site.site_id,
+      community_id: resolvedCommunityId,
       site_name: site.site_name,
       community_name: site.site_name,
       domain: site.domain,
@@ -112,18 +152,30 @@ class DiscographyModel {
   async fetchAlbumsForSite(site, specificAlbumId = null) {
     const siteDb = await this.connectSiteDb(site);
     const schema = await this.getSchema(siteDb, String(site.site_id || site.domain || 'default'));
+    const resolvedCommunityId = await this.resolveSiteCommunityId(site);
 
     const albumIdCol = schema.albumId || 'album_id';
+    const communityCol = schema.communityId;
     let query = 'SELECT * FROM discography';
     const params = [];
+    const where = [];
+
+    if (communityCol) {
+      where.push(`${communityCol} = ?`);
+      params.push(Number(resolvedCommunityId || 0));
+    }
     if (specificAlbumId) {
-      query += ` WHERE ${albumIdCol} = ?`;
+      where.push(`${albumIdCol} = ?`);
       params.push(Number(specificAlbumId));
+    }
+    if (where.length) {
+      query += ` WHERE ${where.join(' AND ')}`;
     }
     query += ` ORDER BY ${schema.year || albumIdCol} DESC`;
 
     const [rows] = await siteDb.query(query, params);
-    return (rows || []).map((row) => this.mapAlbumRow(row, schema, site));
+    const scopedSite = { ...site, resolved_community_id: resolvedCommunityId };
+    return (rows || []).map((row) => this.mapAlbumRow(row, schema, scopedSite));
   }
 
   async findAll(siteId = null) {
@@ -140,9 +192,21 @@ class DiscographyModel {
     }
 
     const sites = await this.getActiveSites();
+    const processedPhysicalDbs = new Set();
     const all = [];
     for (const site of sites) {
       try {
+        const siteDb = await this.connectSiteDb(site);
+        const physicalDb = await this.getPhysicalDbName(siteDb);
+        const schema = await this.getSchema(siteDb, String(site.site_id || site.domain || 'default'));
+        // If schema has no community_id (legacy shared table), avoid duplicating
+        // the same albums for every site pointing to one physical DB.
+        if (!schema.communityId && physicalDb && processedPhysicalDbs.has(physicalDb)) {
+          continue;
+        }
+        if (!schema.communityId && physicalDb) {
+          processedPhysicalDbs.add(physicalDb);
+        }
         const rows = await this.fetchAlbumsForSite(site);
         all.push(...rows);
       } catch (err) {
@@ -165,8 +229,18 @@ class DiscographyModel {
     }
 
     const sites = await this.getActiveSites();
+    const processedPhysicalDbs = new Set();
     for (const site of sites) {
       try {
+        const siteDb = await this.connectSiteDb(site);
+        const physicalDb = await this.getPhysicalDbName(siteDb);
+        const schema = await this.getSchema(siteDb, String(site.site_id || site.domain || 'default'));
+        if (!schema.communityId && physicalDb && processedPhysicalDbs.has(physicalDb)) {
+          continue;
+        }
+        if (!schema.communityId && physicalDb) {
+          processedPhysicalDbs.add(physicalDb);
+        }
         const rows = await this.fetchAlbumsForSite(site, numericId);
         if (rows.length) return rows[0];
       } catch (_) {}
@@ -185,6 +259,7 @@ class DiscographyModel {
   }) {
     const site = await this.getSiteById(site_id);
     if (!site) throw new Error('Selected site does not exist');
+    const resolvedCommunityId = await this.resolveSiteCommunityId(site);
 
     const siteDb = await this.connectSiteDb(site);
     const schema = await this.getSchema(siteDb, String(site.site_id || site.domain || 'default'));
@@ -218,6 +293,11 @@ class DiscographyModel {
       values.push('?');
       params.push(album_link);
     }
+    if (schema.communityId) {
+      cols.push(schema.communityId);
+      values.push('?');
+      params.push(Number(resolvedCommunityId || 0));
+    }
     if (schema.description) {
       cols.push(schema.description);
       values.push('?');
@@ -248,6 +328,7 @@ class DiscographyModel {
 
     const site = await this.getSiteById(site_id);
     if (!site) throw new Error('Selected site does not exist');
+    const resolvedCommunityId = await this.resolveSiteCommunityId(site);
 
     const siteDb = await this.connectSiteDb(site);
     const schema = await this.getSchema(siteDb, String(site.site_id || site.domain || 'default'));
@@ -281,12 +362,19 @@ class DiscographyModel {
     if (schema.hasUpdatedAt) {
       updates.push('updated_at = NOW()');
     }
+    if (schema.communityId) {
+      updates.push(`${schema.communityId} = ?`);
+      params.push(Number(resolvedCommunityId || 0));
+    }
 
     if (!updates.length) throw new Error('Validation error');
 
     params.push(numericId);
+    const scopedWhere = schema.communityId
+      ? ` AND ${schema.communityId} = ${Number(resolvedCommunityId || 0)}`
+      : '';
     const [result] = await siteDb.query(
-      `UPDATE discography SET ${updates.join(', ')} WHERE ${schema.albumId || 'album_id'} = ?`,
+      `UPDATE discography SET ${updates.join(', ')} WHERE ${schema.albumId || 'album_id'} = ?${scopedWhere}`,
       params,
     );
     if (!result.affectedRows) throw new Error('Discography item not found');
@@ -300,12 +388,19 @@ class DiscographyModel {
 
     const site = await this.getSiteById(siteId);
     if (!site) throw new Error('Selected site does not exist');
+    const resolvedCommunityId = await this.resolveSiteCommunityId(site);
 
     const siteDb = await this.connectSiteDb(site);
     const schema = await this.getSchema(siteDb, String(site.site_id || site.domain || 'default'));
+    const params = [numericId];
+    let scopedWhere = '';
+    if (schema.communityId) {
+      scopedWhere = ` AND ${schema.communityId} = ?`;
+      params.push(Number(resolvedCommunityId || 0));
+    }
     const [result] = await siteDb.query(
-      `DELETE FROM discography WHERE ${schema.albumId || 'album_id'} = ?`,
-      [numericId],
+      `DELETE FROM discography WHERE ${schema.albumId || 'album_id'} = ?${scopedWhere}`,
+      params,
     );
     if (!result.affectedRows) throw new Error('Discography item not found');
     return true;

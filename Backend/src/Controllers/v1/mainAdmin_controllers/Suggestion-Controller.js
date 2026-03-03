@@ -1,13 +1,31 @@
 import SuggestionModel from "../../../Models/mainAdmin_model/Suggestion-Model.js";
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
 class SuggestionController {
   constructor() {
     this.suggestionModel = new SuggestionModel();
   }
 
+  resolveCommunity(req, res) {
+    return String(
+      req.query?.community ||
+      req.body?.community ||
+      resolveSiteSlug(req, res) ||
+      '',
+    )
+      .trim()
+      .toLowerCase();
+  }
+
   async createPublicSuggestion(req, res) {
     try {
-      const communityName = String(req.body?.community_name || req.body?.communityName || "").trim();
+      const scopedCommunity = this.resolveCommunity(req, res);
+      const communityName = String(
+        req.body?.community_name ||
+        req.body?.communityName ||
+        scopedCommunity ||
+        "",
+      ).trim();
       const suggestionText = String(req.body?.suggestion_text || req.body?.suggestionText || req.body?.note || "").trim();
       const contactEmailRaw = String(req.body?.contact_email || req.body?.contactEmail || "").trim();
 
@@ -41,7 +59,8 @@ class SuggestionController {
   async getUnreadSuggestions(req, res) {
     try {
       const limit = Number(req.query?.limit || 30);
-      const rows = await this.suggestionModel.getUnreadSuggestions(limit);
+      const community = this.resolveCommunity(req, res);
+      const rows = await this.suggestionModel.getUnreadSuggestions(limit, community);
       return res.status(200).json({
         success: true,
         data: rows,
@@ -79,7 +98,8 @@ class SuggestionController {
 
   async markAllSuggestionsRead(req, res) {
     try {
-      const updated = await this.suggestionModel.markAllRead();
+      const community = this.resolveCommunity(req, res);
+      const updated = await this.suggestionModel.markAllRead(community);
       return res.status(200).json({
         success: true,
         message: "All suggestions marked as read",

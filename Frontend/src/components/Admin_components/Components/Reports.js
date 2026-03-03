@@ -257,6 +257,16 @@ function normalizeReportStatus(rawStatus) {
   return status === 'pending' ? 'pending' : 'resolved';
 }
 
+function getReportCommunityKey(report = {}) {
+  return String(
+    report?.community_type ||
+    report?.domain ||
+    report?.site_name ||
+    report?.community_name ||
+    '',
+  ).trim().toLowerCase();
+}
+
 function getReasonTokens(report) {
   const raw =
     report?.reasons ??
@@ -277,8 +287,10 @@ function dedupeByReportedUser(rows) {
   const byUser = new Map();
 
   for (const row of rows) {
-    const key = row?.user_id ?? row?.reported_user_id;
-    if (!key) continue;
+    const userId = row?.user_id ?? row?.reported_user_id;
+    const communityKey = getReportCommunityKey(row);
+    if (!userId) continue;
+    const key = `${String(userId || '')}::${communityKey}`;
 
     const prev = byUser.get(key);
     if (!prev) {
@@ -331,6 +343,7 @@ function renderReportsTable() {
     `;
   } else {
     tableBody.innerHTML = filteredData.map((report) => {
+      const communityKey = getReportCommunityKey(report);
       return `
       <tr>
         <td>#${report.user_id ?? 'N/A'}</td>
@@ -360,8 +373,8 @@ function renderReportsTable() {
         <td>${formatDate(report.latest_report)}</td>
         <td>
           <div class="report-actions-row">
-            <button class="btn-icon btn-warning" onclick="handleWarning('${report.user_id}')" title="Send Warning">&#9888;</button>
-            <button class="btn-icon btn-danger" onclick="handleSuspend('${report.user_id}')" title="Suspend User">&#9940;</button>
+            <button class="btn-icon btn-warning" onclick="handleWarning('${report.user_id}', '${communityKey}')" title="Send Warning">&#9888;</button>
+            <button class="btn-icon btn-danger" onclick="handleSuspend('${report.user_id}', '${communityKey}')" title="Suspend User">&#9940;</button>
           </div>
         </td>
       </tr>
@@ -410,9 +423,10 @@ function applyFilters() {
   renderReportsTable();
 }
 
-async function viewUserReports(userId) {
+async function viewUserReports(userId, community = '') {
   try {
-    const result = await requestJson(`/admin/reports/users/${userId}/reports`);
+    const q = community ? `?community=${encodeURIComponent(community)}` : '';
+    const result = await requestJson(`/admin/reports/users/${userId}/reports${q}`);
     showUserReportsModal(userId, result.data || []);
   } catch (error) {
     console.error('Error fetching user reports:', error);
@@ -420,9 +434,10 @@ async function viewUserReports(userId) {
   }
 }
 
-async function viewPostReports(postId) {
+async function viewPostReports(postId, community = '') {
   try {
-    const result = await requestJson(`/admin/reports/posts/${postId}/reports`);
+    const q = community ? `?community=${encodeURIComponent(community)}` : '';
+    const result = await requestJson(`/admin/reports/posts/${postId}/reports${q}`);
     showPostReportsModal(postId, result.data || []);
   } catch (error) {
     console.error('Error fetching post reports:', error);
@@ -515,7 +530,7 @@ function closeReportsModal() {
   }
 }
 
-async function handleWarning(userId) {
+async function handleWarning(userId, community = '') {
   const warningPayload = await openWarningModal(userId);
   if (!warningPayload) return;
 
@@ -526,6 +541,7 @@ async function handleWarning(userId) {
         action: 'warning',
         reason: warningPayload.content,
         warning_category: warningPayload.category,
+        community,
       })
     });
 
@@ -613,7 +629,7 @@ function openWarningModal(userId) {
   });
 }
 
-async function handleSuspend(userId) {
+async function handleSuspend(userId, community = '') {
   const confirmed = confirm(`Are you sure you want to suspend user ${userId}?`);
   if (!confirmed) return;
 
@@ -623,7 +639,7 @@ async function handleSuspend(userId) {
   try {
     const result = await requestJson(`/admin/reports/users/${userId}/action`, {
       method: 'POST',
-      body: JSON.stringify({ action: 'suspend', reason })
+      body: JSON.stringify({ action: 'suspend', reason, community })
     });
 
     alert(result.message || `User ${userId} has been suspended`);
