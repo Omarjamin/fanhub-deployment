@@ -67,8 +67,31 @@ function createPool(envPrefix, fallback = {}) {
   });
 }
 
+function createPoolFromMysqlUrl(rawUrl) {
+  const value = String(rawUrl || "").trim();
+  if (!value) return null;
+  try {
+    const parsed = new URL(value);
+    const dbName = String(parsed.pathname || "").replace(/^\/+/, "").trim();
+    return mysql.createPool({
+      host: parsed.hostname,
+      user: decodeURIComponent(parsed.username || "root"),
+      password: decodeURIComponent(parsed.password || ""),
+      database: dbName || undefined,
+      port: Number(parsed.port || 3306),
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+    });
+  } catch (err) {
+    console.error("Invalid MYSQL_URL:", err?.message || err);
+    return null;
+  }
+}
+
 // 🔹 Pre-create pools (optional: lazy-load)
-pools['admin'] = createPool('DB_ADMIN', {
+const mysqlUrlPool = createPoolFromMysqlUrl(process.env.MYSQL_URL);
+pools['admin'] = mysqlUrlPool || createPool('DB_ADMIN', {
   host: process.env.DB_HOST_ADMIN,
   user: process.env.DB_USER_ADMIN,
   password: process.env.DB_PASSWORD_ADMIN,
@@ -76,7 +99,7 @@ pools['admin'] = createPool('DB_ADMIN', {
   port: process.env.DB_PORT_ADMIN,
 });
 
-pools['default'] = createPool('DB');
+pools['default'] = mysqlUrlPool || createPool('DB');
 
 async function resolveSiteDatabaseConfig(domainOrSiteRaw) {
   const key = normalizeSiteKey(domainOrSiteRaw);
