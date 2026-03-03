@@ -10,6 +10,7 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import dotenv from "dotenv";
 import fileUpload from "express-fileupload";
+import { connect } from "./core/database.js";
 
 dotenv.config();
 if (process.env.ALLOW_INSECURE_TLS === "1") {
