@@ -147,6 +147,17 @@ app.get("/", (req, res) => {
   res.json({ success: true, message: "Welcome to Bini API!✨🤖" });
 });
 
+
+app.get("/health", async (req, res) => {
+  try {
+    const admin = await connect("admin");
+    await admin.query("SELECT 1");
+    res.json({ status: "OK" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.use("/v1", cors(), v1);
 
 // Start server
