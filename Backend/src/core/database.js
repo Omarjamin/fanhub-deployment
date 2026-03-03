@@ -10,11 +10,63 @@ if (!process.env.MYSQL_URL) {
   throw new Error("MYSQL_URL is not defined. Attach MySQL service to backend.");
 }
 
+function getAdminDatabaseName() {
+  return String(
+    process.env.MYSQL_DATABASE ||
+      process.env.MYSQLDATABASE ||
+      process.env.DB_NAME_ADMIN ||
+      process.env.DB_NAME ||
+      ""
+  ).trim();
+}
+
+function getAdminPoolConfig() {
+  const rawUrl = String(process.env.MYSQL_URL || "").trim();
+  const fallbackDb = getAdminDatabaseName();
+
+  try {
+    const parsed = new URL(rawUrl);
+    const dbFromUrl = parsed.pathname.replace(/^\/+/, "").trim();
+
+    if (dbFromUrl) {
+      return rawUrl;
+    }
+
+    if (!fallbackDb) {
+      throw new Error(
+        "MYSQL_URL has no database segment and no fallback DB variable is set."
+      );
+    }
+
+    return {
+      host: parsed.hostname,
+      port: Number(parsed.port || 3306),
+      user: decodeURIComponent(parsed.username || ""),
+      password: decodeURIComponent(parsed.password || ""),
+      database: fallbackDb || undefined,
+      waitForConnections: true,
+      connectionLimit: 10,
+      queueLimit: 0,
+    };
+  } catch (err) {
+    if (
+      err &&
+      String(err.message || "").includes(
+        "MYSQL_URL has no database segment and no fallback DB variable is set."
+      )
+    ) {
+      throw err;
+    }
+    // Fallback for non-standard mysql URLs.
+    return rawUrl;
+  }
+}
+
 /**
  * Base admin pool (platform_core_db lives here)
  * This uses Railway internal private network.
  */
-const adminPool = mysql.createPool(process.env.MYSQL_URL);
+const adminPool = mysql.createPool(getAdminPoolConfig());
 
 /**
  * Cache containers
