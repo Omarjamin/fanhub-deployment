@@ -91,7 +91,7 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
   app.add("/subadmin", SubAdminDashboard);
   app.add("/subadmin/", SubAdminDashboard);
   app.add("/subadmin/dashboard", SubAdminDashboard);
-  app.add("https://fanhub-app.netlify.app/", SubAdminLandingPage);
+  app.add("https://fanhub-app.netlify.app", SubAdminLandingPage);
   app.add("/subadmin/users", SubAdminUsers);
   app.add("/subadmin/groups", SubAdminGroups);
   app.add("/subadmin/marketplace", SubAdminMarketplace);
