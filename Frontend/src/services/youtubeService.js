@@ -1,5 +1,5 @@
 // YouTube API Service for Frontend
-const API_BASE_URL = (import.meta.env.VITE_API_URL || 'http://localhost:4000') + '/v1/youtube';
+const API_BASE_URL = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app') + '/v1/youtube';
 
 class YouTubeAPIService {
   async getBannerVideos() {
@@ -70,3 +70,5 @@ class YouTubeAPIService {
 }
 
 export default new YouTubeAPIService();
+
+

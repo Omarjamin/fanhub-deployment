@@ -223,7 +223,7 @@ export default function Discography(root) {
     }, 15000);
 
     try {
-      const baseApi = import.meta.env.VITE_API_URL || "http://localhost:4000/v1";
+      const baseApi = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
       const apiKey = import.meta.env.VITE_API_KEY || "thread";
       const siteSlug = getActiveSiteSlug();
       const token = getSessionToken(siteSlug);
@@ -292,3 +292,5 @@ export default function Discography(root) {
     );
   }, 8000);
 }
+
+

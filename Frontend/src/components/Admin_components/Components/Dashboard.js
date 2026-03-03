@@ -3,7 +3,7 @@ import { fetchAdminSites, getAdminHeaders, getAdminToken } from './admin-sites.j
 
 export default function Dashboard() {
   const ADMIN_SELECTED_COMMUNITY_KEY = 'admin_selected_site';
-  const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'http://localhost:4000/v1/admin';
+  const ADMIN_API_BASE = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/admin';
   const section = document.createElement('section');
   section.id = 'dashboard';
   section.className = 'content-section active';
@@ -260,3 +260,5 @@ export default function Dashboard() {
 
   return section;
 }
+
+

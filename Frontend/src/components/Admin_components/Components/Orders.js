@@ -4,7 +4,7 @@ import { fetchAdminSites } from './admin-sites.js';
 
 export default function createOrders() {
   const ADMIN_API_BASE =
-    import.meta.env.VITE_ADMIN_API_URL || 'http://localhost:4000/v1/admin';
+    import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/admin';
 
   const section = document.createElement('section');
   section.id = 'orders';
@@ -518,3 +518,5 @@ export default function createOrders() {
   initOrders();
   return section;
 }
+
+

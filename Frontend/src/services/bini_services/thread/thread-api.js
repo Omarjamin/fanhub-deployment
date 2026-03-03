@@ -1,6 +1,6 @@
-﻿import api from "../api.js";
+import api from "../api.js";
 
-const BASE_V1 = import.meta.env.VITE_API_URL || "http://localhost:4000/v1";
+const BASE_V1 = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
 
 function normalizeThread(raw) {
   const isPinned = Boolean(raw?.isPinned ?? raw?.is_pinned ?? raw?.pinned ?? false);
@@ -87,4 +87,6 @@ function getMockThreads() {
 }
 
 export default fetchThreads;
+
+
 

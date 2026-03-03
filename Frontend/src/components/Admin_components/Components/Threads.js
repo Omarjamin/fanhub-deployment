@@ -2,7 +2,7 @@ import { getAdminHeaders } from './admin-sites.js';
 import { fetchAdminSites } from './admin-sites.js';
 
 export default function Threads() {
-  const BASE_V1 = import.meta.env.VITE_API_URL || 'http://localhost:4000/v1';
+  const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
   const ADMIN_SELECTED_THREAD_SITE_ID_KEY = 'admin_selected_thread_site_id';
   const section = document.createElement('section');
   section.id = 'threads';
@@ -504,6 +504,8 @@ export default function Threads() {
 
   return section;
 }
+
+
 
 
 

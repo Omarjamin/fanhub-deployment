@@ -246,7 +246,7 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
   app.add('/order-history', OrderHistory);
   app.add('/order-confirmation', OrderConfirmation);
 
-  const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || "http://localhost:4000/v1";
+  const ADMIN_API_BASE = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
   const API_KEY = import.meta.env.VITE_API_KEY || "thread";
 
   function applyButtonStyle(style, root = document.documentElement) {
@@ -567,6 +567,8 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
   window.globalSocket = socket;
     
   app.handleRouteChanges();
+
+
 
 
 

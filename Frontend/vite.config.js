@@ -1,13 +1,14 @@
 export default {
   root: './src',
   server: {
-    allowedHosts: ['fanhub-production.up.railway.app'],
+    allowedHosts: ['fanhub-deployment-production.up.railway.app'],
   },
   preview: {
-    allowedHosts: ['fanhub-production.up.railway.app'],
+    allowedHosts: ['fanhub-deployment-production.up.railway.app'],
   },
   build: {
     outDir: '../dist',
   },
   publicDir: '../public'
 }
+

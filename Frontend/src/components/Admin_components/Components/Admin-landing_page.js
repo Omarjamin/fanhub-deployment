@@ -1,6 +1,6 @@
 import '../../../styles/Admin_styles/Admin-landing_page.css';
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000/v1').trim().replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1').trim().replace(/\/$/, '');
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 
 
@@ -484,5 +484,7 @@ export default function AdminLandingPage() {
 
   return section;
 }
+
+
 
 

@@ -1,10 +1,10 @@
-﻿import { socket, setupSocket } from "../../../hooks/bini_hooks/socket";
+import { socket, setupSocket } from "../../../hooks/bini_hooks/socket";
 import api from "../../../services/bini_services/api.js";
 import "../../../styles/bini_styles/MessagingModal.css";
 import { getActiveSiteSlug } from "../../../lib/site-context.js";
 
 const DEFAULT_AVATAR = "/circle-user.png";
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/v1";
+const API_URL = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
 const API_ORIGIN = String(API_URL).replace(/\/v1\/?$/, "");
 
 function normalizeAvatarUrl(value) {
@@ -916,11 +916,11 @@ export default class MessagingModal {
     const container = document.querySelector(`#miniChatMessages-${chatUserId}`);
 
     if (!container) {
-      console.error("âŒ Mini chat container not found for userId:", chatUserId);
+      console.error("❌ Mini chat container not found for userId:", chatUserId);
       return;
     }
 
-    console.log("âœ… Container found");
+    console.log("✅ Container found");
 
     // Remove loading state if it exists
     const loadingEl = container.querySelector(".mini-loading");
@@ -1065,7 +1065,7 @@ export default class MessagingModal {
       container.appendChild(messageContainer);
     }
 
-    console.log("âœ… Message appended to DOM");
+    console.log("✅ Message appended to DOM");
 
     // Scroll to bottom
     container.scrollTop = container.scrollHeight;
@@ -1197,5 +1197,7 @@ export default class MessagingModal {
     }
   }
 }
+
+
 
 

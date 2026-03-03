@@ -2,7 +2,7 @@ import axios from "axios";
 import { getActiveSiteSlug, getSiteHeaders, getSessionToken } from "./site-context.js";
 import { handleSuspensionNotice } from "./suspension-notice.js";
 
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/v1";
+const API_URL = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
 const API_KEY = import.meta.env.VITE_API_KEY || "thread";
 const API_BASE_URL = `${API_URL.replace(/\/$/, "")}/ecommerce`;
 
@@ -41,3 +41,5 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+

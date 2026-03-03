@@ -83,7 +83,7 @@ async function loadCartItems(modal) {
             // Handle image URL
             let imageSrc = item.image_url || '/placeholder.png';
             if (imageSrc.startsWith('/')) {
-                imageSrc = 'http://localhost:4000' + imageSrc;
+                imageSrc = 'https://fanhub-deployment-production.up.railway.app' + imageSrc;
             }
 
             const isSelected = selectedItems[item.variant_id] || false;
@@ -269,3 +269,5 @@ function updateSelectedTotal(modal) {
     const selectedTotalElement = modal.querySelector('.selected-total');
     selectedTotalElement.textContent = `PHP ${selectedTotal.toFixed(2)}`;
 }
+
+

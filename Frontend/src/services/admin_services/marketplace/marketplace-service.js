@@ -1,8 +1,8 @@
 import { api } from '../../ecommerce_services/api.js';
 
 const ADMIN_API_BASE =
-  import.meta.env.VITE_ADMIN_API_URL || 'http://localhost:4000/v1/admin';
-const BASE_V1 = import.meta.env.VITE_API_URL || 'http://localhost:4000/v1';
+  import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/admin';
+const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
 
 function getAuthToken() {
@@ -162,3 +162,5 @@ export async function uploadMarketplaceImage(file) {
     return null;
   }
 }
+
+

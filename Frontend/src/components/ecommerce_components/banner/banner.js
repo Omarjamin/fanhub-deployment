@@ -10,8 +10,8 @@ export default function Banner(root, data) {
   let moreVideos = [];
   const adminVideoUrl = data?.banner || '';
   const endpoint = adminVideoUrl
-    ? `http://localhost:4000/v1/youtube/videos?videoUrl=${encodeURIComponent(adminVideoUrl)}`
-    : 'http://localhost:4000/v1/youtube/videos';
+    ? `https://fanhub-deployment-production.up.railway.app/v1/youtube/videos?videoUrl=${encodeURIComponent(adminVideoUrl)}`
+    : 'https://fanhub-deployment-production.up.railway.app/v1/youtube/videos';
   
   // Fetch latest videos from backend API
   fetch(endpoint)
@@ -115,3 +115,5 @@ export default function Banner(root, data) {
     </section>
   `;
 }
+
+

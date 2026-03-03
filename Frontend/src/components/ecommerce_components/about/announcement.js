@@ -1,6 +1,6 @@
 import { getActiveSiteSlug, getSiteHeaders } from '../../../lib/site-context.js';
 
-const BASE_V1 = import.meta.env.VITE_API_URL || 'http://localhost:4000/v1';
+const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
 
 function resolveSiteSlug(data = {}) {
@@ -114,4 +114,6 @@ export default function announcement(root, data = {}) {
     });
   });
 }
+
+
 

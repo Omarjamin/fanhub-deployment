@@ -36,7 +36,7 @@ function resolveCommunityTypeFromPath() {
   }
 }
 
-// const BINI_URL = import.meta.env.VITE_BINI_API_URL || 'http://localhost:4000/v1/bini';
+// const BINI_URL = import.meta.env.VITE_BINI_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/bini';
 
 // import api from './api'; // your axios instance
 
@@ -100,5 +100,7 @@ export async function fetchProfileById(userId) {
     );
   }
 }
+
+
 
 
