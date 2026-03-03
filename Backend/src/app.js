@@ -27,7 +27,8 @@ process.on("unhandledRejection", (reason) => {
 });
 
 const app = express();
-const PORT = process.env.PORT || 4000;
+const PORT = Number(process.env.PORT) || 4000;
+const HOST = "0.0.0.0";
 
 // Create HTTP server
 const server = createServer(app);
@@ -175,8 +176,13 @@ app.get("/health", async (req, res) => {
 app.use("/v1", v1);
 
 // Start server
-server.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
+server.on("error", (err) => {
+  console.error("Server failed to start:", err);
 });
+
+server.listen(PORT, HOST, () => {
+  console.log(`Server is running on http://${HOST}:${PORT}`);
+});
+
 
 
