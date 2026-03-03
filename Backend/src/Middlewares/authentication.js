@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken';
-import { connect } from '../core/database.js';
+import { connect, resolveCommunityContext } from '../core/database.js';
 
 async function getActiveSuspension(siteSlug, userId) {
   if (!siteSlug || !userId) return null;
@@ -84,6 +84,10 @@ export default async function authenticate(req, res, next) {
   if (headerSiteSlug) {
     res.locals.siteSlug = headerSiteSlug;
     res.locals.communityType = headerSiteSlug;
+    const community = await resolveCommunityContext(headerSiteSlug);
+    if (community?.community_id) {
+      res.locals.communityId = Number(community.community_id);
+    }
   }
 
   const activeSuspension = await getActiveSuspension(headerSiteSlug, decoded?.id);

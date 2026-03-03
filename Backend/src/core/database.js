@@ -8,6 +8,7 @@ const pools = {};
 const dynamicDbLookupCache = {};
 const siteNameByDomainCache = {};
 let adminSiteColumnsCache = null;
+let communityTableEnsured = false;
 
 function normalizeSiteKey(value) {
   const raw = String(value || "").trim().toLowerCase();
@@ -33,6 +34,23 @@ function guessDbNamesFromSite(site = {}, lookupKey = "") {
   });
 
   return [...guesses].filter(Boolean);
+}
+
+async function ensureCommunityTable(adminPool) {
+  if (communityTableEnsured) return;
+  await adminPool.query(`
+    CREATE TABLE IF NOT EXISTS community_table (
+      community_id INT(11) NOT NULL,
+      site_name VARCHAR(150) NOT NULL,
+      domain VARCHAR(180) NOT NULL,
+      status ENUM('active','suspended','deleted') NOT NULL DEFAULT 'active',
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+      PRIMARY KEY (community_id),
+      UNIQUE KEY uq_community_table_domain (domain)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+  `);
+  communityTableEnsured = true;
 }
 
 // Function to create a pool given env prefix
@@ -192,6 +210,80 @@ async function resolveSiteNameByDomain(domainOrPathRaw) {
   return "";
 }
 
+async function resolveCommunityContext(siteKeyRaw) {
+  const key = normalizeSiteKey(siteKeyRaw);
+  if (!key) return null;
+
+  const adminPool = pools["admin"];
+  if (!adminPool) return null;
+
+  try {
+    if (!adminSiteColumnsCache) {
+      const [columnRows] = await adminPool.query("SHOW COLUMNS FROM sites");
+      adminSiteColumnsCache = new Set(
+        (columnRows || []).map((row) => String(row?.Field || "").trim().toLowerCase()),
+      );
+    }
+
+    const hasCommunityType = adminSiteColumnsCache.has("community_type");
+    const whereParts = [
+      "LOWER(TRIM(s.domain)) = LOWER(TRIM(?))",
+      "LOWER(TRIM(s.site_name)) = LOWER(TRIM(?))",
+    ];
+    const params = [key, key];
+    if (hasCommunityType) {
+      whereParts.push("LOWER(TRIM(s.community_type)) = LOWER(TRIM(?))");
+      params.push(key);
+    }
+
+    const [rows] = await adminPool.query(
+      `
+      SELECT
+        s.site_id,
+        s.site_name,
+        s.domain,
+        s.status
+      FROM sites s
+      WHERE ${whereParts.join(" OR ")}
+      ORDER BY s.created_at DESC
+      LIMIT 1
+      `,
+      params,
+    );
+
+    const row = rows?.[0];
+    if (!row?.site_id) return null;
+
+    await ensureCommunityTable(adminPool);
+    await adminPool.query(
+      `
+      INSERT INTO community_table (community_id, site_name, domain, status)
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        site_name = VALUES(site_name),
+        domain = VALUES(domain),
+        status = VALUES(status)
+      `,
+      [
+        row.site_id,
+        String(row.site_name || "").trim(),
+        String(row.domain || "").trim(),
+        String(row.status || "active").trim() || "active",
+      ],
+    );
+
+    return {
+      community_id: Number(row.site_id),
+      site_name: String(row.site_name || "").trim(),
+      domain: String(row.domain || "").trim(),
+      status: String(row.status || "active").trim() || "active",
+    };
+  } catch (error) {
+    console.error("resolveCommunityContext failed:", error?.message || error);
+    return null;
+  }
+}
+
 // ✅ Dynamic connect function
 async function connect(community_type) {
   // Normalize
@@ -244,4 +336,10 @@ async function connectAdmin() {
   return pools['admin'];
 }
 
-export { connect, connectAdmin, resolveSiteDatabaseConfig, resolveSiteNameByDomain };
+export {
+  connect,
+  connectAdmin,
+  resolveSiteDatabaseConfig,
+  resolveSiteNameByDomain,
+  resolveCommunityContext,
+};

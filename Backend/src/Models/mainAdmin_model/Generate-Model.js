@@ -1,5 +1,4 @@
 import { connectAdmin } from '../../core/database.js';
-import mysql from 'mysql2/promise';
 
 class GenerateModel {
   constructor() {
@@ -52,6 +51,42 @@ class GenerateModel {
     const cols = new Set((rows || []).map((row) => String(row?.Field || '').trim()));
     this.tableColumnsCache.set(tableName, cols);
     return cols;
+  }
+
+  async ensureCommunityTable() {
+    if (!this.db) await this.connectAdmin();
+    await this.db.query(`
+      CREATE TABLE IF NOT EXISTS community_table (
+        community_id INT(11) NOT NULL,
+        site_name VARCHAR(150) NOT NULL,
+        domain VARCHAR(180) NOT NULL,
+        status ENUM('active','suspended','deleted') NOT NULL DEFAULT 'active',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (community_id),
+        UNIQUE KEY uq_community_table_domain (domain)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    `);
+  }
+
+  async upsertCommunityTable({ siteId, siteName, domain, status = 'active' }) {
+    await this.ensureCommunityTable();
+    await this.db.query(
+      `
+      INSERT INTO community_table (community_id, site_name, domain, status)
+      VALUES (?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE
+        site_name = VALUES(site_name),
+        domain = VALUES(domain),
+        status = VALUES(status)
+      `,
+      [
+        Number(siteId),
+        String(siteName || '').trim(),
+        String(domain || '').trim(),
+        String(status || 'active').trim() || 'active',
+      ],
+    );
   }
 
   async buildSiteSelectQuery({ whereClause = '', limitOne = false } = {}) {
@@ -259,382 +294,12 @@ class GenerateModel {
       }
     }
 
-    const dbName = String(db_name || `community_${normalizedCommunityType.toLowerCase()}`).trim();
-    await this.db.query(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
-
-    const dbHost = db_host || process.env.DB_HOST || 'localhost';
-    const dbUser = db_user || process.env.DB_USER || 'root';
-    const dbPassword = db_password ?? process.env.DB_PASSWORD ?? '';
-
-    const siteDbCols = await this.getTableColumns('site_databases');
-    if (siteDbCols.size > 0) {
-      const dbColumns = [];
-      const dbValues = [];
-      const dbParams = [];
-
-      const addDbValue = (column, value) => {
-        if (!siteDbCols.has(column)) return;
-        dbColumns.push(column);
-        dbValues.push('?');
-        dbParams.push(value);
-      };
-
-      addDbValue('site_id', siteId);
-      addDbValue('db_name', dbName);
-      addDbValue('db_host', dbHost);
-      addDbValue('db_user', dbUser);
-      addDbValue('db_password', dbPassword);
-
-      if (siteDbCols.has('created_at')) {
-        dbColumns.push('created_at');
-        dbValues.push('NOW()');
-      }
-
-      if (dbColumns.length > 0) {
-        await this.db.query(
-          `INSERT INTO site_databases (${dbColumns.join(', ')}) VALUES (${dbValues.join(', ')})`,
-          dbParams
-        );
-      }
-    }
-
-    const pool = mysql.createPool({
-      host: dbHost,
-      user: dbUser,
-      password: dbPassword,
-      database: dbName,
-      waitForConnections: true,
-      connectionLimit: 10,
+    await this.upsertCommunityTable({
+      siteId,
+      siteName: normalizedSiteName,
+      domain: normalizedDomain,
+      status: 'active',
     });
-    const tablesSQL = [
-    // carts
-      
-      `CREATE TABLE IF NOT EXISTS user_suspensions (
-         suspension_id int(11) NOT NULL AUTO_INCREMENT,
-         user_id int(11) NOT NULL,
-         imposed_by_admin_id int(11) DEFAULT NULL,
-         reason text DEFAULT NULL,
-         starts_at datetime NOT NULL DEFAULT current_timestamp(),
-         ends_at datetime NOT NULL,
-         duration_days int(11) NOT NULL DEFAULT 3,
-         status enum('active','expired','lifted') NOT NULL DEFAULT 'active',
-         created_at datetime DEFAULT current_timestamp(),
-         updated_at datetime DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-         PRIMARY KEY (suspension_id)
-      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-
-    `CREATE TABLE IF NOT EXISTS carts (
-      cart_id INT(11) NOT NULL AUTO_INCREMENT,
-      user_id INT(11) NOT NULL,
-      community_id INT(11) NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (cart_id),
-      UNIQUE KEY unique_user_community (user_id, community_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    `CREATE TABLE IF NOT EXISTS reports  (
-       report_id int(11) NOT NULL AUTO_INCREMENT,
-       reporter_id int(11) NOT NULL,
-       reported_user_id int(11) NOT NULL,
-       report_type enum('chat','post') NOT NULL,
-       message_id int(11) DEFAULT NULL,
-       post_id int(11) DEFAULT NULL,
-       reason  enum('harassment','sending fake links','inappropriate chat','malicious photo','inappropriate picture') NOT NULL,
-       status  enum('pending','reviewed','resolved','dismissed') DEFAULT 'pending',
-       admin_notes text DEFAULT NULL,
-       created_at timestamp NOT NULL DEFAULT current_timestamp(),
-       updated_at timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-       PRIMARY KEY (report_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-
-    // cart_items
-    `CREATE TABLE IF NOT EXISTS cart_items (
-      item_id INT(11) NOT NULL AUTO_INCREMENT,
-      cart_id INT(11) NOT NULL,
-      variant_id INT(11) NOT NULL,
-      quantity INT(11) NOT NULL DEFAULT 1,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (item_id),
-      UNIQUE KEY unique_cart_variant (cart_id, variant_id),
-      KEY idx_cart_items_cart_id (cart_id),
-      KEY idx_cart_items_variant_id (variant_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // collections
-    `CREATE TABLE IF NOT EXISTS collections (
-      collection_id INT(11) NOT NULL AUTO_INCREMENT,
-      name VARCHAR(100) NOT NULL,
-      img_url VARCHAR(250) DEFAULT NULL,
-      description TEXT DEFAULT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (collection_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // collection_categories
-    `CREATE TABLE IF NOT EXISTS collection_categories (
-      category_id INT(11) NOT NULL AUTO_INCREMENT,
-      collection_id INT(11) NOT NULL,
-      category_name VARCHAR(120) NOT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (category_id),
-      KEY idx_collection_categories_collection_id (collection_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // comments
-    `CREATE TABLE IF NOT EXISTS comments (
-      comment_id INT(11) NOT NULL AUTO_INCREMENT,
-      post_id INT(11) DEFAULT NULL,
-      user_id INT(11) DEFAULT NULL,
-      content TEXT NOT NULL,
-      parent_comment_id INT(11) DEFAULT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (comment_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // communities
-    `CREATE TABLE IF NOT EXISTS communities (
-      community_id INT(11) NOT NULL AUTO_INCREMENT,
-      name VARCHAR(100) NOT NULL,
-      description TEXT DEFAULT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (community_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // community_threads
-    `CREATE TABLE IF NOT EXISTS community_threads (
-      id INT(11) NOT NULL AUTO_INCREMENT,
-      title VARCHAR(255) NOT NULL,
-      venue TEXT NOT NULL,
-      date DATE NOT NULL,
-      author VARCHAR(50) NOT NULL,
-      is_pinned TINYINT(1) DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // daily_revenue
-    `CREATE TABLE IF NOT EXISTS daily_revenue (
-      id INT(11) NOT NULL AUTO_INCREMENT,
-      order_id INT(11) NULL,
-      date DATE NOT NULL,
-      time TIME NULL,
-      total_amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (id),
-      UNIQUE KEY uq_daily_revenue_order_id (order_id),
-      KEY idx_daily_revenue_date (date)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // discography
-    `CREATE TABLE IF NOT EXISTS discography (
-      album_id INT(11) NOT NULL AUTO_INCREMENT,
-      title VARCHAR(100) NOT NULL,
-      year YEAR(4) DEFAULT NULL,
-      cover_image VARCHAR(255) DEFAULT NULL,
-      songs INT(100) NOT NULL,
-      album_link TEXT NOT NULL,
-      description TEXT DEFAULT NULL,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      PRIMARY KEY (album_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // events
-    `CREATE TABLE IF NOT EXISTS events (
-      event_id INT(11) NOT NULL AUTO_INCREMENT,
-      ticket_link TEXT NOT NULL,
-      image_url VARCHAR(255) DEFAULT NULL,
-      PRIMARY KEY (event_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // follows
-    `CREATE TABLE IF NOT EXISTS follows (
-      follow_id INT(11) NOT NULL AUTO_INCREMENT,
-      follower_id INT(11) DEFAULT NULL,
-      followed_id INT(11) DEFAULT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (follow_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // hashtags
-    `CREATE TABLE IF NOT EXISTS hashtags (
-      hashtag_id INT(11) NOT NULL AUTO_INCREMENT,
-      post_id INT(11) DEFAULT NULL,
-      tag VARCHAR(255) NOT NULL,
-      PRIMARY KEY (hashtag_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=latin1 COLLATE=latin1_swedish_ci;`,
-
-    // likes
-    `CREATE TABLE IF NOT EXISTS likes (
-      like_id INT(11) NOT NULL AUTO_INCREMENT,
-      post_id INT(11) DEFAULT NULL,
-      user_id INT(11) DEFAULT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      like_type VARCHAR(20) NOT NULL DEFAULT 'post',
-      PRIMARY KEY (like_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // messages
-    `CREATE TABLE IF NOT EXISTS messages (
-      message_id INT(11) NOT NULL AUTO_INCREMENT,
-      sender_id INT(11) NOT NULL,
-      receiver_id INT(11) NOT NULL,
-      content TEXT NOT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      is_read TINYINT(1) DEFAULT 0,
-      read_at TIMESTAMP NULL DEFAULT NULL,
-      PRIMARY KEY (message_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // music
-    `CREATE TABLE IF NOT EXISTS music (
-      music_id INT(11) NOT NULL AUTO_INCREMENT,
-      album_id INT(11) NOT NULL,
-      title VARCHAR(150) NOT NULL,
-      duration TIME DEFAULT NULL,
-      audio_url VARCHAR(255) DEFAULT NULL,
-      lyrics TEXT DEFAULT NULL,
-      PRIMARY KEY (music_id),
-      KEY album_id (album_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // notifications
-    `CREATE TABLE IF NOT EXISTS notifications (
-      notification_id INT(11) NOT NULL AUTO_INCREMENT,
-      user_id INT(11) DEFAULT NULL,
-      activity_type ENUM('like','comment','repost','follow','warning','suspended') NOT NULL,
-      source_user_id INT(11) DEFAULT NULL,
-      post_id INT(11) DEFAULT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (notification_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // orders
-    `CREATE TABLE IF NOT EXISTS orders (
-      order_id INT(11) NOT NULL AUTO_INCREMENT,
-      user_id INT(11) NOT NULL,
-      community_id INT(11) NOT NULL,
-      subtotal DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-      shipping_fee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-      total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-      payment_method VARCHAR(50) DEFAULT NULL,
-      shipping_address LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL CHECK (json_valid(shipping_address)),
-      status VARCHAR(50) DEFAULT 'pending',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (order_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // order_items
-    `CREATE TABLE IF NOT EXISTS order_items (
-      order_item_id INT(11) NOT NULL AUTO_INCREMENT,
-      order_id INT(11) NOT NULL,
-      product_id INT(11) NOT NULL,
-      variant_id INT(11) NOT NULL,
-      quantity INT(11) NOT NULL DEFAULT 1,
-      price DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-      total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (order_item_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // posts
-    `CREATE TABLE IF NOT EXISTS posts (
-      post_id INT(11) NOT NULL AUTO_INCREMENT,
-      user_id INT(11) DEFAULT NULL,
-      content TEXT NOT NULL,
-      img_url VARCHAR(255) DEFAULT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-      repost_id INT(11) DEFAULT NULL,
-      PRIMARY KEY (post_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // products
-    `CREATE TABLE IF NOT EXISTS products (
-      product_id INT(11) NOT NULL AUTO_INCREMENT,
-      name VARCHAR(100) NOT NULL,
-      collection_id INT(11) DEFAULT NULL,
-      product_category VARCHAR(100) NOT NULL,
-      image_url VARCHAR(255) DEFAULT NULL,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (product_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // product_variants
-    `CREATE TABLE IF NOT EXISTS product_variants (
-      variant_id INT(11) NOT NULL AUTO_INCREMENT,
-      product_id INT(11) NOT NULL,
-      variant_name VARCHAR(150) DEFAULT NULL,
-      variant_values VARCHAR(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin DEFAULT NULL,
-      price DECIMAL(10,2) NOT NULL,
-      stock INT(11) DEFAULT 0,
-      weight_g DECIMAL(10,2) NOT NULL DEFAULT 0.00,
-      PRIMARY KEY (variant_id)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // shipping_zones
-    `CREATE TABLE IF NOT EXISTS shipping_zones (
-      id INT(11) NOT NULL AUTO_INCREMENT,
-      community_id INT(11) NOT NULL,
-      zone_name VARCHAR(20) NOT NULL,
-      shipping_fee DECIMAL(10,2) NOT NULL,
-      PRIMARY KEY (id),
-      UNIQUE KEY unique_zone (community_id, zone_name)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-   
-    // users
-    `CREATE TABLE IF NOT EXISTS users (
-      user_id INT(11) NOT NULL AUTO_INCREMENT,
-      email VARCHAR(100) NOT NULL,
-      fullname VARCHAR(50) NOT NULL,
-      password VARCHAR(255) NOT NULL,
-      profile_picture VARCHAR(255) DEFAULT NULL,
-      google_id VARCHAR(255) DEFAULT NULL,
-      auth_provider ENUM('local','google') NOT NULL DEFAULT 'local',
-      failed_login_attempts INT(11) NOT NULL DEFAULT 0,
-      role ENUM('customer','main_admin','sub_admin') NOT NULL DEFAULT 'customer',
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      reset_otp VARCHAR(10) DEFAULT NULL,
-      reset_expr DATETIME DEFAULT NULL,
-      PRIMARY KEY (user_id),
-      UNIQUE KEY email (email)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    // zone_locations
-    `CREATE TABLE IF NOT EXISTS zone_locations (
-      id INT(11) NOT NULL AUTO_INCREMENT,
-      community_id INT(11) NOT NULL,
-      zone_id INT(11) NOT NULL,
-      province_name VARCHAR(50) NOT NULL,
-      PRIMARY KEY (id),
-      UNIQUE KEY unique_location (community_id, province_name)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`,
-
-    `CREATE TABLE IF NOT EXISTS registration_verifications (
-      email VARCHAR(100) NOT NULL,
-      otp VARCHAR(10) NOT NULL,
-      expires_at DATETIME NOT NULL,
-      created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (email)
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;`
-  ];
-
-    for (const sql of tablesSQL) {
-      try {
-        await pool.query(sql);
-      } catch (err) {
-        console.error('[GenerateModel] Table creation failed:', {
-          database: dbName,
-          statement: sql,
-          error: err?.message,
-        });
-        throw new Error(`Community schema creation failed: ${err?.message || 'Unknown error'}`);
-      }
-    }
-    await pool.end();
 
     return siteId;
   }

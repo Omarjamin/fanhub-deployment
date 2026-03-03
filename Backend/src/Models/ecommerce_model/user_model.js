@@ -1,4 +1,9 @@
-import { connect, resolveSiteDatabaseConfig, resolveSiteNameByDomain } from '../../core/database.js';
+import {
+  connect,
+  resolveSiteDatabaseConfig,
+  resolveSiteNameByDomain,
+  resolveCommunityContext,
+} from '../../core/database.js';
 import { encryptPassword } from '../../utils/hash.js';
 import crypto from "crypto";
 import nodemailer from 'nodemailer';
@@ -6,6 +11,8 @@ import nodemailer from 'nodemailer';
 class UserModel {
   constructor() {
     this.userAuthColumnsReady = false;
+    this.userColumnSet = null;
+    this.activeCommunityId = null;
     this.connect().catch((err) => {
       console.error('<warning> user_model.connect failed', err && err.message ? err.message : err);
     });
@@ -14,6 +21,8 @@ class UserModel {
   async connect() {
     this.db = await connect();
     this.userAuthColumnsReady = false;
+    this.userColumnSet = null;
+    this.activeCommunityId = null;
   }
 
   async ensureConnection(community_type, site_slug) {
@@ -44,6 +53,9 @@ class UserModel {
 
         this.db = await connect(resolvedKey);
         this.userAuthColumnsReady = false;
+        this.userColumnSet = null;
+        const community = await resolveCommunityContext(resolvedKey);
+        this.activeCommunityId = Number(community?.community_id || 0) || null;
         await this.ensureUserAuthColumns();
         await this.ensureRegistrationVerificationTable();
         return this.db;
@@ -51,6 +63,9 @@ class UserModel {
 
       this.db = await connect();
       this.userAuthColumnsReady = false;
+      this.userColumnSet = null;
+      const fallbackCommunity = await resolveCommunityContext(normalizedSite || normalizedSlug);
+      this.activeCommunityId = Number(fallbackCommunity?.community_id || 0) || null;
       await this.ensureUserAuthColumns();
       await this.ensureRegistrationVerificationTable();
     } catch (err) {
@@ -58,10 +73,22 @@ class UserModel {
       if (candidates.length > 0) throw err;
       this.db = await connect();
       this.userAuthColumnsReady = false;
+      this.userColumnSet = null;
+      this.activeCommunityId = null;
       await this.ensureUserAuthColumns();
       await this.ensureRegistrationVerificationTable();
     }
     return this.db;
+  }
+
+  async getUserColumns() {
+    if (!this.db) return new Set();
+    if (this.userColumnSet) return this.userColumnSet;
+    const [rows] = await this.db.query('SHOW COLUMNS FROM users');
+    this.userColumnSet = new Set(
+      (rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()),
+    );
+    return this.userColumnSet;
   }
 
   async ensureUserAuthColumns() {
@@ -80,12 +107,22 @@ class UserModel {
     if (!columns.has('failed_login_attempts')) {
       alters.push('ADD COLUMN failed_login_attempts INT NOT NULL DEFAULT 0 AFTER auth_provider');
     }
+    if (!columns.has('community_id')) {
+      alters.push('ADD COLUMN community_id INT NULL AFTER user_id');
+    }
 
     if (alters.length > 0) {
       await this.db.query(`ALTER TABLE users ${alters.join(', ')}`);
     }
 
+    if (!columns.has('community_id')) {
+      try {
+        await this.db.query('ALTER TABLE users ADD INDEX idx_users_community_id (community_id)');
+      } catch (_) {}
+    }
+
     this.userAuthColumnsReady = true;
+    this.userColumnSet = null;
   }
 
   async ensureRegistrationVerificationTable() {
@@ -105,18 +142,24 @@ class UserModel {
     try {
       const hashedPassword = await encryptPassword(password);
       const fullname = `${firstname} ${lastname}`;
+      const db = await this.ensureConnection(community_type, site_slug);
+      const columns = await this.getUserColumns();
+
+      const userColumns = ['email', 'fullname', 'password', 'profile_picture', 'google_id', 'auth_provider', 'failed_login_attempts'];
+      const placeholders = ['?', '?', '?', '?', 'NULL', "'local'", '0'];
+      const params = [email, fullname, hashedPassword, imageUrl || 'none'];
+      if (columns.has('community_id')) {
+        userColumns.push('community_id');
+        placeholders.push('?');
+        params.push(this.activeCommunityId);
+      }
 
       const userQuery = `
-        INSERT INTO users (email, fullname, password, profile_picture, google_id, auth_provider, failed_login_attempts)
-        VALUES (?, ?, ?, ?, NULL, 'local', 0)
+        INSERT INTO users (${userColumns.join(', ')})
+        VALUES (${placeholders.join(', ')})
       `;
 
-      const [result] = await (await this.ensureConnection(community_type, site_slug)).query(userQuery, [
-        email,
-        fullname,
-        hashedPassword,
-        imageUrl || 'none',
-      ]);
+      const [result] = await db.query(userQuery, params);
 
       return result.insertId;
     } catch (error) {
@@ -211,14 +254,21 @@ class UserModel {
   async verify(email, password, community_type, site_slug) {
     try {
       const db = await this.ensureConnection(community_type, site_slug);
+      const columns = await this.getUserColumns();
+      const whereParts = ['email = ?'];
+      const queryParams = [email];
+      if (columns.has('community_id') && this.activeCommunityId) {
+        whereParts.push('community_id = ?');
+        queryParams.push(this.activeCommunityId);
+      }
 
       const userQuery = `
         SELECT user_id, email, password, fullname, auth_provider, failed_login_attempts
         FROM users
-        WHERE email = ?
+        WHERE ${whereParts.join(' AND ')}
         LIMIT 1
       `;
-      const [userRows] = await db.query(userQuery, [email]);
+      const [userRows] = await db.query(userQuery, queryParams);
       const user = userRows?.[0];
 
       if (!user) {
@@ -316,14 +366,21 @@ class UserModel {
 
   async findUserByEmail(email, community_type, site_slug) {
     const db = await this.ensureConnection(community_type, site_slug);
+    const columns = await this.getUserColumns();
+    const whereParts = ['email = ?'];
+    const params = [email];
+    if (columns.has('community_id') && this.activeCommunityId) {
+      whereParts.push('community_id = ?');
+      params.push(this.activeCommunityId);
+    }
     const [rows] = await db.query(
       `
         SELECT user_id, email, fullname, profile_picture, auth_provider, google_id
         FROM users
-        WHERE email = ?
+        WHERE ${whereParts.join(' AND ')}
         LIMIT 1
       `,
-      [email],
+      params,
     );
     return rows?.[0] || null;
   }
@@ -356,12 +413,22 @@ class UserModel {
     const safeImage = String(imageUrl || 'none').trim() || 'none';
 
     try {
+      const columns = await this.getUserColumns();
+      const insertColumns = ['email', 'fullname', 'password', 'profile_picture', 'google_id', 'auth_provider', 'failed_login_attempts'];
+      const insertPlaceholders = ['?', '?', '?', '?', '?', "'google'", '0'];
+      const insertParams = [email, safeFullname, randomPassword, safeImage, googleId || null];
+      if (columns.has('community_id')) {
+        insertColumns.push('community_id');
+        insertPlaceholders.push('?');
+        insertParams.push(this.activeCommunityId);
+      }
+
       const [result] = await db.query(
         `
-          INSERT INTO users (email, fullname, password, profile_picture, google_id, auth_provider, failed_login_attempts)
-          VALUES (?, ?, ?, ?, ?, 'google', 0)
+          INSERT INTO users (${insertColumns.join(', ')})
+          VALUES (${insertPlaceholders.join(', ')})
         `,
-        [email, safeFullname, randomPassword, safeImage, googleId || null],
+        insertParams,
       );
 
       return {
@@ -396,9 +463,16 @@ class UserModel {
   async requestPasswordReset(email, community_type, site_slug) {
     try {
       const db = await this.ensureConnection(community_type, site_slug);
+      const columns = await this.getUserColumns();
+      const whereParts = ['email = ?'];
+      const params = [email];
+      if (columns.has('community_id') && this.activeCommunityId) {
+        whereParts.push('community_id = ?');
+        params.push(this.activeCommunityId);
+      }
       const [rows] = await db.query(
-        'SELECT reset_expr FROM users WHERE email = ?',
-        [email],
+        `SELECT reset_expr FROM users WHERE ${whereParts.join(' AND ')} LIMIT 1`,
+        params,
       );
       const user = rows?.[0];
 
@@ -456,14 +530,30 @@ class UserModel {
   }
 
   async saveResetToken(email, otp, otpExpiry, community_type, site_slug) {
-    const query = 'UPDATE users SET reset_otp = ?, reset_expr = ? WHERE email = ?';
-    const [result] = await (await this.ensureConnection(community_type, site_slug)).query(query, [otp, otpExpiry, email]);
+    const db = await this.ensureConnection(community_type, site_slug);
+    const columns = await this.getUserColumns();
+    const whereParts = ['email = ?'];
+    const params = [otp, otpExpiry, email];
+    if (columns.has('community_id') && this.activeCommunityId) {
+      whereParts.push('community_id = ?');
+      params.push(this.activeCommunityId);
+    }
+    const query = `UPDATE users SET reset_otp = ?, reset_expr = ? WHERE ${whereParts.join(' AND ')}`;
+    const [result] = await db.query(query, params);
     return result.affectedRows > 0;
   }
 
   async verifyOtpAndResetPassword(email, otp, newPassword, community_type, site_slug) {
-    const query = 'SELECT reset_otp, reset_expr FROM users WHERE email = ?';
-    const [results] = await (await this.ensureConnection(community_type, site_slug)).query(query, [email]);
+    const db = await this.ensureConnection(community_type, site_slug);
+    const columns = await this.getUserColumns();
+    const whereParts = ['email = ?'];
+    const selectParams = [email];
+    if (columns.has('community_id') && this.activeCommunityId) {
+      whereParts.push('community_id = ?');
+      selectParams.push(this.activeCommunityId);
+    }
+    const query = `SELECT reset_otp, reset_expr FROM users WHERE ${whereParts.join(' AND ')} LIMIT 1`;
+    const [results] = await db.query(query, selectParams);
     const user = results?.[0];
 
     if (!user) {
@@ -478,8 +568,12 @@ class UserModel {
     }
 
     const hashedPassword = await encryptPassword(newPassword);
-    const updateQuery = 'UPDATE users SET password = ?, reset_otp = NULL, reset_expr = NULL, failed_login_attempts = 0 WHERE email = ?';
-    const [result] = await (await this.ensureConnection(community_type, site_slug)).query(updateQuery, [hashedPassword, email]);
+    const updateParams = [hashedPassword, email];
+    if (columns.has('community_id') && this.activeCommunityId) {
+      updateParams.push(this.activeCommunityId);
+    }
+    const updateQuery = `UPDATE users SET password = ?, reset_otp = NULL, reset_expr = NULL, failed_login_attempts = 0 WHERE ${whereParts.join(' AND ')}`;
+    const [result] = await db.query(updateQuery, updateParams);
 
     return result.affectedRows > 0;
   }
