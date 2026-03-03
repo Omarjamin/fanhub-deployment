@@ -701,7 +701,13 @@ class GenerateModel {
       if (!sites || sites.length === 0) return null;
       const site = sites[0];
 
-      const members = await this.getSiteMembersSafe(siteId);
+      const membersQuery = `
+        SELECT site_id, name, role, description, image_profile
+        FROM site_members
+        WHERE site_id = ?
+        ORDER BY created_at ASC
+      `;
+      const [members] = await this.db.query(membersQuery, [siteId]);
 
       return { ...site, members: members || [] };
     } catch (err) {
@@ -723,7 +729,13 @@ class GenerateModel {
       if (!sites || sites.length === 0) return null;
       const site = sites[0];
 
-      const members = await this.getSiteMembersSafe(site.site_id);
+      const membersQuery = `
+        SELECT site_id, name, role, description, image_profile
+        FROM site_members
+        WHERE site_id = ?
+        ORDER BY created_at ASC
+      `;
+      const [members] = await this.db.query(membersQuery, [site.site_id]);
 
       return { ...site, members: members || [] };
     } catch (err) {

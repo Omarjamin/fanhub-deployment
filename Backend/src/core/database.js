@@ -3,281 +3,245 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-/**
- * REQUIRE MYSQL_URL (Railway private connection string)
- */
-if (!process.env.MYSQL_URL) {
-  throw new Error("MYSQL_URL is not defined. Attach MySQL service to backend.");
-}
-
-function getAdminDatabaseName() {
-  return String(
-    process.env.MYSQL_DATABASE ||
-      process.env.MYSQLDATABASE ||
-      process.env.DB_NAME_ADMIN ||
-      process.env.DB_NAME ||
-      ""
-  ).trim();
-}
-
-function getAdminPoolConfig() {
-  const rawUrl = String(process.env.MYSQL_URL || "").trim();
-  const fallbackDb = getAdminDatabaseName();
-
-  try {
-    const parsed = new URL(rawUrl);
-    const dbFromUrl = parsed.pathname.replace(/^\/+/, "").trim();
-
-    if (dbFromUrl) {
-      return rawUrl;
-    }
-
-    if (!fallbackDb) {
-      throw new Error(
-        "MYSQL_URL has no database segment and no fallback DB variable is set."
-      );
-    }
-
-    return {
-      host: parsed.hostname,
-      port: Number(parsed.port || 3306),
-      user: decodeURIComponent(parsed.username || ""),
-      password: decodeURIComponent(parsed.password || ""),
-      database: fallbackDb || undefined,
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0,
-    };
-  } catch (err) {
-    if (
-      err &&
-      String(err.message || "").includes(
-        "MYSQL_URL has no database segment and no fallback DB variable is set."
-      )
-    ) {
-      throw err;
-    }
-    // Fallback for non-standard mysql URLs.
-    return rawUrl;
-  }
-}
-
-/**
- * Base admin pool (platform_core_db lives here)
- * This uses Railway internal private network.
- */
-const adminPool = mysql.createPool(getAdminPoolConfig());
-
-/**
- * Cache containers
- */
+// 🔹 Default Pools
 const pools = {};
 const dynamicDbLookupCache = {};
 const siteNameByDomainCache = {};
 let adminSiteColumnsCache = null;
 
-/**
- * Normalize keys (domain, path, site_name)
- */
 function normalizeSiteKey(value) {
   const raw = String(value || "").trim().toLowerCase();
   const pathMatch = raw.match(/\/fanhub\/(?:community-platform\/)?([^/?#]+)/i);
   return String(pathMatch?.[1] || raw).trim().toLowerCase();
 }
 
-function buildSiteKeyVariants(value) {
-  const normalized = normalizeSiteKey(value);
-  if (!normalized) return [];
+function guessDbNamesFromSite(site = {}, lookupKey = "") {
+  const siteName = normalizeSiteKey(site.site_name || "");
+  const domain = normalizeSiteKey(site.domain || "");
+  const key = normalizeSiteKey(lookupKey || "");
+  const guesses = new Set();
 
-  const variants = new Set([normalized]);
-  const withoutWebsite = normalized.replace(/-website$/i, "");
-  if (withoutWebsite) variants.add(withoutWebsite);
-  if (!/-website$/i.test(normalized)) variants.add(`${normalized}-website`);
-  return Array.from(variants).filter(Boolean);
+  if (siteName) guesses.add(siteName);
+  if (domain) guesses.add(domain);
+  if (key) guesses.add(key);
+
+  // Common cleanup for domains like "bini-website" -> "bini"
+  const baseCandidates = [siteName, domain, key].filter(Boolean);
+  baseCandidates.forEach((value) => {
+    guesses.add(value.replace(/-website$/i, ""));
+    guesses.add(value.replace(/[^a-z0-9_]/gi, ""));
+  });
+
+  return [...guesses].filter(Boolean);
 }
 
-/**
- * Resolve site_name from domain
- */
-async function resolveSiteNameByDomain(domainRaw) {
-  const variants = buildSiteKeyVariants(domainRaw);
-  if (!variants.length) return "";
-
-  const primaryKey = variants[0];
-  if (siteNameByDomainCache[primaryKey]) {
-    return siteNameByDomainCache[primaryKey];
-  }
-
-  try {
-    for (const key of variants) {
-      const [rows] = await adminPool.query(
-        `
-        SELECT site_name
-        FROM sites
-        WHERE LOWER(TRIM(domain)) = LOWER(TRIM(?))
-        ORDER BY created_at DESC
-        LIMIT 1
-        `,
-        [key]
-      );
-
-      const siteName = String(rows?.[0]?.site_name || "")
-        .trim()
-        .toLowerCase();
-
-      if (siteName) {
-        variants.forEach((variant) => {
-          siteNameByDomainCache[variant] = siteName;
-        });
-        return siteName;
-      }
-    }
-  } catch (err) {
-    console.error("resolveSiteNameByDomain error:", err.message);
-  }
-
-  return "";
-}
-
-/**
- * Resolve database config from admin DB mapping
- */
-async function resolveSiteDatabaseConfig(siteKeyRaw) {
-  const variants = buildSiteKeyVariants(siteKeyRaw);
-  if (!variants.length) return null;
-  const primaryKey = variants[0];
-
-  if (dynamicDbLookupCache[primaryKey]) {
-    return dynamicDbLookupCache[primaryKey];
-  }
-
-  try {
-    if (!adminSiteColumnsCache) {
-      const [columns] = await adminPool.query("SHOW COLUMNS FROM sites");
-      adminSiteColumnsCache = new Set(
-        columns.map((col) => col.Field.toLowerCase())
-      );
-    }
-
-    const hasCommunityType = adminSiteColumnsCache.has("community_type");
-
-    let site = null;
-    for (const key of variants) {
-      const whereParts = [
-        "LOWER(TRIM(domain)) = LOWER(TRIM(?))",
-        "LOWER(TRIM(site_name)) = LOWER(TRIM(?))",
-      ];
-      const params = [key, key];
-
-      if (hasCommunityType) {
-        whereParts.push("LOWER(TRIM(community_type)) = LOWER(TRIM(?))");
-        params.push(key);
-      }
-
-      const [siteRows] = await adminPool.query(
-        `
-        SELECT site_id, site_name, domain
-        FROM sites
-        WHERE ${whereParts.join(" OR ")}
-        ORDER BY created_at DESC
-        LIMIT 1
-        `,
-        params
-      );
-
-      if (siteRows?.[0]?.site_id) {
-        site = siteRows[0];
-        break;
-      }
-    }
-
-    if (!site?.site_id) {
-      variants.forEach((variant) => {
-        dynamicDbLookupCache[variant] = null;
-      });
-      return null;
-    }
-
-    const [dbRows] = await adminPool.query(
-      `
-      SELECT db_name, db_host, db_user, db_password
-      FROM site_databases
-      WHERE site_id = ?
-      ORDER BY created_at DESC
-      LIMIT 1
-      `,
-      [site.site_id]
-    );
-
-    const dbConfig = dbRows?.[0] || null;
-    variants.forEach((variant) => {
-      dynamicDbLookupCache[variant] = dbConfig;
-    });
-    return dbConfig;
-  } catch (err) {
-    console.error("resolveSiteDatabaseConfig error:", err.message);
-    return null;
-  }
-}
-
-/**
- * Create pool safely from config
- */
-function createPoolFromConfig(config) {
+// Function to create a pool given env prefix
+function createPool(envPrefix, fallback = {}) {
   return mysql.createPool({
-    host: config.db_host,
-    user: config.db_user,
-    password: config.db_password,
-    database: config.db_name,
-    port: 3306,
+    host: process.env[`${envPrefix}_DB_HOST`] || fallback.host || process.env.DB_HOST,
+    user: process.env[`${envPrefix}_DB_USER`] || fallback.user || process.env.DB_USER || "root",
+    password: process.env[`${envPrefix}_DB_PASSWORD`] ?? fallback.password ?? process.env.DB_PASSWORD ?? "",
+    database: process.env[`${envPrefix}_DB_NAME`] || fallback.database || process.env.DB_NAME,
+    port: process.env[`${envPrefix}_DB_PORT`] || fallback.port || process.env.DB_PORT || 3306,
     waitForConnections: true,
     connectionLimit: 10,
     queueLimit: 0,
   });
 }
 
-/**
- * Main dynamic connector
- */
-async function connect(communityTypeRaw) {
-  const key = normalizeSiteKey(communityTypeRaw);
+// 🔹 Pre-create pools (optional: lazy-load)
+pools['admin'] = createPool('DB_ADMIN', {
+  host: process.env.DB_HOST_ADMIN,
+  user: process.env.DB_USER_ADMIN,
+  password: process.env.DB_PASSWORD_ADMIN,
+  database: process.env.DB_NAME_ADMIN,
+  port: process.env.DB_PORT_ADMIN,
+});
 
-  // Admin direct access
-  if (key === "admin") {
-    return adminPool;
+pools['default'] = createPool('DB');
+
+async function resolveSiteDatabaseConfig(domainOrSiteRaw) {
+  const key = normalizeSiteKey(domainOrSiteRaw);
+  if (!key) return null;
+
+  if (dynamicDbLookupCache[key]) {
+    return dynamicDbLookupCache[key];
   }
 
-  if (!key) {
-    return adminPool;
+  try {
+    const adminPool = pools['admin'];
+    if (!adminPool) return null;
+
+    if (!adminSiteColumnsCache) {
+      const [columnRows] = await adminPool.query('SHOW COLUMNS FROM sites');
+      adminSiteColumnsCache = new Set(
+        (columnRows || []).map((row) => String(row?.Field || '').trim().toLowerCase()),
+      );
+    }
+
+    const hasCommunityType = adminSiteColumnsCache.has('community_type');
+    const whereParts = [
+      'LOWER(TRIM(s.domain)) = LOWER(TRIM(?))',
+      'LOWER(TRIM(s.site_name)) = LOWER(TRIM(?))',
+    ];
+    const queryParams = [key, key];
+    if (hasCommunityType) {
+      whereParts.push('LOWER(TRIM(s.community_type)) = LOWER(TRIM(?))');
+      queryParams.push(key);
+    }
+
+    // 1) Resolve site by domain first. Fallback to site_name for compatibility.
+    const siteQuery = `
+      SELECT
+        s.site_id,
+        s.site_name,
+        s.domain,
+        ${hasCommunityType ? 's.community_type' : 'NULL AS community_type'}
+      FROM sites s
+      WHERE ${whereParts.join('\n         OR ')}
+      ORDER BY s.created_at DESC
+      LIMIT 1
+    `;
+    const [siteRows] = await adminPool.query(siteQuery, queryParams);
+    const site = siteRows?.[0] || null;
+    if (!site?.site_id) {
+      dynamicDbLookupCache[key] = null;
+      return null;
+    }
+
+    // 2) Use resolved site identity to fetch DB config.
+    const dbQuery = `
+      SELECT
+        sd.db_name,
+        sd.db_host,
+        sd.db_user,
+        sd.db_password,
+        ? AS site_name,
+        ? AS site_domain
+      FROM site_databases sd
+      WHERE sd.site_id = ?
+      ORDER BY sd.created_at DESC
+      LIMIT 1
+    `;
+    const [rows] = await adminPool.query(dbQuery, [site.site_name, site.domain, site.site_id]);
+    let dbConfig = rows?.[0] || null;
+
+    // Fallback for legacy setups without site_databases row:
+    // infer DB name from site_name/domain and verify it exists.
+    if (!dbConfig?.db_name) {
+      const guessedDbNames = guessDbNamesFromSite(site, key);
+      for (const dbName of guessedDbNames) {
+        const [schemaRows] = await adminPool.query(
+          `SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE LOWER(SCHEMA_NAME) = LOWER(?) LIMIT 1`,
+          [dbName],
+        );
+        if (!schemaRows?.length) continue;
+        dbConfig = {
+          db_name: String(schemaRows[0].SCHEMA_NAME || dbName),
+          db_host: process.env.DB_HOST || "localhost",
+          db_user: process.env.DB_USER || "root",
+          db_password: process.env.DB_PASSWORD ?? "",
+          site_name: site.site_name,
+          site_domain: site.domain,
+        };
+        break;
+      }
+    }
+    dynamicDbLookupCache[key] = dbConfig;
+    if (dbConfig && site.site_name) {
+      dynamicDbLookupCache[String(site.site_name).trim().toLowerCase()] = dbConfig;
+    }
+    if (dbConfig && site.domain) {
+      dynamicDbLookupCache[String(site.domain).trim().toLowerCase()] = dbConfig;
+    }
+    if (dbConfig && site.community_type) {
+      dynamicDbLookupCache[String(site.community_type).trim().toLowerCase()] = dbConfig;
+    }
+    return dbConfig;
+  } catch (error) {
+    console.error('resolveSiteDatabaseConfig failed:', error?.message || error);
+    return null;
+  }
+}
+
+async function resolveSiteNameByDomain(domainOrPathRaw) {
+  const domain = normalizeSiteKey(domainOrPathRaw);
+  if (!domain) return "";
+  if (siteNameByDomainCache[domain]) return siteNameByDomainCache[domain];
+
+  try {
+    const adminPool = pools["admin"];
+    if (!adminPool) return "";
+
+    const siteQuery = `
+      SELECT s.site_name
+      FROM sites s
+      WHERE LOWER(TRIM(s.domain)) = LOWER(TRIM(?))
+      ORDER BY s.created_at DESC
+      LIMIT 1
+    `;
+    const [rows] = await adminPool.query(siteQuery, [domain]);
+    const siteName = String(rows?.[0]?.site_name || "").trim().toLowerCase();
+    if (siteName) {
+      siteNameByDomainCache[domain] = siteName;
+      return siteName;
+    }
+  } catch (error) {
+    console.error("resolveSiteNameByDomain failed:", error?.message || error);
+  }
+  return "";
+}
+
+// ✅ Dynamic connect function
+async function connect(community_type) {
+  // Normalize
+  const type = normalizeSiteKey(community_type);
+
+  if (type === 'admin') return pools['admin'];
+  
+  // For other community types, you can have dedicated env vars like:
+  // DB_BINI_HOST, DB_BINI_USER, etc.
+  if (type && process.env[`DB_${type.toUpperCase()}_DB_NAME`]) {
+    if (!pools[type]) {
+      pools[type] = createPool(`DB_${type.toUpperCase()}`, {
+        database: process.env[`DB_${type.toUpperCase()}_DB_NAME`],
+      });
+    }
+    return pools[type];
   }
 
-  // Resolve site_name if domain was passed
-  const resolvedSiteName = await resolveSiteNameByDomain(key);
-  const lookupKey = resolvedSiteName || key;
-
-  const dbConfig = await resolveSiteDatabaseConfig(lookupKey);
-
-  if (!dbConfig?.db_name) {
-    console.warn(`No database mapping found for: ${lookupKey}`);
-    return adminPool;
+  // Resolve from generated sites DB mapping (sites + site_databases in admin DB)
+  if (type) {
+    // Required flow:
+    // 1) domain -> site_name (sites table in platform_core_db)
+    // 2) site_name -> db mapping (site_databases)
+    const resolvedSiteName = await resolveSiteNameByDomain(type);
+    const lookupKey = resolvedSiteName || type;
+    const dbConfig = await resolveSiteDatabaseConfig(lookupKey);
+    if (dbConfig?.db_name) {
+      const poolKey = `site:${lookupKey}`;
+      if (!pools[poolKey]) {
+        pools[poolKey] = mysql.createPool({
+          host: dbConfig.db_host || process.env.DB_HOST || 'localhost',
+          user: dbConfig.db_user || process.env.DB_USER || 'root',
+          password: dbConfig.db_password ?? process.env.DB_PASSWORD ?? '',
+          database: dbConfig.db_name,
+          port: process.env.DB_PORT || 3306,
+          waitForConnections: true,
+          connectionLimit: 10,
+          queueLimit: 0,
+        });
+      }
+      return pools[poolKey];
+    }
   }
 
-  const poolKey = `site:${lookupKey}`;
-
-  if (!pools[poolKey]) {
-    pools[poolKey] = createPoolFromConfig(dbConfig);
-  }
-
-  return pools[poolKey];
+  // fallback to default
+  return pools['default'];
 }
 
 async function connectAdmin() {
-  return adminPool;
+  return pools['admin'];
 }
 
-export {
-  connect,
-  connectAdmin,
-  resolveSiteDatabaseConfig,
-  resolveSiteNameByDomain,
-};
+export { connect, connectAdmin, resolveSiteDatabaseConfig, resolveSiteNameByDomain };
