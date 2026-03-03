@@ -58,10 +58,23 @@ app.use((req, res, next) => {
   next();
 });
 
+const allowedOrigins = [
+  ...(process.env.FRONTEND_URLS || "")
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean),
+  ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL.trim()] : []),
+  "http://localhost:5173",
+];
+
 app.use(
   cors({
-    origin: ["http://localhost:5173"],
-    // methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        return callback(null, true);
+      }
+      return callback(new Error("CORS blocked for this origin"));
+    },
     credentials: true,
   }),
 );
@@ -150,7 +163,7 @@ app.get("/", (req, res) => {
 
 app.get("/health", async (req, res) => {
   try {
-    const admin = await connect("admin");
+    const admin = await connect("bini");
     await admin.query("SELECT 1");
     res.json({ status: "OK" });
   } catch (err) {
@@ -158,9 +171,11 @@ app.get("/health", async (req, res) => {
   }
 });
 
-app.use("/v1", cors(), v1);
+app.use("/v1", v1);
 
 // Start server
 server.listen(PORT, () => {
   console.log(`🚀 Server is running on http://localhost:${PORT}`);
 });
+
+
