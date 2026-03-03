@@ -1,9 +1,11 @@
-import { connect } from "../../core/database.js";
+import { connect, resolveCommunityContext } from "../../core/database.js";
 import { encryptPassword } from "../../utils/hash.js";
 import nodemailer from "nodemailer";
 
 class UserModel {
   constructor() {
+    this.activeCommunityId = null;
+    this.columnCache = new Map();
     this.connect();
   }
   async connect() {
@@ -12,11 +14,35 @@ class UserModel {
   async ensureConnection(community_type) {
     try {
       this.db = await connect(community_type);
+      const ctx = await resolveCommunityContext(community_type);
+      this.activeCommunityId = Number(ctx?.community_id || 0) || null;
     } catch (err) {
       console.error("<error> UserModel.ensureConnection failed:", err?.message || err);
       this.db = await connect();
+      this.activeCommunityId = null;
     }
     return this.db;
+  }
+  async hasColumn(tableName, columnName) {
+    const key = `${tableName}:${columnName}`.toLowerCase();
+    if (this.columnCache.has(key)) return this.columnCache.get(key);
+    try {
+      const [rows] = await this.db.query(`SHOW COLUMNS FROM ${tableName}`);
+      const exists = (rows || []).some(
+        (row) => String(row?.Field || "").trim().toLowerCase() === String(columnName).trim().toLowerCase(),
+      );
+      this.columnCache.set(key, exists);
+      return exists;
+    } catch (_) {
+      this.columnCache.set(key, false);
+      return false;
+    }
+  }
+  async getScopedCondition(tableName, alias = "") {
+    const hasCommunityId = await this.hasColumn(tableName, "community_id");
+    if (!hasCommunityId || !this.activeCommunityId) return { sql: "", params: [] };
+    const col = alias ? `${alias}.community_id` : "community_id";
+    return { sql: ` AND ${col} = ?`, params: [this.activeCommunityId] };
   }
   // request password reset
   async requestPasswordReset(email) {
@@ -151,8 +177,9 @@ class UserModel {
   }
   // get user by ID
   async getUserById(userId) {
-    const query = "SELECT * FROM users WHERE user_id = ?";
-    const [result] = await this.db.query(query, [userId]);
+    const scoped = await this.getScopedCondition("users");
+    const query = `SELECT * FROM users WHERE user_id = ?${scoped.sql}`;
+    const [result] = await this.db.query(query, [userId, ...scoped.params]);
     return result[0];
   }
   // get all users
@@ -163,15 +190,42 @@ class UserModel {
   }
   // get user by username
   async getUserByUsername(username) {
-    const query = "SELECT * FROM users WHERE username = ?";
-    const [result] = await this.db.query(query, [username]);
+    const scoped = await this.getScopedCondition("users");
+    const query = `SELECT * FROM users WHERE username = ?${scoped.sql}`;
+    const [result] = await this.db.query(query, [username, ...scoped.params]);
     return result[0];
   }
   // follow a user
   async follow(followerId, followedId) {
-    const query =
-      "INSERT INTO follows (follower_id, followed_id) VALUES (?, ?)";
-    const [result] = await this.db.query(query, [followerId, followedId]);
+    const followsScoped = await this.getScopedCondition("follows", "f");
+    const usersScoped = await this.getScopedCondition("users", "u");
+
+    if (usersScoped.sql) {
+      const [allowedRows] = await this.db.query(
+        `SELECT u.user_id
+         FROM users u
+         WHERE u.user_id IN (?, ?)${usersScoped.sql}`,
+        [followerId, followedId, ...usersScoped.params],
+      );
+      if ((allowedRows || []).length < 2) {
+        throw new Error("Users must belong to the active community");
+      }
+    }
+
+    const existingQuery = `SELECT follow_id FROM follows f WHERE f.follower_id = ? AND f.followed_id = ?${followsScoped.sql} LIMIT 1`;
+    const [existing] = await this.db.query(existingQuery, [followerId, followedId, ...followsScoped.params]);
+    if (existing?.length) {
+      return { message: "Already following" };
+    }
+
+    const hasFollowsCommunity = await this.hasColumn("follows", "community_id");
+    const query = hasFollowsCommunity
+      ? "INSERT INTO follows (follower_id, followed_id, community_id) VALUES (?, ?, ?)"
+      : "INSERT INTO follows (follower_id, followed_id) VALUES (?, ?)";
+    const params = hasFollowsCommunity
+      ? [followerId, followedId, this.activeCommunityId]
+      : [followerId, followedId];
+    const [result] = await this.db.query(query, params);
 
     if (result.affectedRows > 0) {
       await this.createFollowNotification(followerId, followedId);
@@ -182,9 +236,10 @@ class UserModel {
   }
   // unfollow a user
   async unfollow(followerId, followedId) {
+    const followsScoped = await this.getScopedCondition("follows", "f");
     const query =
-      "DELETE FROM follows WHERE follower_id = ? AND followed_id = ?";
-    const [result] = await this.db.query(query, [followerId, followedId]);
+      `DELETE FROM follows f WHERE f.follower_id = ? AND f.followed_id = ?${followsScoped.sql}`;
+    const [result] = await this.db.query(query, [followerId, followedId, ...followsScoped.params]);
 
     if (result.affectedRows > 0) {
       await this.deleteFollowNotification(followerId, followedId);
@@ -195,22 +250,75 @@ class UserModel {
   }
   // check if a user is following another user
   async isFollowing(followerId, followedId) {
+    const followsScoped = await this.getScopedCondition("follows", "f");
     const query =
-      "SELECT * FROM follows WHERE follower_id = ? AND followed_id = ?";
-    const [result] = await this.db.query(query, [followerId, followedId]);
+      `SELECT * FROM follows f WHERE f.follower_id = ? AND f.followed_id = ?${followsScoped.sql}`;
+    const [result] = await this.db.query(query, [followerId, followedId, ...followsScoped.params]);
     return result.length > 0;
   }
   // create follow notification
   async createFollowNotification(followerId, followedId) {
-    const notificationQuery =
-      "INSERT INTO notifications (user_id, activity_type, source_user_id) VALUES (?, ?, ?)";
-    await this.db.query(notificationQuery, [followedId, "follow", followerId]);
+    const hasNotifCommunity = await this.hasColumn("notifications", "community_id");
+    const notificationQuery = hasNotifCommunity
+      ? "INSERT INTO notifications (user_id, activity_type, source_user_id, community_id) VALUES (?, ?, ?, ?)"
+      : "INSERT INTO notifications (user_id, activity_type, source_user_id) VALUES (?, ?, ?)";
+    const params = hasNotifCommunity
+      ? [followedId, "follow", followerId, this.activeCommunityId]
+      : [followedId, "follow", followerId];
+    await this.db.query(notificationQuery, params);
   }
   // delete follow notification
   async deleteFollowNotification(followerId, followedId) {
+    const notifScoped = await this.getScopedCondition("notifications");
     const notificationQuery =
-      "DELETE FROM notifications WHERE user_id = ? AND activity_type = ? AND source_user_id = ?";
-    await this.db.query(notificationQuery, [followedId, "follow", followerId]);
+      `DELETE FROM notifications WHERE user_id = ? AND activity_type = ? AND source_user_id = ?${notifScoped.sql}`;
+    await this.db.query(notificationQuery, [followedId, "follow", followerId, ...notifScoped.params]);
+  }
+  async getFollowers(userId) {
+    const followsScoped = await this.getScopedCondition("follows", "f");
+    const usersScoped = await this.getScopedCondition("users", "u");
+    const query = `
+      SELECT u.user_id, u.fullname, u.profile_picture
+      FROM follows f
+      JOIN users u ON u.user_id = f.follower_id
+      WHERE f.followed_id = ?${followsScoped.sql}${usersScoped.sql}
+      ORDER BY f.created_at DESC
+    `;
+    const [result] = await this.db.query(query, [userId, ...followsScoped.params, ...usersScoped.params]);
+    return result;
+  }
+  async getFollowing(userId) {
+    const followsScoped = await this.getScopedCondition("follows", "f");
+    const usersScoped = await this.getScopedCondition("users", "u");
+    const query = `
+      SELECT u.user_id, u.fullname, u.profile_picture
+      FROM follows f
+      JOIN users u ON u.user_id = f.followed_id
+      WHERE f.follower_id = ?${followsScoped.sql}${usersScoped.sql}
+      ORDER BY f.created_at DESC
+    `;
+    const [result] = await this.db.query(query, [userId, ...followsScoped.params, ...usersScoped.params]);
+    return result;
+  }
+  async getFollowerCount(userId) {
+    const followsScoped = await this.getScopedCondition("follows", "f");
+    const query = `
+      SELECT COUNT(*) AS follower_count
+      FROM follows f
+      WHERE f.followed_id = ?${followsScoped.sql}
+    `;
+    const [result] = await this.db.query(query, [userId, ...followsScoped.params]);
+    return Number(result?.[0]?.follower_count || 0);
+  }
+  async getFollowingCount(userId) {
+    const followsScoped = await this.getScopedCondition("follows", "f");
+    const query = `
+      SELECT COUNT(*) AS following_count
+      FROM follows f
+      WHERE f.follower_id = ?${followsScoped.sql}
+    `;
+    const [result] = await this.db.query(query, [userId, ...followsScoped.params]);
+    return Number(result?.[0]?.following_count || 0);
   }
   // update user profile
   async updateUser(userId, { fullname, profile_picture }) {

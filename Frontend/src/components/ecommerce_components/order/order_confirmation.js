@@ -12,7 +12,10 @@ function resolveItemWeightGrams(item) {
 export default function OrderConfirmation(payload = null) {
   const root = document.getElementById("app");
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
-  const urlCommunityType = pathParts[0] === 'fanhub' ? pathParts[1] : '';
+  const urlCommunityType =
+    pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]
+      ? pathParts[2]
+      : (pathParts[0] === 'fanhub' ? pathParts[1] : '');
   const communityType = String(payload?.communityType || payload?.communityData?.community_type || urlCommunityType || '').trim().toLowerCase();
   const communityData = payload?.communityData || {};
   const orderData = (payload && (payload.communityData || payload.communityType))

@@ -27,7 +27,8 @@ export async function loginUser(loginData) {
     const token = result?.token;
 
     if (token) {
-      const siteSlug = getActiveSiteSlug('bini') || 'bini';
+      const siteSlug = getActiveSiteSlug();
+      if (!siteSlug) throw new Error("Site scope is required");
       setSessionToken(token, siteSlug);
     }
 

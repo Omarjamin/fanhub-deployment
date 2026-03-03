@@ -3,7 +3,7 @@ async function testConnection() {
   console.log('🔗 Testing frontend to backend connection...');
   
   try {
-    const response = await fetch('https://fanhub-deployment-production.up.railway.app/v1/youtube/banner/videos');
+    const response = await fetch('http://localhost:4000/v1/youtube/banner/videos');
     console.log('📡 Response status:', response.status);
     
     const data = await response.json();
@@ -25,5 +25,6 @@ async function testConnection() {
 
 // Auto-run test
 testConnection();
+
 
 

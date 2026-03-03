@@ -6,6 +6,7 @@ class GenerateController {
     this.model = new GenerateModel();
   }
 
+
   isCloudinaryConfigured() {
     const hasDiscreteConfig = Boolean(
       String(process.env.CLOUDINARY_CLOUD_NAME || '').trim() &&
@@ -279,7 +280,7 @@ class GenerateController {
       if (!normalized) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid community type'
+          message: 'communityType is required',
         });
       }
 
@@ -288,7 +289,7 @@ class GenerateController {
       if (!website) {
         return res.status(404).json({
           success: false,
-          message: 'Website not found'
+          message: 'Website not found for the specified communityType',
         });
       }
 
@@ -302,7 +303,7 @@ class GenerateController {
       res.status(500).json({
         success: false,
         message: 'Failed to fetch website',
-        error: err.message
+        error: err.message,
       });
     }
   }

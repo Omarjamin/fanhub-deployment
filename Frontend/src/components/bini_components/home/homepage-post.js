@@ -37,7 +37,7 @@ function resolveCommunityType(dataCommunityType = '') {
     if (parts[0] === 'bini') return 'bini';
   } catch (_) {}
 
-  return 'bini';
+  return '';
 }
 
 
@@ -86,7 +86,7 @@ export default async function Homepage(root, data) {
   
   let currentOffset = 0;
   const limit = 7;
-  const activeSite = getActiveSiteSlug(communityType) || communityType || 'bini';
+  const activeSite = getActiveSiteSlug(communityType) || communityType;
   const token = getSessionToken(activeSite);
 
   if (!token) {
@@ -789,6 +789,5 @@ function formatDate(timestamp) {
 
   return date.toLocaleDateString();
 }
-
 
 

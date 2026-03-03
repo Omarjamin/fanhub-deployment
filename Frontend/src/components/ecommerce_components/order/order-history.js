@@ -11,7 +11,10 @@ function resolveItemWeightGrams(item) {
 export default function OrderHistory() {
   const root = document.getElementById("app");
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
-  const communityType = pathParts[0] === 'fanhub' ? pathParts[1] : '';
+  const communityType =
+    pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]
+      ? pathParts[2]
+      : (pathParts[0] === 'fanhub' ? pathParts[1] : '');
   const homePath = communityType ? `/fanhub/${communityType}` : '/';
   const shopPath = communityType ? `/fanhub/${communityType}/shop` : '/shop';
   const communityCartPath = communityType ? `/fanhub/${communityType}/cart` : '/cart';

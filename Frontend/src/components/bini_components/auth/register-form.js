@@ -3,7 +3,11 @@ import api from '../../../services/bini_services/api.js';
 import { getActiveSiteSlug, setActiveSiteSlug, setSessionToken } from '../../../lib/site-context.js';
 
 export default function RegisterformComponent(root) {
-  const siteSlug = getActiveSiteSlug('bini') || 'bini';
+  const siteSlug = getActiveSiteSlug();
+  if (!siteSlug) {
+    root.innerHTML = '<p>Site scope is required.</p>';
+    return;
+  }
   setActiveSiteSlug(siteSlug);
   const basePath = `/fanhub/community-platform/${encodeURIComponent(siteSlug)}`;
   root.innerHTML = `

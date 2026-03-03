@@ -1,4 +1,5 @@
 import { getActiveSiteSlug, getSessionToken, getSiteHeaders } from '../../../lib/site-context.js';
+import { api as ecommerceApi } from '../../../services/ecommerce_services/config.js';
 
 function parseYear(value) {
   if (!value) return "Unknown";
@@ -37,7 +38,37 @@ function normalizeAlbums(payload) {
   }));
 }
 
-export default function Discography(root) {
+function resolveDiscographySiteSlug(data = {}) {
+  const fromData = String(
+    data?.siteSlug ||
+    data?.site_slug ||
+    data?.domain ||
+    data?.community_type ||
+    ''
+  ).trim().toLowerCase();
+  if (fromData) return fromData;
+
+  const fromStorage = String(
+    sessionStorage.getItem('site_slug') ||
+    sessionStorage.getItem('community_type') ||
+    ''
+  ).trim().toLowerCase();
+  if (fromStorage && fromStorage !== 'community-platform') return fromStorage;
+
+  try {
+    const parts = String(window?.location?.pathname || '').split('/').filter(Boolean);
+    if (parts[0] === 'fanhub' && parts[1] === 'community-platform' && parts[2]) {
+      return String(parts[2]).trim().toLowerCase();
+    }
+    if (parts[0] === 'fanhub' && parts[1] && parts[1] !== 'community-platform') {
+      return String(parts[1]).trim().toLowerCase();
+    }
+  } catch (_) {}
+
+  return String(getActiveSiteSlug() || '').trim().toLowerCase();
+}
+
+export default function Discography(root, data = {}) {
   root.querySelectorAll(".discography-section").forEach((node) => node.remove());
 
   root.insertAdjacentHTML(
@@ -223,15 +254,17 @@ export default function Discography(root) {
     }, 15000);
 
     try {
-      const baseApi = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
       const apiKey = import.meta.env.VITE_API_KEY || "thread";
-      const siteSlug = getActiveSiteSlug();
+      const siteSlug = resolveDiscographySiteSlug(data);
+      if (!siteSlug) {
+        throw new Error("No site scope resolved for discography");
+      }
       const token = getSessionToken(siteSlug);
       const controller = new AbortController();
       const timeoutMs = 12000;
       const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-      const response = await fetch(`${baseApi}/ecommerce/discography/albums`, {
+      const response = await fetch(`${ecommerceApi('/discography/albums')}?community=${encodeURIComponent(siteSlug)}`, {
         headers: {
           apikey: apiKey,
           ...getSiteHeaders(siteSlug),
@@ -292,5 +325,6 @@ export default function Discography(root) {
     );
   }, 8000);
 }
+
 
 

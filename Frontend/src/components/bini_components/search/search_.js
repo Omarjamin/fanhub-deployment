@@ -28,7 +28,7 @@ function resolveCommunityType(data = {}) {
     }
     if (parts[0] === "bini") return "bini";
   } catch (_) {}
-  return "bini";
+  return "";
 }
 
 export default async function Search_(root, data = {}) {
@@ -69,7 +69,7 @@ export default async function Search_(root, data = {}) {
   const searchBtn = component.querySelector('#searchBtn');
   const searchResults = component.querySelector('.search-results');
   const suggestToFollowDiv = component.querySelector('.search-suggest_to_follow');
-  const activeSite = getActiveSiteSlug(communityType) || communityType || 'bini';
+  const activeSite = getActiveSiteSlug(communityType) || communityType;
   const token = getSessionToken(activeSite);
   let searchModal = null;
   let postViewerModal = null;

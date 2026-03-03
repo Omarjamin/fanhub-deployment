@@ -7,8 +7,14 @@ function resolveSiteSlug(data = {}) {
   const fromData = data?.siteSlug || data?.site_slug || data?.siteData?.site_slug;
   if (fromData) return String(fromData).trim().toLowerCase();
 
-  const match = window.location.pathname.match(/^\/fanhub\/([^/]+)/i);
-  return match ? String(match[1]).trim().toLowerCase() : '';
+  const parts = String(window.location.pathname || '').split('/').filter(Boolean);
+  if (parts[0] === 'fanhub' && parts[1] === 'community-platform' && parts[2]) {
+    return String(parts[2]).trim().toLowerCase();
+  }
+  if (parts[0] === 'fanhub' && parts[1]) {
+    return String(parts[1]).trim().toLowerCase();
+  }
+  return '';
 }
 
 export default function Signup(root, data = {}) {

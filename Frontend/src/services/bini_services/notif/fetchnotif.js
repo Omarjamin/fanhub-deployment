@@ -18,10 +18,9 @@ function resolveCommunityType(explicitCommunity = "") {
     if (parts[0] === "fanhub" && parts[1] && parts[1] !== "community-platform") {
       return String(parts[1]).toLowerCase();
     }
-    if (parts[0] === "bini") return "bini";
   } catch (_) {}
 
-  return "bini";
+  return "";
 }
 
 export async function fetchNotifications(_token, communityType = "") {

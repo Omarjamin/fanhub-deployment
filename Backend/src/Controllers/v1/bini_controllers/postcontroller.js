@@ -1,13 +1,17 @@
 import PostModel from "../../../Models/bini_models/PostModels.js";
+import { resolveSiteSlug } from "../../../utils/site-scope.js";
 
 class PostController {
   constructor() {
     this.postModel = new PostModel();
   }
   async ensureDbForRequest(req, res) {
-    const communityType =
-      res.locals.communityType ||
-      String(req.headers["x-community-type"] || "").trim().toLowerCase();
+    const communityType = resolveSiteSlug(req, res);
+    if (!communityType) {
+      const err = new Error("community_type is required");
+      err.statusCode = 400;
+      throw err;
+    }
     await this.postModel.ensureConnection(communityType);
   }
   // Regex Function ito yun pag hiwalay nang hashtag at plain text
@@ -25,8 +29,16 @@ class PostController {
 
   // Create new post
   async createPost(req, res) {
+    await this.ensureDbForRequest(req, res);
     const { content, img_url } = req.body;
     const user_id = res.locals.userId;
+    const communityType =
+      res.locals.communityType ||
+      String(req.headers["x-community-type"] || "").trim().toLowerCase();
+
+    if (!communityType) {
+      return res.status(400).json({ error: "community_type is required" });
+    }
 
     console.log(req.body, user_id);
 
@@ -55,6 +67,7 @@ class PostController {
         plainContent,
         img_url || null,
         hashtags,
+        communityType,
       );
       res.status(201).json(newPost);
     } catch (err) {
@@ -63,6 +76,7 @@ class PostController {
   }
   // Get posts of another user
   async getOtherUserPosts(req, res) {
+    await this.ensureDbForRequest(req, res);
     const userId = req.params.userId; // Get the userId from the request parameters
     try {
       const posts = await this.postModel.getOtherUserPosts(userId);
@@ -81,6 +95,7 @@ class PostController {
   // Delete post
   async deletePost(req, res) {
     try {
+      await this.ensureDbForRequest(req, res);
       const { postId } = req.params;
       const userId = res.locals.userId;
       const deletedRows = await this.postModel.deletePost(postId, userId);
@@ -97,6 +112,7 @@ class PostController {
   // Update post
   async updatePost(req, res) {
     try {
+      await this.ensureDbForRequest(req, res);
       const { postId } = req.params;
       const userId = res.locals.userId;
       const { content, img_url } = req.body;
@@ -123,6 +139,7 @@ class PostController {
   // Repost post
   async repostPost(req, res) {
     try {
+      await this.ensureDbForRequest(req, res);
       const { postId } = req.params;
       const userId = res.locals.userId;
 
@@ -144,6 +161,7 @@ class PostController {
   }
   // Get user posts
   async getUserPosts(req, res) {
+    await this.ensureDbForRequest(req, res);
     const userId = res.locals.userId;
 
     try {
@@ -157,14 +175,13 @@ class PostController {
   async randomPosts(req, res) {
     const limit = parseInt(req.query.limit) || 7;
     const offset = parseInt(req.query.offset) || 0;
-    const communityType =
-      res.locals.communityType ||
-      String(req.headers['x-community-type'] || '').trim().toLowerCase();
+    const communityType = resolveSiteSlug(req, res);
 
     if (!communityType) {
       return res.status(400).json({ error: 'community_type is required' });
     }
     try {
+      await this.ensureDbForRequest(req, res);
       const posts = await this.postModel.getRandomPost(limit, offset, communityType);
       res.status(200).json(posts);
     } catch (error) {
@@ -174,6 +191,7 @@ class PostController {
   }
   // Get posts of users the current user is following
   async getFollowingPosts(req, res) {
+    await this.ensureDbForRequest(req, res);
     const userId = res.locals.userId;
 
     try {
@@ -190,6 +208,7 @@ class PostController {
   // Get reposts of another user
   async getothersreposts(req, res) {
     try {
+      await this.ensureDbForRequest(req, res);
       const userId = req.params.userId;
       const reposts = await this.postModel.getReposts(userId); // Use getReposts, not getothersReposts
       res.json(reposts);
@@ -200,6 +219,7 @@ class PostController {
   }
   // Get reposts of current user
   async getrepost(req, res) {
+    await this.ensureDbForRequest(req, res);
     const userId = res.locals.userId;
 
     try {
@@ -218,6 +238,7 @@ class PostController {
 
   // Get reposts for a specific post (with user check if authenticated)
   async getRepostsForPost(req, res) {
+    await this.ensureDbForRequest(req, res);
     const { postId } = req.params;
     const userId = res.locals.userId; // userId from auth middleware
 
@@ -242,6 +263,7 @@ class PostController {
 
   // Get repost count for a specific post
   async getRepostCount(req, res) {
+    await this.ensureDbForRequest(req, res);
     const { postId } = req.params;
 
     try {
@@ -254,6 +276,7 @@ class PostController {
 
   // Get post by ID
   async getPostById(req, res) {
+    await this.ensureDbForRequest(req, res);
     const { postId } = req.params;
 
     try {

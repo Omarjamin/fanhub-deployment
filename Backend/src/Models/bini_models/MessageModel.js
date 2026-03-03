@@ -1,9 +1,11 @@
-import { connect } from "../../core/database.js";
+import { connect, resolveCommunityContext } from "../../core/database.js";
 
 class MessageModel {
   constructor() {
     this.connect();
     this.reportReasonEnumCache = null;
+    this.activeCommunityId = null;
+    this.columnCache = new Map();
   }
   async connect() {
     this.db = await connect();
@@ -14,11 +16,35 @@ class MessageModel {
   async ensureConnection(community_type) {
     try {
       this.db = await connect(community_type);
+      const ctx = await resolveCommunityContext(community_type);
+      this.activeCommunityId = Number(ctx?.community_id || 0) || null;
     } catch (err) {
       console.error("<error> MessageModel.ensureConnection failed:", err?.message || err);
       this.db = await connect();
+      this.activeCommunityId = null;
     }
     return this.db;
+  }
+  async hasColumn(tableName, columnName) {
+    const key = `${tableName}:${columnName}`.toLowerCase();
+    if (this.columnCache.has(key)) return this.columnCache.get(key);
+    try {
+      const [rows] = await this.db.query(`SHOW COLUMNS FROM ${tableName}`);
+      const exists = (rows || []).some(
+        (row) => String(row?.Field || "").trim().toLowerCase() === String(columnName).trim().toLowerCase(),
+      );
+      this.columnCache.set(key, exists);
+      return exists;
+    } catch (_) {
+      this.columnCache.set(key, false);
+      return false;
+    }
+  }
+  async getScopedCondition(tableName, alias = "") {
+    const hasCommunityId = await this.hasColumn(tableName, "community_id");
+    if (!hasCommunityId || !this.activeCommunityId) return { sql: "", params: [] };
+    const col = alias ? `${alias}.community_id` : "community_id";
+    return { sql: ` AND ${col} = ?`, params: [this.activeCommunityId] };
   }
 
   async getReportReasonEnumValues() {
@@ -184,35 +210,40 @@ class MessageModel {
     try {
       const enumValues = await this.getReportReasonEnumValues();
       const dbReason = this.pickReasonAlias(reason, enumValues, 'chat');
-      const queryWithMessage = `INSERT INTO reports (reporter_id, reported_user_id, report_type, reason, message_id, created_at) VALUES (?, ?, 'chat', ?, ?, NOW())`;
+      const hasReportCommunityId = await this.hasColumn('reports', 'community_id');
+      const queryWithMessage = hasReportCommunityId
+        ? `INSERT INTO reports (reporter_id, reported_user_id, report_type, reason, message_id, community_id, created_at) VALUES (?, ?, 'chat', ?, ?, ?, NOW())`
+        : `INSERT INTO reports (reporter_id, reported_user_id, report_type, reason, message_id, created_at) VALUES (?, ?, 'chat', ?, ?, NOW())`;
       try {
-        const [result] = await this.db.query(queryWithMessage, [
-          reporter_id,
-          reported_user_id,
-          dbReason,
-          message_id,
-        ]);
+        const paramsWithMessage = hasReportCommunityId
+          ? [reporter_id, reported_user_id, dbReason, message_id, this.activeCommunityId]
+          : [reporter_id, reported_user_id, dbReason, message_id];
+        const [result] = await this.db.query(queryWithMessage, paramsWithMessage);
         return result;
       } catch (err) {
         // Some schemas might not include message_id column; fallback to insert without it
-        if (err?.code === 'ER_BAD_FIELD_ERROR' && String(err.message).includes('message_id')) {
-          const queryWithoutMessage = `INSERT INTO reports (reporter_id, reported_user_id, report_type, reason, created_at) VALUES (?, ?, 'chat', ?, NOW())`;
-          const [result] = await this.db.query(queryWithoutMessage, [
-            reporter_id,
-            reported_user_id,
-            dbReason,
-          ]);
+        if (
+          err?.code === 'ER_BAD_FIELD_ERROR' &&
+          (String(err.message).includes('message_id') || String(err.message).includes('community_id'))
+        ) {
+          const queryWithoutMessage = hasReportCommunityId
+            ? `INSERT INTO reports (reporter_id, reported_user_id, report_type, reason, community_id, created_at) VALUES (?, ?, 'chat', ?, ?, NOW())`
+            : `INSERT INTO reports (reporter_id, reported_user_id, report_type, reason, created_at) VALUES (?, ?, 'chat', ?, NOW())`;
+          const paramsWithoutMessage = hasReportCommunityId
+            ? [reporter_id, reported_user_id, dbReason, this.activeCommunityId]
+            : [reporter_id, reported_user_id, dbReason];
+          const [result] = await this.db.query(queryWithoutMessage, paramsWithoutMessage);
           return result;
         }
         // Fallback for older schemas without report_type column
         if (err?.code === 'ER_BAD_FIELD_ERROR' && String(err.message).includes('report_type')) {
-          const queryLegacy = `INSERT INTO reports (reporter_id, reported_user_id, reason, message_id, created_at) VALUES (?, ?, ?, ?, NOW())`;
-          const [result] = await this.db.query(queryLegacy, [
-            reporter_id,
-            reported_user_id,
-            dbReason,
-            message_id,
-          ]);
+          const queryLegacy = hasReportCommunityId
+            ? `INSERT INTO reports (reporter_id, reported_user_id, reason, message_id, community_id, created_at) VALUES (?, ?, ?, ?, ?, NOW())`
+            : `INSERT INTO reports (reporter_id, reported_user_id, reason, message_id, created_at) VALUES (?, ?, ?, ?, NOW())`;
+          const legacyParams = hasReportCommunityId
+            ? [reporter_id, reported_user_id, dbReason, message_id, this.activeCommunityId]
+            : [reporter_id, reported_user_id, dbReason, message_id];
+          const [result] = await this.db.query(queryLegacy, legacyParams);
           return result;
         }
         throw err;
@@ -261,12 +292,14 @@ class MessageModel {
       const cols = new Set((colRows || []).map((r) => String(r?.COLUMN_NAME || '').trim().toLowerCase()));
       const hasMessageId = cols.has('message_id');
       const whereMessage = hasMessageId ? 'AND message_id IS NOT NULL' : '';
+      const reportScoped = await this.getScopedCondition('reports');
       const query = `
         SELECT COUNT(DISTINCT reporter_id) as unique_reporters
         FROM reports
-        WHERE reported_user_id = ? ${whereMessage} AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+        WHERE reported_user_id = ? ${whereMessage} ${reportScoped.sql}
+          AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
       `;
-      const [result] = await this.db.query(query, [userId]);
+      const [result] = await this.db.query(query, [userId, ...reportScoped.params]);
       return result[0]?.unique_reporters || 0;
     } catch (err) {
       throw err;
@@ -276,6 +309,7 @@ class MessageModel {
   //get user reports for admin
   async getUserReports(userId) {
     try {
+      const reportScoped = await this.getScopedCondition('reports', 'ur');
       const query = `
         SELECT 
           ur.*,
@@ -288,10 +322,10 @@ class MessageModel {
         JOIN users reporter ON ur.reporter_id = reporter.user_id
         JOIN users reported ON ur.reported_user_id = reported.user_id
         LEFT JOIN messages m ON ur.message_id = m.message_id
-        WHERE ur.reported_user_id = ? AND ur.message_id IS NOT NULL
+        WHERE ur.reported_user_id = ? AND ur.message_id IS NOT NULL${reportScoped.sql}
         ORDER BY ur.created_at DESC
       `;
-      const [result] = await this.db.query(query, [userId]);
+      const [result] = await this.db.query(query, [userId, ...reportScoped.params]);
       return result;
     } catch (err) {
       throw err;
@@ -301,6 +335,7 @@ class MessageModel {
   //get all reported users for admin
   async getAllReportedUsers() {
     try {
+      const reportScoped = await this.getScopedCondition('reports', 'ur');
       const query = `
         SELECT 
           u.user_id,
@@ -315,11 +350,12 @@ class MessageModel {
         FROM users u
         JOIN reports ur ON u.user_id = ur.reported_user_id
         WHERE (ur.message_id IS NOT NULL OR ur.report_type = 'chat')
+        ${reportScoped.sql}
         GROUP BY u.user_id, u.fullname, u.email, u.profile_picture
         HAVING unique_reporters >= 3
         ORDER BY unique_reporters DESC, latest_report DESC
       `;
-      const [result] = await this.db.query(query);
+      const [result] = await this.db.query(query, [...reportScoped.params]);
       return result;
     } catch (err) {
       throw err;

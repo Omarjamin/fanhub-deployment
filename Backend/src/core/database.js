@@ -10,6 +10,22 @@ const siteNameByDomainCache = {};
 let adminSiteColumnsCache = null;
 let communityTableEnsured = false;
 
+function isSingleDatabaseMode() {
+  const explicitSingle = String(
+    process.env.SINGLE_DB_MODE ||
+    process.env.DB_SINGLE_MODE ||
+    process.env.FORCE_SINGLE_DB ||
+    '',
+  ).trim();
+  if (['1', 'true', 'yes', 'on'].includes(explicitSingle.toLowerCase())) {
+    return true;
+  }
+
+  const appDb = String(process.env.DB_NAME || '').trim().toLowerCase();
+  const adminDb = String(process.env.DB_NAME_ADMIN || '').trim().toLowerCase();
+  return Boolean(appDb && adminDb && appDb === adminDb);
+}
+
 function normalizeSiteKey(value) {
   const raw = String(value || "").trim().toLowerCase();
   const pathMatch = raw.match(/\/fanhub\/(?:community-platform\/)?([^/?#]+)/i);
@@ -263,6 +279,7 @@ async function resolveCommunityContext(siteKeyRaw) {
       `
       SELECT
         s.site_id,
+        ${adminSiteColumnsCache.has("community_id") ? "s.community_id," : ""}
         s.site_name,
         s.domain,
         s.status
@@ -278,6 +295,10 @@ async function resolveCommunityContext(siteKeyRaw) {
     if (!row?.site_id) return null;
 
     await ensureCommunityTable(adminPool);
+    const linkedCommunityId = Number(
+      row?.community_id || row?.site_id || 0,
+    ) || Number(row?.site_id || 0);
+
     await adminPool.query(
       `
       INSERT INTO community_table (community_id, site_name, domain, status)
@@ -288,7 +309,7 @@ async function resolveCommunityContext(siteKeyRaw) {
         status = VALUES(status)
       `,
       [
-        row.site_id,
+        linkedCommunityId,
         String(row.site_name || "").trim(),
         String(row.domain || "").trim(),
         String(row.status || "active").trim() || "active",
@@ -296,7 +317,7 @@ async function resolveCommunityContext(siteKeyRaw) {
     );
 
     return {
-      community_id: Number(row.site_id),
+      community_id: linkedCommunityId,
       site_name: String(row.site_name || "").trim(),
       domain: String(row.domain || "").trim(),
       status: String(row.status || "active").trim() || "active",
@@ -313,6 +334,12 @@ async function connect(community_type) {
   const type = normalizeSiteKey(community_type);
 
   if (type === 'admin') return pools['admin'];
+
+  // Single DB mode: always use default pool for non-admin requests.
+  // Community isolation is handled at query-level via community_id/site scope.
+  if (isSingleDatabaseMode()) {
+    return pools['default'];
+  }
   
   // For other community types, you can have dedicated env vars like:
   // DB_BINI_HOST, DB_BINI_USER, etc.

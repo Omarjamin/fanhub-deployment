@@ -10,14 +10,25 @@ function resolveItemWeightGrams(item) {
 function computeCheckoutWeightGrams() {
     try {
         const checkoutItems = JSON.parse(sessionStorage.getItem('checkoutItems') || '[]');
-        if (!Array.isArray(checkoutItems) || checkoutItems.length === 0) return 0;
+        const items = Array.isArray(checkoutItems) ? checkoutItems : [];
 
-        return checkoutItems.reduce((sum, item) => {
+        const computedFromItems = items.reduce((sum, item) => {
             const qty = Number(item?.quantity || 0);
             const weight = resolveItemWeightGrams(item);
             if (!Number.isFinite(qty) || qty <= 0) return sum;
             return sum + (weight * qty);
         }, 0);
+
+        if (computedFromItems > 0) return computedFromItems;
+
+        const summary = JSON.parse(sessionStorage.getItem('checkoutSummary') || '{}');
+        const summaryWeight = Number(summary?.total_weight_grams);
+        if (Number.isFinite(summaryWeight) && summaryWeight > 0) return summaryWeight;
+
+        const storedWeight = Number(sessionStorage.getItem('checkoutWeightGrams') || 0);
+        if (Number.isFinite(storedWeight) && storedWeight > 0) return storedWeight;
+
+        return 0;
     } catch (_) {
         return 0;
     }

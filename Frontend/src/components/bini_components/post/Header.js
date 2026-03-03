@@ -6,7 +6,7 @@ export default async function Header(root) {
   let profilePicUrl = "";
   let currentUser = null;
 
-  const token = getSessionToken(getActiveSiteSlug() || "bini");
+  const token = getSessionToken(getActiveSiteSlug());
   if (token) {
     try {
       const user = await fetchProfileData();

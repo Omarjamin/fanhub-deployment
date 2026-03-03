@@ -1,30 +1,28 @@
 import OrderModel from '../../../Models/ecommerce_model/order_model.js';
 import UserCommunityModel from '../../../Models/ecommerce_model/UserCommunityModel.js';
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
+import { resolveCommunityContext } from '../../../core/database.js';
 
 class OrderController {
   constructor() {
     this.orderModel = OrderModel;
     this.userCommunity = UserCommunityModel;
   }
-  resolveSiteSlug(req = {}) {
-    const headerType = String(req.headers?.['x-site-slug'] || req.headers?.['x-community-type'] || '').trim().toLowerCase();
-    if (headerType) return headerType;
 
-    const bodyType = String(req.body?.site_slug || req.body?.community_type || '').trim().toLowerCase();
-    if (bodyType && bodyType !== 'community-platform') return bodyType;
+  resolveSiteSlug(req = {}, res = {}) {
+    return resolveSiteSlug(req, res);
+  }
 
-    const queryType = String(req.query?.site_slug || req.query?.community_type || '').trim().toLowerCase();
-    if (queryType && queryType !== 'community-platform') return queryType;
+  async resolveCommunityId(siteSlug = '', fallback = null) {
+    const parsedFallback = Number(fallback);
+    if (Number.isFinite(parsedFallback) && parsedFallback > 0) return parsedFallback;
 
-    const pathParts = String(req.path || '').split('/').filter(Boolean);
-    if (pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]) {
-      return String(pathParts[2]).toLowerCase();
-    }
-    if (pathParts[0] === 'fanhub' && pathParts[1] && pathParts[1] !== 'community-platform') {
-      return String(pathParts[1]).toLowerCase();
-    }
+    const scoped = String(siteSlug || '').trim().toLowerCase();
+    if (!scoped) return null;
 
-    return '';
+    const context = await resolveCommunityContext(scoped);
+    const id = Number(context?.community_id || 0);
+    return Number.isFinite(id) && id > 0 ? id : null;
   }
 
   // Create a new order
@@ -32,7 +30,7 @@ class OrderController {
     try {
       const body = req.body || {};
       const userId = res.locals.userId;
-      const siteSlug = this.resolveSiteSlug(req);
+      const siteSlug = this.resolveSiteSlug(req, res);
 
       if (!userId) {
         return res.status(400).json({ success: false, message: 'user_id is required' });
@@ -40,8 +38,13 @@ class OrderController {
 
       // payload expected to include items, shipping_address, payment_method, subtotal, shipping_fee, total
       const payload = body;
-      // communityId is optional now; pass through if provided
-      const communityId = body.community_id ?? body.site_slug ?? body.community_type ?? null;
+      const communityId = await this.resolveCommunityId(siteSlug, body.community_id);
+      if (!siteSlug || !communityId) {
+        return res.status(400).json({
+          success: false,
+          message: 'site/community scope is required',
+        });
+      }
 
       const orderId = await this.orderModel.createOrder(userId, communityId, payload, siteSlug);
 
@@ -57,17 +60,14 @@ class OrderController {
     try {
       // Get userId from authentication (JWT token)
       const userId = res.locals.userId;
-      const communityId = req.query.community_id || null;
-      const siteSlug = this.resolveSiteSlug(req);
+      const siteSlug = this.resolveSiteSlug(req, res);
+      const communityId = await this.resolveCommunityId(siteSlug, req.query.community_id);
 
       if (!userId) {
         return res.status(400).json({ success: false, message: 'user_id is required' });
       }
-
-      // If communityId is provided, check access
-      if (communityId) {
-        const allowed = await this.userCommunity.userHasAccess(userId, communityId);
-        if (!allowed) return res.status(403).json({ success: false, message: 'Access denied' });
+      if (!siteSlug || !communityId) {
+        return res.status(400).json({ success: false, message: 'site/community scope is required' });
       }
 
       const orders = await this.orderModel.getOrdersByUser(userId, communityId, siteSlug);
@@ -83,7 +83,7 @@ class OrderController {
     try {
       const orderId = req.params.id;
       const userId = res.locals.userId;
-      const siteSlug = this.resolveSiteSlug(req);
+      const siteSlug = this.resolveSiteSlug(req, res);
 
       if (!orderId) {
         return res.status(400).json({ success: false, message: 'Order ID is required' });
@@ -97,9 +97,9 @@ class OrderController {
 
       // Check if order can be cancelled (only pending or order placed)
       if (order.status !== 'pending' && order.status !== 'Order Placed') {
-        return res.status(400).json({ 
-          success: false, 
-          message: 'Order cannot be cancelled. Only pending orders can be cancelled.' 
+        return res.status(400).json({
+          success: false,
+          message: 'Order cannot be cancelled. Only pending orders can be cancelled.'
         });
       }
 
@@ -110,10 +110,10 @@ class OrderController {
         return res.status(400).json({ success: false, message: 'Failed to cancel order' });
       }
 
-      return res.status(200).json({ 
-        success: true, 
+      return res.status(200).json({
+        success: true,
         message: 'Order cancelled successfully',
-        order_id: orderId 
+        order_id: orderId
       });
     } catch (err) {
       console.error('Cancel order error:', err);
@@ -125,10 +125,11 @@ class OrderController {
   async getOrderById(req, res) {
     try {
       const orderId = req.params.id;
-      const userId = req.query.user_id || req.user?.user_id;
-      const siteSlug = this.resolveSiteSlug(req);
+      const userId = res.locals.userId;
+      const siteSlug = this.resolveSiteSlug(req, res);
 
       if (!orderId) return res.status(400).json({ success: false, message: 'order id is required' });
+      if (!userId) return res.status(400).json({ success: false, message: 'user_id is required' });
 
       const order = await this.orderModel.getOrderById(orderId, userId, siteSlug);
       if (!order) return res.status(404).json({ success: false, message: 'Order not found' });
@@ -145,7 +146,7 @@ class OrderController {
     try {
       const orderId = req.params.id;
       const userId = res.locals.userId;
-      const siteSlug = this.resolveSiteSlug(req);
+      const siteSlug = this.resolveSiteSlug(req, res);
 
       if (!orderId) {
         return res.status(400).json({ success: false, message: 'Order ID is required' });
@@ -164,10 +165,10 @@ class OrderController {
         return res.status(400).json({ success: false, message: 'Failed to delete order' });
       }
 
-      return res.status(200).json({ 
-        success: true, 
+      return res.status(200).json({
+        success: true,
         message: 'Order deleted successfully',
-        order_id: orderId 
+        order_id: orderId
       });
     } catch (err) {
       console.error('Delete order error:', err);

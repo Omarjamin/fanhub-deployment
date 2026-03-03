@@ -1,14 +1,18 @@
 import MessageModel from "../../../Models/bini_models/MessageModel.js";
 import { saveMessageToFile } from "../../../utils/conversationFileManager.js";
+import { resolveSiteSlug } from "../../../utils/site-scope.js";
 
 class MessageController {
   constructor() {
     this.messageModel = new MessageModel();
   }
   async ensureDbForRequest(req, res) {
-    const communityType =
-      res.locals.communityType ||
-      String(req.headers["x-community-type"] || "").trim().toLowerCase();
+    const communityType = resolveSiteSlug(req, res);
+    if (!communityType) {
+      const err = new Error("community_type is required");
+      err.statusCode = 400;
+      throw err;
+    }
     await this.messageModel.ensureConnection(communityType);
   }
   // Send a message
@@ -17,9 +21,7 @@ class MessageController {
       await this.ensureDbForRequest(req, res);
       const { receiver_id, content } = req.body;
       const sender_id = req.user?.user_id || res.locals.userId;
-      const communityType =
-        res.locals.communityType ||
-        String(req.headers["x-community-type"] || "").trim().toLowerCase();
+      const communityType = resolveSiteSlug(req, res);
       if (!receiver_id || !content)
         return res
           .status(400)

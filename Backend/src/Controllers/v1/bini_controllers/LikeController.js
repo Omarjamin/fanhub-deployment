@@ -1,13 +1,17 @@
 import LikesModel from '../../../Models/bini_models/LikesModel.js';
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
 class LikeController {
     constructor() {
         this.likeModel = new LikesModel(); 
     }
     async ensureDbForRequest(req, res) {
-        const communityType =
-            res.locals.communityType ||
-            String(req.headers['x-community-type'] || '').trim().toLowerCase();
+        const communityType = resolveSiteSlug(req, res);
+        if (!communityType) {
+            const err = new Error('community_type is required');
+            err.statusCode = 400;
+            throw err;
+        }
         await this.likeModel.ensureConnection(communityType);
     }
     // Toggle like on a post or comment
@@ -65,6 +69,9 @@ class LikeController {
             }
         } catch (error) {
             console.error(error);
+            if (error?.statusCode === 400) {
+                return res.status(400).json({ message: error.message });
+            }
             return res.status(500).json({ message: 'Failed to toggle like', error: error.message || error });
         }
     }
@@ -97,6 +104,9 @@ class LikeController {
             return res.status(200).json({ likeCount });
         } catch (error) {
             console.error(error);
+            if (error?.statusCode === 400) {
+                return res.status(400).json({ message: error.message });
+            }
             return res.status(500).json({ message: 'Failed to get like count', error });
         }
     }
@@ -133,6 +143,9 @@ class LikeController {
             return res.status(200).json({ isLiked });
         } catch (error) {
             console.error(error);
+            if (error?.statusCode === 400) {
+                return res.status(400).json({ message: error.message });
+            }
             return res.status(500).json({ message: 'Failed to check like status', error });
         }
     }
@@ -159,6 +172,9 @@ class LikeController {
             return res.status(200).json(users);
         } catch (error) {
             console.error(error);
+            if (error?.statusCode === 400) {
+                return res.status(400).json({ message: error.message });
+            }
             return res.status(500).json({ message: 'Failed to get users who liked', error });
         }
     }

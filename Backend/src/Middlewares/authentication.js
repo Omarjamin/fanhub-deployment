@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import { connect, resolveCommunityContext } from '../core/database.js';
+import { attachSiteScope } from '../utils/site-scope.js';
 
 async function getActiveSuspension(siteSlug, userId) {
   if (!siteSlug || !userId) return null;
@@ -40,9 +41,11 @@ async function getActiveSuspension(siteSlug, userId) {
  */
 export default async function authenticate(req, res, next) {
   const authHeader = req.headers.authorization;
-  const headerSiteSlug = String(
-    req.headers['x-site-slug'] || req.headers['x-community-type'] || ''
-  ).trim().toLowerCase();
+  const headerSiteSlug = String(attachSiteScope(req, res) || '').trim().toLowerCase();
+  if (headerSiteSlug) {
+    res.locals.siteSlug = headerSiteSlug;
+    res.locals.communityType = headerSiteSlug;
+  }
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return res.status(401).json({
@@ -82,8 +85,6 @@ export default async function authenticate(req, res, next) {
 
   res.locals.userId = decoded?.id;
   if (headerSiteSlug) {
-    res.locals.siteSlug = headerSiteSlug;
-    res.locals.communityType = headerSiteSlug;
     const community = await resolveCommunityContext(headerSiteSlug);
     if (community?.community_id) {
       res.locals.communityId = Number(community.community_id);

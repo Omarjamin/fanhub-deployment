@@ -17,7 +17,7 @@ function parseJwtPayload(token) {
 }
 
 function resolveToken(preferredSite = "") {
-  const siteSlug = getActiveSiteSlug(preferredSite) || preferredSite || "bini";
+  const siteSlug = getActiveSiteSlug(preferredSite) || preferredSite;
   return getSessionToken(siteSlug);
 }
 
@@ -36,7 +36,7 @@ function resolveCommunityTypeFromPath() {
   }
 }
 
-// const BINI_URL = import.meta.env.VITE_BINI_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/bini';
+// const BINI_URL = import.meta.env.VITE_BINI_API_URL || 'http://localhost:4000/v1/bini';
 
 // import api from './api'; // your axios instance
 
@@ -48,7 +48,7 @@ export async function fetchProfileData(preferredCommunity = "") {
     getActiveSiteSlug() || sessionStorage.getItem("community_type") || "",
   ).trim().toLowerCase();
   const communitiesToTry = Array.from(
-    new Set([String(preferredCommunity || "").trim().toLowerCase(), routeCommunity, storedCommunity, "bini"].filter(Boolean)),
+    new Set([String(preferredCommunity || "").trim().toLowerCase(), routeCommunity, storedCommunity].filter(Boolean)),
   );
   if (communitiesToTry[0]) {
     setActiveSiteSlug(communitiesToTry[0]);
@@ -100,6 +100,7 @@ export async function fetchProfileById(userId) {
     );
   }
 }
+
 
 
 

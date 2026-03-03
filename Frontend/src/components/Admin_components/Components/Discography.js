@@ -1,7 +1,7 @@
 import '../../../styles/Admin_styles/Discography.css';
 import { getAdminHeaders } from './admin-sites.js';
 
-const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
+const BASE_V1 = import.meta.env.VITE_API_URL || 'http://localhost:4000/v1';
 
 function authHeaders() {
   const headers = { ...getAdminHeaders() };
@@ -472,5 +472,6 @@ function loadCommunityFilter() {
   init();
   return section;
 }
+
 
 

@@ -47,7 +47,11 @@ export default function CreatePost(root) {
     const content = document.getElementById('content').value;    
     const imageFile = document.getElementById('image_file').files[0]; 
 
-    const siteSlug = getActiveSiteSlug() || 'bini';
+    const siteSlug = getActiveSiteSlug();
+    if (!siteSlug) {
+      alert('Site scope is required.');
+      return;
+    }
     const token = getSessionToken(siteSlug);
     if (!token) {
       alert('Please login first.');

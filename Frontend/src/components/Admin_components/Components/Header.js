@@ -1,7 +1,7 @@
 import "../../../styles/Admin_styles/Header.css";
 import { getAdminHeaders } from "./admin-sites.js";
 
-const API_BASE = (import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1").trim().replace(/\/$/, "");
+const API_BASE = (import.meta.env.VITE_API_URL || "http://localhost:4000/v1").trim().replace(/\/$/, "");
 const POLL_MS = 15000;
 const READ_STORE_KEY = "admin_report_notif_reads_v1";
 
@@ -424,5 +424,6 @@ export default function Header(root) {
 
   fetchNotifications();
 }
+
 
 

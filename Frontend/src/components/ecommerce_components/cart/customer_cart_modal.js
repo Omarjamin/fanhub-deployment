@@ -83,7 +83,7 @@ async function loadCartItems(modal) {
             // Handle image URL
             let imageSrc = item.image_url || '/placeholder.png';
             if (imageSrc.startsWith('/')) {
-                imageSrc = 'https://fanhub-deployment-production.up.railway.app' + imageSrc;
+                imageSrc = 'http://localhost:4000' + imageSrc;
             }
 
             const isSelected = selectedItems[item.variant_id] || false;
@@ -191,7 +191,12 @@ async function loadCartItems(modal) {
 
         checkoutBtn.addEventListener('click', async () => {
             const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
-            const communityType = pathParts[0] === 'fanhub' ? pathParts[1] : '';
+            let communityType = '';
+            if (pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]) {
+                communityType = pathParts[2];
+            } else if (pathParts[0] === 'fanhub' && pathParts[1]) {
+                communityType = pathParts[1];
+            }
             const checkoutPath = communityType ? `/fanhub/${communityType}/checkout` : '/checkout';
             const selectedCheckboxes = modal.querySelectorAll('.item-select:checked');
 
@@ -269,5 +274,6 @@ function updateSelectedTotal(modal) {
     const selectedTotalElement = modal.querySelector('.selected-total');
     selectedTotalElement.textContent = `PHP ${selectedTotal.toFixed(2)}`;
 }
+
 
 

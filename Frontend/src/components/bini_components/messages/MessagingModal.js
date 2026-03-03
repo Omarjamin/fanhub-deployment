@@ -4,7 +4,7 @@ import "../../../styles/bini_styles/MessagingModal.css";
 import { getActiveSiteSlug } from "../../../lib/site-context.js";
 
 const DEFAULT_AVATAR = "/circle-user.png";
-const API_URL = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/v1";
 const API_ORIGIN = String(API_URL).replace(/\/v1\/?$/, "");
 
 function normalizeAvatarUrl(value) {
@@ -1197,6 +1197,7 @@ export default class MessagingModal {
     }
   }
 }
+
 
 
 

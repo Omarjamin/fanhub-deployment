@@ -6,7 +6,7 @@ import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js
 
 function getStoredItem(key) {
   if (key === 'authToken') {
-    return getSessionToken(getActiveSiteSlug() || 'bini');
+    return getSessionToken(getActiveSiteSlug());
   }
   return sessionStorage.getItem(key);
 }
@@ -59,7 +59,8 @@ function resolveCurrentUser(authToken) {
 function navigateToProfile(userId) {
   if (!userId) return;
   setStoredItem('selectedUserId', String(userId));
-  const siteSlug = getActiveSiteSlug() || 'bini';
+  const siteSlug = getActiveSiteSlug();
+  if (!siteSlug) return;
   window.history.pushState({}, '', `/fanhub/community-platform/${encodeURIComponent(siteSlug)}/others-profile`);
   window.dispatchEvent(new Event('popstate'));
 }

@@ -77,7 +77,7 @@ export default async function ProfileInfo(main, params) {
     </div>
   `;
 
-  const activeSite = getActiveSiteSlug(activeCommunityType) || activeCommunityType || "bini";
+  const activeSite = getActiveSiteSlug(activeCommunityType) || activeCommunityType;
   const token = getSessionToken(activeSite);
   const myUserId = getUserIdFromToken(token);
 
@@ -435,7 +435,8 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
 	        const selectedId = link.getAttribute("data-user-id");
 	        if (!selectedId) return;
 	        sessionStorage.setItem("selectedUserId", String(selectedId));
-	        window.history.pushState({}, "", `fanhub/community-platform/${data.community_type}/others-profile`);
+          const scopedCommunity = getActiveSiteSlug(activeCommunityType) || activeCommunityType || "";
+	        window.history.pushState({}, "", `/fanhub/community-platform/${scopedCommunity}/others-profile`);
 	        window.dispatchEvent(new Event("popstate"));
 	      });
 	    });

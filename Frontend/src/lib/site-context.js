@@ -122,7 +122,6 @@ export function getSiteCandidates(...inputs) {
 
   const active = getActiveSiteSlug();
   if (active) set.add(active);
-  set.add('bini');
 
   return Array.from(set);
 }

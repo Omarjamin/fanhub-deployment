@@ -1,14 +1,18 @@
 // controllers/notificationController.js
 import NotificationModel from '../../../Models/bini_models/Notif.js';
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
 class NotificationController {
     constructor() {
         this.notificationModel = new NotificationModel();
     }
     async ensureDbForRequest(req, res) {
-        const communityType =
-            res.locals.communityType ||
-            String(req.headers["x-community-type"] || "").trim().toLowerCase();
+        const communityType = resolveSiteSlug(req, res);
+        if (!communityType) {
+            const err = new Error('community_type is required');
+            err.statusCode = 400;
+            throw err;
+        }
         await this.notificationModel.ensureConnection(communityType);
     }
     // Notify post owner on specific activities

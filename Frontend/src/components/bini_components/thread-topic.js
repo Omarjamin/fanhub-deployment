@@ -266,7 +266,7 @@ export default async function ThreadTopic(params) {
       saveLocalComments(localComments);
 
       try {
-        const token = getSessionToken(getActiveSiteSlug() || "bini");
+        const token = getSessionToken(getActiveSiteSlug());
         const result = await apiCreateComment(threadId, content, token);
         return result;
       } catch (err) {
@@ -278,7 +278,7 @@ export default async function ThreadTopic(params) {
       let comments = [];
       const localComments = readLocalComments().map(normalizeComment);
       try {
-        const token = getSessionToken(getActiveSiteSlug() || "bini");
+        const token = getSessionToken(getActiveSiteSlug());
         const apiComments = await apiGetComments(
           threadId,
           token,

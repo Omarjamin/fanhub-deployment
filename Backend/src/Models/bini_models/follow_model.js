@@ -1,7 +1,9 @@
-import { connect } from '../../core/database.js';
+import { connect, resolveCommunityContext } from '../../core/database.js';
 
 class Follow {
     constructor() {
+        this.activeCommunityId = null;
+        this.columnCache = new Map();
         this.connect();
     }
     async connect() {
@@ -13,15 +15,40 @@ class Follow {
     async ensureConnection(community_type) {
         try {
             this.db = await connect(community_type);
+            const ctx = await resolveCommunityContext(community_type);
+            this.activeCommunityId = Number(ctx?.community_id || 0) || null;
         } catch (err) {
             console.error('<error> Follow.ensureConnection failed:', err?.message || err);
             this.db = await connect();
+            this.activeCommunityId = null;
         }
         return this.db;
+    }
+    async hasColumn(tableName, columnName) {
+        const key = `${tableName}:${columnName}`.toLowerCase();
+        if (this.columnCache.has(key)) return this.columnCache.get(key);
+        try {
+            const [rows] = await this.db.query(`SHOW COLUMNS FROM ${tableName}`);
+            const exists = (rows || []).some(
+                (row) => String(row?.Field || '').trim().toLowerCase() === String(columnName).trim().toLowerCase(),
+            );
+            this.columnCache.set(key, exists);
+            return exists;
+        } catch (_) {
+            this.columnCache.set(key, false);
+            return false;
+        }
+    }
+    async getScopedCondition(tableName, alias = '') {
+        const hasCommunityId = await this.hasColumn(tableName, 'community_id');
+        if (!hasCommunityId || !this.activeCommunityId) return { sql: '', params: [] };
+        const col = alias ? `${alias}.community_id` : 'community_id';
+        return { sql: ` AND ${col} = ?`, params: [this.activeCommunityId] };
     }
     // Get suggested followers: users not yet followed by current user
     async getSuggestedFollowers(currentUserId, limit = 10, offset = 0) {
         if (!this.db) await this.connect();
+        const scoped = await this.getScopedCondition('follows', 'f');
         const [rows] = await this.db.execute(
             `
             SELECT 
@@ -36,19 +63,20 @@ class Follow {
             FROM users u
             WHERE u.user_id != ?
               AND u.user_id NOT IN (
-                SELECT followed_id FROM follows WHERE follower_id = ?
+                SELECT followed_id FROM follows f WHERE follower_id = ? ${scoped.sql}
               )
             ORDER BY RAND()
             LIMIT ?
             OFFSET ?
             `,
-            [currentUserId, currentUserId, limit, offset]
+            [currentUserId, currentUserId, ...scoped.params, limit, offset]
         );
         return rows;
     }
     // Get all users that current user is following
     async getFollowing(currentUserId, limit = 10, offset = 0) {
         if (!this.db) await this.connect();
+        const scoped = await this.getScopedCondition('follows', 'f');
         const [rows] = await this.db.execute(
             `
             SELECT 
@@ -63,14 +91,16 @@ class Follow {
             FROM users u
             JOIN follows f ON f.followed_id = u.user_id
             WHERE f.follower_id = ?
+            ${scoped.sql}
             `,
-            [currentUserId]
+            [currentUserId, ...scoped.params]
         );
         return rows;
     }
     // Get all users that are following the current user
     async getFollowers(currentUserId) {
         if (!this.db) await this.connect();
+        const scoped = await this.getScopedCondition('follows', 'f');
         const [rows] = await this.db.execute(
             `
             SELECT 
@@ -85,14 +115,17 @@ class Follow {
             FROM users u
             JOIN follows f ON f.follower_id = u.user_id
             WHERE f.followed_id = ?
+            ${scoped.sql}
             `,
-            [currentUserId]
+            [currentUserId, ...scoped.params]
         );
         return rows;
     }
     // Get all users that are either followed by or following the current user (for chat)
     async getChatUsers(currentUserId) {
         if (!this.db) await this.connect();
+        const scoped = await this.getScopedCondition('follows', 'f');
+        const scopedUnion = scoped.sql ? scoped.sql.replace(/f\./g, '') : '';
         const [rows] = await this.db.execute(
             `
             SELECT 
@@ -101,13 +134,13 @@ class Follow {
                 u.profile_picture
             FROM users u
             WHERE u.user_id IN (
-                SELECT followed_id FROM follows WHERE follower_id = ?
+                SELECT followed_id FROM follows WHERE follower_id = ? ${scopedUnion}
                 UNION
-                SELECT follower_id FROM follows WHERE followed_id = ?
+                SELECT follower_id FROM follows WHERE followed_id = ? ${scopedUnion}
             )
             AND u.user_id != ?
             `,
-            [currentUserId, currentUserId, currentUserId]
+            [currentUserId, ...scoped.params, currentUserId, ...scoped.params, currentUserId]
         );
         return rows;
     }

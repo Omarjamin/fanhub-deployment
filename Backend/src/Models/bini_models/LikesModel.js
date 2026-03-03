@@ -1,7 +1,9 @@
-import { connect } from '../../core/database.js';
+import { connect, resolveCommunityContext } from '../../core/database.js';
 
 class LikesModel {
   constructor() {
+    this.activeCommunityId = null;
+    this.columnCache = new Map();
     this.connect();
   }
   async connect() {
@@ -13,11 +15,35 @@ class LikesModel {
   async ensureConnection(community_type) {
     try {
       this.db = await connect(community_type);
+      const ctx = await resolveCommunityContext(community_type);
+      this.activeCommunityId = Number(ctx?.community_id || 0) || null;
     } catch (err) {
       console.error('<error> LikesModel.ensureConnection failed:', err?.message || err);
       this.db = await connect();
+      this.activeCommunityId = null;
     }
     return this.db;
+  }
+  async hasColumn(tableName, columnName) {
+    const key = `${tableName}:${columnName}`.toLowerCase();
+    if (this.columnCache.has(key)) return this.columnCache.get(key);
+    try {
+      const [rows] = await this.db.query(`SHOW COLUMNS FROM ${tableName}`);
+      const exists = (rows || []).some(
+        (row) => String(row?.Field || '').trim().toLowerCase() === String(columnName).trim().toLowerCase(),
+      );
+      this.columnCache.set(key, exists);
+      return exists;
+    } catch (_) {
+      this.columnCache.set(key, false);
+      return false;
+    }
+  }
+  async getScopedCondition(tableName, alias = '') {
+    const hasCommunityId = await this.hasColumn(tableName, 'community_id');
+    if (!hasCommunityId || !this.activeCommunityId) return { sql: '', params: [] };
+    const col = alias ? `${alias}.community_id` : 'community_id';
+    return { sql: ` AND ${col} = ?`, params: [this.activeCommunityId] };
   }
 
   // create a like for a post or comment
@@ -26,13 +52,28 @@ class LikesModel {
       console.log(likeType);
       
       let query;
+      const likesHasCommunity = await this.hasColumn('likes', 'community_id');
       if (likeType === 'post') {
-        query = `INSERT INTO likes (like_type, post_id, user_id) VALUES (?, ?, ?)`;
-        const [result] = await this.db.query(query, [likeType, postId, userId]);
+        query = likesHasCommunity
+          ? `INSERT INTO likes (like_type, post_id, user_id, community_id) VALUES (?, ?, ?, ?)`
+          : `INSERT INTO likes (like_type, post_id, user_id) VALUES (?, ?, ?)`;
+        const [result] = await this.db.query(
+          query,
+          likesHasCommunity
+            ? [likeType, postId, userId, this.activeCommunityId]
+            : [likeType, postId, userId],
+        );
         return result;
       } else if (likeType === 'comment') {
-        query = `INSERT INTO likes (like_type, comment_id, user_id) VALUES (?, ?, ?)`;
-        const [result] = await this.db.query(query, [likeType, commentId, userId]);
+        query = likesHasCommunity
+          ? `INSERT INTO likes (like_type, comment_id, user_id, community_id) VALUES (?, ?, ?, ?)`
+          : `INSERT INTO likes (like_type, comment_id, user_id) VALUES (?, ?, ?)`;
+        const [result] = await this.db.query(
+          query,
+          likesHasCommunity
+            ? [likeType, commentId, userId, this.activeCommunityId]
+            : [likeType, commentId, userId],
+        );
         return result;
       } else {
         throw new Error('Invalid like type');
@@ -46,13 +87,14 @@ class LikesModel {
   async deleteLike(likeType, postId, commentId, userId) {
     try {
       let query;
+      const scoped = await this.getScopedCondition('likes');
       if (likeType === 'post') {
-        query = `DELETE FROM likes WHERE like_type = 'post' AND post_id = ? AND user_id = ?`;
-        const [result] = await this.db.query(query, [postId, userId]);
+        query = `DELETE FROM likes WHERE like_type = 'post' AND post_id = ? AND user_id = ?${scoped.sql}`;
+        const [result] = await this.db.query(query, [postId, userId, ...scoped.params]);
         return result;
       } else if (likeType === 'comment') {
-        query = `DELETE FROM likes WHERE like_type = 'comment' AND comment_id = ? AND user_id = ?`;
-        const [result] = await this.db.query(query, [commentId, userId]);
+        query = `DELETE FROM likes WHERE like_type = 'comment' AND comment_id = ? AND user_id = ?${scoped.sql}`;
+        const [result] = await this.db.query(query, [commentId, userId, ...scoped.params]);
         return result;
       } else {
         throw new Error('Invalid like type');
@@ -64,8 +106,9 @@ class LikesModel {
   // count likes on a post
   async countLikesOnPost(postId) {
     try {
-      const query = `SELECT COUNT(*) AS like_count FROM likes WHERE like_type = 'post' AND post_id = ?`;
-      const [result] = await this.db.query(query, [postId]);
+      const scoped = await this.getScopedCondition('likes');
+      const query = `SELECT COUNT(*) AS like_count FROM likes WHERE like_type = 'post' AND post_id = ?${scoped.sql}`;
+      const [result] = await this.db.query(query, [postId, ...scoped.params]);
       return result[0].like_count;
     } catch (err) {
       throw err;
@@ -74,8 +117,9 @@ class LikesModel {
   // count likes on a comment
   async countLikesOnComment(commentId) {
     try {
-      const query = `SELECT COUNT(*) AS like_count FROM likes WHERE like_type = 'comment' AND comment_id = ?`;
-      const [result] = await this.db.query(query, [commentId]);
+      const scoped = await this.getScopedCondition('likes');
+      const query = `SELECT COUNT(*) AS like_count FROM likes WHERE like_type = 'comment' AND comment_id = ?${scoped.sql}`;
+      const [result] = await this.db.query(query, [commentId, ...scoped.params]);
       return result[0].like_count;
     } catch (err) {
       throw err;
@@ -84,8 +128,9 @@ class LikesModel {
   // check if a user has liked a post
   async isLikedByUserOnPost(postId, userId) {
     try {
-      const query = `SELECT * FROM likes WHERE like_type = 'post' AND post_id = ? AND user_id = ?`;
-      const [result] = await this.db.query(query, [postId, userId]);
+      const scoped = await this.getScopedCondition('likes');
+      const query = `SELECT * FROM likes WHERE like_type = 'post' AND post_id = ? AND user_id = ?${scoped.sql}`;
+      const [result] = await this.db.query(query, [postId, userId, ...scoped.params]);
       return result.length > 0;
     } catch (err) {
       throw err;
@@ -95,8 +140,9 @@ class LikesModel {
   async isLikedByUserOnComment(commentId, userId) {
     try {
       console.log(commentId);
-      const query = `SELECT * FROM likes WHERE like_type = 'comment' AND comment_id = ? AND user_id = ?`;
-      const [result] = await this.db.query(query, [commentId, userId]);
+      const scoped = await this.getScopedCondition('likes');
+      const query = `SELECT * FROM likes WHERE like_type = 'comment' AND comment_id = ? AND user_id = ?${scoped.sql}`;
+      const [result] = await this.db.query(query, [commentId, userId, ...scoped.params]);
       return result.length > 0;
     } catch (err) {
       throw err;
@@ -105,11 +151,12 @@ class LikesModel {
   // get all users who liked a post
   async getUsersWhoLikedPost(postId) {
     try {
+      const scoped = await this.getScopedCondition('likes', 'likes');
       const query = `
         SELECT users.username FROM likes
         JOIN users ON likes.user_id = users.user_id
-        WHERE like_type = 'post' AND post_id = ?`;
-      const [result] = await this.db.query(query, [postId]);
+        WHERE like_type = 'post' AND post_id = ?${scoped.sql}`;
+      const [result] = await this.db.query(query, [postId, ...scoped.params]);
       return result;
     } catch (err) {
       throw err;
@@ -118,11 +165,12 @@ class LikesModel {
   // get all users who liked a comment
   async getUsersWhoLikedComment(commentId) {
     try {
+      const scoped = await this.getScopedCondition('likes', 'likes');
       const query = `
         SELECT users.username FROM likes
         JOIN users ON likes.user_id = users.user_id
-        WHERE like_type = 'comment' AND comment_id = ?`;
-      const [result] = await this.db.query(query, [commentId]);
+        WHERE like_type = 'comment' AND comment_id = ?${scoped.sql}`;
+      const [result] = await this.db.query(query, [commentId, ...scoped.params]);
       return result;
     } catch (err) {
       throw err;
@@ -134,9 +182,14 @@ class LikesModel {
       
       let queryPostOwner;
       if (postId) {
-        queryPostOwner = `SELECT user_id FROM posts WHERE post_id = ?`;
+        const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
+        const postScoped = hasPostCommunityId && this.activeCommunityId;
+        queryPostOwner = `SELECT user_id FROM posts WHERE post_id = ?${postScoped ? ' AND community_id = ?' : ''}`;
         console.log(queryPostOwner);
-        const [postOwner] = await this.db.query(queryPostOwner, [postId]);
+        const [postOwner] = await this.db.query(
+          queryPostOwner,
+          postScoped ? [postId, this.activeCommunityId] : [postId],
+        );
         
         console.log(postOwner);
         if (postOwner.length === 0) {
@@ -154,8 +207,13 @@ class LikesModel {
           return result;
         }
       } else if (commentId) {
-        queryPostOwner = `SELECT user_id FROM comments WHERE comment_id = ?`;
-        const [commentOwner] = await this.db.query(queryPostOwner, [commentId]);
+        const hasCommentCommunityId = await this.hasColumn('comments', 'community_id');
+        const commentScoped = hasCommentCommunityId && this.activeCommunityId;
+        queryPostOwner = `SELECT user_id FROM comments WHERE comment_id = ?${commentScoped ? ' AND community_id = ?' : ''}`;
+        const [commentOwner] = await this.db.query(
+          queryPostOwner,
+          commentScoped ? [commentId, this.activeCommunityId] : [commentId],
+        );
         if (commentOwner.length === 0) {
           throw new Error('Comment not found');
         }

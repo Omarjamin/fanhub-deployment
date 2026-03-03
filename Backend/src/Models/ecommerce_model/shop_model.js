@@ -1,8 +1,10 @@
-import { connect } from '../../core/database.js';
+import { connect, resolveCommunityContext } from '../../core/database.js';
 
 class ShopModel {
   constructor() {
     this.db = null;
+    this.activeCommunityId = null;
+    this.columnCache = new Map();
     this.connect();
   }
 
@@ -13,11 +15,29 @@ class ShopModel {
   async ensureConnection(community_type) {
     try {
       this.db = await connect(community_type);
+      const ctx = await resolveCommunityContext(community_type);
+      this.activeCommunityId = Number(ctx?.community_id || 0) || null;
     } catch (err) {
       console.error('shop_model.ensureConnection failed:', err?.message || err);
       this.db = await connect();
+      this.activeCommunityId = null;
     }
     return this.db;
+  }
+  async hasColumn(tableName, columnName) {
+    const key = `${tableName}:${columnName}`.toLowerCase();
+    if (this.columnCache.has(key)) return this.columnCache.get(key);
+    try {
+      const [rows] = await this.db.query(`SHOW COLUMNS FROM ${tableName}`);
+      const exists = (rows || []).some(
+        (row) => String(row?.Field || '').trim().toLowerCase() === String(columnName).trim().toLowerCase(),
+      );
+      this.columnCache.set(key, exists);
+      return exists;
+    } catch (_) {
+      this.columnCache.set(key, false);
+      return false;
+    }
   }
 
 
@@ -26,7 +46,17 @@ class ShopModel {
   async getCollections(community_type) {
       try {
         const db = await this.ensureConnection(community_type);
-        const [rows] = await db.query('SELECT * FROM collections ORDER BY created_at DESC');
+        const hasGroupCommunityId = await this.hasColumn('collections', 'group_community_id');
+        const hasCommunityId = await this.hasColumn('collections', 'community_id');
+        const scoped = this.activeCommunityId && (hasGroupCommunityId || hasCommunityId);
+        const scopeColumn = hasGroupCommunityId ? 'group_community_id' : 'community_id';
+        const query = `
+          SELECT *
+          FROM collections
+          ${scoped ? `WHERE ${scopeColumn} = ?` : ''}
+          ORDER BY created_at DESC
+        `;
+        const [rows] = await db.query(query, scoped ? [this.activeCommunityId] : []);
         return rows;
 
       } catch (err) {
@@ -39,13 +69,24 @@ class ShopModel {
   // 3️⃣ Get products by collection
   async getProductsByCollection(collection_id, community_type) {
     const db = await this.ensureConnection(community_type);
+    const hasProductsCommunityId = await this.hasColumn('products', 'community_id');
+    const hasCollectionsGroupCommunityId = await this.hasColumn('collections', 'group_community_id');
+    const hasCollectionsCommunityId = await this.hasColumn('collections', 'community_id');
+    const scopedByProducts = this.activeCommunityId && hasProductsCommunityId;
+    const scopedByCollections = this.activeCommunityId && (hasCollectionsGroupCommunityId || hasCollectionsCommunityId);
+    const collectionScopeColumn = hasCollectionsGroupCommunityId ? 'group_community_id' : 'community_id';
     const query = `
       SELECT *
       FROM products
       WHERE collection_id = ?
+      ${scopedByProducts ? 'AND community_id = ?' : ''}
+      ${scopedByCollections ? `AND collection_id IN (SELECT collection_id FROM collections WHERE ${collectionScopeColumn} = ?)` : ''}
       ORDER BY created_at DESC
     `;
-    const [rows] = await db.query(query, [collection_id]);
+    const params = [collection_id];
+    if (scopedByProducts) params.push(this.activeCommunityId);
+    if (scopedByCollections) params.push(this.activeCommunityId);
+    const [rows] = await db.query(query, params);
     console.log('sa shop models Fetched products!:', rows);
 
     return rows;
@@ -78,15 +119,29 @@ class ShopModel {
 
   // 5️⃣ Get featured products (e.g., latest products across community)
   async getFeaturedProducts(community_id, limit = 10) {
+    const scopedCommunityId = Number(community_id || 0) || this.activeCommunityId || null;
+    const hasProductsCommunityId = await this.hasColumn('products', 'community_id');
+    const hasCollectionsGroupCommunityId = await this.hasColumn('collections', 'group_community_id');
+    const hasCollectionsCommunityId = await this.hasColumn('collections', 'community_id');
+    const collectionScopeColumn = hasCollectionsGroupCommunityId ? 'group_community_id' : 'community_id';
+    const scopeByProducts = scopedCommunityId && hasProductsCommunityId;
+    const scopeByCollections = scopedCommunityId && (hasCollectionsGroupCommunityId || hasCollectionsCommunityId);
     const query = `
       SELECT p.*
       FROM products p
       JOIN collections c ON p.collection_id = c.collection_id
+      ${scopeByProducts || scopeByCollections ? 'WHERE 1=1' : ''}
+      ${scopeByProducts ? 'AND p.community_id = ?' : ''}
+      ${scopeByCollections ? `AND c.${collectionScopeColumn} = ?` : ''}
       ORDER BY p.created_at DESC
       LIMIT ?
     `;
     try {
-      const [rows] = await this.db.query(query, [limit]);
+      const params = [];
+      if (scopeByProducts) params.push(scopedCommunityId);
+      if (scopeByCollections) params.push(scopedCommunityId);
+      params.push(limit);
+      const [rows] = await this.db.query(query, params);
       return rows;
     } catch (err) {
       console.error('Error in getFeaturedProducts:', err && err.message ? err.message : err);
@@ -158,12 +213,23 @@ class ShopModel {
 
   async getproductdetails(product_id, community_type) {
     const db = await this.ensureConnection(community_type);
+    const hasProductsCommunityId = await this.hasColumn('products', 'community_id');
+    const hasCollectionsGroupCommunityId = await this.hasColumn('collections', 'group_community_id');
+    const hasCollectionsCommunityId = await this.hasColumn('collections', 'community_id');
+    const scopedByProducts = this.activeCommunityId && hasProductsCommunityId;
+    const scopedByCollections = this.activeCommunityId && (hasCollectionsGroupCommunityId || hasCollectionsCommunityId);
+    const collectionScopeColumn = hasCollectionsGroupCommunityId ? 'group_community_id' : 'community_id';
     const query = `
       SELECT *
       FROM products
       WHERE product_id = ?
+      ${scopedByProducts ? 'AND community_id = ?' : ''}
+      ${scopedByCollections ? `AND collection_id IN (SELECT collection_id FROM collections WHERE ${collectionScopeColumn} = ?)` : ''}
     `;
-    const [rows] = await db.query(query, [product_id]);
+    const params = [product_id];
+    if (scopedByProducts) params.push(this.activeCommunityId);
+    if (scopedByCollections) params.push(this.activeCommunityId);
+    const [rows] = await db.query(query, params);
     return rows;
   }
 

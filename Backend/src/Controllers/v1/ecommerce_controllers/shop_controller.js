@@ -1,28 +1,19 @@
 import ShopModel from "../../../Models/ecommerce_model/shop_model.js";
+import { resolveSiteSlug } from "../../../utils/site-scope.js";
 
 class ShopController {
   constructor() {
     this.shopModel = new ShopModel();
   }
 
-  resolveSiteSlug(req, res) {
-    return String(
-      res?.locals?.siteSlug ||
-      res?.locals?.communityType ||
-      req?.headers?.['x-site-slug'] ||
-      req?.headers?.['x-community-type'] ||
-      req?.query?.site_slug ||
-      req?.query?.community_type ||
-      req?.params?.community ||
-      ''
-    ).trim().toLowerCase();
-  }
-
   // Get all collections for a community
   async getCollections(req, res) {
     try {
-      // No community_id required — always return all collections
-      const siteSlug = this.resolveSiteSlug(req, res);
+      // No community_id required - always return all collections
+      const siteSlug = resolveSiteSlug(req, res);
+      if (!siteSlug) {
+        return res.status(400).json({ success: false, message: 'site/community scope is required' });
+      }
       const collections = await this.shopModel.getCollections(siteSlug);
       console.log('Fetched collections:', collections);
       return res.status(200).json({ success: true, data: collections });
@@ -34,7 +25,6 @@ class ShopController {
         error: error.message
       });
     }
-  
   }
 
   async getProductsByCollection(req, res) {
@@ -43,7 +33,6 @@ class ShopController {
       if (!collection_id) {
         return res.status(400).json({ success: false, message: "collection_id is required" });
       }
-
 
       // Support legacy path formats like "collection_id=1"
       if (typeof collection_id === 'string' && collection_id.includes('=')) {
@@ -55,7 +44,10 @@ class ShopController {
       const collectionIdNum = Number(collection_id);
       const queryParam = Number.isNaN(collectionIdNum) ? collection_id : collectionIdNum;
 
-      const siteSlug = this.resolveSiteSlug(req, res);
+      const siteSlug = resolveSiteSlug(req, res);
+      if (!siteSlug) {
+        return res.status(400).json({ success: false, message: 'site/community scope is required' });
+      }
       const products = await this.shopModel.getProductsByCollection(queryParam, siteSlug);
       console.log('Fetched products:', products);
       return res.status(200).json({
@@ -88,7 +80,10 @@ class ShopController {
       const productIdNum = Number(product_id);
       const queryParam = Number.isNaN(productIdNum) ? product_id : productIdNum;
 
-      const siteSlug = this.resolveSiteSlug(req, res);
+      const siteSlug = resolveSiteSlug(req, res);
+      if (!siteSlug) {
+        return res.status(400).json({ success: false, message: 'site/community scope is required' });
+      }
       const details = await this.shopModel.getproductdetails(queryParam, siteSlug);
       if (!details || details.length === 0) {
         return res.status(404).json({ success: false, message: 'Product not found' });
@@ -103,11 +98,6 @@ class ShopController {
       return res.status(500).json({ success: false, message: 'Failed to fetch product details', error: error.message });
     }
   }
-
-
-
-
-
 }
 
 export default ShopController;

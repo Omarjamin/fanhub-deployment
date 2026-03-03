@@ -28,11 +28,59 @@ class GenerateModel {
     return exists;
   }
 
+  async ensureSiteCommunityColumn() {
+    if (!this.db) await this.connectAdmin();
+    const hasSites = await this.hasTable('sites');
+    if (!hasSites) return;
+
+    const [rows] = await this.db.query('SHOW COLUMNS FROM sites');
+    const cols = new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+    if (cols.has('community_id')) return;
+
+    const hasCommunities = await this.hasTable('communities');
+    if (!hasCommunities) return;
+
+    try {
+      await this.db.query('ALTER TABLE sites ADD COLUMN community_id INT NULL AFTER domain');
+    } catch (_) {}
+
+    try {
+      await this.db.query('ALTER TABLE sites ADD INDEX idx_sites_community_id (community_id)');
+    } catch (_) {}
+
+    this.siteColumns = null;
+  }
+
   async getSiteColumns() {
     if (this.siteColumns) return this.siteColumns;
+    await this.ensureSiteCommunityColumn();
     const [rows] = await this.db.query('SHOW COLUMNS FROM sites');
     this.siteColumns = new Set((rows || []).map((row) => String(row?.Field || '').trim()));
     return this.siteColumns;
+  }
+
+  async resolveCommunityId(siteName = '', domain = '', communityType = '') {
+    const hasCommunities = await this.hasTable('communities');
+    if (!hasCommunities) return null;
+
+    const candidates = Array.from(new Set([
+      String(communityType || '').trim().toLowerCase(),
+      String(domain || '').trim().toLowerCase(),
+      String(siteName || '').trim().toLowerCase(),
+    ].filter(Boolean)));
+
+    for (const candidate of candidates) {
+      try {
+        const [rows] = await this.db.query(
+          'SELECT community_id FROM communities WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1',
+          [candidate],
+        );
+        const id = Number(rows?.[0]?.community_id || 0);
+        if (id > 0) return id;
+      } catch (_) {}
+    }
+
+    return null;
   }
 
   async getTableColumns(tableName) {
@@ -103,6 +151,7 @@ class GenerateModel {
       pickSite('short_bio'),
       pickSite('description'),
       's.domain',
+      pickSite('community_id'),
       pickSite('community_type', 's.domain AS community_type'),
       pickSite('status'),
       pickSite('created_at'),
@@ -202,6 +251,16 @@ class GenerateModel {
       insertColumns.push('community_type');
       insertValues.push('?');
       insertParams.push(normalizedCommunityType);
+    }
+    if (siteCols.has('community_id')) {
+      const resolvedCommunityId = await this.resolveCommunityId(
+        normalizedSiteName,
+        normalizedDomain,
+        normalizedCommunityType,
+      );
+      insertColumns.push('community_id');
+      insertValues.push('?');
+      insertParams.push(resolvedCommunityId);
     }
     if (siteCols.has('created_at')) {
       insertColumns.push('created_at');
@@ -366,18 +425,11 @@ class GenerateModel {
       if (!sites || sites.length === 0) return null;
       const site = sites[0];
 
-      const membersQuery = `
-        SELECT site_id, name, role, description, image_profile
-        FROM site_members
-        WHERE site_id = ?
-        ORDER BY created_at ASC
-      `;
-      const [members] = await this.db.query(membersQuery, [siteId]);
-
+      const members = await this.getSiteMembersSafe(siteId);
       return { ...site, members: members || [] };
     } catch (err) {
-      console.error('Get website by ID error:', err);
-      throw new Error('Failed to fetch website');
+      console.warn('Get website by ID fallback:', err?.message || err);
+      return null;
     }
   }
 
@@ -394,18 +446,11 @@ class GenerateModel {
       if (!sites || sites.length === 0) return null;
       const site = sites[0];
 
-      const membersQuery = `
-        SELECT site_id, name, role, description, image_profile
-        FROM site_members
-        WHERE site_id = ?
-        ORDER BY created_at ASC
-      `;
-      const [members] = await this.db.query(membersQuery, [site.site_id]);
-
+      const members = await this.getSiteMembersSafe(site.site_id);
       return { ...site, members: members || [] };
     } catch (err) {
-      console.error('Get website by community_type error:', err);
-      throw new Error('Failed to fetch website');
+      console.warn('Get website by community_type fallback:', err?.message || err);
+      return null;
     }
   }
 
@@ -414,6 +459,7 @@ class GenerateModel {
     {
       site_name,
       community_type,
+      community_id,
       status,
       short_bio,
       description,
@@ -455,6 +501,17 @@ class GenerateModel {
           updates.push('community_type = ?');
           params.push(normalized);
         }
+        if (siteCols.has('community_id')) {
+          const resolvedCommunityId = await this.resolveCommunityId(site_name, normalized, normalized);
+          updates.push('community_id = ?');
+          params.push(resolvedCommunityId);
+        }
+      }
+
+      if (community_id !== undefined && siteCols.has('community_id')) {
+        const numeric = Number(community_id);
+        updates.push('community_id = ?');
+        params.push(Number.isFinite(numeric) && numeric > 0 ? numeric : null);
       }
 
       if (status !== undefined) {

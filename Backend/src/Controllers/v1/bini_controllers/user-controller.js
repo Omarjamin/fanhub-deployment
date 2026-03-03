@@ -1,15 +1,19 @@
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import UserModel from "../../../Models/bini_models/User-Account-Model.js";
+import { resolveSiteSlug } from "../../../utils/site-scope.js";
 
 class UserController {
   constructor() {
     this.userModel = new UserModel();
   }
   async ensureDbForRequest(req, res) {
-    const communityType =
-      res.locals.communityType ||
-      String(req.headers["x-community-type"] || "").trim().toLowerCase();
+    const communityType = resolveSiteSlug(req, res);
+    if (!communityType) {
+      const err = new Error("community_type is required");
+      err.statusCode = 400;
+      throw err;
+    }
     await this.userModel.ensureConnection(communityType);
   }
   // Create a new user
@@ -387,13 +391,14 @@ class UserController {
     const userId = res.locals.userId;
     const { fullname, profile_picture } = req.body;
 
-    if (!fullname && !imageUrl) {
+    if (!fullname && !profile_picture) {
       return res
         .status(400)
         .json({ error: "At least one field is required to update" });
     }
 
     try {
+      await this.ensureDbForRequest(req, res);
       const updates = {};
       if (fullname) updates.fullname = fullname;
       if (profile_picture) updates.profile_picture = profile_picture;

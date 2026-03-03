@@ -1,6 +1,6 @@
 import { io } from "socket.io-client";
 
-const API_URL = "https://fanhub-deployment-production.up.railway.app";
+const API_URL = "http://localhost:4000";
 
 let socket = null;
 
@@ -100,5 +100,6 @@ const setupSocket = () => {
 };
 
 export { socket, setupSocket };
+
 
 

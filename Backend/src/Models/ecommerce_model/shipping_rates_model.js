@@ -171,7 +171,20 @@ class ShippingRatesModel {
             }
         }
 
-        return 0;
+        // For weights above max tier, continue charging using the last known per-kg step.
+        const lastTier = rates[rates.length - 1];
+        const prevTier = rates[rates.length - 2] || lastTier;
+        const tierWeightDelta = Number(lastTier.maxKg) - Number(prevTier.maxKg);
+        const tierFeeDelta = Number(lastTier.fee) - Number(prevTier.fee);
+        const extraPerKg =
+            tierWeightDelta > 0 && Number.isFinite(tierFeeDelta)
+                ? (tierFeeDelta / tierWeightDelta)
+                : 0;
+
+        const extraKg = Math.max(0, weightKg - Number(lastTier.maxKg || 0));
+        const extraFee = extraPerKg > 0 ? Math.ceil(extraKg) * extraPerKg : 0;
+        const overflowFee = Number(lastTier.fee || 0) + extraFee;
+        return Math.round(overflowFee * factor);
     }
 
     /**

@@ -1,10 +1,12 @@
-import { connect } from '../../core/database.js';
+import { connect, resolveCommunityContext } from '../../core/database.js';
 
 class DiscographyModel {
   constructor() {
     this.db = null;
     this.activeSite = '';
+    this.activeCommunityId = null;
     this.schemaCache = new Map();
+    this.columnCache = new Map();
   }
 
   async ensureDb(siteKey = '') {
@@ -12,12 +14,37 @@ class DiscographyModel {
     if (!this.db || this.activeSite !== normalizedSite) {
       this.db = await connect(normalizedSite);
       this.activeSite = normalizedSite;
+      try {
+        const ctx = await resolveCommunityContext(normalizedSite);
+        this.activeCommunityId = Number(ctx?.community_id || 0) || null;
+      } catch (_) {
+        this.activeCommunityId = null;
+      }
+    }
+  }
+  async hasColumn(tableName, columnName) {
+    const key = `${tableName}:${columnName}`.toLowerCase();
+    if (this.columnCache.has(key)) return this.columnCache.get(key);
+    try {
+      const [rows] = await this.db.query(`SHOW COLUMNS FROM ${tableName}`);
+      const exists = (rows || []).some(
+        (row) => String(row?.Field || '').trim().toLowerCase() === String(columnName).trim().toLowerCase(),
+      );
+      this.columnCache.set(key, exists);
+      return exists;
+    } catch (_) {
+      this.columnCache.set(key, false);
+      return false;
     }
   }
 
   async getAlbums(siteKey = '') {
     await this.ensureDb(siteKey);
     const schema = await this.getDiscographySchema(siteKey);
+    const hasGroupCommunityId = await this.hasColumn('discography', 'group_community_id');
+    const hasCommunityId = await this.hasColumn('discography', 'community_id');
+    const scoped = this.activeCommunityId && (hasGroupCommunityId || hasCommunityId);
+    const scopeColumn = hasGroupCommunityId ? 'group_community_id' : 'community_id';
     const query = `
       SELECT
         ${schema.albumId} AS album_id,
@@ -28,23 +55,30 @@ class DiscographyModel {
         ${schema.albumLink} AS album_link,
         ${schema.description} AS description
       FROM discography
+      ${scoped ? `WHERE ${scopeColumn} = ?` : ''}
       ORDER BY ${schema.year} DESC, ${schema.albumId} DESC
     `;
 
-    const [rows] = await this.db.query(query);
+    const [rows] = await this.db.query(query, scoped ? [this.activeCommunityId] : []);
     return rows;
   }
 
   async getTracksByAlbum(albumId, siteKey = '') {
     await this.ensureDb(siteKey);
+    const hasGroupCommunityId = await this.hasColumn('music', 'group_community_id');
+    const hasCommunityId = await this.hasColumn('music', 'community_id');
+    const scoped = this.activeCommunityId && (hasGroupCommunityId || hasCommunityId);
+    const scopeColumn = hasGroupCommunityId ? 'group_community_id' : 'community_id';
     const query = `
       SELECT *
       FROM music
       WHERE album_id = ?
+      ${scoped ? `AND ${scopeColumn} = ?` : ''}
       ORDER BY title ASC
     `;
 
-    const [rows] = await this.db.query(query, [albumId]);
+    const params = scoped ? [albumId, this.activeCommunityId] : [albumId];
+    const [rows] = await this.db.query(query, params);
     return rows;
   }
 

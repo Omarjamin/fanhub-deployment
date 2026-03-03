@@ -30,21 +30,23 @@ function getCommunityTypeFromPath() {
       return reservedPages.has(candidate) ? 'bini' : candidate;
     }
   } catch (_) {}
-  return 'bini';
+  return '';
 }
 
 export async function fetchrandomposts(token, limit = 7, offset = 0, passedCommunityType = '') {
   try {
     const communityType =
       String(passedCommunityType || '').trim().toLowerCase() || getCommunityTypeFromPath();
-    const activeSite = getActiveSiteSlug(communityType) || communityType || 'bini';
+    const activeSite = getActiveSiteSlug(communityType) || communityType;
+    if (!activeSite) throw new Error('community/site scope is required');
     setActiveSiteSlug(activeSite);
     const authToken = token || getSessionToken(activeSite);
 
     const response = await api.get(`/bini/posts/getrandomposts?limit=${limit}&offset=${offset}`, {
       headers: {
         ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        'x-community-type': communityType,
+        'x-community-type': activeSite,
+        'x-site-slug': activeSite,
       },
     });
     const responseData = response.data || {};

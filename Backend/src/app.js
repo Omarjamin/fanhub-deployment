@@ -11,6 +11,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import fileUpload from "express-fileupload";
 import { connect } from "./core/database.js";
+import attachGlobalSiteScope from "./Middlewares/site-scope.js";
 
 dotenv.config();
 if (process.env.ALLOW_INSECURE_TLS === "1") {
@@ -173,6 +174,8 @@ app.get("/health", async (req, res) => {
   }
 });
 
+// Enforce site scope across all versioned API routes.
+app.use("/v1", attachGlobalSiteScope);
 app.use("/v1", v1);
 
 // Start server
@@ -181,7 +184,7 @@ server.on("error", (err) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Server is running on http://${HOST}:${PORT}`);
+  console.log(`Server is running on http://localhost:${PORT}`);
 });
 
 

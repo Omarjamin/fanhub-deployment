@@ -1,7 +1,7 @@
 import '../../../styles/Admin_styles/Reports.css';
 import { getAdminHeaders } from './admin-sites.js';
 
-const API_BASE = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1').trim().replace(/\/$/, '');
+const API_BASE = (import.meta.env.VITE_API_URL || 'http://localhost:4000/v1').trim().replace(/\/$/, '');
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 const WARNING_CATEGORIES = [
   {
@@ -103,7 +103,7 @@ async function requestJson(path, options = {}) {
     body: options.body
   };
 
-  const url = buildApiUrl(path); // e.g. https://fanhub-deployment-production.up.railway.app/v1/admin/...
+  const url = buildApiUrl(path); // e.g. http://localhost:4000/v1/admin/...
   const response = await fetch(url, requestOptions);
 
   const contentType = response.headers.get('content-type') || '';
@@ -672,5 +672,6 @@ window.viewPostReports = viewPostReports;
 window.handleWarning = handleWarning;
 window.handleSuspend = handleSuspend;
 window.closeReportsModal = closeReportsModal;
+
 
 

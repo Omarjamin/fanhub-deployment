@@ -1,4 +1,5 @@
 import SettingsModel from '../../../Models/mainAdmin_model/Settings-Model.js';
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
 class EventsController {
   constructor() {
@@ -6,21 +7,7 @@ class EventsController {
   }
 
   resolveCommunity(req, res) {
-    const direct = String(
-      req.query?.community ||
-      req.query?.site_slug ||
-      req.query?.community_type ||
-      req.headers?.['x-site-slug'] ||
-      req.headers?.['x-community-type'] ||
-      res.locals?.siteSlug ||
-      res.locals?.communityType ||
-      ''
-    ).trim().toLowerCase();
-    if (direct) return direct;
-
-    const referer = String(req?.headers?.referer || req?.headers?.referrer || '').trim();
-    const match = referer.match(/\/fanhub\/(?:community-platform\/)?([^/?#]+)/i);
-    return match ? String(match[1]).trim().toLowerCase() : '';
+    return resolveSiteSlug(req, res);
   }
 
   async getEventPosters(req, res) {
@@ -34,8 +21,9 @@ class EventsController {
         resolvedCommunity: community,
       });
       if (!community) {
-        return res.status(200).json({
-          success: true,
+        return res.status(400).json({
+          success: false,
+          message: 'site/community scope is required',
           community: '',
           data: [],
         });

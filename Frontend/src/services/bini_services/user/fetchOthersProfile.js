@@ -16,7 +16,7 @@ export async function fetchOthersData(userId, preferredCommunity = "") {
     getActiveSiteSlug() || sessionStorage.getItem("community_type") || "",
   ).trim().toLowerCase();
   const communitiesToTry = Array.from(
-    new Set([normalizedPreferredCommunity, routeCommunity, storedCommunity, "bini"].filter(Boolean)),
+    new Set([normalizedPreferredCommunity, routeCommunity, storedCommunity].filter(Boolean)),
   );
 
   let lastError = null;

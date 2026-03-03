@@ -1,8 +1,10 @@
-import { connect } from '../../core/database.js';
+import { connect, resolveCommunityContext } from '../../core/database.js';
 import { moderateContent } from '../../core/moderation.js';
 
 class PostModel {
   constructor() {
+    this.activeCommunityId = null;
+    this.columnCache = new Map();
     this.connect();
   }
   async connect() {
@@ -11,11 +13,46 @@ class PostModel {
   async ensureConnection(community_type) {
     try {
       this.db = await connect(community_type);
+      const ctx = await resolveCommunityContext(community_type);
+      this.activeCommunityId = Number(ctx?.community_id || 0) || null;
     } catch (err) {
       console.error('<error> PostModel.ensureConnection failed:', err?.message || err);
       this.db = await connect();
+      this.activeCommunityId = null;
     }
     return this.db;
+  }
+  async hasColumn(tableName, columnName) {
+    const key = `${tableName}:${columnName}`.toLowerCase();
+    if (this.columnCache.has(key)) return this.columnCache.get(key);
+    try {
+      const [rows] = await this.db.query(`SHOW COLUMNS FROM ${tableName}`);
+      const exists = (rows || []).some((row) => String(row?.Field || '').trim().toLowerCase() === String(columnName).trim().toLowerCase());
+      this.columnCache.set(key, exists);
+      return exists;
+    } catch (_) {
+      this.columnCache.set(key, false);
+      return false;
+    }
+  }
+  async getScopedCondition(tableName, alias = '') {
+    const hasCommunityId = await this.hasColumn(tableName, 'community_id');
+    if (!hasCommunityId || !this.activeCommunityId) return { sql: '', params: [] };
+    const col = alias ? `${alias}.community_id` : 'community_id';
+    return { sql: ` AND ${col} = ?`, params: [this.activeCommunityId] };
+  }
+  isSingleDatabaseMode() {
+    const explicitSingle = String(
+      process.env.SINGLE_DB_MODE ||
+      process.env.DB_SINGLE_MODE ||
+      process.env.FORCE_SINGLE_DB ||
+      '',
+    ).trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(explicitSingle)) return true;
+
+    const appDb = String(process.env.DB_NAME || '').trim().toLowerCase();
+    const adminDb = String(process.env.DB_NAME_ADMIN || '').trim().toLowerCase();
+    return Boolean(appDb && adminDb && appDb === adminDb);
   }
   // Get Random Posts with Pagination for Infinite Scrolling
   async getRandomPost(limit = 7, offset = 0, community_type = '') {
@@ -28,13 +65,22 @@ class PostModel {
         const defaultDb = String(process.env.DB_NAME || '').trim();
         const requestedCommunity = String(community_type || '').trim().toLowerCase();
 
-        // Prevent cross-community leakage when resolver falls back to default DB.
-        if (requestedCommunity && defaultDb && currentDb === defaultDb && requestedCommunity !== 'bini') {
+        // Prevent cross-community leakage when resolver falls back to default DB
+        // in multi-DB mode only. In single-DB mode, scoping is done by community_id.
+        if (!this.isSingleDatabaseMode() && requestedCommunity && defaultDb && currentDb === defaultDb && requestedCommunity !== 'bini') {
           console.warn(
             `[PostModel] Community DB fallback detected (requested=${requestedCommunity}, db=${currentDb}). Returning empty feed to prevent data leak.`
           );
           return [];
         }
+      }
+      const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
+      const scoped = hasPostCommunityId && this.activeCommunityId;
+      if (community_type && hasPostCommunityId && !scoped) {
+        console.warn(
+          `[PostModel] Missing community_id context for "${community_type}". Returning empty feed to avoid cross-community posts.`,
+        );
+        return [];
       }
       const query = `
         SELECT 
@@ -51,11 +97,13 @@ class PostModel {
         LEFT JOIN hashtags h ON p.post_id = h.post_id
         LEFT JOIN users u ON p.user_id = u.user_id
         WHERE p.repost_id IS NULL
+        ${scoped ? 'AND p.community_id = ?' : ''}
         GROUP BY p.post_id
         ORDER BY p.created_at DESC
         LIMIT ? OFFSET ?
       `;
-      const [rows] = await db.query(query, [limit, offset]);
+      const params = scoped ? [this.activeCommunityId, limit, offset] : [limit, offset];
+      const [rows] = await db.query(query, params);
 
       // Normalize tags to an array so the frontend can always rely on it
       const posts = rows.map(post => ({
@@ -70,7 +118,7 @@ class PostModel {
     }
   }
   // Create Post
-  async createPost(user_id, content, img_url, tags = []) {
+  async createPost(user_id, content, img_url, tags = [], community_type = '') {
     console.log('=== CREATEPOST CALLED ===');
     console.log('Content:', content);
     console.log('User ID:', user_id);
@@ -81,11 +129,14 @@ class PostModel {
         throw new Error('Content not allowed due to policy violation');
       }
 
-      const query = `
-        INSERT INTO posts (user_id, content, img_url, created_at, updated_at) 
-        VALUES (?, ?, ?, ?, ?)
-      `;
-      const params = [user_id, content, img_url, new Date(), new Date()];
+      await this.ensureConnection(community_type);
+      const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
+      const query = hasPostCommunityId
+        ? `INSERT INTO posts (user_id, content, img_url, community_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`
+        : `INSERT INTO posts (user_id, content, img_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`;
+      const params = hasPostCommunityId
+        ? [user_id, content, img_url, this.activeCommunityId, new Date(), new Date()]
+        : [user_id, content, img_url, new Date(), new Date()];
       const [result] = await this.db.query(query, params);
 
       const postId = result.insertId;
@@ -224,13 +275,17 @@ class PostModel {
   // Get Post by ID
   async getPostById(postId) {
     try {
+      const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
+      const scoped = hasPostCommunityId && this.activeCommunityId;
       const query = `
         SELECT p.*, u.fullname, u.profile_picture
         FROM posts p
         LEFT JOIN users u ON p.user_id = u.user_id
         WHERE p.post_id = ?
+        ${scoped ? 'AND p.community_id = ?' : ''}
       `;
-      const [post] = await this.db.query(query, [postId]);
+      const params = scoped ? [postId, this.activeCommunityId] : [postId];
+      const [post] = await this.db.query(query, params);
       return post[0];
     } catch (err) {
       throw err;
@@ -238,47 +293,58 @@ class PostModel {
   }
   // Report a post
   async reportPost(reporter_id, reported_user_id, post_id, reason, message_id = null) {
-    const queryWithMessage = `
+    const hasReportCommunityId = await this.hasColumn('reports', 'community_id');
+    const queryWithMessage = hasReportCommunityId
+      ? `
+      INSERT INTO reports (reporter_id, reported_user_id, report_type, post_id, reason, message_id, community_id, created_at)
+      VALUES (?, ?, 'post', ?, ?, ?, ?, NOW())
+    `
+      : `
       INSERT INTO reports (reporter_id, reported_user_id, report_type, post_id, reason, message_id, created_at)
       VALUES (?, ?, 'post', ?, ?, ?, NOW())
     `;
 
     try {
-      const [result] = await this.db.query(queryWithMessage, [
-        reporter_id,
-        reported_user_id,
-        post_id,
-        reason,
-        message_id,
-      ]);
+      const withMessageParams = hasReportCommunityId
+        ? [reporter_id, reported_user_id, post_id, reason, message_id, this.activeCommunityId]
+        : [reporter_id, reported_user_id, post_id, reason, message_id];
+      const [result] = await this.db.query(queryWithMessage, withMessageParams);
       return result;
     } catch (err) {
-      // Some DB schemas do not include message_id for post_reports.
-      if (err?.code === 'ER_BAD_FIELD_ERROR' && String(err.message).includes('message_id')) {
-        const queryWithoutMessage = `
+      // Some DB schemas do not include message_id/community_id for post reports.
+      if (
+        err?.code === 'ER_BAD_FIELD_ERROR' &&
+        (String(err.message).includes('message_id') || String(err.message).includes('community_id'))
+      ) {
+        const queryWithoutMessage = hasReportCommunityId
+          ? `
+          INSERT INTO reports (reporter_id, reported_user_id, report_type, post_id, reason, community_id, created_at)
+          VALUES (?, ?, 'post', ?, ?, ?, NOW())
+        `
+          : `
           INSERT INTO reports (reporter_id, reported_user_id, report_type, post_id, reason, created_at)
           VALUES (?, ?, 'post', ?, ?, NOW())
         `;
-        const [result] = await this.db.query(queryWithoutMessage, [
-          reporter_id,
-          reported_user_id,
-          post_id,
-          reason,
-        ]);
+        const paramsWithoutMessage = hasReportCommunityId
+          ? [reporter_id, reported_user_id, post_id, reason, this.activeCommunityId]
+          : [reporter_id, reported_user_id, post_id, reason];
+        const [result] = await this.db.query(queryWithoutMessage, paramsWithoutMessage);
         return result;
       }
       if (err?.code === 'ER_BAD_FIELD_ERROR' && String(err.message).includes('report_type')) {
-        const queryLegacy = `
+        const queryLegacy = hasReportCommunityId
+          ? `
+          INSERT INTO reports (reporter_id, reported_user_id, post_id, reason, message_id, community_id, created_at)
+          VALUES (?, ?, ?, ?, ?, ?, NOW())
+        `
+          : `
           INSERT INTO reports (reporter_id, reported_user_id, post_id, reason, message_id, created_at)
           VALUES (?, ?, ?, ?, ?, NOW())
         `;
-        const [result] = await this.db.query(queryLegacy, [
-          reporter_id,
-          reported_user_id,
-          post_id,
-          reason,
-          message_id,
-        ]);
+        const legacyParams = hasReportCommunityId
+          ? [reporter_id, reported_user_id, post_id, reason, message_id, this.activeCommunityId]
+          : [reporter_id, reported_user_id, post_id, reason, message_id];
+        const [result] = await this.db.query(queryLegacy, legacyParams);
         return result;
       }
       throw err;
@@ -287,6 +353,34 @@ class PostModel {
 
   // Count distinct reporters for a reported user in the last 30 days
   async getPostReportCount(reported_user_id) {
+    const reportScoped = await this.getScopedCondition('reports');
+    const postScoped = await this.getScopedCondition('posts', 'p');
+
+    if (reportScoped.sql) {
+      const query = `
+        SELECT COUNT(DISTINCT reporter_id) as unique_reporters
+        FROM reports
+        WHERE reported_user_id = ?
+          ${reportScoped.sql}
+          AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      `;
+      const [rows] = await this.db.query(query, [reported_user_id, ...reportScoped.params]);
+      return rows[0]?.unique_reporters || 0;
+    }
+
+    if (postScoped.sql) {
+      const query = `
+        SELECT COUNT(DISTINCT pr.reporter_id) as unique_reporters
+        FROM reports pr
+        JOIN posts p ON p.post_id = pr.post_id
+        WHERE pr.reported_user_id = ?
+          ${postScoped.sql}
+          AND pr.created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)
+      `;
+      const [rows] = await this.db.query(query, [reported_user_id, ...postScoped.params]);
+      return rows[0]?.unique_reporters || 0;
+    }
+
     const query = `
       SELECT COUNT(DISTINCT reporter_id) as unique_reporters
       FROM reports
@@ -298,6 +392,10 @@ class PostModel {
 
   // Admin: list reported posts (aggregated)
   async getAllReportedPosts() {
+    const reportScoped = await this.getScopedCondition('reports', 'pr');
+    const postScoped = await this.getScopedCondition('posts', 'p');
+    const scopedSql = `${reportScoped.sql}${postScoped.sql}`;
+    const scopedParams = [...reportScoped.params, ...postScoped.params];
     const query = `
       SELECT
         u.user_id,
@@ -316,11 +414,12 @@ class PostModel {
       JOIN posts p ON p.post_id = pr.post_id
       JOIN users u ON u.user_id = p.user_id
       WHERE (pr.post_id IS NOT NULL OR pr.report_type = 'post')
+      ${scopedSql}
       GROUP BY p.post_id, u.user_id, u.fullname, u.email, u.profile_picture
       HAVING unique_reporters >= 3
       ORDER BY unique_reporters DESC, latest_report DESC
     `;
-    const [rows] = await this.db.query(query);
+    const [rows] = await this.db.query(query, scopedParams);
     // Debug: log rows returned for admin reported posts
     try {
       console.log('[PostModel] getAllReportedPosts -> rows:', JSON.stringify(rows || []));
@@ -332,15 +431,17 @@ class PostModel {
 
   // Admin: get reports for a specific post
   async getPostReports(postId) {
+    const reportScoped = await this.getScopedCondition('reports', 'pr');
+    const postScoped = await this.getScopedCondition('posts', 'p');
     const query = `
-    FROM reports pr
-    SELECT pr.*, r.fullname as reporter_name, r.email as reporter_email, p.content as post_content, p.img_url
+      SELECT pr.*, r.fullname as reporter_name, r.email as reporter_email, p.content as post_content, p.img_url
+      FROM reports pr
       JOIN users r ON pr.reporter_id = r.user_id
       LEFT JOIN posts p ON pr.post_id = p.post_id
-      WHERE pr.post_id = ?
+      WHERE pr.post_id = ?${reportScoped.sql}${postScoped.sql}
       ORDER BY pr.created_at DESC
     `;
-    const [rows] = await this.db.query(query, [postId]);
+    const [rows] = await this.db.query(query, [postId, ...reportScoped.params, ...postScoped.params]);
     return rows;
   }
   // Update Post
@@ -409,6 +510,8 @@ class PostModel {
   // Get Other User Posts
   async getOtherUserPosts(userId) {
     try {
+      const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
+      const scoped = hasPostCommunityId && this.activeCommunityId;
       const query = `
         SELECT p.post_id, p.user_id, p.content, p.img_url, p.created_at, p.updated_at, 
                GROUP_CONCAT(h.tag) AS tags,
@@ -417,9 +520,11 @@ class PostModel {
         LEFT JOIN hashtags h ON p.post_id = h.post_id
         LEFT JOIN users u ON p.user_id = u.user_id 
         WHERE p.user_id = ? AND repost_id IS NULL
+        ${scoped ? 'AND p.community_id = ?' : ''}
         GROUP BY p.post_id
       `;
-      const [rows] = await this.db.query(query, [userId]);
+      const params = scoped ? [userId, this.activeCommunityId] : [userId];
+      const [rows] = await this.db.query(query, params);
 
       const posts = rows.map(post => ({
         ...post,
@@ -434,6 +539,8 @@ class PostModel {
   // Get User Posts
   async getUserPosts(userId) {
     try {
+      const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
+      const scoped = hasPostCommunityId && this.activeCommunityId;
       const query = `
         SELECT p.post_id, p.user_id, p.content, p.img_url, p.created_at, p.updated_at, 
                GROUP_CONCAT(h.tag) AS tags,
@@ -442,9 +549,11 @@ class PostModel {
         LEFT JOIN hashtags h ON p.post_id = h.post_id
         LEFT JOIN users u ON p.user_id = u.user_id 
         WHERE p.user_id = ? AND repost_id IS NULL
+        ${scoped ? 'AND p.community_id = ?' : ''}
         GROUP BY p.post_id
       `;
-      const [rows] = await this.db.query(query, [userId]);
+      const params = scoped ? [userId, this.activeCommunityId] : [userId];
+      const [rows] = await this.db.query(query, params);
 
       const posts = rows.map(post => ({
         ...post,

@@ -1,4 +1,5 @@
 import ShippingRatesModel from "../../../Models/ecommerce_model/shipping_rates_model.js";
+import { resolveSiteSlug } from "../../../utils/site-scope.js";
 
 class ShippingRatesController {
     constructor() {
@@ -12,14 +13,7 @@ class ShippingRatesController {
                 req.body?.total_weight_grams ??
                 req.query?.total_weight_grams ??
                 0;
-            const community_type = String(
-                req.headers['x-site-slug'] ||
-                req.headers['x-community-type'] ||
-                req.query?.community_type ||
-                req.body?.community_type ||
-                res.locals?.siteSlug ||
-                '',
-            ).trim().toLowerCase();
+            const community_type = resolveSiteSlug(req, res);
 
             // validation
             if (!province_name) {

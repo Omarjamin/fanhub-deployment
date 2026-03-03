@@ -62,6 +62,12 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
   import SubAdminThreads from './pages/Admin_page/Threads.js';
   import SubAdminLogin from './pages/Admin_page/login.js';
 
+  // Force local API base in this local/dev workspace even if an older bundle/env leaks in.
+  if (typeof window !== 'undefined') {
+    window.__API_BASE__ = 'http://localhost:4000/v1/ecommerce';
+    window.__API_ORIGIN__ = 'http://localhost:4000';
+  }
+
 
   // Initialize SPA
   const app = new SPA({
@@ -246,7 +252,7 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
   app.add('/order-history', OrderHistory);
   app.add('/order-confirmation', OrderConfirmation);
 
-  const ADMIN_API_BASE = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
+  const ADMIN_API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000/v1";
   const API_KEY = import.meta.env.VITE_API_KEY || "thread";
 
   function applyButtonStyle(style, root = document.documentElement) {
@@ -408,17 +414,19 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
     const res = await fetch(`${ADMIN_API_BASE}/generate/generated-websites/type/${encodeURIComponent(slug)}`, {
       headers: {
         apikey: API_KEY,
+        "x-site-slug": slug,
+        "x-community-type": slug,
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
     });
 
-    const json = await res.json();
-    if (!res.ok || !json?.success) {
-      throw new Error(json?.message || "Site not found");
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || !json?.success || !json?.data) {
+      throw new Error(json?.message || "Failed to fetch website");
     }
+    const payload = json.data;
 
     try {
-      const payload = json.data || {};
       sessionStorage.setItem(`site_data:${slug}`, JSON.stringify(payload));
       sessionStorage.setItem("active_site_data", JSON.stringify(payload));
       sessionStorage.setItem("active_site_slug", slug);
@@ -426,8 +434,8 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
       localStorage.setItem("active_site_slug", slug);
     } catch (_) {}
 
-    applyThemeColors(json.data);
-    return json.data;
+    applyThemeColors(payload);
+    return payload;
   }
 
   
@@ -567,6 +575,7 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
   window.globalSocket = socket;
     
   app.handleRouteChanges();
+
 
 
 

@@ -1,30 +1,24 @@
 import DiscographyModel from '../../../Models/ecommerce_model/discography_model.js';
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
 class DiscographyController {
   constructor() {
     this.discographyModel = new DiscographyModel();
   }
 
-  resolveSiteKey(req) {
-    const direct = String(
-      req?.headers?.['x-site-slug'] ||
-      req?.headers?.['x-community-type'] ||
-      req?.query?.site_slug ||
-      req?.query?.domain ||
-      req?.body?.site_slug ||
-      req?.body?.domain ||
-      ''
-    ).trim().toLowerCase();
-    if (direct) return direct;
-
-    const referer = String(req?.headers?.referer || req?.headers?.referrer || '').trim();
-    const match = referer.match(/\/fanhub\/(?:community-platform\/)?([^/?#]+)/i);
-    return match ? String(match[1]).trim().toLowerCase() : '';
+  resolveSiteKey(req, res) {
+    return resolveSiteSlug(req, res);
   }
 
   async getAlbums(req, res) {
     try {
-      const siteKey = this.resolveSiteKey(req);
+      const siteKey = this.resolveSiteKey(req, res);
+      if (!siteKey) {
+        return res.status(400).json({
+          success: false,
+          message: 'site/community scope is required',
+        });
+      }
       const albums = await this.discographyModel.getAlbums(siteKey);
       return res.status(200).json({
         success: true,
@@ -45,7 +39,13 @@ class DiscographyController {
   async getTracksByAlbum(req, res) {
     try {
       const albumId = req.params.album_id || req.query.album_id;
-      const siteKey = this.resolveSiteKey(req);
+      const siteKey = this.resolveSiteKey(req, res);
+      if (!siteKey) {
+        return res.status(400).json({
+          success: false,
+          message: 'site/community scope is required',
+        });
+      }
 
       if (!albumId) {
         return res.status(400).json({

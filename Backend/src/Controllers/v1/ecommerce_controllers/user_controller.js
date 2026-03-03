@@ -147,8 +147,8 @@ class UserController {
     });
   } catch (error) {
     console.error('Error creating user:', error.message);
-    if (error?.code === 'SITE_DB_NOT_FOUND') {
-      return res.status(404).json({ error: `Site database not found for "${activeSiteName}"` });
+    if (error?.code === 'SITE_DB_NOT_FOUND' || error?.code === 'SITE_SCOPE_NOT_FOUND') {
+      return res.status(404).json({ error: `Site/community not found for "${activeSiteName}"` });
     }
 
     // If error message comes from model (e.g. "Username already taken")
@@ -220,9 +220,9 @@ class UserController {
 
     } catch (error) {
       console.error('Error during login:', error);
-      if (error?.code === 'SITE_DB_NOT_FOUND') {
+      if (error?.code === 'SITE_DB_NOT_FOUND' || error?.code === 'SITE_SCOPE_NOT_FOUND') {
         return res.status(404).json({
-          error: `Site database not found for "${activeSiteName}"`,
+          error: `Site/community not found for "${activeSiteName}"`,
         });
       }
       return res.status(500).json({ error: 'Login failed: ' + error.message });
@@ -287,8 +287,8 @@ class UserController {
       });
     } catch (error) {
       console.error('Error during googleAuth:', error);
-      if (error?.code === 'SITE_DB_NOT_FOUND') {
-        return res.status(404).json({ error: `Site database not found for "${activeSiteName}"` });
+      if (error?.code === 'SITE_DB_NOT_FOUND' || error?.code === 'SITE_SCOPE_NOT_FOUND') {
+        return res.status(404).json({ error: `Site/community not found for "${activeSiteName}"` });
       }
       return res.status(401).json({ error: error.message || 'Google authentication failed' });
     }
@@ -324,8 +324,8 @@ class UserController {
 
     } catch (error) {
       console.error('Error requesting password reset:', error.message);
-      if (error?.code === 'SITE_DB_NOT_FOUND') {
-        return res.status(404).json({ error: `Site database not found for "${activeSiteName}"` });
+      if (error?.code === 'SITE_DB_NOT_FOUND' || error?.code === 'SITE_SCOPE_NOT_FOUND') {
+        return res.status(404).json({ error: `Site/community not found for "${activeSiteName}"` });
       }
       return res.status(500).json({ error: 'Failed to send OTP.' });
     }
@@ -360,8 +360,8 @@ class UserController {
 
     } catch (error) {
       console.error('Error resetting password:', error.message);
-      if (error?.code === 'SITE_DB_NOT_FOUND') {
-        return res.status(404).json({ error: `Site database not found for "${activeSiteName}"` });
+      if (error?.code === 'SITE_DB_NOT_FOUND' || error?.code === 'SITE_SCOPE_NOT_FOUND') {
+        return res.status(404).json({ error: `Site/community not found for "${activeSiteName}"` });
       }
       return res.status(500).json({ error: 'Failed to reset password.' });
     }

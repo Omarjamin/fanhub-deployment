@@ -1,9 +1,4 @@
-import {
-  connect,
-  resolveSiteDatabaseConfig,
-  resolveSiteNameByDomain,
-  resolveCommunityContext,
-} from '../../core/database.js';
+import { connect, resolveCommunityContext } from '../../core/database.js';
 import { encryptPassword } from '../../utils/hash.js';
 import crypto from "crypto";
 import nodemailer from 'nodemailer';
@@ -28,49 +23,23 @@ class UserModel {
   async ensureConnection(community_type, site_slug) {
     const normalizedSite = String(community_type || '').trim().toLowerCase();
     const normalizedSlug = String(site_slug || '').trim().toLowerCase();
-    const candidates = [];
-    if (normalizedSite) candidates.push(normalizedSite);
-    if (normalizedSlug && normalizedSlug !== normalizedSite) candidates.push(normalizedSlug);
+    const scopedKey = normalizedSite || normalizedSlug;
 
     try {
-      if (candidates.length > 0) {
-        let resolvedKey = '';
-        for (const key of candidates) {
-          const siteName = await resolveSiteNameByDomain(key);
-          const lookupKey = siteName || key;
-          const siteDbConfig = await resolveSiteDatabaseConfig(lookupKey);
-          if (siteDbConfig?.db_name) {
-            resolvedKey = lookupKey;
-            break;
-          }
-        }
-
-        if (!resolvedKey) {
-          const notFoundError = new Error(`No database mapping found for site "${normalizedSite || normalizedSlug}"`);
-          notFoundError.code = 'SITE_DB_NOT_FOUND';
-          throw notFoundError;
-        }
-
-        this.db = await connect(resolvedKey);
-        this.userAuthColumnsReady = false;
-        this.userColumnSet = null;
-        const community = await resolveCommunityContext(resolvedKey);
-        this.activeCommunityId = Number(community?.community_id || 0) || null;
-        await this.ensureUserAuthColumns();
-        await this.ensureRegistrationVerificationTable();
-        return this.db;
-      }
-
-      this.db = await connect();
+      this.db = await connect(scopedKey);
       this.userAuthColumnsReady = false;
       this.userColumnSet = null;
-      const fallbackCommunity = await resolveCommunityContext(normalizedSite || normalizedSlug);
+      const fallbackCommunity = await resolveCommunityContext(scopedKey);
+      if (scopedKey && !fallbackCommunity?.community_id) {
+        const scopeErr = new Error(`Site/community not found for "${scopedKey}"`);
+        scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
+        throw scopeErr;
+      }
       this.activeCommunityId = Number(fallbackCommunity?.community_id || 0) || null;
       await this.ensureUserAuthColumns();
       await this.ensureRegistrationVerificationTable();
     } catch (err) {
       console.error('<error> ensureConnection failed:', err);
-      if (candidates.length > 0) throw err;
       this.db = await connect();
       this.userAuthColumnsReady = false;
       this.userColumnSet = null;
@@ -441,12 +410,22 @@ class UserModel {
       if (err?.code === 'ER_BAD_NULL_ERROR' && String(err?.sqlMessage || '').toLowerCase().includes('username')) {
         const baseUsername = String(email || '').split('@')[0] || 'google_user';
         const username = `${baseUsername}_${Date.now().toString().slice(-6)}`;
+        const columns = await this.getUserColumns();
+        const insertColumns = ['username', 'email', 'fullname', 'password', 'profile_picture', 'google_id', 'auth_provider', 'failed_login_attempts'];
+        const insertPlaceholders = ['?', '?', '?', '?', '?', '?', "'google'", '0'];
+        const insertParams = [username, email, safeFullname, randomPassword, safeImage, googleId || null];
+        if (columns.has('community_id')) {
+          insertColumns.push('community_id');
+          insertPlaceholders.push('?');
+          insertParams.push(this.activeCommunityId);
+        }
+
         const [result] = await db.query(
           `
-            INSERT INTO users (username, email, fullname, password, profile_picture, google_id, auth_provider, failed_login_attempts)
-            VALUES (?, ?, ?, ?, ?, ?, 'google', 0)
+            INSERT INTO users (${insertColumns.join(', ')})
+            VALUES (${insertPlaceholders.join(', ')})
           `,
-          [username, email, safeFullname, randomPassword, safeImage, googleId || null],
+          insertParams,
         );
 
         return {

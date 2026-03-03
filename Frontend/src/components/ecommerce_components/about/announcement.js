@@ -1,17 +1,39 @@
 import { getActiveSiteSlug, getSiteHeaders } from '../../../lib/site-context.js';
 
-const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
+const BASE_V1 =
+  (typeof window !== 'undefined' && window.__API_ORIGIN)
+    ? `${String(window.__API_ORIGIN).replace(/\/$/, '')}/v1`
+    : (import.meta.env.VITE_API_URL || 'http://localhost:4000/v1');
 const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
 
 function resolveSiteSlug(data = {}) {
-  return String(
+  const fromData = String(
     data?.siteSlug ||
     data?.site_slug ||
     data?.domain ||
     data?.community_type ||
-    getActiveSiteSlug() ||
     ''
   ).trim().toLowerCase();
+  if (fromData) return fromData;
+
+  const fromStorage = String(
+    sessionStorage.getItem('site_slug') ||
+    sessionStorage.getItem('community_type') ||
+    ''
+  ).trim().toLowerCase();
+  if (fromStorage && fromStorage !== 'community-platform') return fromStorage;
+
+  try {
+    const parts = String(window?.location?.pathname || '').split('/').filter(Boolean);
+    if (parts[0] === 'fanhub' && parts[1] === 'community-platform' && parts[2]) {
+      return String(parts[2]).trim().toLowerCase();
+    }
+    if (parts[0] === 'fanhub' && parts[1] && parts[1] !== 'community-platform') {
+      return String(parts[1]).trim().toLowerCase();
+    }
+  } catch (_) {}
+
+  return String(getActiveSiteSlug() || '').trim().toLowerCase();
 }
 
 function buildThreadLink(siteSlug, threadId) {
@@ -43,13 +65,17 @@ function renderAnnouncement(section, payload = {}) {
 
 async function fetchThreads(siteSlug) {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 12000);
     const res = await fetch(`${BASE_V1}/bini/posts/threads?community=${encodeURIComponent(siteSlug)}`, {
       method: 'GET',
       headers: {
         apikey: API_KEY,
         ...getSiteHeaders(siteSlug),
       },
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
     if (!res.ok) return [];
     const payload = await res.json().catch(() => []);
     return Array.isArray(payload) ? payload : [];
@@ -114,6 +140,7 @@ export default function announcement(root, data = {}) {
     });
   });
 }
+
 
 
 

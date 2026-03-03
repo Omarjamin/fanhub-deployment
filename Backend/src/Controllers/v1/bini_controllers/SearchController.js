@@ -1,13 +1,17 @@
 import SearchModel from '../../../Models/bini_models/SearchModel.js';
+import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
 class SearchController {
   constructor() {
     this.searchModel = new SearchModel();
   }
   async ensureDbForRequest(req, res) {
-    const communityType =
-      res.locals.communityType ||
-      String(req.headers['x-community-type'] || '').trim().toLowerCase();
+    const communityType = resolveSiteSlug(req, res);
+    if (!communityType) {
+      const err = new Error('community_type is required');
+      err.statusCode = 400;
+      throw err;
+    }
     await this.searchModel.ensureConnection(communityType);
   }
   // Search users by keyword
@@ -15,8 +19,8 @@ class SearchController {
     const keyword = req.query.keyword || '';
     console.log("Received keyword:", keyword); 
 
-    if (!keyword || keyword.length < 1) {  
-      return res.status(400).json({ error: "Keyword is required and must be at least 3 characters long" });
+    if (!keyword || keyword.length < 1) {
+      return res.status(400).json({ error: "Keyword is required." });
     }
 
     try {

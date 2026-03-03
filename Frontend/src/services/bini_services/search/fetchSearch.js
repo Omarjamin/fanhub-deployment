@@ -1,10 +1,7 @@
 // Fetch users based on search keyword
 import api from "../api.js";
 
-const SEARCH_ENDPOINTS = [
-  (keyword) => `/bini/search/users?keyword=${encodeURIComponent(keyword)}`,
-  (keyword) => `/bini/search/search?keyword=${encodeURIComponent(keyword)}`,
-];
+const SEARCH_ENDPOINT = (keyword) => `/bini/search/users?keyword=${encodeURIComponent(keyword)}`;
 
 export async function fetchSearchAll(token, keyword) {
   const query = String(keyword || "").trim();
@@ -12,22 +9,15 @@ export async function fetchSearchAll(token, keyword) {
     return { users: [] };
   }
 
-  let lastError = null;
-
-  for (const endpoint of SEARCH_ENDPOINTS) {
-    try {
-      const response = await api.get(endpoint(query));
-      const payload = response.data;
-      if (Array.isArray(payload)) return { users: payload };
-      if (Array.isArray(payload?.users)) return payload;
-      return { users: [] };
-    } catch (error) {
-      lastError = error;
-      continue;
-    }
+  try {
+    const response = await api.get(SEARCH_ENDPOINT(query));
+    const payload = response.data;
+    if (Array.isArray(payload)) return { users: payload };
+    if (Array.isArray(payload?.users)) return payload;
+    return { users: [] };
+  } catch (_) {
+    return { users: [] };
   }
-
-  return { users: [] };
 }
 
 export async function fetchHashtagPosts(token, keyword) {
