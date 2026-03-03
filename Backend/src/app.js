@@ -65,7 +65,7 @@ const allowedOrigins = [
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean),
-  ...(process.env.FRONTEND_URL ? [process.env.VITE_API_URL.trim()] : []),
+  ...(process.env.FRONTEND_URL ? [String(process.env.FRONTEND_URL).trim()] : []),
   "http://localhost:5173",
 ];
 
