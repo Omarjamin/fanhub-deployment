@@ -88,6 +88,7 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
     }
     SubAdminLogin.call({ root }, { siteSlug });
   });
+  //1
   app.add("/subadmin", SubAdminDashboard);
   app.add("/subadmin/", SubAdminDashboard);
   app.add("/subadmin/dashboard", SubAdminDashboard);
