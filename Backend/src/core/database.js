@@ -85,36 +85,52 @@ function normalizeSiteKey(value) {
   return String(pathMatch?.[1] || raw).trim().toLowerCase();
 }
 
+function buildSiteKeyVariants(value) {
+  const normalized = normalizeSiteKey(value);
+  if (!normalized) return [];
+
+  const variants = new Set([normalized]);
+  const withoutWebsite = normalized.replace(/-website$/i, "");
+  if (withoutWebsite) variants.add(withoutWebsite);
+  if (!/-website$/i.test(normalized)) variants.add(`${normalized}-website`);
+  return Array.from(variants).filter(Boolean);
+}
+
 /**
  * Resolve site_name from domain
  */
 async function resolveSiteNameByDomain(domainRaw) {
-  const key = normalizeSiteKey(domainRaw);
-  if (!key) return "";
+  const variants = buildSiteKeyVariants(domainRaw);
+  if (!variants.length) return "";
 
-  if (siteNameByDomainCache[key]) {
-    return siteNameByDomainCache[key];
+  const primaryKey = variants[0];
+  if (siteNameByDomainCache[primaryKey]) {
+    return siteNameByDomainCache[primaryKey];
   }
 
   try {
-    const [rows] = await adminPool.query(
-      `
-      SELECT site_name
-      FROM sites
-      WHERE LOWER(TRIM(domain)) = LOWER(TRIM(?))
-      ORDER BY created_at DESC
-      LIMIT 1
-      `,
-      [key]
-    );
+    for (const key of variants) {
+      const [rows] = await adminPool.query(
+        `
+        SELECT site_name
+        FROM sites
+        WHERE LOWER(TRIM(domain)) = LOWER(TRIM(?))
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
+        [key]
+      );
 
-    const siteName = String(rows?.[0]?.site_name || "")
-      .trim()
-      .toLowerCase();
+      const siteName = String(rows?.[0]?.site_name || "")
+        .trim()
+        .toLowerCase();
 
-    if (siteName) {
-      siteNameByDomainCache[key] = siteName;
-      return siteName;
+      if (siteName) {
+        variants.forEach((variant) => {
+          siteNameByDomainCache[variant] = siteName;
+        });
+        return siteName;
+      }
     }
   } catch (err) {
     console.error("resolveSiteNameByDomain error:", err.message);
@@ -127,11 +143,12 @@ async function resolveSiteNameByDomain(domainRaw) {
  * Resolve database config from admin DB mapping
  */
 async function resolveSiteDatabaseConfig(siteKeyRaw) {
-  const key = normalizeSiteKey(siteKeyRaw);
-  if (!key) return null;
+  const variants = buildSiteKeyVariants(siteKeyRaw);
+  if (!variants.length) return null;
+  const primaryKey = variants[0];
 
-  if (dynamicDbLookupCache[key]) {
-    return dynamicDbLookupCache[key];
+  if (dynamicDbLookupCache[primaryKey]) {
+    return dynamicDbLookupCache[primaryKey];
   }
 
   try {
@@ -144,32 +161,40 @@ async function resolveSiteDatabaseConfig(siteKeyRaw) {
 
     const hasCommunityType = adminSiteColumnsCache.has("community_type");
 
-    const whereParts = [
-      "LOWER(TRIM(domain)) = LOWER(TRIM(?))",
-      "LOWER(TRIM(site_name)) = LOWER(TRIM(?))",
-    ];
+    let site = null;
+    for (const key of variants) {
+      const whereParts = [
+        "LOWER(TRIM(domain)) = LOWER(TRIM(?))",
+        "LOWER(TRIM(site_name)) = LOWER(TRIM(?))",
+      ];
+      const params = [key, key];
 
-    const params = [key, key];
+      if (hasCommunityType) {
+        whereParts.push("LOWER(TRIM(community_type)) = LOWER(TRIM(?))");
+        params.push(key);
+      }
 
-    if (hasCommunityType) {
-      whereParts.push("LOWER(TRIM(community_type)) = LOWER(TRIM(?))");
-      params.push(key);
+      const [siteRows] = await adminPool.query(
+        `
+        SELECT site_id, site_name, domain
+        FROM sites
+        WHERE ${whereParts.join(" OR ")}
+        ORDER BY created_at DESC
+        LIMIT 1
+        `,
+        params
+      );
+
+      if (siteRows?.[0]?.site_id) {
+        site = siteRows[0];
+        break;
+      }
     }
 
-    const [siteRows] = await adminPool.query(
-      `
-      SELECT site_id, site_name, domain
-      FROM sites
-      WHERE ${whereParts.join(" OR ")}
-      ORDER BY created_at DESC
-      LIMIT 1
-      `,
-      params
-    );
-
-    const site = siteRows?.[0];
     if (!site?.site_id) {
-      dynamicDbLookupCache[key] = null;
+      variants.forEach((variant) => {
+        dynamicDbLookupCache[variant] = null;
+      });
       return null;
     }
 
@@ -185,8 +210,9 @@ async function resolveSiteDatabaseConfig(siteKeyRaw) {
     );
 
     const dbConfig = dbRows?.[0] || null;
-
-    dynamicDbLookupCache[key] = dbConfig;
+    variants.forEach((variant) => {
+      dynamicDbLookupCache[variant] = dbConfig;
+    });
     return dbConfig;
   } catch (err) {
     console.error("resolveSiteDatabaseConfig error:", err.message);
