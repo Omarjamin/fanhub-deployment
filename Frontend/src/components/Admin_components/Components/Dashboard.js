@@ -6,6 +6,17 @@ import {
   resolveAdminSiteFromPath,
 } from './admin-sites.js';
 
+const DASHBOARD_DEBUG = true;
+
+function dashboardDebug(label, payload) {
+  if (!DASHBOARD_DEBUG) return;
+  if (payload === undefined) {
+    console.log(`[DASHBOARD DEBUG] ${label}`);
+    return;
+  }
+  console.log(`[DASHBOARD DEBUG] ${label}`, payload);
+}
+
 export default function Dashboard() {
   const ADMIN_SELECTED_COMMUNITY_KEY = 'admin_selected_site';
   const section = document.createElement('section');
@@ -53,12 +64,14 @@ export default function Dashboard() {
       if (finalCommunity === 'all' && normalizedSiteName && normalizedSiteName.toLowerCase() !== 'all') {
         params.site_name = normalizedSiteName;
       }
+      dashboardDebug('fetchCommunityStats:request', { communityKey, siteName, params });
       const data = await fetchAdminJsonWithFallback(
         'dashboard/stats',
         params,
         getAdminRequestOptions(),
       );
       communityStats = data;  // { all: {...}, music: {...}, gaming: {...}, ... }
+      dashboardDebug('fetchCommunityStats:response', data);
     } catch (err) {
       console.error('Error fetching community stats:', err);
     }
@@ -67,6 +80,7 @@ export default function Dashboard() {
   async function fetchCommunityOptions() {
     try {
       const sites = await fetchAdminSites();
+      dashboardDebug('fetchCommunityOptions:sites', sites);
       const options = isForcedSingleSite
         ? []
         : [{ key: 'all', label: 'All Sites', siteName: 'all' }];
@@ -92,6 +106,7 @@ export default function Dashboard() {
       communityOptions = options.length
         ? options
         : [{ key: 'all', label: 'All Sites', siteName: 'all' }];
+      dashboardDebug('fetchCommunityOptions:options', communityOptions);
     } catch (err) {
       console.error('Error fetching communities from admin database:', err);
       communityOptions = isForcedSingleSite
@@ -108,6 +123,7 @@ export default function Dashboard() {
       if (finalCommunity === 'all' && normalizedSiteName && normalizedSiteName.toLowerCase() !== 'all') {
         params.site_name = normalizedSiteName;
       }
+      dashboardDebug('fetchRevenueData:request', { communityKey, siteName, params });
       const data = await fetchAdminJsonWithFallback(
         'dashboard/community',
         params,
@@ -121,6 +137,7 @@ export default function Dashboard() {
             revenue: Number(row.revenue ?? row.total_amount ?? 0),
           }))
         : [];
+      dashboardDebug('fetchRevenueData:rows', revenueData[communityKey]);
     } catch (err) {
       console.error('Error fetching revenue data:', err);
       revenueData[communityKey] = [];
@@ -179,6 +196,7 @@ export default function Dashboard() {
   }
 
   async function initCommunityData(communityKey, siteName = '') {
+    dashboardDebug('initCommunityData:start', { communityKey, siteName });
     // Clear old rows immediately when switching community
     revenueData[communityKey] = [];
     updateTableAndPagination();
@@ -187,6 +205,12 @@ export default function Dashboard() {
     await fetchRevenueData(communityKey, siteName);
     updateStatCards(communityKey);
     updateTableAndPagination();
+    dashboardDebug('initCommunityData:done', {
+      selectedCommunity: communityKey,
+      selectedSiteName: siteName,
+      stats: communityStats?.[communityKey] || communityStats?.all || {},
+      revenueCount: (revenueData?.[communityKey] || []).length,
+    });
   }
 
   function renderCommunityOptionsHTML() {
@@ -249,6 +273,12 @@ export default function Dashboard() {
         persistSelectedCommunity(selectedCommunity);
         const option = e.target.options?.[e.target.selectedIndex];
         selectedSiteName = option?.dataset?.siteName || '';
+        dashboardDebug('communitySelect:change', {
+          selectedCommunity,
+          selectedSiteName,
+          optionValue: option?.value,
+          optionLabel: option?.textContent,
+        });
         currentPage = 1;
         initCommunityData(selectedCommunity, selectedSiteName);
       }
@@ -269,6 +299,11 @@ export default function Dashboard() {
   // 🔹 Initialize Dashboard
   // -----------------------------
   (async () => {
+    dashboardDebug('bootstrap:start', {
+      forcedSiteSlug,
+      isForcedSingleSite,
+      selectedCommunity,
+    });
     if (!getAdminToken()) {
       section.innerHTML = `
         <div class="dashboard-wrapper">
@@ -297,6 +332,10 @@ export default function Dashboard() {
       selectedSiteName = option?.dataset?.siteName || '';
     }
     await initCommunityData(selectedCommunity, selectedSiteName);
+    dashboardDebug('bootstrap:done', {
+      selectedCommunity,
+      selectedSiteName,
+    });
   })();
 
   return section;

@@ -1,6 +1,16 @@
 const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 const ADMIN_SELECTED_SITE_KEY = 'admin_selected_site';
+const ADMIN_DEBUG = true;
+
+function adminDebug(label, payload) {
+  if (!ADMIN_DEBUG) return;
+  if (payload === undefined) {
+    console.log(`[ADMIN DEBUG] ${label}`);
+    return;
+  }
+  console.log(`[ADMIN DEBUG] ${label}`, payload);
+}
 
 export function normalizeAdminSiteSlug(value, { allowAll = false } = {}) {
   const normalized = decodeURIComponent(String(value || ''))
@@ -139,6 +149,7 @@ export function getAdminHeaders() {
 
 export async function fetchAdminJsonWithFallback(endpointPath, params = {}, requestInit = {}) {
   const candidateUrls = resolveAdminEndpointUrls(endpointPath, params);
+  adminDebug('fetchAdminJsonWithFallback:start', { endpointPath, params, candidateUrls });
   let response = null;
   let payload = {};
   let lastError = null;
@@ -148,6 +159,10 @@ export async function fetchAdminJsonWithFallback(endpointPath, params = {}, requ
       response = await fetch(candidateUrl, {
         method: 'GET',
         ...requestInit,
+      });
+      adminDebug('fetchAdminJsonWithFallback:attempt', {
+        candidateUrl,
+        status: response?.status,
       });
       const raw = await response.text().catch(() => '');
       if (raw) {
@@ -162,6 +177,10 @@ export async function fetchAdminJsonWithFallback(endpointPath, params = {}, requ
       if (response.status !== 404) break;
     } catch (error) {
       lastError = error;
+      adminDebug('fetchAdminJsonWithFallback:error', {
+        candidateUrl,
+        message: error?.message || String(error),
+      });
     }
   }
 
@@ -170,14 +189,27 @@ export async function fetchAdminJsonWithFallback(endpointPath, params = {}, requ
   }
 
   if (!response.ok) {
+    adminDebug('fetchAdminJsonWithFallback:failed', {
+      endpointPath,
+      status: response.status,
+      payload,
+    });
     throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
   }
 
+  adminDebug('fetchAdminJsonWithFallback:success', {
+    endpointPath,
+    status: response.status,
+    payload,
+  });
   return payload;
 }
 
 export async function fetchAdminSites() {
   let rows = [];
+  adminDebug('fetchAdminSites:start', {
+    selectedSite: resolveSelectedAdminSite(),
+  });
   try {
     const communityPayload = await fetchAdminJsonWithFallback(
       'generate/community-selections',
@@ -185,6 +217,7 @@ export async function fetchAdminSites() {
       { headers: getAdminHeaders() },
     );
     rows = Array.isArray(communityPayload?.data) ? communityPayload.data : [];
+    adminDebug('fetchAdminSites:community-selections', rows);
   } catch (_) {
     const payload = await fetchAdminJsonWithFallback(
       'generate/generated-websites',
@@ -196,10 +229,11 @@ export async function fetchAdminSites() {
       : Array.isArray(payload?.websites)
         ? payload.websites
         : [];
+    adminDebug('fetchAdminSites:generated-websites-fallback', rows);
   }
 
   const seen = new Set();
-  return rows
+  const mapped = rows
     .map((row, index) => {
       const domain = normalizeAdminSiteSlug(
         row?.domain || row?.community_type || row?.community_name || row?.site_name || '',
@@ -229,6 +263,8 @@ export async function fetchAdminSites() {
       };
     })
     .filter(Boolean);
-}
 
+  adminDebug('fetchAdminSites:mapped', mapped);
+  return mapped;
+}
 

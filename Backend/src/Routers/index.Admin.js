@@ -12,6 +12,14 @@ import discographyRouter from './mainAdmin_routes/Discography-Route.js';
 import suggestionRouter from './mainAdmin_routes/Suggestion-Route.js';
 const admin_v1 = Router();
 
+admin_v1.get('/health', (_req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Admin API is reachable',
+    scope: 'public',
+  });
+});
+
 admin_v1.use('/', adminAuthRouter);
 
 admin_v1.use('/dashboard', revenueRouter); 
