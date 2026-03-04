@@ -13,15 +13,82 @@ class DiscographyModel {
     return this.adminDb;
   }
 
+  async hasAdminTable(db, tableName) {
+    const [rows] = await db.query('SHOW TABLES LIKE ?', [tableName]);
+    return Array.isArray(rows) && rows.length > 0;
+  }
+
+  async getAdminTableColumns(db, tableName) {
+    if (!await this.hasAdminTable(db, tableName)) return new Set();
+    const [rows] = await db.query(`SHOW COLUMNS FROM ${tableName}`);
+    return new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+  }
+
+  normalizeSiteKey(value = '') {
+    return String(value || '').trim().toLowerCase().replace(/-website$/, '');
+  }
+
+  async resolveCommunityIdByTable(siteKey = '') {
+    const scoped = this.normalizeSiteKey(siteKey);
+    if (!scoped) return null;
+    const db = await this.getAdminDb();
+    const hasCommunityTable = await this.hasAdminTable(db, 'community_table');
+    if (!hasCommunityTable) return null;
+
+    const communityCols = await this.getAdminTableColumns(db, 'communities');
+    const hasCommunities = communityCols.size > 0;
+    const communityPk = communityCols.has('community_id')
+      ? 'community_id'
+      : (communityCols.has('id') ? 'id' : null);
+    const hasCommunityName = communityCols.has('name');
+
+    let query = `SELECT ct.community_id FROM community_table ct `;
+    const params = [];
+    if (hasCommunities && communityPk) {
+      query += `LEFT JOIN communities c ON c.${communityPk} = ct.community_id `;
+    }
+    query += `
+      WHERE LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
+         OR LOWER(TRIM(ct.site_name)) = LOWER(TRIM(?))
+    `;
+    params.push(scoped, scoped);
+    query += ` OR LOWER(TRIM(ct.domain)) = LOWER(TRIM(?)) `;
+    params.push(`${scoped}-website`);
+    if (hasCommunities && hasCommunityName && communityPk) {
+      query += ` OR LOWER(TRIM(c.name)) = LOWER(TRIM(?)) `;
+      params.push(scoped);
+    }
+    query += ` LIMIT 1 `;
+
+    const [rows] = await db.query(query, params);
+    const communityId = Number(rows?.[0]?.community_id || 0);
+    return communityId > 0 ? communityId : null;
+  }
+
   async getActiveSites() {
     const db = await this.getAdminDb();
+    const hasCommunityTable = await this.hasAdminTable(db, 'community_table');
+    if (hasCommunityTable) {
+      const [rows] = await db.query(
+        `
+          SELECT
+            COALESCE(s.site_id, ct.community_id) AS site_id,
+            COALESCE(NULLIF(TRIM(s.site_name), ''), NULLIF(TRIM(ct.site_name), ''), 'community') AS site_name,
+            LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, '')))) AS domain,
+            LOWER(TRIM(COALESCE(s.status, ct.status, 'active'))) AS status,
+            ct.community_id
+          FROM community_table ct
+          LEFT JOIN sites s ON s.community_id = ct.community_id
+          LEFT JOIN communities c ON c.community_id = ct.community_id OR c.id = ct.community_id
+          WHERE LOWER(TRIM(COALESCE(s.status, ct.status, 'active'))) = 'active'
+          ORDER BY site_name ASC
+        `,
+      );
+      return rows || [];
+    }
+
     const [rows] = await db.query(
-      `
-        SELECT site_id, site_name, domain, status
-        FROM sites
-        WHERE LOWER(TRIM(COALESCE(status, 'active'))) = 'active'
-        ORDER BY site_name ASC
-      `,
+      `SELECT site_id, site_name, domain, status FROM sites WHERE LOWER(TRIM(COALESCE(status, 'active'))) = 'active' ORDER BY site_name ASC`,
     );
     return rows || [];
   }
@@ -33,9 +100,15 @@ class DiscographyModel {
     const db = await this.getAdminDb();
     const [rows] = await db.query(
       `
-        SELECT site_id, site_name, domain, status
-        FROM sites
-        WHERE site_id = ?
+        SELECT
+          s.site_id,
+          s.site_name,
+          LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(s.domain, '')))) AS domain,
+          s.status,
+          COALESCE(s.community_id, s.site_id) AS community_id
+        FROM sites s
+        LEFT JOIN communities c ON c.community_id = s.community_id OR c.id = s.community_id
+        WHERE s.site_id = ?
         LIMIT 1
       `,
       [numeric],
@@ -52,19 +125,29 @@ class DiscographyModel {
       return this.getSiteById(numeric);
     }
 
-    const normalized = raw.toLowerCase();
+    const normalized = this.normalizeSiteKey(raw);
+    const websiteForm = `${normalized}-website`;
     const db = await this.getAdminDb();
     const [rows] = await db.query(
       `
-        SELECT site_id, site_name, domain, status
-        FROM sites
-        WHERE LOWER(TRIM(domain)) = LOWER(TRIM(?))
-           OR LOWER(TRIM(site_name)) = LOWER(TRIM(?))
+        SELECT
+          COALESCE(s.site_id, ct.community_id) AS site_id,
+          COALESCE(NULLIF(TRIM(s.site_name), ''), NULLIF(TRIM(ct.site_name), ''), 'community') AS site_name,
+          LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, '')))) AS domain,
+          LOWER(TRIM(COALESCE(s.status, ct.status, 'active'))) AS status,
+          ct.community_id
+        FROM community_table ct
+        LEFT JOIN sites s ON s.community_id = ct.community_id
+        LEFT JOIN communities c ON c.community_id = ct.community_id OR c.id = ct.community_id
+        WHERE LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, '')))) = LOWER(TRIM(?))
+           OR LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
+           OR LOWER(TRIM(ct.site_name)) = LOWER(TRIM(?))
+           OR LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
         LIMIT 1
       `,
-      [normalized, normalized],
+      [normalized, normalized, normalized, websiteForm],
     );
-    return rows?.[0] || null;
+    return rows?.[0] || this.getSiteById(numeric);
   }
 
   async connectSiteDb(site) {
@@ -75,9 +158,13 @@ class DiscographyModel {
 
   async resolveSiteCommunityId(site) {
     const key = String(site?.domain || site?.site_name || '').trim().toLowerCase();
-    if (!key) return Number(site?.site_id || 0) || null;
-    const ctx = await resolveCommunityContext(key);
-    return Number(ctx?.community_id || site?.community_id || site?.site_id || 0) || null;
+    if (!key) return Number(site?.community_id || site?.site_id || 0) || null;
+    return (
+      await this.resolveCommunityIdByTable(key) ||
+      Number((await resolveCommunityContext(key))?.community_id || 0) ||
+      Number(site?.community_id || site?.site_id || 0) ||
+      null
+    );
   }
 
   async getPhysicalDbName(siteDb) {
@@ -409,7 +496,7 @@ class DiscographyModel {
   async getCommunities() {
     const rows = await this.getActiveSites();
     return rows.map((site) => ({
-      community_id: site.site_id,
+      community_id: Number(site.community_id || site.site_id || 0) || null,
       site_id: site.site_id,
       name: site.site_name,
       site_name: site.site_name,

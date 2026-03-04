@@ -1,4 +1,4 @@
-import { connect, resolveCommunityContext } from '../../core/database.js';
+import { connect, connectAdmin, resolveCommunityContext } from '../../core/database.js';
 import { getDBNamesByCommunityType } from './site-model.js';
 
 class OrdersModel {
@@ -10,9 +10,69 @@ class OrdersModel {
     return String(communityType || 'all').trim().toLowerCase() || 'all';
   }
 
+  async hasAdminTable(db, tableName) {
+    const [rows] = await db.query('SHOW TABLES LIKE ?', [tableName]);
+    return Array.isArray(rows) && rows.length > 0;
+  }
+
+  async getAdminTableColumns(db, tableName) {
+    if (!await this.hasAdminTable(db, tableName)) return new Set();
+    const [rows] = await db.query(`SHOW COLUMNS FROM ${tableName}`);
+    return new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+  }
+
   async resolveScopedCommunityId(communityType = 'all') {
     const normalized = this.normalizeCommunityType(communityType);
     if (!normalized || normalized === 'all') return null;
+
+    // Priority: community_table-based resolution (same pattern as revenue).
+    try {
+      const adminDB = await connectAdmin();
+      const hasCommunityTable = await this.hasAdminTable(adminDB, 'community_table');
+      const communityCols = await this.getAdminTableColumns(adminDB, 'communities');
+      const hasCommunities = communityCols.size > 0;
+      const communityPk = communityCols.has('community_id')
+        ? 'community_id'
+        : (communityCols.has('id') ? 'id' : null);
+      const hasCommunityName = communityCols.has('name');
+
+      if (hasCommunityTable) {
+        let query = `SELECT ct.community_id FROM community_table ct `;
+        const params = [];
+        if (hasCommunities && communityPk) {
+          query += `LEFT JOIN communities c ON c.${communityPk} = ct.community_id `;
+        }
+
+        query += `
+          WHERE LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
+             OR LOWER(TRIM(ct.site_name)) = LOWER(TRIM(?))
+        `;
+        params.push(normalized, normalized);
+
+        if (!normalized.endsWith('-website')) {
+          query += ` OR LOWER(TRIM(ct.domain)) = LOWER(TRIM(?)) `;
+          params.push(`${normalized}-website`);
+        } else {
+          const trimmed = normalized.replace(/-website$/, '');
+          query += `
+             OR LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
+             OR LOWER(TRIM(ct.site_name)) = LOWER(TRIM(?))
+          `;
+          params.push(trimmed, trimmed);
+        }
+
+        if (hasCommunities && hasCommunityName && communityPk) {
+          query += ` OR LOWER(TRIM(c.name)) = LOWER(TRIM(?)) `;
+          params.push(normalized);
+        }
+
+        query += ` LIMIT 1 `;
+        const [rows] = await adminDB.query(query, params);
+        const communityId = Number(rows?.[0]?.community_id || 0);
+        if (communityId > 0) return communityId;
+      }
+    } catch (_) {}
+
     const ctx = await resolveCommunityContext(normalized);
     return Number(ctx?.community_id || 0) || null;
   }

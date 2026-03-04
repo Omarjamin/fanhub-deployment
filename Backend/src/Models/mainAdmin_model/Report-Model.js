@@ -1,4 +1,5 @@
 import { connect, resolveCommunityContext } from '../../core/database.js';
+import { connectAdmin } from '../../core/database.js';
 import { getSiteCommunityTypeMap } from './site-model.js';
 
 class ReportModel {
@@ -32,7 +33,7 @@ class ReportModel {
   }
 
   normalizeScope(scope = '') {
-    return String(scope || '').trim().toLowerCase();
+    return String(scope || '').trim().toLowerCase().replace(/-website$/, '');
   }
 
   isScopeAll(scope = '') {
@@ -63,6 +64,30 @@ class ReportModel {
   async resolveScopedCommunityId(communityType = 'all') {
     const normalized = this.normalizeScope(communityType);
     if (!normalized || normalized === 'all') return null;
+
+    // Priority: resolve from community_table.
+    try {
+      const adminDB = await connectAdmin();
+      const [hasCt] = await adminDB.query('SHOW TABLES LIKE ?', ['community_table']);
+      if (Array.isArray(hasCt) && hasCt.length > 0) {
+        const [rows] = await adminDB.query(
+          `
+            SELECT ct.community_id
+            FROM community_table ct
+            LEFT JOIN communities c ON c.community_id = ct.community_id OR c.id = ct.community_id
+            WHERE LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
+               OR LOWER(TRIM(ct.site_name)) = LOWER(TRIM(?))
+               OR LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
+               OR LOWER(TRIM(c.name)) = LOWER(TRIM(?))
+            LIMIT 1
+          `,
+          [normalized, normalized, `${normalized}-website`, normalized],
+        );
+        const fromTable = Number(rows?.[0]?.community_id || 0) || null;
+        if (fromTable) return fromTable;
+      }
+    } catch (_) {}
+
     const ctx = await resolveCommunityContext(normalized);
     return Number(ctx?.community_id || 0) || null;
   }

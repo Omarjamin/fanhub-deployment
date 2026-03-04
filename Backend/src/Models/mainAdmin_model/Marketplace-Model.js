@@ -1,10 +1,69 @@
-import { connect } from '../../core/database.js';
+import { connect, connectAdmin } from '../../core/database.js';
 import { resolveCommunityContext } from '../../core/database.js';
 
 class MarketplaceModel {
+  async hasAdminTable(db, tableName) {
+    const [rows] = await db.query('SHOW TABLES LIKE ?', [tableName]);
+    return Array.isArray(rows) && rows.length > 0;
+  }
+
+  async getAdminTableColumns(db, tableName) {
+    if (!await this.hasAdminTable(db, tableName)) return new Set();
+    const [rows] = await db.query(`SHOW COLUMNS FROM ${tableName}`);
+    return new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+  }
+
   async resolveCommunityId(communityType = '') {
     const scoped = String(communityType || '').trim().toLowerCase();
     if (!scoped) return null;
+
+    // Priority: community_table-based resolution.
+    try {
+      const adminDB = await connectAdmin();
+      const hasCommunityTable = await this.hasAdminTable(adminDB, 'community_table');
+      const communityCols = await this.getAdminTableColumns(adminDB, 'communities');
+      const hasCommunities = communityCols.size > 0;
+      const communityPk = communityCols.has('community_id')
+        ? 'community_id'
+        : (communityCols.has('id') ? 'id' : null);
+      const hasCommunityName = communityCols.has('name');
+
+      if (hasCommunityTable) {
+        let query = `SELECT ct.community_id FROM community_table ct `;
+        const params = [];
+        if (hasCommunities && communityPk) {
+          query += `LEFT JOIN communities c ON c.${communityPk} = ct.community_id `;
+        }
+        query += `
+          WHERE LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
+             OR LOWER(TRIM(ct.site_name)) = LOWER(TRIM(?))
+        `;
+        params.push(scoped, scoped);
+
+        if (!scoped.endsWith('-website')) {
+          query += ` OR LOWER(TRIM(ct.domain)) = LOWER(TRIM(?)) `;
+          params.push(`${scoped}-website`);
+        } else {
+          const trimmed = scoped.replace(/-website$/, '');
+          query += `
+             OR LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
+             OR LOWER(TRIM(ct.site_name)) = LOWER(TRIM(?))
+          `;
+          params.push(trimmed, trimmed);
+        }
+
+        if (hasCommunities && hasCommunityName && communityPk) {
+          query += ` OR LOWER(TRIM(c.name)) = LOWER(TRIM(?)) `;
+          params.push(scoped);
+        }
+        query += ` LIMIT 1 `;
+
+        const [rows] = await adminDB.query(query, params);
+        const communityId = Number(rows?.[0]?.community_id || 0);
+        if (communityId > 0) return communityId;
+      }
+    } catch (_) {}
+
     const ctx = await resolveCommunityContext(scoped);
     return Number(ctx?.community_id || 0) || null;
   }
