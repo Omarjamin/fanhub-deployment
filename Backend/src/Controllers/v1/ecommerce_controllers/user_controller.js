@@ -48,8 +48,16 @@ class UserController {
       throw new Error('Google email is not verified');
     }
 
-    const expectedAudience = String(process.env.GOOGLE_CLIENT_ID || '').trim();
-    if (expectedAudience && payload.aud !== expectedAudience) {
+    const rawAudiences = String(
+      process.env.GOOGLE_CLIENT_IDS ||
+      process.env.GOOGLE_CLIENT_ID ||
+      '',
+    ).trim();
+    const expectedAudiences = rawAudiences
+      .split(',')
+      .map((value) => String(value || '').trim())
+      .filter(Boolean);
+    if (expectedAudiences.length > 0 && !expectedAudiences.includes(String(payload.aud || '').trim())) {
       throw new Error('Google credential audience mismatch');
     }
 
