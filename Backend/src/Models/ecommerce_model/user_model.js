@@ -39,7 +39,14 @@ class UserModel {
       await this.ensureUserAuthColumns();
       await this.ensureRegistrationVerificationTable();
     } catch (err) {
-      console.error('<error> ensureConnection failed:', err);
+      console.error('<error> ensureConnection failed:', {
+        code: err?.code || '',
+        message: err?.message || String(err || ''),
+        scopedKey,
+      });
+      if (err?.code === 'SITE_SCOPE_NOT_FOUND') {
+        throw err;
+      }
       this.db = await connect();
       this.userAuthColumnsReady = false;
       this.userColumnSet = null;
@@ -62,36 +69,45 @@ class UserModel {
 
   async ensureUserAuthColumns() {
     if (!this.db || this.userAuthColumnsReady) return;
+    try {
+      const [rows] = await this.db.query('SHOW COLUMNS FROM users');
+      const columns = new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+      const alters = [];
 
-    const [rows] = await this.db.query('SHOW COLUMNS FROM users');
-    const columns = new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
-    const alters = [];
+      if (!columns.has('google_id')) {
+        alters.push('ADD COLUMN google_id VARCHAR(255) NULL AFTER profile_picture');
+      }
+      if (!columns.has('auth_provider')) {
+        alters.push("ADD COLUMN auth_provider ENUM('local','google') NOT NULL DEFAULT 'local' AFTER google_id");
+      }
+      if (!columns.has('failed_login_attempts')) {
+        alters.push('ADD COLUMN failed_login_attempts INT NOT NULL DEFAULT 0 AFTER auth_provider');
+      }
+      if (!columns.has('community_id')) {
+        alters.push('ADD COLUMN community_id INT NULL AFTER user_id');
+      }
 
-    if (!columns.has('google_id')) {
-      alters.push('ADD COLUMN google_id VARCHAR(255) NULL AFTER profile_picture');
-    }
-    if (!columns.has('auth_provider')) {
-      alters.push("ADD COLUMN auth_provider ENUM('local','google') NOT NULL DEFAULT 'local' AFTER google_id");
-    }
-    if (!columns.has('failed_login_attempts')) {
-      alters.push('ADD COLUMN failed_login_attempts INT NOT NULL DEFAULT 0 AFTER auth_provider');
-    }
-    if (!columns.has('community_id')) {
-      alters.push('ADD COLUMN community_id INT NULL AFTER user_id');
-    }
+      if (alters.length > 0) {
+        try {
+          await this.db.query(`ALTER TABLE users ${alters.join(', ')}`);
+        } catch (migrationErr) {
+          // Keep auth flow working even when DB user has no ALTER privilege.
+          console.warn('<warning> ensureUserAuthColumns migration skipped:', {
+            code: migrationErr?.code || '',
+            message: migrationErr?.message || String(migrationErr || ''),
+          });
+        }
+      }
 
-    if (alters.length > 0) {
-      await this.db.query(`ALTER TABLE users ${alters.join(', ')}`);
+      if (!columns.has('community_id')) {
+        try {
+          await this.db.query('ALTER TABLE users ADD INDEX idx_users_community_id (community_id)');
+        } catch (_) {}
+      }
+    } finally {
+      this.userAuthColumnsReady = true;
+      this.userColumnSet = null;
     }
-
-    if (!columns.has('community_id')) {
-      try {
-        await this.db.query('ALTER TABLE users ADD INDEX idx_users_community_id (community_id)');
-      } catch (_) {}
-    }
-
-    this.userAuthColumnsReady = true;
-    this.userColumnSet = null;
   }
 
   async ensureRegistrationVerificationTable() {
@@ -171,8 +187,16 @@ class UserModel {
       [email, otp, expiresAt],
     );
 
-    await this.sendOtpEmail(email, otp, 'Email verification code');
-    return { status: 'success', message: 'Verification code sent to your email.' };
+    try {
+      await this.sendOtpEmail(email, otp, 'Email verification code');
+      return { status: 'success', message: 'Verification code sent to your email.' };
+    } catch (error) {
+      return {
+        status: 'error',
+        code: 'OTP_EMAIL_SEND_FAILED',
+        message: error?.message || 'Failed to send verification email. Please try again.',
+      };
+    }
   }
 
   async verifyRegistrationOtp(email, otp, community_type, site_slug) {
@@ -493,19 +517,34 @@ class UserModel {
   }
 
   async sendOtpEmail(email, otp, subject = 'Password Reset OTP') {
+    const smtpUser = String(process.env.EMAIL_USER || '').trim();
+    const smtpPass = String(process.env.EMAIL_PASS || '').trim();
+    if (!smtpUser || !smtpPass) {
+      throw new Error('Email service is not configured (missing EMAIL_USER/EMAIL_PASS).');
+    }
+
     const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: smtpUser,
+        pass: smtpPass,
       },
+      connectionTimeout: 10000,
+      greetingTimeout: 10000,
+      socketTimeout: 10000,
     });
-
-    await transporter.sendMail({
+    const sendPromise = transporter.sendMail({
+      from: smtpUser,
       to: email,
       subject,
       text: `${subject}: ${otp}`,
     });
+
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('Email service timeout while sending OTP.')), 12000);
+    });
+
+    await Promise.race([sendPromise, timeoutPromise]);
   }
 
   async saveResetToken(email, otp, otpExpiry, community_type, site_slug) {

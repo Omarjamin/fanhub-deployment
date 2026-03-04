@@ -1,5 +1,4 @@
 import jwt from 'jsonwebtoken';
-import nodemailer from 'nodemailer';
 import UserModel from '../../../Models/ecommerce_model/user_model.js';
 
 class UserController {
@@ -15,20 +14,26 @@ class UserController {
     }
     if (!token) return false;
 
+    let timeoutId = null;
     try {
       const body = new URLSearchParams();
       body.append('secret', secret);
       body.append('response', token);
       if (remoteIp) body.append('remoteip', remoteIp);
+      const controller = new AbortController();
+      timeoutId = setTimeout(() => controller.abort(), 10000);
 
       const res = await fetch('https://www.google.com/recaptcha/api/siteverify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: body.toString(),
+        signal: controller.signal,
       });
+      clearTimeout(timeoutId);
       const data = await res.json().catch(() => ({}));
       return Boolean(data?.success);
     } catch (error) {
+      if (timeoutId) clearTimeout(timeoutId);
       console.error('reCAPTCHA verification failed:', error?.message || error);
       return false;
     }
@@ -114,7 +119,9 @@ class UserController {
 
       const otpResult = await this.userModel.requestRegistrationOtp(email, activeSiteName, domain || site_slug);
       if (otpResult.status === 'error') {
-        const statusCode = otpResult.message.includes('Please wait') ? 429 : 400;
+        let statusCode = 400;
+        if (otpResult.message.includes('Please wait')) statusCode = 429;
+        if (otpResult.code === 'OTP_EMAIL_SEND_FAILED') statusCode = 503;
         return res.status(statusCode).json({ error: otpResult.message });
       }
       return res.status(200).json({

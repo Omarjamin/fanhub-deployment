@@ -1,6 +1,7 @@
 // Cart management integrated with backend API
 import { api } from '../../../services/ecommerce_services/api.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
+import { getActiveSiteSlug } from '../../../lib/site-context.js';
 
 function buildHeaders() {
   return {
@@ -14,11 +15,33 @@ function toInt(value, fallback = 0) {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function getSigninPath() {
+  const siteSlug = String(getActiveSiteSlug() || '').trim().toLowerCase();
+  return siteSlug ? `/fanhub/${siteSlug}/signin` : '/signin';
+}
+
+function handleAuthFailure(status) {
+  if (Number(status) !== 401) return;
+  try {
+    sessionStorage.setItem('postLoginRedirect', window.location.pathname + window.location.search);
+  } catch (_) {}
+  window.location.href = getSigninPath();
+}
+
+async function readJson(response) {
+  return response.json().catch(() => ({}));
+}
+
 // Get cart items
 export async function getCart() {
   try {
     const response = await api('/cart/items', { method: 'GET', headers: buildHeaders() });
-    const data = await response.json().catch(() => ({}));
+    const data = await readJson(response);
+    if (!response.ok) {
+      handleAuthFailure(response.status);
+      console.error('Error loading cart:', data.message || `HTTP ${response.status}`);
+      return [];
+    }
     return data.success ? data.data : [];
   } catch (error) {
     console.error('Error loading cart:', error);
@@ -52,7 +75,14 @@ export async function addToCart(variantId, quantity = 1) {
       })
     });
 
-    const resData = await response.json().catch(() => ({}));
+    const resData = await readJson(response);
+    if (!response.ok) {
+      handleAuthFailure(response.status);
+      return {
+        success: false,
+        message: resData.message || `Failed to add to cart (HTTP ${response.status})`
+      };
+    }
     return {
       success: resData.success ?? false,
       message: resData.message ?? 'Failed to add to cart'
@@ -75,7 +105,14 @@ export async function updateCartItem(variantId, quantity) {
       })
     });
 
-    const resData = await response.json().catch(() => ({}));
+    const resData = await readJson(response);
+    if (!response.ok) {
+      handleAuthFailure(response.status);
+      return {
+        success: false,
+        message: resData.message || `Failed to update cart item (HTTP ${response.status})`
+      };
+    }
     return { success: resData.success ?? false, message: resData.message ?? '' };
   } catch (error) {
     console.error('Error updating cart item:', error);
@@ -92,7 +129,14 @@ export async function removeFromCart(variantId) {
       body: JSON.stringify({ variantId: toInt(variantId) })
     });
 
-    const resData = await response.json().catch(() => ({}));
+    const resData = await readJson(response);
+    if (!response.ok) {
+      handleAuthFailure(response.status);
+      return {
+        success: false,
+        message: resData.message || `Failed to remove cart item (HTTP ${response.status})`
+      };
+    }
     return { success: resData.success ?? false, message: resData.message ?? '' };
   } catch (error) {
     console.error('Error removing from cart:', error);

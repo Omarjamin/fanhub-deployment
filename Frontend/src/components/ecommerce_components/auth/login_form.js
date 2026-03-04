@@ -28,6 +28,8 @@ export default function LoginForm(root, data = {}) {
 
   const homePath = siteSlug ? `/fanhub/${siteSlug}` : '/';
   const signupPath = siteSlug ? `/fanhub/${siteSlug}/signup` : '/signup';
+  const postLoginRedirect = String(sessionStorage.getItem('postLoginRedirect') || '').trim();
+  const redirectAfterLogin = postLoginRedirect || homePath;
 
   if (getAuthToken()) {
     window.location.href = homePath;
@@ -117,7 +119,8 @@ export default function LoginForm(root, data = {}) {
 
           showToast('Google login successful!', 'success');
           setTimeout(() => {
-            window.location.href = homePath;
+            sessionStorage.removeItem('postLoginRedirect');
+            window.location.href = redirectAfterLogin;
           }, 700);
         } catch (err) {
           showToast(`Google login failed: ${err.message}`, 'error');
@@ -155,7 +158,8 @@ export default function LoginForm(root, data = {}) {
       await loginUser(payload);
       showToast('Login successful! Welcome back!', 'success');
       setTimeout(() => {
-        window.location.href = homePath;
+        sessionStorage.removeItem('postLoginRedirect');
+        window.location.href = redirectAfterLogin;
       }, 1500);
     } catch (err) {
       console.error('Failed to login:', err);
