@@ -76,8 +76,8 @@ class Follow {
         const safeLimit = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(Number(limit), 50)) : 10;
         const safeOffset = Number.isFinite(Number(offset)) ? Math.max(0, Number(offset)) : 0;
         const scoped = await this.getScopedCondition('follows', 'f');
-        const params = [currentUserId, currentUserId, ...scoped.params, safeLimit, safeOffset];
-        const [rows] = await this.db.execute(
+        const params = [currentUserId, currentUserId, ...scoped.params];
+        const [rows] = await this.db.query(
             `
             SELECT 
                 u.user_id, 
@@ -94,8 +94,8 @@ class Follow {
                 SELECT followed_id FROM follows f WHERE follower_id = ? ${scoped.sql}
               )
             ORDER BY RAND()
-            LIMIT ?
-            OFFSET ?
+            LIMIT ${safeLimit}
+            OFFSET ${safeOffset}
             `,
             params,
         );

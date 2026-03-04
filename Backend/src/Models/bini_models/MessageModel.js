@@ -27,11 +27,23 @@ class MessageModel {
       this.columnCache.clear();
       const ctx = await resolveCommunityContext(community_type);
       this.activeCommunityId = Number(ctx?.community_id || 0) || null;
+      if (!this.activeCommunityId) {
+        const err = new Error(`Site/community not found for "${community_type}"`);
+        err.code = "SITE_SCOPE_NOT_FOUND";
+        throw err;
+      }
     } catch (err) {
       console.error("<error> MessageModel.ensureConnection failed:", err?.message || err);
+      if (err?.code === "SITE_SCOPE_NOT_FOUND") throw err;
       this.db = await connect();
       this.columnCache.clear();
-      this.activeCommunityId = null;
+      const ctx = await resolveCommunityContext(community_type);
+      this.activeCommunityId = Number(ctx?.community_id || 0) || null;
+      if (!this.activeCommunityId) {
+        const scopeErr = new Error(`Site/community not found for "${community_type}"`);
+        scopeErr.code = "SITE_SCOPE_NOT_FOUND";
+        throw scopeErr;
+      }
     }
     return this.db;
   }
@@ -70,6 +82,26 @@ class MessageModel {
     if (!hasCommunityId || !this.activeCommunityId) return { sql: "", params: [] };
     const col = alias ? `${alias}.community_id` : "community_id";
     return { sql: ` AND ${col} = ?`, params: [this.activeCommunityId] };
+  }
+  async getRequiredScopedCondition(tableName, alias = "") {
+    const hasCommunityId = await this.hasColumn(tableName, "community_id");
+    if (!hasCommunityId) return { sql: "", params: [] };
+    if (!this.activeCommunityId) {
+      const err = new Error("community scope is required");
+      err.code = "SITE_SCOPE_NOT_FOUND";
+      throw err;
+    }
+    const col = alias ? `${alias}.community_id` : "community_id";
+    return { sql: ` AND ${col} = ?`, params: [this.activeCommunityId] };
+  }
+  async assertUserInActiveCommunity(userId) {
+    const usersScoped = await this.getRequiredScopedCondition("users", "u");
+    if (!usersScoped.sql) return true;
+    const [rows] = await this.db.query(
+      `SELECT 1 FROM users u WHERE u.user_id = ? ${usersScoped.sql} LIMIT 1`,
+      [userId, ...usersScoped.params],
+    );
+    return Boolean(rows?.length);
   }
 
   async getReportReasonEnumValues() {
@@ -126,12 +158,26 @@ class MessageModel {
   //send message
   async sendMessage(sender_id, receiver_id, content) {
     try {
-      const query = `INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)`;
-      const [result] = await this.db.query(query, [
-        sender_id,
-        receiver_id,
-        content,
-      ]);
+      const messagesHasCommunity = await this.hasColumn("messages", "community_id");
+      if (messagesHasCommunity && !this.activeCommunityId) {
+        const err = new Error("community scope is required");
+        err.code = "SITE_SCOPE_NOT_FOUND";
+        throw err;
+      }
+
+      if (!(await this.assertUserInActiveCommunity(sender_id)) || !(await this.assertUserInActiveCommunity(receiver_id))) {
+        const err = new Error("Users must belong to the same community");
+        err.code = "CROSS_COMMUNITY_NOT_ALLOWED";
+        throw err;
+      }
+
+      const query = messagesHasCommunity
+        ? `INSERT INTO messages (sender_id, receiver_id, content, community_id) VALUES (?, ?, ?, ?)`
+        : `INSERT INTO messages (sender_id, receiver_id, content) VALUES (?, ?, ?)`;
+      const params = messagesHasCommunity
+        ? [sender_id, receiver_id, content, this.activeCommunityId]
+        : [sender_id, receiver_id, content];
+      const [result] = await this.db.query(query, params);
       return result;
     } catch (err) {
       throw err;
@@ -140,15 +186,17 @@ class MessageModel {
   //get messages
   async getMessages(myId, userId) {
     try {
+      const scoped = await this.getRequiredScopedCondition("messages", "m");
       const query = `
         SELECT m.*, u.profile_picture AS sender_profile_picture
         FROM messages m
         JOIN users u ON m.sender_id = u.user_id
         WHERE (m.sender_id = ? AND m.receiver_id = ?)
           OR (m.sender_id = ? AND m.receiver_id = ?)
+        ${scoped.sql}
         ORDER BY m.created_at ASC
       `;
-      const [result] = await this.db.query(query, [myId, userId, userId, myId]);
+      const [result] = await this.db.query(query, [myId, userId, userId, myId, ...scoped.params]);
       return result;
     } catch (err) {
       throw err;
@@ -156,17 +204,22 @@ class MessageModel {
   }
   //mark as read
   async markAsRead(receiverId, senderId) {
+    const scoped = await this.getRequiredScopedCondition("messages");
     const sql = `
       UPDATE messages
       SET is_read = 1, read_at = NOW()
       WHERE receiver_id = ?
         AND sender_id   = ?
-        AND is_read     = 0`;
-    const [res] = await this.db.query(sql, [receiverId, senderId]);
+        AND is_read     = 0
+        ${scoped.sql}`;
+    const [res] = await this.db.query(sql, [receiverId, senderId, ...scoped.params]);
     return res.affectedRows;
   }
   //get message previews
   async getMessagePreviews(userId) {
+    const scoped = await this.getRequiredScopedCondition("messages");
+    const scopedSql = scoped.sql;
+    const scopedParams = scoped.params;
     const sql = `
     SELECT
       u.user_id,
@@ -187,7 +240,7 @@ class MessageModel {
           receiver_id AS other_user_id,
           MAX(message_id) AS last_message_id
         FROM messages
-        WHERE sender_id = ?
+        WHERE sender_id = ?${scopedSql}
         GROUP BY receiver_id
 
         UNION ALL
@@ -196,7 +249,7 @@ class MessageModel {
           sender_id AS other_user_id,
           MAX(message_id) AS last_message_id
         FROM messages
-        WHERE receiver_id = ?
+        WHERE receiver_id = ?${scopedSql}
         GROUP BY sender_id
       ) merged
       GROUP BY merged.other_user_id
@@ -210,7 +263,7 @@ class MessageModel {
           sender_id AS other_id,
           COUNT(*) AS unread_count
         FROM messages
-        WHERE receiver_id = ? AND is_read = 0
+        WHERE receiver_id = ? AND is_read = 0${scopedSql}
         GROUP BY sender_id
     ) unread_sub 
       ON unread_sub.other_id = u.user_id
@@ -219,8 +272,11 @@ class MessageModel {
 
     const [rows] = await this.db.execute(sql, [
       userId,
+      ...scopedParams,
       userId,
+      ...scopedParams,
       userId,
+      ...scopedParams,
     ]);
 
     // console.log("Followed:", rows);
@@ -228,11 +284,12 @@ class MessageModel {
   }
   //get unread count
   async getUnreadCount(userId) {
+    const scoped = await this.getRequiredScopedCondition("messages");
     const sql = `
       SELECT COUNT(*) AS unread
       FROM messages
-      WHERE receiver_id = ? AND is_read = 0`;
-    const [rows] = await this.db.query(sql, [userId]);
+      WHERE receiver_id = ? AND is_read = 0${scoped.sql}`;
+    const [rows] = await this.db.query(sql, [userId, ...scoped.params]);
     return rows[0]?.unread || 0;
   }
 
@@ -295,15 +352,17 @@ class MessageModel {
       const cols = new Set((colRows || []).map((r) => String(r?.COLUMN_NAME || '').trim().toLowerCase()));
       if (!cols.has('message_id')) return null;
 
+      const scoped = await this.getRequiredScopedCondition("messages");
       const query = `
         SELECT message_id
         FROM messages
         WHERE (sender_id = ? AND receiver_id = ?)
            OR (sender_id = ? AND receiver_id = ?)
+        ${scoped.sql}
         ORDER BY message_id DESC
         LIMIT 1
       `;
-      const [rows] = await this.db.query(query, [userA, userB, userB, userA]);
+      const [rows] = await this.db.query(query, [userA, userB, userB, userA, ...scoped.params]);
       const messageId = Number(rows?.[0]?.message_id || 0);
       return Number.isFinite(messageId) && messageId > 0 ? messageId : null;
     } catch (_) {
