@@ -124,6 +124,11 @@ class OrdersModel {
       await siteDB.query('ALTER TABLE daily_revenue ADD COLUMN time TIME NULL AFTER date');
     }
 
+    const hasCommunityId = await this.tableHasColumn(siteDB, 'daily_revenue', 'community_id');
+    if (!hasCommunityId) {
+      await siteDB.query('ALTER TABLE daily_revenue ADD COLUMN community_id INT(11) NULL AFTER order_id');
+    }
+
     // Repair legacy schemas where "id" exists but is not AUTO_INCREMENT / PRIMARY KEY.
     const hasId = await this.tableHasColumn(siteDB, 'daily_revenue', 'id');
     if (hasId) {
@@ -191,6 +196,21 @@ class OrdersModel {
         'ALTER TABLE daily_revenue ADD UNIQUE KEY uq_daily_revenue_order_id (order_id)',
       );
     }
+
+    const [communityIdx] = await siteDB.query(
+      `
+        SELECT COUNT(*) AS count
+        FROM INFORMATION_SCHEMA.STATISTICS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'daily_revenue'
+          AND INDEX_NAME = 'idx_daily_revenue_community_id'
+      `,
+    );
+    if (Number(communityIdx?.[0]?.count || 0) === 0) {
+      await siteDB.query(
+        'ALTER TABLE daily_revenue ADD INDEX idx_daily_revenue_community_id (community_id)',
+      );
+    }
   }
 
   async upsertCompletedOrderRevenue(siteDB, order) {
@@ -198,6 +218,14 @@ class OrdersModel {
     await this.ensureDailyRevenueSchema(siteDB);
 
     const totalAmount = Number(order.total || 0);
+    let communityId = Number(order.community_id || 0) || null;
+    if (!communityId && await this.tableHasColumn(siteDB, 'orders', 'community_id')) {
+      const [scopeRows] = await siteDB.query(
+        'SELECT community_id FROM orders WHERE order_id = ? LIMIT 1',
+        [order.order_id],
+      );
+      communityId = Number(scopeRows?.[0]?.community_id || 0) || null;
+    }
     const [existing] = await siteDB.query(
       'SELECT id FROM daily_revenue WHERE order_id = ? LIMIT 1',
       [order.order_id],
@@ -209,21 +237,22 @@ class OrdersModel {
           UPDATE daily_revenue
           SET date = CURDATE(),
               time = CURTIME(),
+              community_id = ?,
               total_amount = ?,
               created_at = NOW()
           WHERE order_id = ?
         `,
-        [totalAmount, order.order_id],
+        [communityId, totalAmount, order.order_id],
       );
       return;
     }
 
     await siteDB.query(
       `
-        INSERT INTO daily_revenue (order_id, date, time, total_amount, created_at)
-        VALUES (?, CURDATE(), CURTIME(), ?, NOW())
+        INSERT INTO daily_revenue (order_id, community_id, date, time, total_amount, created_at)
+        VALUES (?, ?, CURDATE(), CURTIME(), ?, NOW())
       `,
-      [order.order_id, totalAmount],
+      [order.order_id, communityId, totalAmount],
     );
   }
 
