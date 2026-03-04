@@ -1,7 +1,24 @@
-const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 const ADMIN_SELECTED_SITE_KEY = 'admin_selected_site';
 const ADMIN_DEBUG = true;
+
+function resolveAdminApiBase() {
+  const preferred = String(import.meta.env.VITE_ADMIN_API_URL || '').trim();
+  const fallback = String(
+    import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1',
+  ).trim();
+
+  const isUsable = (value) => {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return false;
+    if (normalized === 'thread' || normalized === 'null' || normalized === 'undefined') return false;
+    return true;
+  };
+
+  return isUsable(preferred) ? preferred : fallback;
+}
+
+const ADMIN_API_BASE = resolveAdminApiBase();
 
 function adminDebug(label, payload) {
   if (!ADMIN_DEBUG) return;
@@ -83,8 +100,13 @@ export function resolveAdminEndpointUrls(endpointPath, params = {}, rawBase = AD
   const query = buildQueryString(params);
   const pathWithQuery = query ? `${endpoint}?${query}` : endpoint;
   const trimmedBase = String(rawBase || '').trim().replace(/\/+$/, '');
+  const baseLooksLikeUrl =
+    /^https?:\/\//i.test(trimmedBase) ||
+    trimmedBase.startsWith('/') ||
+    trimmedBase.includes('/v1') ||
+    trimmedBase.includes('/admin');
 
-  if (trimmedBase) {
+  if (trimmedBase && baseLooksLikeUrl) {
     if (/\/v1\/admin$/i.test(trimmedBase)) {
       push(`${trimmedBase}/${pathWithQuery}`);
     } else if (/\/admin$/i.test(trimmedBase)) {
@@ -96,6 +118,8 @@ export function resolveAdminEndpointUrls(endpointPath, params = {}, rawBase = AD
       push(`${trimmedBase}/admin/${pathWithQuery}`);
       push(`${trimmedBase}/v1/admin/${pathWithQuery}`);
     }
+  } else if (trimmedBase) {
+    adminDebug('resolveAdminEndpointUrls:ignored-invalid-base', { rawBase: trimmedBase });
   }
 
   const apiOrigin = String(window.__API_ORIGIN__ || '').trim().replace(/\/+$/, '');
@@ -267,4 +291,3 @@ export async function fetchAdminSites() {
   adminDebug('fetchAdminSites:mapped', mapped);
   return mapped;
 }
-
