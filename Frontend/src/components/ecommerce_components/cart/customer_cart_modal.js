@@ -101,16 +101,21 @@ async function loadCartItems(modal) {
                            ${isSelected ? 'checked' : ''}>
                 </div>
                 <div class="item-info">
-                    <div class="item-media">
-                        <img src="${imageSrc}" alt="${productName}" class="item-image" onerror="this.src='/placeholder.png'">
-                        <h4 class="item-name">${productName}</h4>
+                    <div class="item-main">
+                        <div class="item-media">
+                            <img src="${imageSrc}" alt="${productName}" class="item-image" onerror="this.src='/placeholder.png'">
+                        </div>
+                        <div class="item-details">
+                            <h4 class="item-name">${productName}</h4>
+                            <p class="item-variant">Size/Variant: <strong>${variantLabel}</strong></p>
+                            <p class="item-weight">Weight: ${itemWeight.toLocaleString()}g each</p>
+                        </div>
                     </div>
-                    <div class="item-details">
-                        <p class="item-variant">Size/Variant: <strong>${variantLabel}</strong></p>
-                        <p class="item-price">Unit: PHP ${price.toFixed(2)}</p>
-                        <p class="item-price">Weight: ${itemWeight.toLocaleString()}g each</p>
-                        <p class="item-price">Total Weight: ${itemTotalWeight.toLocaleString()}g</p>
-                        <p class="item-subtotal">Subtotal: PHP ${itemTotal.toFixed(2)}</p>
+                    <div class="item-side">
+                        <p class="item-side-label">Unit</p>
+                        <p class="item-price">PHP ${price.toFixed(2)}</p>
+                        <p class="item-side-label">Qty</p>
+                        <p class="item-side-qty">${qty}</p>
                     </div>
                 </div>
                 <div class="item-controls">
@@ -119,7 +124,7 @@ async function loadCartItems(modal) {
                         <span class="quantity">${qty}</span>
                         <button class="qty-btn plus" data-variant-id="${item.variant_id}">+</button>
                     </div>
-                    <div class="item-total">PHP ${itemTotal.toFixed(2)}</div>
+                    <div class="item-subtotal">Subtotal: PHP ${itemTotal.toFixed(2)}</div>
                     <button class="remove-btn" data-variant-id="${item.variant_id}">Remove</button>
                 </div>
             `;
