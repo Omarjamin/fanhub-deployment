@@ -166,11 +166,29 @@ app.get("/", (req, res) => {
 
 app.get("/health", async (req, res) => {
   try {
-    const admin = await connect("bini");
-    await admin.query("SELECT 1");
-    res.json({ status: "OK" });
+    const appDb = await connect();
+    const [appRows] = await appDb.query("SELECT DATABASE() AS db, 1 AS ok");
+
+    let adminDbName = null;
+    try {
+      const adminDb = await connect("admin");
+      const [adminRows] = await adminDb.query("SELECT DATABASE() AS db, 1 AS ok");
+      adminDbName = adminRows?.[0]?.db || null;
+    } catch (_) {
+      adminDbName = null;
+    }
+
+    res.json({
+      status: "OK",
+      app_db: appRows?.[0]?.db || null,
+      admin_db: adminDbName,
+    });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("health error:", err);
+    res.status(500).json({
+      error: String(err?.message || err || "health failed"),
+      code: String(err?.code || ""),
+    });
   }
 });
 
