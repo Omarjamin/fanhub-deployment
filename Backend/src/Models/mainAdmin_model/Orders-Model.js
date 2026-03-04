@@ -124,6 +124,45 @@ class OrdersModel {
       await siteDB.query('ALTER TABLE daily_revenue ADD COLUMN time TIME NULL AFTER date');
     }
 
+    // Repair legacy schemas where "id" exists but is not AUTO_INCREMENT / PRIMARY KEY.
+    const hasId = await this.tableHasColumn(siteDB, 'daily_revenue', 'id');
+    if (hasId) {
+      const [idColRows] = await siteDB.query('SHOW COLUMNS FROM daily_revenue LIKE "id"');
+      const idExtra = String(idColRows?.[0]?.Extra || '').toLowerCase();
+      const isAutoIncrement = idExtra.includes('auto_increment');
+
+      const [pkRows] = await siteDB.query(
+        `
+          SELECT COUNT(*) AS count
+          FROM INFORMATION_SCHEMA.STATISTICS
+          WHERE TABLE_SCHEMA = DATABASE()
+            AND TABLE_NAME = 'daily_revenue'
+            AND INDEX_NAME = 'PRIMARY'
+        `,
+      );
+      const hasPrimaryKey = Number(pkRows?.[0]?.count || 0) > 0;
+
+      if (!hasPrimaryKey) {
+        // Make existing ids unique first (old dumps often have id=0 in all rows).
+        await siteDB.query('SET @rownum := 0');
+        await siteDB.query(
+          `
+            UPDATE daily_revenue
+            SET id = (@rownum := @rownum + 1)
+            ORDER BY created_at, order_id
+          `,
+        );
+        await siteDB.query('ALTER TABLE daily_revenue MODIFY id INT(11) NOT NULL');
+        await siteDB.query('ALTER TABLE daily_revenue ADD PRIMARY KEY (id)');
+      }
+
+      if (!isAutoIncrement) {
+        await siteDB.query(
+          'ALTER TABLE daily_revenue MODIFY id INT(11) NOT NULL AUTO_INCREMENT',
+        );
+      }
+    }
+
     // Old schema had unique_date, which blocks multiple completed orders on the same day.
     const [uniqueDateIdx] = await siteDB.query(
       `
