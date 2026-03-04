@@ -184,7 +184,6 @@ export async function removeFromCart(variantId) {
     return { success: false, message: error.message };
   }
 }
-
 // Clear all items in cart
 export async function clearCart() {
   try {
