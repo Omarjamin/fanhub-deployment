@@ -16,6 +16,8 @@ class MarketplaceModel {
   async resolveCommunityId(communityType = '') {
     const scoped = String(communityType || '').trim().toLowerCase();
     if (!scoped) return null;
+    const numeric = Number(scoped);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
 
     // Priority: community_table-based resolution.
     try {

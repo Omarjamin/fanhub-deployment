@@ -12,6 +12,12 @@ class SettingsController {
   }
 
   resolveCommunity(req, res) {
+    const numericCommunityId = Number(
+      req.query?.community_id ?? req.body?.community_id ?? 0,
+    );
+    if (Number.isFinite(numericCommunityId) && numericCommunityId > 0) {
+      return String(numericCommunityId);
+    }
     const raw =
       req.body?.community ||
       req.query?.community ||

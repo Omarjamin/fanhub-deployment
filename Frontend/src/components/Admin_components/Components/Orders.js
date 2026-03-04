@@ -138,6 +138,7 @@ export default function createOrders() {
 
   let orders = [];
   let siteOptions = [];
+  let selectedCommunityId = null;
   let selectedCommunity = isForcedSingleSite
     ? forcedSiteSlug
     : String(sessionStorage.getItem('admin_selected_site') || 'all').trim().toLowerCase() || 'all';
@@ -189,6 +190,8 @@ export default function createOrders() {
       .querySelector('#orderCommunityFilter')
       .addEventListener('change', async event => {
         selectedCommunity = isForcedSingleSite ? forcedSiteSlug : (event.target.value || 'all');
+        const selectedOption = event.target.options?.[event.target.selectedIndex];
+        selectedCommunityId = Number(selectedOption?.dataset?.communityId || 0) || null;
         try {
           sessionStorage.setItem('admin_selected_site', selectedCommunity);
         } catch (_) {}
@@ -205,7 +208,10 @@ export default function createOrders() {
       const payload = await fetchAdminJsonWithFallback(
         'orders/with-items',
         effectiveCommunity && effectiveCommunity !== 'all'
-          ? { community: effectiveCommunity }
+          ? {
+              community: effectiveCommunity,
+              ...(selectedCommunityId ? { community_id: selectedCommunityId } : {}),
+            }
           : {},
         { headers: getAuthHeaders() },
       );
@@ -537,7 +543,7 @@ export default function createOrders() {
       if (!select) return;
       select.innerHTML = `
         ${isForcedSingleSite ? '' : '<option value="all">All Sites</option>'}
-        ${normalizedSites.map((site) => `<option value="${site.domain}">${site.site_name}</option>`).join('')}
+        ${normalizedSites.map((site) => `<option value="${site.domain}" data-community-id="${site.community_id || site.id || ''}">${site.site_name}</option>`).join('')}
       `;
       if (isForcedSingleSite) {
         if (!normalizedSites.length) {
@@ -548,6 +554,8 @@ export default function createOrders() {
       } else if (selectedCommunity && selectedCommunity !== 'all') {
         select.value = selectedCommunity;
       }
+      const selectedOption = select.options?.[select.selectedIndex];
+      selectedCommunityId = Number(selectedOption?.dataset?.communityId || 0) || null;
     } catch (error) {
       console.error('Failed to load site options for orders:', error);
     }

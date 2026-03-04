@@ -97,13 +97,16 @@ async function saveShippingRegionOverrides(provinceRegions, shippingRates) {
   return payload;
 }
 
-async function fetchEventPosters(siteSlug = '') {
+async function fetchEventPosters(siteSlug = '', communityId = null) {
   const community = String(siteSlug || '').trim().toLowerCase();
   if (!community) return [...defaultEventPosters];
 
   const payload = await fetchAdminJsonWithFallback(
     'settings/event-posters',
-    { community },
+    {
+      community,
+      ...(communityId && Number(communityId) > 0 ? { community_id: Number(communityId) } : {}),
+    },
     { headers: getAuthHeaders() },
   );
 
@@ -117,7 +120,7 @@ async function fetchEventPosters(siteSlug = '') {
   });
 }
 
-async function saveEventPosters(siteSlug = '', posters = []) {
+async function saveEventPosters(siteSlug = '', posters = [], communityId = null) {
   const community = String(siteSlug || '').trim().toLowerCase();
   if (!community) throw new Error('Please select a site first.');
 
@@ -140,6 +143,7 @@ async function saveEventPosters(siteSlug = '', posters = []) {
         },
         body: JSON.stringify({
           community,
+          ...(communityId && Number(communityId) > 0 ? { community_id: Number(communityId) } : {}),
           posters,
         }),
       });
@@ -191,6 +195,7 @@ export default function createSettings() {
   let selectedSite = String(
     sessionStorage.getItem('admin_selected_site') || getActiveSiteSlug() || '',
   ).trim().toLowerCase();
+  let selectedCommunityId = null;
   let eventPosters = [...defaultEventPosters];
 
   function eventRowsTemplate() {
@@ -305,7 +310,7 @@ export default function createSettings() {
       const activeSite = String(getActiveSiteSlug() || '').trim().toLowerCase();
       select.innerHTML = `
         ${isForcedSingleSite ? '' : '<option value="">All Sites</option>'}
-        ${scopedSites.map((site) => `<option value="${site.domain}">${site.site_name}</option>`).join('')}
+        ${scopedSites.map((site) => `<option value="${site.domain}" data-community-id="${site.community_id || site.id || ''}">${site.site_name}</option>`).join('')}
       `;
       if (isForcedSingleSite) {
         select.value = forcedSiteSlug;
@@ -316,7 +321,9 @@ export default function createSettings() {
         select.value = activeSite;
       }
       selectedSite = String(select.value || '').trim().toLowerCase();
-      eventPosters = await fetchEventPosters(selectedSite);
+      const selectedOption = select.options?.[select.selectedIndex];
+      selectedCommunityId = Number(selectedOption?.dataset?.communityId || 0) || null;
+      eventPosters = await fetchEventPosters(selectedSite, selectedCommunityId);
       await refreshEventPosterManager();
     } catch (error) {
       console.error('[Settings] Failed to load site options:', error);
@@ -350,7 +357,7 @@ export default function createSettings() {
     try {
       await saveShippingRegionOverrides(provinceShippingCategory, shippingRates);
       if (selectedSite) {
-        await saveEventPosters(selectedSite, eventPosters);
+        await saveEventPosters(selectedSite, eventPosters, selectedCommunityId);
       }
       console.log('[Settings] Saved:', { selectedSite, shippingRates, provinceShipping, eventPosters });
       if (selectedSite) {
@@ -480,6 +487,8 @@ export default function createSettings() {
     selectedSite = isForcedSingleSite
       ? forcedSiteSlug
       : String(event.target.value || '').trim().toLowerCase();
+    const selectedOption = event.target.options?.[event.target.selectedIndex];
+    selectedCommunityId = Number(selectedOption?.dataset?.communityId || 0) || null;
     try {
       sessionStorage.setItem('admin_selected_site', selectedSite || 'all');
     } catch (_) {}
@@ -507,7 +516,7 @@ export default function createSettings() {
         section.querySelector('#shippingRateVisMin').value = String(visMinRate);
       }
 
-      eventPosters = await fetchEventPosters(selectedSite);
+      eventPosters = await fetchEventPosters(selectedSite, selectedCommunityId);
       await refreshEventPosterManager();
 
       const activeRegion = section.querySelector('#shippingRegionSelect')?.value;

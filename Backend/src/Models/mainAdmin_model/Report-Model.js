@@ -64,6 +64,8 @@ class ReportModel {
   async resolveScopedCommunityId(communityType = 'all') {
     const normalized = this.normalizeScope(communityType);
     if (!normalized || normalized === 'all') return null;
+    const numeric = Number(normalized);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
 
     // Priority: resolve from community_table.
     try {

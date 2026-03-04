@@ -258,6 +258,8 @@ function normalizeReportStatus(rawStatus) {
 }
 
 function getReportCommunityKey(report = {}) {
+  const numeric = Number(report?.community_id || 0);
+  if (Number.isFinite(numeric) && numeric > 0) return String(numeric);
   return String(
     report?.community_type ||
     report?.domain ||

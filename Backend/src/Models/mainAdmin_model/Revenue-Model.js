@@ -46,6 +46,8 @@ class RevenueModel {
     async resolveCommunityId(communityType = '') {
         const scoped = String(communityType || '').trim().toLowerCase();
         if (!scoped || scoped === 'all') return null;
+        const numeric = Number(scoped);
+        if (Number.isFinite(numeric) && numeric > 0) return numeric;
 
         // Priority: resolve from community_table (source of truth for selections).
         try {
@@ -169,6 +171,32 @@ class RevenueModel {
                                 params,
                             );
                             dailyRevenue = legacyRows || [];
+
+                            if (
+                                (!dailyRevenue || dailyRevenue.length === 0) &&
+                                scopedCommunityId &&
+                                hasCommunityId
+                            ) {
+                                const [relaxedRows] = await siteDB.query(
+                                    `
+                                      SELECT
+                                        dr.order_id,
+                                        dr.date,
+                                        TIME_FORMAT(dr.time, '%H:%i:%s') AS time,
+                                        dr.total_amount,
+                                        dr.created_at
+                                      FROM daily_revenue dr
+                                      ORDER BY dr.created_at DESC
+                                      LIMIT 30
+                                    `,
+                                );
+                                dailyRevenue = relaxedRows || [];
+                                debugLog('getRevenueForCommunity:relaxed-daily-revenue-fallback', {
+                                    dbName,
+                                    scopedCommunityId,
+                                    count: dailyRevenue.length,
+                                });
+                            }
                         } else {
                             const [legacyRows] = await siteDB.query(
                                 `
@@ -212,6 +240,28 @@ class RevenueModel {
                             params,
                         );
                         dailyRevenue = orderRows || [];
+                    }
+
+                    if ((!dailyRevenue || dailyRevenue.length === 0) && await this.tableExists(siteDB, 'orders')) {
+                        const [anyOrderRows] = await siteDB.query(
+                            `
+                              SELECT
+                                o.order_id,
+                                DATE(o.created_at) AS date,
+                                TIME_FORMAT(o.created_at, '%H:%i:%s') AS time,
+                                o.total AS total_amount,
+                                o.created_at
+                              FROM orders o
+                              ORDER BY o.created_at DESC
+                              LIMIT 30
+                            `,
+                        );
+                        dailyRevenue = anyOrderRows || [];
+                        debugLog('getRevenueForCommunity:last-resort-orders-fallback', {
+                            dbName,
+                            scopedCommunityId,
+                            count: dailyRevenue.length,
+                        });
                     }
 
                     debugLog('getRevenueForCommunity:db-result', {

@@ -159,7 +159,7 @@ export default function createMarketplace() {
 
   // Local state for products (initialized empty; will be populated from API)
   let products = [];
-  let communityOptions = [{ key: 'all', label: 'All Sites' }];
+  let communityOptions = [{ key: 'all', label: 'All Sites', community_id: null }];
   const collectionOptionsByCommunity = new Map();
   const collectionIdByCommunityAndName = new Map();
   const filterCollectionsByCommunity = new Map();
@@ -201,6 +201,12 @@ export default function createMarketplace() {
     return products.find(product => product.id === productId);
   }
 
+  function getCommunityIdByKey(key = '') {
+    const normalized = String(key || '').trim().toLowerCase();
+    const found = communityOptions.find((option) => String(option.key || '').trim().toLowerCase() === normalized);
+    return Number(found?.community_id || 0) || null;
+  }
+
   function normalizeVariantForForm(variant) {
     const weightG = Number(
       variant.weight_g ?? variant.weightG ?? variant.weight ?? 0,
@@ -233,7 +239,7 @@ export default function createMarketplace() {
       ${communityOptions
         .filter(option => option.key !== 'all')
         .map(option => (
-        `<option value="${option.key}">${option.label}</option>`
+        `<option value="${option.key}" data-community-id="${option.community_id || ''}">${option.label}</option>`
       )).join('')}
     `;
 
@@ -328,7 +334,7 @@ export default function createMarketplace() {
       ${communityOptions
         .filter(option => option.key !== 'all')
         .map(option => (
-        `<option value="${option.key}">${option.label}</option>`
+        `<option value="${option.key}" data-community-id="${option.community_id || ''}">${option.label}</option>`
       )).join('')}
     `;
   }
@@ -339,6 +345,7 @@ export default function createMarketplace() {
     )
       .trim()
       .toLowerCase();
+    const community_id = getCommunityIdByKey(community);
     const collectionSelect = section.querySelector('#newProductCollection');
     const cachedCollections = collectionOptionsByCommunity.get(community);
     const collections = cachedCollections || [];
@@ -354,7 +361,7 @@ export default function createMarketplace() {
     if (!community || cachedCollections) return;
 
     try {
-      const rows = await fetchMarketplaceCollections(community);
+      const rows = await fetchMarketplaceCollections(community, community_id);
       let names = rows
         .map(row => String(row?.name || '').trim())
         .filter(Boolean);
@@ -390,6 +397,7 @@ export default function createMarketplace() {
     )
       .trim()
       .toLowerCase();
+    const community_id = getCommunityIdByKey(community);
     const collection = String(
       section.querySelector('#newProductCollection').value || ''
     ).trim();
@@ -402,6 +410,7 @@ export default function createMarketplace() {
         const collectionId = collectionIdByCommunityAndName.get(cacheKey);
         const rows = await fetchMarketplaceCategories({
           community,
+          community_id,
           collectionId,
         });
         categories = rows
@@ -588,6 +597,8 @@ export default function createMarketplace() {
     addCollectionForm.addEventListener('submit', async event => {
       event.preventDefault();
       const community = String(collectionModalCommunity.value || '').trim().toLowerCase();
+      const selectedOption = collectionModalCommunity.options?.[collectionModalCommunity.selectedIndex];
+      const community_id = Number(selectedOption?.dataset?.communityId || 0) || null;
       const name = String(collectionModalName.value || '').trim();
       if (!community || !name) return;
 
@@ -598,7 +609,7 @@ export default function createMarketplace() {
       }
 
       try {
-        await createMarketplaceCollection({ community, name, img_url: imgUrl });
+        await createMarketplaceCollection({ community, community_id, name, img_url: imgUrl });
         collectionOptionsByCommunity.delete(community);
         await fetchProducts(community);
         await applyMarketplaceSelection({ forceCommunity: community });
@@ -654,7 +665,8 @@ export default function createMarketplace() {
           selectedCommunity && selectedCommunity !== 'all'
             ? selectedCommunity
             : product?.communityKey || '';
-        await deleteMarketplaceProduct(dbProductId, deleteCommunity);
+        const deleteCommunityId = getCommunityIdByKey(deleteCommunity) || Number(product?.community_id || 0) || null;
+        await deleteMarketplaceProduct(dbProductId, deleteCommunity, deleteCommunityId);
         await fetchProducts(selectedCommunity);
       } catch (error) {
         console.error('Failed to delete product:', error);
@@ -766,6 +778,8 @@ export default function createMarketplace() {
       event.preventDefault();
 
       const community = communitySelect.value;
+      const selectedCommunityOption = communitySelect.options?.[communitySelect.selectedIndex];
+      const community_id = Number(selectedCommunityOption?.dataset?.communityId || 0) || null;
       const collection = collectionSelect.value;
       const productCategory = productCategorySelect.value.trim();
       const productName = productNameInput.value.trim();
@@ -784,6 +798,7 @@ export default function createMarketplace() {
       const payload = {
         name: productName,
         community,
+        community_id,
         collection,
         product_category: productCategory,
         image_url: null,
@@ -808,7 +823,7 @@ export default function createMarketplace() {
           product.productId ??
           Number(String(editingProductId || '').match(/(\d+)$/)?.[1] || 0);
         try {
-          await updateMarketplaceProduct(dbProductId, payload, community);
+          await updateMarketplaceProduct(dbProductId, payload, community, community_id);
           persistSelectedCommunity(community || getSelectedCommunity());
           await fetchProducts(getSelectedCommunity());
           closeModal();
@@ -866,17 +881,18 @@ export default function createMarketplace() {
         const normalized = String(row?.site_name || row?.domain || '').trim();
         if (!key || !normalized || seen.has(key)) return;
         seen.add(key);
-        options.push({ key, label: normalized });
+        const community_id = Number(row?.community_id || row?.id || row?.site_id || 0) || null;
+        options.push({ key, label: normalized, community_id });
       });
 
       communityOptions = options.length
         ? options
         : (isForcedSingleSite
           ? [{ key: forcedSiteSlug, label: forcedSiteSlug.toUpperCase() }]
-          : [{ key: 'all', label: 'All Sites' }]);
+          : [{ key: 'all', label: 'All Sites', community_id: null }]);
     } catch (error) {
       console.error('Error fetching communities from admin database:', error);
-      communityOptions = [{ key: 'all', label: 'All Sites' }];
+      communityOptions = [{ key: 'all', label: 'All Sites', community_id: null }];
     }
   }
 
@@ -887,13 +903,13 @@ export default function createMarketplace() {
       let rows = [];
 
       if (normalizedCommunity === 'all') {
-        const communityKeys = communityOptions
-          .map(option => option.key)
-          .filter(key => key && key !== 'all');
+        const communityPairs = communityOptions
+          .filter(option => option.key && option.key !== 'all')
+          .map(option => ({ key: option.key, community_id: option.community_id }));
         const responses = await Promise.allSettled(
-          communityKeys.map(async key => {
-            const list = await fetchMarketplaceProducts(key);
-            return list.map(item => ({ ...item, __community_key: key }));
+          communityPairs.map(async ({ key, community_id }) => {
+            const list = await fetchMarketplaceProducts(key, community_id);
+            return list.map(item => ({ ...item, __community_key: key, __community_id: community_id }));
           })
         );
         rows = responses
@@ -902,7 +918,7 @@ export default function createMarketplace() {
       } else {
         let list = [];
         try {
-          list = await fetchMarketplaceProducts(normalizedCommunity);
+          list = await fetchMarketplaceProducts(normalizedCommunity, getCommunityIdByKey(normalizedCommunity));
         } catch (error) {
           console.warn(
             `[Marketplace] Community "${normalizedCommunity}" fetch failed:`,
@@ -913,7 +929,7 @@ export default function createMarketplace() {
           await applyMarketplaceSelection();
           return;
         }
-        rows = list.map(item => ({ ...item, __community_key: normalizedCommunity }));
+        rows = list.map(item => ({ ...item, __community_key: normalizedCommunity, __community_id: getCommunityIdByKey(normalizedCommunity) }));
       }
 
       products = rows.map(row => {
@@ -934,6 +950,7 @@ export default function createMarketplace() {
           name: String(row.name || row.product_name || '').trim() || 'Untitled Product',
           db_name: row.db_name || null,
           communityKey: communityKeyValue,
+          community_id: Number(row.__community_id || row.community_id || getCommunityIdByKey(communityKeyValue) || 0) || null,
           community: communityLabel,
           collectionId: row.collection_id || null,
           collectionName: String(row.collection_name || '').trim(),
@@ -962,7 +979,10 @@ export default function createMarketplace() {
 
       if (normalizedCommunity !== 'all') {
         try {
-          const allCollections = await fetchMarketplaceCollections(normalizedCommunity);
+          const allCollections = await fetchMarketplaceCollections(
+            normalizedCommunity,
+            getCommunityIdByKey(normalizedCommunity),
+          );
           const list = allCollections
             .map(row => String(row?.name || '').trim())
             .filter(Boolean);

@@ -33,6 +33,7 @@ export default function Dashboard() {
   const rowsPerPage = 5;
   let communityOptions = [{ key: 'all', label: 'All Sites', siteName: 'all' }];
   let selectedSiteName = 'all';
+  let selectedCommunityId = null;
 
   // Store fetched data
   let communityStats = {};
@@ -54,10 +55,13 @@ export default function Dashboard() {
   // 🔹 Helper Functions
   // -----------------------------
   
-  async function fetchCommunityStats(communityKey, siteName = '') {
+  async function fetchCommunityStats(communityKey, siteName = '', communityId = null) {
     try {
       const finalCommunity = isForcedSingleSite ? forcedSiteSlug : communityKey;
       const params = { community: finalCommunity };
+      if (communityId && Number(communityId) > 0) {
+        params.community_id = Number(communityId);
+      }
       const normalizedSiteName = String(siteName || '').trim();
       // Only pass site_name in "all" mode to avoid over-filtering when
       // community_table.site_name differs from sites.site_name in deployed DBs.
@@ -92,6 +96,7 @@ export default function Dashboard() {
           key,
           label: site.site_name,
           siteName: site.site_name,
+          communityId: Number(site.community_id || site.id || 0) || null,
         });
       });
 
@@ -115,10 +120,13 @@ export default function Dashboard() {
     }
   }
 
-  async function fetchRevenueData(communityKey, siteName = '') {
+  async function fetchRevenueData(communityKey, siteName = '', communityId = null) {
     try {
       const finalCommunity = isForcedSingleSite ? forcedSiteSlug : communityKey;
       const params = { community: finalCommunity };
+      if (communityId && Number(communityId) > 0) {
+        params.community_id = Number(communityId);
+      }
       const normalizedSiteName = String(siteName || '').trim();
       if (finalCommunity === 'all' && normalizedSiteName && normalizedSiteName.toLowerCase() !== 'all') {
         params.site_name = normalizedSiteName;
@@ -195,14 +203,14 @@ export default function Dashboard() {
     if (paginationDiv) paginationDiv.innerHTML = renderPagination(pageCount, currentPage);
   }
 
-  async function initCommunityData(communityKey, siteName = '') {
-    dashboardDebug('initCommunityData:start', { communityKey, siteName });
+  async function initCommunityData(communityKey, siteName = '', communityId = null) {
+    dashboardDebug('initCommunityData:start', { communityKey, siteName, communityId });
     // Clear old rows immediately when switching community
     revenueData[communityKey] = [];
     updateTableAndPagination();
 
-    await fetchCommunityStats(communityKey, siteName);
-    await fetchRevenueData(communityKey, siteName);
+    await fetchCommunityStats(communityKey, siteName, communityId);
+    await fetchRevenueData(communityKey, siteName, communityId);
     updateStatCards(communityKey);
     updateTableAndPagination();
     dashboardDebug('initCommunityData:done', {
@@ -215,7 +223,7 @@ export default function Dashboard() {
 
   function renderCommunityOptionsHTML() {
     return communityOptions
-      .map((community) => `<option value="${community.key}" data-site-name="${community.siteName || ''}">${community.label}</option>`)
+      .map((community) => `<option value="${community.key}" data-site-name="${community.siteName || ''}" data-community-id="${community.communityId || ''}">${community.label}</option>`)
       .join('');
   }
 
@@ -273,14 +281,16 @@ export default function Dashboard() {
         persistSelectedCommunity(selectedCommunity);
         const option = e.target.options?.[e.target.selectedIndex];
         selectedSiteName = option?.dataset?.siteName || '';
+        selectedCommunityId = Number(option?.dataset?.communityId || 0) || null;
         dashboardDebug('communitySelect:change', {
           selectedCommunity,
           selectedSiteName,
+          selectedCommunityId,
           optionValue: option?.value,
           optionLabel: option?.textContent,
         });
         currentPage = 1;
-        initCommunityData(selectedCommunity, selectedSiteName);
+        initCommunityData(selectedCommunity, selectedSiteName, selectedCommunityId);
       }
     });
 
@@ -330,11 +340,13 @@ export default function Dashboard() {
       persistSelectedCommunity(selectedCommunity);
       const option = select.options?.[select.selectedIndex];
       selectedSiteName = option?.dataset?.siteName || '';
+      selectedCommunityId = Number(option?.dataset?.communityId || 0) || null;
     }
-    await initCommunityData(selectedCommunity, selectedSiteName);
+    await initCommunityData(selectedCommunity, selectedSiteName, selectedCommunityId);
     dashboardDebug('bootstrap:done', {
       selectedCommunity,
       selectedSiteName,
+      selectedCommunityId,
     });
   })();
 

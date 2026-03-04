@@ -28,6 +28,8 @@ class SettingsModel {
   async resolveCommunityIdByTable(siteSlug = '') {
     const scoped = this.normalizeSiteSlug(siteSlug);
     if (!scoped || scoped === this.globalSlug) return null;
+    const numeric = Number(scoped);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
     try {
       const adminDB = await connectAdmin();
       const hasCommunityTable = await this.hasAdminTable(adminDB, 'community_table');

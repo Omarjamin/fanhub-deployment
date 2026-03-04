@@ -265,9 +265,10 @@ export async function fetchAdminSites() {
       const siteName = String(row?.site_name || row?.name || row?.community_name || domain).trim();
       if (!domain || seen.has(domain)) return null;
       seen.add(domain);
-      const parsedId = Number(row?.site_id ?? row?.community_id ?? row?.id ?? 0);
+      const parsedId = Number(row?.community_id ?? row?.site_id ?? row?.id ?? 0);
       return {
         id: Number.isFinite(parsedId) && parsedId > 0 ? parsedId : index + 1,
+        community_id: Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null,
         key: domain,
         domain,
         site_name: siteName || domain,

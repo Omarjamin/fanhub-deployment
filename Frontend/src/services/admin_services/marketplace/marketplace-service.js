@@ -51,9 +51,10 @@ export async function fetchAdminCommunities() {
         : [];
 }
 
-export async function fetchMarketplaceProducts(community) {
+export async function fetchMarketplaceProducts(community, communityId = null) {
   const params = new URLSearchParams();
   if (community) params.append('community', String(community).toLowerCase());
+  if (communityId && Number(communityId) > 0) params.append('community_id', String(communityId));
   const url = `${ADMIN_API_BASE}/marketplace${
     params.toString() ? `?${params.toString()}` : ''
   }`;
@@ -62,9 +63,10 @@ export async function fetchMarketplaceProducts(community) {
   return Array.isArray(payload?.data) ? payload.data : [];
 }
 
-export async function fetchMarketplaceCollections(community) {
+export async function fetchMarketplaceCollections(community, communityId = null) {
   const params = new URLSearchParams();
   if (community) params.append('community', String(community).toLowerCase());
+  if (communityId && Number(communityId) > 0) params.append('community_id', String(communityId));
   const res = await api(
     `${ADMIN_API_BASE}/marketplace/collections?${params.toString()}`,
     getAdminRequestOptions(),
@@ -73,18 +75,19 @@ export async function fetchMarketplaceCollections(community) {
   return Array.isArray(payload?.data) ? payload.data : [];
 }
 
-export async function createMarketplaceCollection({ community, name, img_url }) {
+export async function createMarketplaceCollection({ community, community_id, name, img_url }) {
   const res = await api(`${ADMIN_API_BASE}/marketplace/collections`, {
     ...getAdminRequestOptions(),
     method: 'POST',
-    body: JSON.stringify({ community, name, img_url }),
+    body: JSON.stringify({ community, community_id, name, img_url }),
   });
   return readJsonOrThrow(res);
 }
 
-export async function fetchMarketplaceCategories({ community, collectionId }) {
+export async function fetchMarketplaceCategories({ community, community_id, collectionId }) {
   const params = new URLSearchParams();
   params.append('community', String(community || '').toLowerCase());
+  if (community_id && Number(community_id) > 0) params.append('community_id', String(community_id));
   if (collectionId) params.append('collection_id', String(collectionId));
   const res = await api(
     `${ADMIN_API_BASE}/marketplace/categories?${params.toString()}`,
@@ -112,9 +115,10 @@ export async function createMarketplaceProduct(payload) {
   return readJsonOrThrow(res);
 }
 
-export async function updateMarketplaceProduct(productId, payload, community) {
+export async function updateMarketplaceProduct(productId, payload, community, communityId = null) {
   const params = new URLSearchParams();
   if (community) params.set('community', String(community).toLowerCase());
+  if (communityId && Number(communityId) > 0) params.set('community_id', String(communityId));
   const url = `${ADMIN_API_BASE}/marketplace/${productId}${
     params.toString() ? `?${params.toString()}` : ''
   }`;
@@ -126,9 +130,10 @@ export async function updateMarketplaceProduct(productId, payload, community) {
   return readJsonOrThrow(res);
 }
 
-export async function deleteMarketplaceProduct(productId, community) {
+export async function deleteMarketplaceProduct(productId, community, communityId = null) {
   const params = new URLSearchParams();
   if (community) params.set('community', String(community).toLowerCase());
+  if (communityId && Number(communityId) > 0) params.set('community_id', String(communityId));
   const url = `${ADMIN_API_BASE}/marketplace/${productId}${
     params.toString() ? `?${params.toString()}` : ''
   }`;

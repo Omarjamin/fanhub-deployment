@@ -35,6 +35,12 @@ class DashboardController {
     }
 
     resolveCommunity(req, res, { fallbackAll = true } = {}) {
+        const numericCommunityId = Number(
+            req.query?.community_id ?? req.body?.community_id ?? 0,
+        );
+        if (Number.isFinite(numericCommunityId) && numericCommunityId > 0) {
+            return String(numericCommunityId);
+        }
         const scoped = String(
             req.query?.community ||
             req.body?.community ||

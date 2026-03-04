@@ -24,6 +24,8 @@ class OrdersModel {
   async resolveScopedCommunityId(communityType = 'all') {
     const normalized = this.normalizeCommunityType(communityType);
     if (!normalized || normalized === 'all') return null;
+    const numeric = Number(normalized);
+    if (Number.isFinite(numeric) && numeric > 0) return numeric;
 
     // Priority: community_table-based resolution (same pattern as revenue).
     try {
