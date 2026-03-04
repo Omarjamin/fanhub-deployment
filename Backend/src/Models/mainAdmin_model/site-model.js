@@ -4,6 +4,12 @@ function normalize(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+const ADMIN_DEBUG = String(process.env.ADMIN_DEBUG || '1').trim() !== '0';
+const debugLog = (scope, payload) => {
+  if (!ADMIN_DEBUG) return;
+  console.log(`[ADMIN DEBUG][SiteModel][${scope}]`, payload);
+};
+
 async function hasTable(adminDB, tableName) {
   const [rows] = await adminDB.query('SHOW TABLES LIKE ?', [tableName]);
   return Array.isArray(rows) && rows.length > 0;
@@ -140,9 +146,51 @@ export async function getDBNamesByCommunityType(communityType, siteName = '') {
     const adminDB = await connectAdmin();
     const sites = await fetchSites(adminDB, communityType, siteName);
     const mapped = await enrichSitesWithDbConfig(sites);
-    return mapped.map((x) => x.db_name).filter(Boolean);
+    const dbNames = mapped.map((x) => x.db_name).filter(Boolean);
+
+    // Single-DB deployment fallback:
+    // if site_databases has no row for a community, use the app DB.
+    if (dbNames.length === 0) {
+      const defaultDb = String(
+        process.env.DB_NAME ||
+        process.env.DB_DB_NAME ||
+        '',
+      ).trim();
+
+      if (defaultDb) {
+        debugLog('getDBNamesByCommunityType:fallback-default-db', {
+          communityType,
+          siteName,
+          defaultDb,
+        });
+        return [defaultDb];
+      }
+    }
+
+    debugLog('getDBNamesByCommunityType:resolved', {
+      communityType,
+      siteName,
+      dbNames,
+      siteCount: sites.length,
+      mappedCount: mapped.length,
+    });
+    return dbNames;
   } catch (error) {
     console.error(`Error fetching db_names for "${communityType}":`, error);
+    const defaultDb = String(
+      process.env.DB_NAME ||
+      process.env.DB_DB_NAME ||
+      '',
+    ).trim();
+    if (defaultDb) {
+      debugLog('getDBNamesByCommunityType:error-fallback-default-db', {
+        communityType,
+        siteName,
+        defaultDb,
+        error: String(error?.message || error || ''),
+      });
+      return [defaultDb];
+    }
     return [];
   }
 }

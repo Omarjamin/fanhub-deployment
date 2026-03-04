@@ -1,6 +1,12 @@
 import DiscographyModel from '../../../Models/mainAdmin_model/Discography-Model.js';
 import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
+const ADMIN_DEBUG = String(process.env.ADMIN_DEBUG || '1').trim() !== '0';
+const debugLog = (scope, payload) => {
+  if (!ADMIN_DEBUG) return;
+  console.log(`[ADMIN DEBUG][Discography][${scope}]`, payload);
+};
+
 class DiscographyController {
   constructor() {
     this.discModel = new DiscographyModel();
@@ -29,7 +35,9 @@ class DiscographyController {
   async list(req, res) {
     try {
       const selectedSiteId = await this.resolveSiteId(req, res);
+      debugLog('list:start', { selectedSiteId, query: req.query });
       const albums = await this.discModel.findAll(selectedSiteId);
+      debugLog('list:done', { selectedSiteId, count: albums.length });
       return res.status(200).json({ success: true, data: albums, message: 'Discography list retrieved' });
     } catch (err) {
       console.error('Error in DiscographyController.list:', err);
@@ -42,7 +50,9 @@ class DiscographyController {
       const { id } = req.params;
       if (!id) return res.status(400).json({ success: false, error: 'ID required', message: 'Provide an album ID' });
       const selectedSiteId = await this.resolveSiteId(req, res);
+      debugLog('getById:start', { id, selectedSiteId });
       const album = await this.discModel.findById(id, selectedSiteId);
+      debugLog('getById:done', { id, selectedSiteId, found: Boolean(album) });
       if (!album) return res.status(404).json({ success: false, error: 'Not found', message: 'Album not found' });
       return res.status(200).json({ success: true, data: album, message: 'Album retrieved' });
     } catch (err) {
@@ -70,6 +80,7 @@ class DiscographyController {
         return res.status(400).json({ success: false, error: 'Validation error', message: 'site_id and name are required' });
       }
 
+      debugLog('create:start', { site_id, name, songs, year });
       const created = await this.discModel.create({
         site_id,
         name,
@@ -79,6 +90,7 @@ class DiscographyController {
         album_link,
         description,
       });
+      debugLog('create:done', { album_id: created?.album_id, site_id });
       return res.status(201).json({ success: true, data: created, message: 'Album created' });
     } catch (err) {
       console.error('Error in DiscographyController.create:', err);
@@ -109,7 +121,9 @@ class DiscographyController {
       };
       if (!id) return res.status(400).json({ success: false, error: 'ID required', message: 'Provide an album ID' });
 
+      debugLog('update:start', { id, site_id });
       const updated = await this.discModel.update(id, payload);
+      debugLog('update:done', { id, site_id, updated: Boolean(updated) });
       return res.status(200).json({ success: true, data: updated, message: 'Album updated' });
     } catch (err) {
       console.error('Error in DiscographyController.update:', err);
@@ -124,10 +138,12 @@ class DiscographyController {
       const { id } = req.params;
       if (!id) return res.status(400).json({ success: false, error: 'ID required', message: 'Provide an album ID' });
       const selectedSiteId = await this.resolveSiteId(req, res);
+      debugLog('remove:start', { id, selectedSiteId });
       if (!selectedSiteId) {
         return res.status(400).json({ success: false, error: 'Validation error', message: 'site_id is required' });
       }
       await this.discModel.delete(id, selectedSiteId);
+      debugLog('remove:done', { id, selectedSiteId });
       return res.status(200).json({ success: true, message: 'Album deleted' });
     } catch (err) {
       console.error('Error in DiscographyController.remove:', err);
@@ -139,6 +155,7 @@ class DiscographyController {
   async getCommunities(req, res) {
     try {
       const rows = await this.discModel.getCommunities();
+      debugLog('getCommunities:done', { count: rows.length });
       return res.status(200).json({ success: true, data: rows, message: 'Communities retrieved' });
     } catch (err) {
       console.error('Error in DiscographyController.getCommunities:', err);

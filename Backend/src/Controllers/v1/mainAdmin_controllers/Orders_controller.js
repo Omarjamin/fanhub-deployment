@@ -1,6 +1,12 @@
 import OrdersModel from '../../../Models/mainAdmin_model/Orders-Model.js';
 import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
+const ADMIN_DEBUG = String(process.env.ADMIN_DEBUG || '1').trim() !== '0';
+const debugLog = (scope, payload) => {
+  if (!ADMIN_DEBUG) return;
+  console.log(`[ADMIN DEBUG][Orders][${scope}]`, payload);
+};
+
 class OrdersController {
   constructor() {
     this.ordersModel = new OrdersModel();
@@ -29,11 +35,13 @@ class OrdersController {
     try {
       const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
       const status = req.query.status || null;
+      debugLog('listOrders:start', { communityType, status });
 
       const orders = await this.ordersModel.getOrdersForCommunity(
         communityType,
         status,
       );
+      debugLog('listOrders:done', { communityType, count: orders.length });
 
       return res.status(200).json({
         success: true,
@@ -64,11 +72,13 @@ class OrdersController {
     try {
       const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
       const status = req.query.status || null;
+      debugLog('listOrdersWithItems:start', { communityType, status });
 
       const orders = await this.ordersModel.getOrdersWithItems(
         communityType,
         status,
       );
+      debugLog('listOrdersWithItems:done', { communityType, count: orders.length });
 
       return res.status(200).json({
         success: true,
@@ -99,6 +109,7 @@ class OrdersController {
       const { orderId } = req.params;
       const { db_name, status } = req.body || {};
       const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
+      debugLog('updateOrderStatus:start', { orderId, db_name, status, communityType });
 
       if (!orderId) {
         return res.status(400).json({
@@ -120,6 +131,7 @@ class OrdersController {
         status,
         communityType,
       );
+      debugLog('updateOrderStatus:done', { orderId, db_name: updatedOrder?.db_name, status: updatedOrder?.status });
 
       return res.status(200).json({
         success: true,

@@ -1,5 +1,11 @@
 import SettingsModel from '../../../Models/mainAdmin_model/Settings-Model.js';
 
+const ADMIN_DEBUG = String(process.env.ADMIN_DEBUG || '1').trim() !== '0';
+const debugLog = (scope, payload) => {
+  if (!ADMIN_DEBUG) return;
+  console.log(`[ADMIN DEBUG][Settings][${scope}]`, payload);
+};
+
 class SettingsController {
   constructor() {
     this.settingsModel = new SettingsModel();
@@ -23,8 +29,13 @@ class SettingsController {
   async getShippingRegions(req, res) {
     try {
       const community = this.resolveShippingScope();
+      debugLog('getShippingRegions:start', { community });
 
       const data = await this.settingsModel.getShippingRegions(community);
+      debugLog('getShippingRegions:done', {
+        community,
+        provinceCount: Object.keys(data?.province_regions || {}).length,
+      });
       return res.status(200).json({
         success: true,
         community,
@@ -53,11 +64,16 @@ class SettingsController {
         req.body?.shippingRates ||
         null;
 
+      debugLog('saveShippingRegions:start', {
+        community,
+        provinceCount: Object.keys(provinceRegions || {}).length,
+      });
       const data = await this.settingsModel.saveShippingRegions(
         community,
         provinceRegions,
         shippingRates,
       );
+      debugLog('saveShippingRegions:done', { community, saved: data?.saved });
 
       return res.status(200).json({
         success: true,
@@ -77,7 +93,9 @@ class SettingsController {
   async getEventPosters(req, res) {
     try {
       const community = this.resolveCommunity(req, res);
+      debugLog('getEventPosters:start', { community });
       const data = await this.settingsModel.getEventPosters(community);
+      debugLog('getEventPosters:done', { community, count: Array.isArray(data) ? data.length : 0 });
       return res.status(200).json({
         success: true,
         community,
@@ -97,7 +115,9 @@ class SettingsController {
     try {
       const community = this.resolveCommunity(req, res);
       const posters = req.body?.posters || req.body?.events || [];
+      debugLog('saveEventPosters:start', { community, count: posters.length });
       const data = await this.settingsModel.saveEventPosters(community, posters);
+      debugLog('saveEventPosters:done', { community, saved: data?.saved });
       return res.status(200).json({
         success: true,
         community,

@@ -3,6 +3,12 @@ import { getDBNamesByCommunityType } from '../../../Models/mainAdmin_model/site-
 import { connect, resolveCommunityContext } from '../../../core/database.js';
 import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
+const ADMIN_DEBUG = String(process.env.ADMIN_DEBUG || '1').trim() !== '0';
+const debugLog = (scope, payload) => {
+    if (!ADMIN_DEBUG) return;
+    console.log(`[ADMIN DEBUG][Revenue][${scope}]`, payload);
+};
+
 class DashboardController {
     constructor() {
         this.revenueModel = new RevenueModel();
@@ -74,6 +80,7 @@ class DashboardController {
         try {
             const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
             const siteName = String(req.query.site_name || '').trim();
+            debugLog('getCommunityStats:start', { communityType, siteName });
             const scopedCommunityCtx =
                 communityType && communityType !== 'all'
                     ? await resolveCommunityContext(communityType)
@@ -82,6 +89,7 @@ class DashboardController {
 
             const dbNames = await getDBNamesByCommunityType(communityType, siteName);
             console.log('getCommunityStats: getDBNamesByCommunityType', { communityType, dbNames });
+            debugLog('getCommunityStats:dbNames', { communityType, siteName, dbNames });
 
             // Normalize + de-duplicate DB list to prevent double-counting in "all" mode.
             const normalizedDbNames = dbNames
@@ -207,6 +215,13 @@ class DashboardController {
                 
             }
 
+            debugLog('getCommunityStats:done', {
+                communityType,
+                siteName,
+                keys: Object.keys(stats || {}),
+                scoped: stats?.[communityType] || null,
+                all: stats?.all || null,
+            });
             res.json(stats);
         } catch (error) {
             console.error('Error fetching community stats:', error);
@@ -220,8 +235,20 @@ class DashboardController {
             const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
             const siteName = String(req.query.site_name || '').trim();
             console.log(`Fetching revenue data for site key: ${communityType} (site_name: ${siteName || '-'})`);
+            debugLog('getRevenueByCommunity:start', { communityType, siteName });
 
             const revenueData = await this.revenueModel.getRevenueForCommunity(communityType, siteName);
+            debugLog('getRevenueByCommunity:raw', {
+                communityType,
+                siteName,
+                siteBuckets: Array.isArray(revenueData) ? revenueData.length : 0,
+                bucketCounts: Array.isArray(revenueData)
+                    ? revenueData.map((row) => ({
+                        db_name: row?.db_name,
+                        count: Array.isArray(row?.daily_revenue) ? row.daily_revenue.length : 0,
+                    }))
+                    : [],
+            });
             const mergedRevenue = [];
 
             revenueData.forEach(site => {
@@ -232,6 +259,12 @@ class DashboardController {
                 const ta = new Date(a.created_at || `${a.date || ''} ${a.time || ''}`).getTime() || 0;
                 const tb = new Date(b.created_at || `${b.date || ''} ${b.time || ''}`).getTime() || 0;
                 return tb - ta;
+            });
+            debugLog('getRevenueByCommunity:done', {
+                communityType,
+                siteName,
+                mergedCount: mergedRevenue.length,
+                sample: mergedRevenue[0] || null,
             });
             res.json(mergedRevenue);
         } catch (err) {

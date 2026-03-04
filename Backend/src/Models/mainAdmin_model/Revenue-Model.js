@@ -6,6 +6,11 @@ import { connectAdmin } from '../../core/database.js';
 import { getDBNamesByCommunityType } from './site-model.js';
 import { resolveCommunityContext } from '../../core/database.js';
 
+const ADMIN_DEBUG = String(process.env.ADMIN_DEBUG || '1').trim() !== '0';
+const debugLog = (scope, payload) => {
+    if (!ADMIN_DEBUG) return;
+    console.log(`[ADMIN DEBUG][RevenueModel][${scope}]`, payload);
+};
 
 class RevenueModel {
     async hasAdminTable(db, tableName) {
@@ -110,6 +115,13 @@ class RevenueModel {
                 new Set((dbNames || []).map((name) => String(name || '').trim()).filter(Boolean)),
             );
             const scopedCommunityId = await this.resolveCommunityId(communityType);
+            debugLog('getRevenueForCommunity:start', {
+                communityType,
+                siteName,
+                dbNames,
+                uniqueDbNames,
+                scopedCommunityId,
+            });
 
             if (uniqueDbNames.length === 0) return [];
 
@@ -201,6 +213,13 @@ class RevenueModel {
                         );
                         dailyRevenue = orderRows || [];
                     }
+
+                    debugLog('getRevenueForCommunity:db-result', {
+                        dbName,
+                        scopedCommunityId,
+                        count: Array.isArray(dailyRevenue) ? dailyRevenue.length : 0,
+                        sample: Array.isArray(dailyRevenue) && dailyRevenue.length ? dailyRevenue[0] : null,
+                    });
 
                     result.push({
                         db_name: dbName,

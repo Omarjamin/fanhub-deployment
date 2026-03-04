@@ -1,6 +1,12 @@
 import MarketplaceModel from '../../../Models/mainAdmin_model/Marketplace-Model.js';
 import { resolveSiteSlug } from '../../../utils/site-scope.js';
 
+const ADMIN_DEBUG = String(process.env.ADMIN_DEBUG || '1').trim() !== '0';
+const debugLog = (scope, payload) => {
+  if (!ADMIN_DEBUG) return;
+  console.log(`[ADMIN DEBUG][Marketplace][${scope}]`, payload);
+};
+
 class MarketplaceController {
   constructor() {
     this.marketplaceModel = new MarketplaceModel();
@@ -29,7 +35,9 @@ class MarketplaceController {
     try {
       const communityKey = this.resolveCommunity(req, res, { fallbackAll: true });
       const scopedCommunity = communityKey === 'all' ? '' : communityKey;
+      debugLog('listProducts:start', { communityKey, scopedCommunity });
       const filtered = await this.marketplaceModel.getProducts(scopedCommunity);
+      debugLog('listProducts:done', { scopedCommunity, count: filtered.length });
 
       return res.status(200).json({
         success: true,
@@ -68,7 +76,9 @@ class MarketplaceController {
     try {
       const communityKey = this.resolveCommunity(req, res, { fallbackAll: true });
       const scopedCommunity = communityKey === 'all' ? '' : communityKey;
+      debugLog('listCollections:start', { communityKey, scopedCommunity });
       const data = await this.marketplaceModel.getCollections(scopedCommunity);
+      debugLog('listCollections:done', { scopedCommunity, count: data.length });
       return res.status(200).json({ success: true, data });
     } catch (error) {
       if (
@@ -112,11 +122,13 @@ class MarketplaceController {
         });
       }
       const imgUrl = String(body.img_url || body.image_url || '').trim() || null;
+      debugLog('createCollection:start', { scopedCommunity, name, hasImage: Boolean(imgUrl) });
       const data = await this.marketplaceModel.createCollection(
         scopedCommunity,
         name,
         imgUrl,
       );
+      debugLog('createCollection:done', data);
       return res.status(201).json({
         success: true,
         data,
@@ -141,6 +153,7 @@ class MarketplaceController {
     try {
       const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
       const collectionId = req.query.collection_id;
+      debugLog('listCategories:start', { scopedCommunity, collectionId });
       if (!scopedCommunity) {
         return res.status(400).json({
           success: false,
@@ -152,6 +165,7 @@ class MarketplaceController {
         scopedCommunity,
         collectionId,
       );
+      debugLog('listCategories:done', { scopedCommunity, collectionId, count: data.length });
       return res.status(200).json({ success: true, data });
     } catch (error) {
       console.error('Error fetching categories:', error);
@@ -206,11 +220,17 @@ class MarketplaceController {
         });
       }
 
+      debugLog('createCategory:start', {
+        scopedCommunity,
+        collectionId,
+        categoryName,
+      });
       const data = await this.marketplaceModel.createCategory(
         scopedCommunity,
         collectionId,
         categoryName,
       );
+      debugLog('createCategory:done', data);
       return res.status(201).json({
         success: true,
         data,
@@ -249,6 +269,12 @@ class MarketplaceController {
           error: 'community is required',
         });
       }
+      debugLog('createProduct:start', {
+        scopedCommunity,
+        name: body.name,
+        collectionId,
+        variantCount: Array.isArray(body.variants) ? body.variants.length : 0,
+      });
       const payload = {
         name: body.name,
         collection_id: collectionId,
@@ -260,6 +286,7 @@ class MarketplaceController {
         payload,
         scopedCommunity,
       );
+      debugLog('createProduct:done', { product_id, scopedCommunity });
       return res.status(201).json({
         success: true,
         message: 'Product created successfully',
@@ -297,6 +324,11 @@ class MarketplaceController {
           error: 'community is required',
         });
       }
+      debugLog('updateProduct:start', {
+        productId,
+        scopedCommunity,
+        collectionId,
+      });
       const payload = {
         name: body.name,
         collection_id: collectionId,
@@ -312,6 +344,7 @@ class MarketplaceController {
         payload,
         scopedCommunity,
       );
+      debugLog('updateProduct:done', { productId, scopedCommunity });
       return res.status(200).json({
         success: true,
         message: 'Product updated successfully',
@@ -333,6 +366,7 @@ class MarketplaceController {
     try {
       const productId = req.params.productId;
       const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
+      debugLog('deleteProduct:start', { productId, scopedCommunity });
       if (!scopedCommunity) {
         return res.status(400).json({
           success: false,
@@ -343,6 +377,7 @@ class MarketplaceController {
         productId,
         scopedCommunity,
       );
+      debugLog('deleteProduct:done', { productId, scopedCommunity, deleted });
 
       if (!deleted) {
         return res.status(404).json({
