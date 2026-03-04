@@ -1,6 +1,12 @@
 import { connect, connectAdmin, resolveCommunityContext } from '../../core/database.js';
 import { getDBNamesByCommunityType } from './site-model.js';
 
+const ADMIN_DEBUG = String(process.env.ADMIN_DEBUG || '1').trim() !== '0';
+const debugLog = (scope, payload) => {
+  if (!ADMIN_DEBUG) return;
+  console.log(`[ADMIN DEBUG][OrdersModel][${scope}]`, payload);
+};
+
 class OrdersModel {
   normalizeStatus(status) {
     return String(status || '').trim().toLowerCase();
@@ -202,18 +208,25 @@ class OrdersModel {
       const dbNames = await getDBNamesByCommunityType(
         normalizedCommunity,
       );
-
-      if (!dbNames || dbNames.length === 0) return [];
+      const resolvedDbNames = (dbNames && dbNames.length > 0)
+        ? dbNames
+        : ['__default__'];
+      debugLog('getOrdersForCommunity:start', {
+        communityType: normalizedCommunity,
+        scopedCommunityId,
+        dbNames,
+        resolvedDbNames,
+      });
 
       // Ensure we only query each physical DB once
-      const uniqueDbNames = Array.from(new Set(dbNames));
+      const uniqueDbNames = Array.from(new Set(resolvedDbNames));
 
       const allOrders = [];
 
       for (const dbName of uniqueDbNames) {
         let siteDB;
         try {
-          siteDB = await connect(dbName);
+          siteDB = await connect(dbName === '__default__' ? '' : dbName);
           const hasCommunityId = await this.tableHasColumn(
             siteDB,
             'orders',
@@ -321,6 +334,11 @@ class OrdersModel {
       dedupedOrders.sort(
         (a, b) => new Date(b.created_at) - new Date(a.created_at),
       );
+      debugLog('getOrdersForCommunity:done', {
+        communityType: normalizedCommunity,
+        scopedCommunityId,
+        count: dedupedOrders.length,
+      });
 
       return dedupedOrders;
     } catch (error) {
@@ -342,16 +360,23 @@ class OrdersModel {
       const dbNames = await getDBNamesByCommunityType(
         normalizedCommunity,
       );
+      const resolvedDbNames = (dbNames && dbNames.length > 0)
+        ? dbNames
+        : ['__default__'];
+      debugLog('getOrdersWithItems:start', {
+        communityType: normalizedCommunity,
+        scopedCommunityId,
+        dbNames,
+        resolvedDbNames,
+      });
 
-      if (!dbNames || dbNames.length === 0) return [];
-
-      const uniqueDbNames = Array.from(new Set(dbNames));
+      const uniqueDbNames = Array.from(new Set(resolvedDbNames));
       const allOrders = [];
 
       for (const dbName of uniqueDbNames) {
         let siteDB;
         try {
-          siteDB = await connect(dbName);
+          siteDB = await connect(dbName === '__default__' ? '' : dbName);
           const hasCommunityId = await this.tableHasColumn(
             siteDB,
             'orders',
@@ -474,6 +499,11 @@ class OrdersModel {
       dedupedOrders.sort(
         (a, b) => new Date(b.created_at) - new Date(a.created_at),
       );
+      debugLog('getOrdersWithItems:done', {
+        communityType: normalizedCommunity,
+        scopedCommunityId,
+        count: dedupedOrders.length,
+      });
 
       return dedupedOrders;
     } catch (error) {
