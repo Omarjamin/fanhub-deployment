@@ -92,7 +92,7 @@ class SettingsModel {
     const hasGroupCommunityId = Boolean(columns.group_community_id);
     const hasCommunityId = Boolean(columns.community_id);
     const scopeColumn = hasGroupCommunityId ? 'group_community_id' : (hasCommunityId ? 'community_id' : null);
-    const scopeWhere = scopeColumn && scopedCommunityId ? ` AND COALESCE(${scopeColumn}, 0) = ?` : '';
+    const scopeWhere = scopeColumn && scopedCommunityId ? ` AND COALESCE(${scopeColumn}, 0) IN (?, 0)` : '';
     const params = scopeWhere ? [scopedCommunityId] : [];
     const [rows] = await db.query(
       `SELECT event_id, ticket_link, image_url${nameSelect}
@@ -272,6 +272,26 @@ class SettingsModel {
           message: error?.message || String(error),
         });
         lastError = error;
+      }
+    }
+
+    // Safety fallback: use default app DB when site-db mapping is stale/misconfigured.
+    if (!rows.length) {
+      try {
+        const defaultDb = await connect();
+        const [dbRows] = await defaultDb.query('SELECT DATABASE() AS current_db');
+        const currentDb = String(dbRows?.[0]?.current_db || '').trim();
+        const fallbackRows = await this.readEventRows(defaultDb, scopedCommunityId);
+        console.log('[settings-model] default db fallback read', {
+          currentDb,
+          rowCount: fallbackRows.length,
+          sample: fallbackRows.length ? fallbackRows[0] : null,
+        });
+        if (fallbackRows.length > 0) {
+          rows = fallbackRows;
+        }
+      } catch (error) {
+        lastError = lastError || error;
       }
     }
 

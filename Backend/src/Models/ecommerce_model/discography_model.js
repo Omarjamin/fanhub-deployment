@@ -13,6 +13,14 @@ class DiscographyModel {
     const normalizedSite = String(siteKey || '').trim().toLowerCase();
     if (!this.db || this.activeSite !== normalizedSite) {
       this.db = await connect(normalizedSite);
+      // If resolved site DB is wrong/missing schema, fallback to default app DB.
+      // This keeps single-database deployments working even with stale site mapping rows.
+      if (normalizedSite) {
+        const hasDiscographyTable = await this.hasTableOnPool(this.db, 'discography');
+        if (!hasDiscographyTable) {
+          this.db = await connect();
+        }
+      }
       this.activeSite = normalizedSite;
       try {
         const ctx = await resolveCommunityContext(normalizedSite);
@@ -20,6 +28,22 @@ class DiscographyModel {
       } catch (_) {
         this.activeCommunityId = null;
       }
+    }
+  }
+
+  async hasTableOnPool(pool, tableName) {
+    try {
+      const [rows] = await pool.query(
+        `SELECT 1
+         FROM INFORMATION_SCHEMA.TABLES
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = ?
+         LIMIT 1`,
+        [tableName],
+      );
+      return Boolean(rows?.length);
+    } catch (_) {
+      return false;
     }
   }
   async hasColumn(tableName, columnName) {
@@ -60,6 +84,27 @@ class DiscographyModel {
     `;
 
     const [rows] = await this.db.query(query, scoped ? [this.activeCommunityId] : []);
+    if ((rows || []).length) return rows;
+
+    // Fallback to include legacy/global rows (NULL/0 community) if strict scope is empty.
+    if (scoped) {
+      const fallbackQuery = `
+        SELECT
+          ${schema.albumId} AS album_id,
+          ${schema.title} AS title,
+          ${schema.year} AS year,
+          ${schema.cover} AS cover_image,
+          ${schema.songs} AS count_songs,
+          ${schema.albumLink} AS album_link,
+          ${schema.description} AS description
+        FROM discography
+        WHERE COALESCE(${scopeColumn}, 0) IN (?, 0)
+        ORDER BY ${schema.year} DESC, ${schema.albumId} DESC
+      `;
+      const [fallbackRows] = await this.db.query(fallbackQuery, [this.activeCommunityId]);
+      if ((fallbackRows || []).length) return fallbackRows;
+    }
+
     return rows;
   }
 
@@ -79,6 +124,20 @@ class DiscographyModel {
 
     const params = scoped ? [albumId, this.activeCommunityId] : [albumId];
     const [rows] = await this.db.query(query, params);
+    if ((rows || []).length) return rows;
+
+    if (scoped) {
+      const fallbackQuery = `
+      SELECT *
+      FROM music
+      WHERE album_id = ?
+      AND COALESCE(${scopeColumn}, 0) IN (?, 0)
+      ORDER BY title ASC
+    `;
+      const [fallbackRows] = await this.db.query(fallbackQuery, [albumId, this.activeCommunityId]);
+      if ((fallbackRows || []).length) return fallbackRows;
+    }
+
     return rows;
   }
 
