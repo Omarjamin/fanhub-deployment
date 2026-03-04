@@ -68,16 +68,15 @@
 }
 
 .about-bini p {
-  text-align: justify;
-  text-justify: inter-word;
-  text-align-last: center;
-  -moz-text-align-last: center;
+  max-width: 860px;
+  margin: 12px auto 0;
+  text-align: center;
   color: #000000;
   text-shadow: none;
   font-weight: 400;
   font-size: clamp(1.16rem, 1.05rem + 0.5vw, 1.34rem);
   line-height: 1.7;
-  margin-top: 12px;
+  letter-spacing: 0.01em;
 }
 
 .about-bini p .about-highlight {
@@ -94,6 +93,10 @@
   }
 
   .about-bini p {
-    text-align: left;
+    max-width: 92vw;
+    margin-top: 10px;
+    font-size: clamp(1.04rem, 4.4vw, 1.2rem);
+    line-height: 1.62;
+    text-align: center;
   }
 }
