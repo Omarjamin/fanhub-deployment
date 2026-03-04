@@ -13,28 +13,56 @@ class ShopModel {
   }
 
   async ensureConnection(community_type) {
-    try {
-      this.db = await connect(community_type);
-      const ctx = await resolveCommunityContext(community_type);
-      const scoped = String(community_type || '').trim().toLowerCase();
-      const mappedCommunityId = Number(ctx?.community_id || 0) || null;
-      this.activeCommunityId = await this.resolveEffectiveCommunityId(scoped, mappedCommunityId);
-      console.log('[shop_model] scope resolved', {
-        site: scoped,
-        mappedCommunityId,
-        effectiveCommunityId: this.activeCommunityId,
-      });
-      if (scoped && !this.activeCommunityId) {
-        const scopeErr = new Error(`Site/community not found for "${scoped}"`);
-        scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
-        throw scopeErr;
+    const scoped = String(community_type || '').trim().toLowerCase();
+    const ctx = await resolveCommunityContext(community_type);
+    const mappedCommunityId = Number(ctx?.community_id || 0) || null;
+
+    // First try resolved site DB
+    this.db = await connect(community_type);
+    let effectiveCommunityId = await this.resolveEffectiveCommunityId(scoped, mappedCommunityId);
+    let hasShopTables = await this.hasAnyShopTable(this.db);
+
+    // Deploy safety: if site DB mapping is stale/wrong, retry using default app DB.
+    // Scope remains strict by community_id (no cross-community fallback).
+    if (scoped && (!hasShopTables || !effectiveCommunityId)) {
+      const defaultDb = await connect();
+      const defaultHasShopTables = await this.hasAnyShopTable(defaultDb);
+      if (defaultHasShopTables) {
+        this.db = defaultDb;
+        effectiveCommunityId = await this.resolveEffectiveCommunityId(scoped, mappedCommunityId);
+        hasShopTables = true;
       }
-    } catch (err) {
-      console.error('shop_model.ensureConnection failed:', err?.message || err);
-      this.db = await connect();
-      this.activeCommunityId = null;
     }
+
+    this.activeCommunityId = effectiveCommunityId;
+    console.log('[shop_model] scope resolved', {
+      site: scoped,
+      mappedCommunityId,
+      effectiveCommunityId: this.activeCommunityId,
+      hasShopTables,
+    });
+
+    if (scoped && !this.activeCommunityId) {
+      const scopeErr = new Error(`Site/community not found for "${scoped}"`);
+      scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
+      throw scopeErr;
+    }
+
     return this.db;
+  }
+  async hasAnyShopTable(db) {
+    try {
+      const [rows] = await db.query(
+        `SELECT TABLE_NAME
+         FROM INFORMATION_SCHEMA.TABLES
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME IN ('collections', 'products')
+         LIMIT 1`,
+      );
+      return Boolean(rows?.length);
+    } catch (_) {
+      return false;
+    }
   }
   buildSlugVariants(value = '') {
     const scoped = String(value || '').trim().toLowerCase();
@@ -142,7 +170,8 @@ class ShopModel {
         return rows;
 
       } catch (err) {
-        console.error('Failed to fetch all collections fallback:', err && err.message ? err.message : err);
+        if (err?.code === 'SITE_SCOPE_NOT_FOUND') throw err;
+        console.error('Failed to fetch collections:', err && err.message ? err.message : err);
         return [];
       }
   } 

@@ -108,6 +108,24 @@ class Comment {
       throw err;
     }
   }
+  // count top-level comments + replies by post without joining users table
+  async countByPost(post_id) {
+    try {
+      const hasCommunityId = await this.hasColumn("comments", "community_id");
+      const scoped = hasCommunityId && this.activeCommunityId;
+      const [rows] = await this.db.execute(
+        `SELECT COUNT(*) AS count
+         FROM comments
+         WHERE post_id = ?
+         ${scoped ? "AND community_id = ?" : ""}`,
+        scoped ? [post_id, this.activeCommunityId] : [post_id],
+      );
+      return Number(rows?.[0]?.count || 0);
+    } catch (err) {
+      console.error('<error> comment.countByPost', err);
+      throw err;
+    }
+  }
   // create a new comment
   async create(post_id, user_id, content, parent_comment_id) {
     try {

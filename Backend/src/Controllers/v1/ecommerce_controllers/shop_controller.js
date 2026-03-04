@@ -19,6 +19,13 @@ class ShopController {
       return res.status(200).json({ success: true, data: collections });
     } catch (error) {
       console.error('<error> getCollectionsController', error);
+      if (error?.code === 'SITE_SCOPE_NOT_FOUND') {
+        return res.status(404).json({
+          success: false,
+          message: error.message || 'site/community scope not found',
+          code: error.code,
+        });
+      }
       return res.status(500).json({
         success: false,
         message: 'Failed to fetch collections',
@@ -56,6 +63,13 @@ class ShopController {
       });
     } catch (error) {
       console.error('<error> getProductsByCollectionController', error);
+      if (error?.code === 'SITE_SCOPE_NOT_FOUND') {
+        return res.status(404).json({
+          success: false,
+          message: error.message || 'site/community scope not found',
+          code: error.code,
+        });
+      }
       return res.status(500).json({
         success: false,
         message: 'Failed to fetch products',
@@ -95,6 +109,13 @@ class ShopController {
       return res.status(200).json({ success: true, data: { product: details[0], variants } });
     } catch (error) {
       console.error('<error> getProductDetailsController', error);
+      if (error?.code === 'SITE_SCOPE_NOT_FOUND') {
+        return res.status(404).json({
+          success: false,
+          message: error.message || 'site/community scope not found',
+          code: error.code,
+        });
+      }
       return res.status(500).json({ success: false, message: 'Failed to fetch product details', error: error.message });
     }
   }

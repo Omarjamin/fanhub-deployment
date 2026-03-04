@@ -109,8 +109,7 @@ class CommentController {
       await this.init(req, res);
       const { post_id } = req.params;
       console.log("Fetching comment count for post_id:", post_id);
-      const comments = await this.comment.getAllByPost(post_id);
-      const count = comments.length;
+      const count = await this.comment.countByPost(post_id);
       res.status(200).json({ commentCount: count, count: count });
     } catch (error) {
       console.error("<error> comment.getCommentCount", error);
