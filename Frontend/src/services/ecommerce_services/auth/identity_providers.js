@@ -129,6 +129,7 @@ export function getIdentityProviderStatus() {
 
 export async function renderGoogleButton(container, onCredential) {
   if (!GOOGLE_CLIENT_ID || !container) return false;
+
   await loadExternalScript('https://accounts.google.com/gsi/client');
 
   if (!window.google?.accounts?.id) {
@@ -145,13 +146,19 @@ export async function renderGoogleButton(container, onCredential) {
   });
 
   container.innerHTML = '';
+  const formEl = container.closest('.auth-form1');
+  const parentWidth = Number(container.parentElement?.clientWidth || 0);
+  const formWidth = Number(formEl?.clientWidth || 0);
+  const baseWidth = Math.max(parentWidth, formWidth ? formWidth - 28 : 0, container.clientWidth || 0);
+  const computedWidth = Math.max(180, Math.min(280, baseWidth || 280));
+  container.style.width = `${computedWidth}px`;
   window.google.accounts.id.renderButton(container, {
     type: 'standard',
     shape: 'pill',
     theme: 'outline',
     text: 'continue_with',
     size: 'large',
-    width: 280,
+    width: computedWidth,
   });
   return true;
 }

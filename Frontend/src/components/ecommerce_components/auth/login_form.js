@@ -45,7 +45,7 @@ export default function LoginForm(root, data = {}) {
 
         <div style="margin-top:14px; text-align:center; color:#777; letter-spacing:0.6px;">------or--------</div>
 
-        <div class="google-auth-wrap" style="margin-top:12px; display:flex; justify-content:center;">
+        <div class="google-auth-wrap">
           <div id="googleLoginBtn"></div>
         </div>
         <small id="googleLoginHint" style="display:block; text-align:center; margin-top:6px; color:#666;"></small>
@@ -53,8 +53,8 @@ export default function LoginForm(root, data = {}) {
         <p style="margin-top:14px;">Don't have an account? <a href="${signupPath}">Sign up</a></p>
         <p>Forgot Password? <a href="#" class="forgot-password-link">Click Here</a></p>
 
-        <div class="recaptcha-wrap" style="display:flex; margin-top:14px; justify-content:center;">
-          <div id="recaptchaLoginBox" style="min-height:78px; min-width:304px;"></div>
+        <div class="recaptcha-wrap">
+          <div id="recaptchaLoginBox"></div>
         </div>
         <small id="recaptchaLoginHint" style="display:block; text-align:center; margin-top:6px; color:#666;"></small>
       </form>
@@ -125,7 +125,7 @@ export default function LoginForm(root, data = {}) {
       });
     } catch (err) {
       if (googleLoginHint) {
-        googleLoginHint.textContent = `Google button error: ${err?.message || 'Unknown error'}`;
+        googleLoginHint.textContent = '';
       }
       console.error('Google button render error:', err);
     }

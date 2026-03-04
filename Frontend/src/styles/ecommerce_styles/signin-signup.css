@@ -42,6 +42,47 @@
   animation: fadeIn 0.6s ease;
 }
 
+.google-auth-wrap,
+.recaptcha-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+.google-auth-wrap {
+  margin-top: 12px;
+  overflow: hidden;
+}
+
+.recaptcha-wrap {
+  margin-top: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+#googleLoginBtn,
+#googleSignupBtn {
+  width: 100%;
+  max-width: 280px;
+  min-width: 0;
+  display: flex;
+  justify-content: center;
+  margin: 0 auto;
+}
+
+#recaptchaLoginBox,
+#recaptchaSignupBox {
+  min-height: 78px;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  display: flex;
+  justify-content: center;
+  margin: 0 auto;
+}
+
 .auth-form1 input {
   width: 100%;
   padding: 12px 14px;
@@ -99,4 +140,36 @@
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 480px) {
+  .auth-section {
+    padding: 96px 12px 36px;
+  }
+
+  .auth-form1 {
+    padding: 22px 14px;
+    border-radius: 14px;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  #googleLoginBtn,
+  #googleSignupBtn {
+    max-width: 100%;
+    transform: scale(0.92);
+    transform-origin: top center;
+    min-height: 36px;
+  }
+
+  #recaptchaLoginBox,
+  #recaptchaSignupBox {
+    min-height: 72px;
+  }
+
+  #recaptchaLoginBox > div,
+  #recaptchaSignupBox > div {
+    transform: scale(0.86);
+    transform-origin: top center;
+  }
 }

@@ -36,15 +36,15 @@ export default function Signup(root, data = {}) {
 
         <div style="margin-top:14px; text-align:center; color:#777; letter-spacing:0.6px;">------or--------</div>
 
-        <div class="google-auth-wrap" style="margin-top:12px; display:flex; justify-content:center;">
+        <div class="google-auth-wrap">
           <div id="googleSignupBtn"></div>
         </div>
         <small id="googleSignupHint" style="display:block; text-align:center; margin-top:6px; color:#666;"></small>
 
         <p style="margin-top:14px;">Already have an account? <a href="${signinPath}">Login</a></p>
 
-        <div class="recaptcha-wrap" style="display:flex; margin-top:14px; justify-content:center;">
-          <div id="recaptchaSignupBox" style="min-height:78px; min-width:304px;"></div>
+        <div class="recaptcha-wrap">
+          <div id="recaptchaSignupBox"></div>
         </div>
         <small id="recaptchaSignupHint" style="display:block; text-align:center; margin-top:6px; color:#666;"></small>
       </form>
@@ -105,7 +105,7 @@ export default function Signup(root, data = {}) {
       });
     } catch (err) {
       if (googleSignupHint) {
-        googleSignupHint.textContent = `Google button error: ${err?.message || 'Unknown error'}`;
+        googleSignupHint.textContent = '';
       }
       console.error('Signup Google button render error:', err);
     }
