@@ -23,7 +23,7 @@ class ThreadController {
             return res.status(200).json(threads);
         } catch (error) {
             console.error('Error fetching threads:', error);
-            return res.status(500).json({ error: 'Internal server error' });
+            return res.status(200).json([]);
         }
     }
 

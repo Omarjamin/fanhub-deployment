@@ -1,6 +1,17 @@
 import api from "../api.js";
 
-const BASE_V1 = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
+function resolveApiV1Base() {
+  const raw = String(import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1")
+    .trim()
+    .replace(/\/$/, "");
+  // Defensive: if env already points to /bini or /ecommerce, normalize back to /v1 root.
+  if (/\/bini$/i.test(raw) || /\/ecommerce$/i.test(raw)) {
+    return raw.replace(/\/(bini|ecommerce)$/i, "");
+  }
+  return raw;
+}
+
+const BASE_V1 = resolveApiV1Base();
 
 function normalizeThread(raw) {
   const isPinned = Boolean(raw?.isPinned ?? raw?.is_pinned ?? raw?.pinned ?? false);

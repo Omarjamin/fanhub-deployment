@@ -15,10 +15,7 @@ function isCommunityPlatformRoute(pathname = "") {
 }
 
 function resolveBaseUrl() {
-  if (typeof window !== "undefined" && isCommunityPlatformRoute(window.location?.pathname || "")) {
-    return API_V1_BASE;
-  }
-  return `${API_V1_BASE}/ecommerce`;
+  return API_V1_BASE;
 }
 
 function shouldPrefixEcommerce(url = "") {
