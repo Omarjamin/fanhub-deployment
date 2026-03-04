@@ -1,4 +1,5 @@
 import RevenueModel from '../../../Models/mainAdmin_model/Revenue-Model.js';
+import OrdersModel from '../../../Models/mainAdmin_model/Orders-Model.js';
 import { getDBNamesByCommunityType } from '../../../Models/mainAdmin_model/site-model.js';
 import { connect, resolveCommunityContext } from '../../../core/database.js';
 import { resolveSiteSlug } from '../../../utils/site-scope.js';
@@ -12,6 +13,7 @@ const debugLog = (scope, payload) => {
 class DashboardController {
     constructor() {
         this.revenueModel = new RevenueModel();
+        this.ordersModel = new OrdersModel();
         this.lowStockThreshold = Number(process.env.LOW_STOCK_THRESHOLD || 5);
     }
 
@@ -266,6 +268,46 @@ class DashboardController {
                 const tb = new Date(b.created_at || `${b.date || ''} ${b.time || ''}`).getTime() || 0;
                 return tb - ta;
             });
+
+            // Hard fallback for defense/demo stability:
+            // if daily_revenue stream is empty, derive rows from completed orders.
+            if (!mergedRevenue.length) {
+                const completedOrders = await this.ordersModel.getOrdersForCommunity(
+                    communityType,
+                    'completed',
+                );
+                debugLog('getRevenueByCommunity:orders-fallback-source', {
+                    communityType,
+                    siteName,
+                    count: Array.isArray(completedOrders) ? completedOrders.length : 0,
+                });
+
+                const fallbackRows = (completedOrders || []).map((order) => {
+                    const createdAt = order?.created_at || null;
+                    const createdDate = createdAt ? new Date(createdAt) : null;
+                    const isoDate = createdDate && !Number.isNaN(createdDate.getTime())
+                        ? createdDate.toISOString().slice(0, 10)
+                        : '';
+                    const isoTime = createdDate && !Number.isNaN(createdDate.getTime())
+                        ? createdDate.toTimeString().slice(0, 8)
+                        : '';
+
+                    return {
+                        order_id: order?.order_id || null,
+                        date: isoDate,
+                        time: isoTime,
+                        total_amount: Number(order?.total || 0),
+                        created_at: createdAt,
+                    };
+                });
+
+                mergedRevenue.push(...fallbackRows);
+                mergedRevenue.sort((a, b) => {
+                    const ta = new Date(a.created_at || `${a.date || ''} ${a.time || ''}`).getTime() || 0;
+                    const tb = new Date(b.created_at || `${b.date || ''} ${b.time || ''}`).getTime() || 0;
+                    return tb - ta;
+                });
+            }
             debugLog('getRevenueByCommunity:done', {
                 communityType,
                 siteName,
