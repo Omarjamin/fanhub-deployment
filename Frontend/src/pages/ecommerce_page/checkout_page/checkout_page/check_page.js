@@ -18,7 +18,10 @@ let checkoutInitialized = false;
 export default async function Checkout() {
   const { navigation, main, footer} = Layouts(this.root);
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
-  const communityType = pathParts[0] === 'fanhub' && pathParts[1] ? pathParts[1] : '';
+  const communityType =
+    pathParts[0] === 'fanhub'
+      ? (pathParts[1] === 'community-platform' ? (pathParts[2] || '') : (pathParts[1] || ''))
+      : '';
   const shopPath = communityType ? `/fanhub/${communityType}/shop` : '/shop';
 
   Navigation(navigation); 

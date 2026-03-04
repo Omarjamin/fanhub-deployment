@@ -192,8 +192,9 @@ async function loadCartItems(modal) {
 
 
         const checkoutBtn = modal.querySelector('.checkout-button');
-
-        checkoutBtn.addEventListener('click', async () => {
+        if (!checkoutBtn.hasAttribute('data-handler-attached')) {
+            checkoutBtn.setAttribute('data-handler-attached', 'true');
+            checkoutBtn.addEventListener('click', async () => {
             const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
             let communityType = '';
             if (pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]) {
@@ -246,7 +247,8 @@ async function loadCartItems(modal) {
             setTimeout(() => {
                 window.location.href = checkoutPath;
             }, 300);
-        });
+            });
+        }
 
 
 

@@ -31,6 +31,9 @@ export async function addToCart(variantId, quantity = 1) {
   try {
     const parsedVariantId = toInt(variantId);
     const parsedQuantity = Math.max(1, toInt(quantity, 1));
+    if (!parsedVariantId || parsedVariantId <= 0) {
+      return { success: false, message: 'Invalid variant selected' };
+    }
 
     const cartItems = await getCart();
     const existingItem = cartItems.find((item) => toInt(item.variant_id) === parsedVariantId);

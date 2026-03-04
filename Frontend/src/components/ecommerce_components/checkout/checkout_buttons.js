@@ -34,7 +34,10 @@ export default function CheckoutButtons(root) {
                     const origText = nextBtn.textContent;
                     nextBtn.textContent = 'Placing order...';
                     const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
-                    const communityType = pathParts[0] === 'fanhub' ? pathParts[1] : '';
+                    const communityType =
+                        pathParts[0] === 'fanhub'
+                            ? (pathParts[1] === 'community-platform' ? (pathParts[2] || '') : (pathParts[1] || ''))
+                            : '';
                     placeOrder().then(result => {
                         if (result && result.success) {
                             // redirect to confirmation with order id if available

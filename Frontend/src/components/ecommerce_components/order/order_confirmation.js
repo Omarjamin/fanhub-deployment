@@ -83,14 +83,18 @@ export default function OrderConfirmation(payload = null) {
       } else {
         // Try to fetch latest order from API as fallback
         try {
-          const response = await fetch(api('/orders/latest'), {
+          const response = await fetch(api('/orders/user'), {
             method: 'GET',
             headers: authHeaders()
           });
           
           if (response.ok) {
-            order = await response.json();
-            console.log('Using API order data:', order);
+            const result = await response.json();
+            const orders = result.orders || result.data || result;
+            if (Array.isArray(orders) && orders.length > 0) {
+              order = orders[0];
+              console.log('Using latest order from API:', order);
+            }
           }
         } catch (apiError) {
           console.log('API fetch failed, using demo data');

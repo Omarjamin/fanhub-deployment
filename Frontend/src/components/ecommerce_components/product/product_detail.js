@@ -14,7 +14,13 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
 
     const parts = String(window.location.pathname || '').split('/').filter(Boolean);
     const communityType = String(
-      explicitCommunityType || (parts[0] === 'fanhub' ? parts[1] : '') || ''
+      explicitCommunityType ||
+      (
+        parts[0] === 'fanhub'
+          ? (parts[1] === 'community-platform' ? parts[2] : parts[1])
+          : ''
+      ) ||
+      ''
     ).trim().toLowerCase();
 
     const { product, variants } = await fetchProductDetails(productId, communityType);

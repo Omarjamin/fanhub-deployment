@@ -28,14 +28,21 @@ export async function placeOrder() {
     }
    
 
+    const normalizedItems = checkoutItems.map(item => ({
+      product_id: toNumber(item.product_id, 0),
+      variant_id: toNumber(item.variant_id ?? item.variantId, 0),
+      quantity: toNumber(item.quantity, 1),
+      price: toNumber(item.price, 0)
+    }));
+
+    const computedSubtotal = normalizedItems.reduce(
+      (sum, item) => sum + (toNumber(item.price, 0) * toNumber(item.quantity, 0)),
+      0,
+    );
+
     // Prepare order payload
     const orderPayload = {
-      items: checkoutItems.map(item => ({
-        product_id: toNumber(item.product_id, 0),
-        variant_id: toNumber(item.variant_id ?? item.variantId, 0),
-        quantity: toNumber(item.quantity, 1),
-        price: toNumber(item.price, 0)
-      })),
+      items: normalizedItems,
       shipping_address: {
         street: shippingData.street || '',
         region: shippingData.region || '',
@@ -45,9 +52,9 @@ export async function placeOrder() {
         zip: shippingData.zip || ''
       },
       payment_method: paymentData.method || 'cod',
-      subtotal: toNumber(checkoutSummary?.subtotal, 0),
+      subtotal: toNumber(checkoutSummary?.subtotal, computedSubtotal),
       shipping_fee: toNumber(shippingFee, 0),
-      total: toNumber(checkoutSummary?.total, 0),
+      total: toNumber(checkoutSummary?.total, computedSubtotal),
       status: 'pending'
     };
 

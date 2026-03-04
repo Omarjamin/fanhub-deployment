@@ -9,7 +9,10 @@ function resolveItemWeightGrams(item) {
 export default function OrderReview(root) {
     try {
         const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
-        const communityType = pathParts[0] === 'fanhub' && pathParts[1] ? pathParts[1] : '';
+        const communityType =
+            pathParts[0] === 'fanhub'
+                ? (pathParts[1] === 'community-platform' ? (pathParts[2] || '') : (pathParts[1] || ''))
+                : '';
 
         /* =========================
            1. READ SESSION DATA

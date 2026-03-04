@@ -1,7 +1,6 @@
 import express from 'express';
 import orderController from '../../Controllers/v1/ecommerce_controllers/order_controller.js';
 import authenticate from '../../Middlewares/authentication.js';
-import authorize from '../../Middlewares/authorization.js';
 
 const orderrouter = express.Router();
 
@@ -19,5 +18,7 @@ orderrouter.get('/:id', authenticate, orderController.getOrderById.bind(orderCon
 
 // Cancel order
 orderrouter.put('/:id/cancel', authenticate, orderController.cancelOrder.bind(orderController));
+// Delete order
+orderrouter.delete('/:id', authenticate, orderController.deleteOrder.bind(orderController));
 
 export default orderrouter;

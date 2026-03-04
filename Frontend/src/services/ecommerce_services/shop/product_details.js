@@ -11,6 +11,9 @@ function resolveSiteSlug(explicitSiteSlug = '') {
   if (fromStorage) return fromStorage;
 
   const parts = String(window?.location?.pathname || '').split('/').filter(Boolean);
+  if (parts[0] === 'fanhub' && parts[1] === 'community-platform' && parts[2]) {
+    return setSiteSlug(parts[2]);
+  }
   if (parts[0] === 'fanhub' && parts[1]) return setSiteSlug(parts[1]);
 
   return '';
