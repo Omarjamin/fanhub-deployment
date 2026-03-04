@@ -54,7 +54,10 @@ export function getAdminHeaders() {
   const token = getAdminToken();
   const selectedSite = resolveSelectedAdminSite();
   if (token) headers.Authorization = `Bearer ${token}`;
-  if (selectedSite) headers['x-site-slug'] = selectedSite;
+  if (selectedSite) {
+    headers['x-site-slug'] = selectedSite;
+    headers['x-community-type'] = selectedSite;
+  }
   return headers;
 }
 

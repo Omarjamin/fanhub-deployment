@@ -5,6 +5,44 @@ export default function AdminLoginPage() {
   root.innerHTML = '';
 
   const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/admin';
+  const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
+
+  function normalizeAdminBase(rawBase) {
+    const trimmed = String(rawBase || '').trim().replace(/\/+$/, '');
+    if (!trimmed) return 'https://fanhub-deployment-production.up.railway.app/v1/admin';
+    return /\/admin$/i.test(trimmed) ? trimmed : `${trimmed}/admin`;
+  }
+
+  function resolveAdminSiteSlug() {
+    const fromStorage = String(
+      sessionStorage.getItem('admin_selected_site') ||
+      sessionStorage.getItem('site_slug') ||
+      sessionStorage.getItem('community_type') ||
+      '',
+    ).trim().toLowerCase();
+    if (fromStorage && fromStorage !== 'all' && fromStorage !== 'community-platform') {
+      return fromStorage;
+    }
+
+    const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
+    if (pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]) {
+      return String(pathParts[2]).trim().toLowerCase();
+    }
+    if (pathParts[0] === 'fanhub' && pathParts[1] && pathParts[1] !== 'community-platform') {
+      return String(pathParts[1]).trim().toLowerCase();
+    }
+    return '';
+  }
+
+  async function safeParseResponse(response) {
+    const raw = await response.text().catch(() => '');
+    if (!raw) return {};
+    try {
+      return JSON.parse(raw);
+    } catch (_) {
+      return { message: raw };
+    }
+  }
 
   const loginContainer = document.createElement('div');
   loginContainer.className = 'admin-login-container';
@@ -64,26 +102,28 @@ export default function AdminLoginPage() {
     errorDiv.classList.add('hidden');
 
     try {
-      const response = await fetch(`${ADMIN_API_BASE}/login`, {
+      const adminBase = normalizeAdminBase(ADMIN_API_BASE);
+      const scopedSite = resolveAdminSiteSlug();
+      const response = await fetch(`${adminBase}/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          apikey: API_KEY,
+          ...(scopedSite ? { 'x-site-slug': scopedSite, 'x-community-type': scopedSite } : {}),
         },
         body: JSON.stringify({ email, password })
       });
 
-      const data = await response.json();
+      const data = await safeParseResponse(response);
 
-      if (data.success) {
-        const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
-        // Expected public site path: /fanhub/:siteSlug
-        const siteSlug =
-          pathParts[0] === 'fanhub' && pathParts[1]
-            ? String(pathParts[1]).trim().toLowerCase()
-            : '';
+      if (response.ok && data.success) {
+        const siteSlug = resolveAdminSiteSlug();
 
         // Store token in sessionStorage (site/session scoped)
         sessionStorage.setItem('adminAuthToken', data.data.token);
+        if (siteSlug) {
+          sessionStorage.setItem(`authToken:${siteSlug}`, data.data.token);
+        }
         sessionStorage.setItem('adminUser', JSON.stringify({
           id: data.data.id,
           email: data.data.email
@@ -97,11 +137,11 @@ export default function AdminLoginPage() {
         // Redirect to admin dashboard
         window.location.href = '/subadmin/dashboard';
       } else {
-        showError(data.message || 'Login failed');
+        showError(data?.message || data?.error || `Login failed (HTTP ${response.status})`);
       }
     } catch (error) {
       console.error('Login error:', error);
-      showError('Network error. Please try again.');
+      showError(error?.message || 'Network error. Please try again.');
     } finally {
       // Hide loading state
       loginBtn.disabled = false;
