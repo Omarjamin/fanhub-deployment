@@ -16,13 +16,92 @@ class ShopModel {
     try {
       this.db = await connect(community_type);
       const ctx = await resolveCommunityContext(community_type);
-      this.activeCommunityId = Number(ctx?.community_id || 0) || null;
+      const scoped = String(community_type || '').trim().toLowerCase();
+      const mappedCommunityId = Number(ctx?.community_id || 0) || null;
+      this.activeCommunityId = await this.resolveEffectiveCommunityId(scoped, mappedCommunityId);
+      console.log('[shop_model] scope resolved', {
+        site: scoped,
+        mappedCommunityId,
+        effectiveCommunityId: this.activeCommunityId,
+      });
+      if (scoped && !this.activeCommunityId) {
+        const scopeErr = new Error(`Site/community not found for "${scoped}"`);
+        scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
+        throw scopeErr;
+      }
     } catch (err) {
       console.error('shop_model.ensureConnection failed:', err?.message || err);
       this.db = await connect();
       this.activeCommunityId = null;
     }
     return this.db;
+  }
+  buildSlugVariants(value = '') {
+    const scoped = String(value || '').trim().toLowerCase();
+    if (!scoped) return [];
+    const set = new Set([scoped]);
+    const withoutWebsite = scoped.replace(/-website$/i, '');
+    if (withoutWebsite) set.add(withoutWebsite);
+    if (!/-website$/i.test(scoped)) set.add(`${scoped}-website`);
+    return Array.from(set).filter(Boolean);
+  }
+  async tableExists(tableName) {
+    try {
+      const [rows] = await this.db.query(
+        `SELECT COUNT(*) AS count
+         FROM INFORMATION_SCHEMA.TABLES
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = ?
+         LIMIT 1`,
+        [tableName],
+      );
+      return Number(rows?.[0]?.count || 0) > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+  async resolveEffectiveCommunityId(siteSlug = '', mappedCommunityId = null) {
+    const scoped = String(siteSlug || '').trim().toLowerCase();
+    const primaryId = Number(mappedCommunityId || 0) || null;
+    if (!scoped) return primaryId;
+
+    const hasCommunitiesTable = await this.tableExists('communities');
+    if (!hasCommunitiesTable) return primaryId;
+
+    const variants = this.buildSlugVariants(scoped);
+    if (!variants.length) return primaryId;
+
+    const [columns] = await this.db.query(`SHOW COLUMNS FROM communities`);
+    const colSet = new Set((columns || []).map((c) => String(c?.Field || '').trim().toLowerCase()));
+    if (!colSet.has('community_id')) return primaryId;
+
+    const lookupCols = ['community_type', 'site_slug', 'domain', 'site_name', 'name']
+      .filter((col) => colSet.has(col));
+    if (!lookupCols.length) return primaryId;
+
+    const placeholders = variants.map(() => '?').join(', ');
+    const params = [...variants];
+    const where = lookupCols.map((col) => `LOWER(TRIM(${col})) IN (${placeholders})`).join(' OR ');
+    const allParams = lookupCols.flatMap(() => params);
+
+    const [rows] = await this.db.query(
+      `
+      SELECT community_id
+      FROM communities
+      WHERE ${where}
+      ORDER BY community_id ASC
+      LIMIT 20
+      `,
+      allParams,
+    );
+
+    const ids = Array.from(
+      new Set((rows || []).map((r) => Number(r?.community_id || 0)).filter((n) => Number.isFinite(n) && n > 0)),
+    );
+
+    if (!ids.length) return primaryId;
+    if (primaryId && ids.includes(primaryId)) return primaryId;
+    return ids[0];
   }
   async hasColumn(tableName, columnName) {
     const key = `${tableName}:${columnName}`.toLowerCase();
@@ -48,8 +127,11 @@ class ShopModel {
         const db = await this.ensureConnection(community_type);
         const hasGroupCommunityId = await this.hasColumn('collections', 'group_community_id');
         const hasCommunityId = await this.hasColumn('collections', 'community_id');
-        const scoped = this.activeCommunityId && (hasGroupCommunityId || hasCommunityId);
+        const scoped = Boolean(this.activeCommunityId && (hasGroupCommunityId || hasCommunityId));
         const scopeColumn = hasGroupCommunityId ? 'group_community_id' : 'community_id';
+        if ((hasGroupCommunityId || hasCommunityId) && !scoped) {
+          return [];
+        }
         const query = `
           SELECT *
           FROM collections
@@ -72,9 +154,12 @@ class ShopModel {
     const hasProductsCommunityId = await this.hasColumn('products', 'community_id');
     const hasCollectionsGroupCommunityId = await this.hasColumn('collections', 'group_community_id');
     const hasCollectionsCommunityId = await this.hasColumn('collections', 'community_id');
-    const scopedByProducts = this.activeCommunityId && hasProductsCommunityId;
-    const scopedByCollections = this.activeCommunityId && (hasCollectionsGroupCommunityId || hasCollectionsCommunityId);
+    const scopedByProducts = Boolean(this.activeCommunityId && hasProductsCommunityId);
+    const scopedByCollections = Boolean(this.activeCommunityId && (hasCollectionsGroupCommunityId || hasCollectionsCommunityId));
     const collectionScopeColumn = hasCollectionsGroupCommunityId ? 'group_community_id' : 'community_id';
+    if ((hasProductsCommunityId || hasCollectionsGroupCommunityId || hasCollectionsCommunityId) && !this.activeCommunityId) {
+      return [];
+    }
     const query = `
       SELECT *
       FROM products
@@ -216,9 +301,12 @@ class ShopModel {
     const hasProductsCommunityId = await this.hasColumn('products', 'community_id');
     const hasCollectionsGroupCommunityId = await this.hasColumn('collections', 'group_community_id');
     const hasCollectionsCommunityId = await this.hasColumn('collections', 'community_id');
-    const scopedByProducts = this.activeCommunityId && hasProductsCommunityId;
-    const scopedByCollections = this.activeCommunityId && (hasCollectionsGroupCommunityId || hasCollectionsCommunityId);
+    const scopedByProducts = Boolean(this.activeCommunityId && hasProductsCommunityId);
+    const scopedByCollections = Boolean(this.activeCommunityId && (hasCollectionsGroupCommunityId || hasCollectionsCommunityId));
     const collectionScopeColumn = hasCollectionsGroupCommunityId ? 'group_community_id' : 'community_id';
+    if ((hasProductsCommunityId || hasCollectionsGroupCommunityId || hasCollectionsCommunityId) && !this.activeCommunityId) {
+      return [];
+    }
     const query = `
       SELECT *
       FROM products
