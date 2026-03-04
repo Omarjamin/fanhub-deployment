@@ -4,6 +4,7 @@
   --primary-color: #000000;   /* default  button*/
   --secondary-color: #ffffff; /* default for bg */ 
   --accent-color: #ff0000;    /* default  then font  and border */
+  --title-pink: #ff5bb3;
   --secondary-background: var(--secondary-color);
   --hover-background: var(--accent-color);
   --hover-text-color: #ffffff;
