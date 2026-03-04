@@ -4,28 +4,81 @@ function normalize(value) {
   return String(value || '').trim().toLowerCase();
 }
 
+async function hasTable(adminDB, tableName) {
+  const [rows] = await adminDB.query('SHOW TABLES LIKE ?', [tableName]);
+  return Array.isArray(rows) && rows.length > 0;
+}
+
 async function fetchSites(adminDB, siteKey = 'all', siteName = '') {
   const key = normalize(siteKey);
   const name = normalize(siteName);
   const where = [];
   const params = [];
+  const hasCommunities = await hasTable(adminDB, 'communities');
+  const hasCommunityTable = await hasTable(adminDB, 'community_table');
+  const joins = [];
+
+  if (hasCommunities) {
+    joins.push('LEFT JOIN communities c ON c.community_id = s.community_id');
+  }
+  if (hasCommunityTable) {
+    joins.push('LEFT JOIN community_table ct ON ct.community_id = s.community_id');
+  }
 
   if (key && key !== 'all') {
-    where.push('(LOWER(TRIM(domain)) = ? OR LOWER(TRIM(site_name)) = ?)');
+    const predicates = [
+      'LOWER(TRIM(s.domain)) = ?',
+      'LOWER(TRIM(s.site_name)) = ?',
+    ];
     params.push(key, key);
+
+    if (hasCommunities) {
+      predicates.push('LOWER(TRIM(c.name)) = ?');
+      params.push(key);
+    }
+
+    if (hasCommunityTable) {
+      predicates.push('LOWER(TRIM(ct.domain)) = ?');
+      predicates.push('LOWER(TRIM(ct.site_name)) = ?');
+      params.push(key, key);
+    }
+
+    if (key.endsWith('-website')) {
+      const trimmedKey = key.replace(/-website$/, '');
+      if (trimmedKey) {
+        predicates.push('LOWER(TRIM(s.domain)) = ?');
+        predicates.push('LOWER(TRIM(s.site_name)) = ?');
+        params.push(trimmedKey, trimmedKey);
+        if (hasCommunities) {
+          predicates.push('LOWER(TRIM(c.name)) = ?');
+          params.push(trimmedKey);
+        }
+      }
+    } else {
+      const websiteKey = `${key}-website`;
+      predicates.push('LOWER(TRIM(s.domain)) = ?');
+      params.push(websiteKey);
+      if (hasCommunityTable) {
+        predicates.push('LOWER(TRIM(ct.domain)) = ?');
+        params.push(websiteKey);
+      }
+    }
+
+    where.push(`(${predicates.join(' OR ')})`);
   }
   if (name && name !== 'all') {
-    where.push('LOWER(TRIM(site_name)) = ?');
+    where.push('LOWER(TRIM(s.site_name)) = ?');
     params.push(name);
   }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
   const [rows] = await adminDB.query(
     `
-      SELECT site_id, site_name, domain, status
-      FROM sites
+      SELECT DISTINCT s.site_id, s.site_name, s.domain, s.status
+      FROM sites s
+      ${joins.join('\n      ')}
       ${whereSql}
-      ORDER BY created_at DESC
+      ORDER BY s.created_at DESC
     `,
     params,
   );

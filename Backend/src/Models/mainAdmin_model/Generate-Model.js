@@ -496,8 +496,22 @@ class GenerateModel {
     if (!hasCommunityTable) return [];
 
     const hasCommunities = await this.hasTable('communities');
+    const hasSites = await this.hasTable('sites');
     let communityJoin = '';
+    let siteJoin = '';
     let communityKeySql = "LOWER(TRIM(COALESCE(NULLIF(ct.domain, ''), NULLIF(ct.site_name, ''))))";
+    let siteNameSql = "COALESCE(NULLIF(TRIM(ct.site_name), ''), NULLIF(TRIM(ct.domain), ''), 'community')";
+    let statusSql = "LOWER(TRIM(COALESCE(ct.status, 'active')))";
+
+    if (hasSites) {
+      siteJoin = 'LEFT JOIN sites s ON s.site_id = ct.community_id';
+      communityKeySql =
+        "LOWER(TRIM(COALESCE(NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, ''))))";
+      siteNameSql =
+        "COALESCE(NULLIF(TRIM(s.site_name), ''), NULLIF(TRIM(ct.site_name), ''), NULLIF(TRIM(ct.domain), ''), 'community')";
+      statusSql = "LOWER(TRIM(COALESCE(s.status, ct.status, 'active')))";
+    }
+
     if (hasCommunities) {
       const communityCols = await this.getTableColumns('communities');
       const communityPk = communityCols.has('community_id')
@@ -508,7 +522,7 @@ class GenerateModel {
         communityJoin = `LEFT JOIN communities c ON c.${communityPk} = ct.community_id`;
         if (hasCommunityName) {
           communityKeySql =
-            "LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, ''))))";
+            "LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, ''))))";
         }
       }
     }
@@ -517,10 +531,11 @@ class GenerateModel {
       `
         SELECT
           ct.community_id,
-          COALESCE(NULLIF(TRIM(ct.site_name), ''), NULLIF(TRIM(ct.domain), ''), 'community') AS site_name,
+          ${siteNameSql} AS site_name,
           ${communityKeySql} AS domain,
-          LOWER(TRIM(COALESCE(ct.status, 'active'))) AS status
+          ${statusSql} AS status
         FROM community_table ct
+        ${siteJoin}
         ${communityJoin}
         ORDER BY ct.community_id ASC
       `,
@@ -530,7 +545,10 @@ class GenerateModel {
       .map((row) => ({
         community_id: Number(row?.community_id || 0) || null,
         site_name: String(row?.site_name || '').trim(),
-        domain: String(row?.domain || '').trim().toLowerCase(),
+        domain: String(row?.domain || '')
+          .trim()
+          .toLowerCase()
+          .replace(/-website$/, ''),
         status: String(row?.status || 'active').trim().toLowerCase(),
       }))
       .filter((row) => row.community_id && row.domain);
