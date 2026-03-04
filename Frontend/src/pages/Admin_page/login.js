@@ -43,22 +43,28 @@ export default function AdminLoginPage() {
   }
 
   function resolveAdminSiteSlug() {
-    const fromStorage = String(
+    const normalize = (value) => String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/^\/+|\/+$/g, '')
+      .replace(/-website$/, '');
+
+    const fromStorage = normalize(String(
       sessionStorage.getItem('admin_selected_site') ||
       sessionStorage.getItem('site_slug') ||
       sessionStorage.getItem('community_type') ||
       '',
-    ).trim().toLowerCase();
+    ));
     if (fromStorage && fromStorage !== 'all' && fromStorage !== 'community-platform') {
       return fromStorage;
     }
 
     const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
     if (pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]) {
-      return String(pathParts[2]).trim().toLowerCase();
+      return normalize(pathParts[2]);
     }
     if (pathParts[0] === 'fanhub' && pathParts[1] && pathParts[1] !== 'community-platform') {
-      return String(pathParts[1]).trim().toLowerCase();
+      return normalize(pathParts[1]);
     }
     return '';
   }

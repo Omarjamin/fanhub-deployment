@@ -2,21 +2,34 @@ const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-dep
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 const ADMIN_SELECTED_SITE_KEY = 'admin_selected_site';
 
+export function normalizeAdminSiteSlug(value, { allowAll = false } = {}) {
+  const normalized = decodeURIComponent(String(value || ''))
+    .trim()
+    .toLowerCase()
+    .replace(/^\/+|\/+$/g, '')
+    .replace(/-website$/, '');
+
+  if (!normalized) return '';
+  if (normalized === 'all') return allowAll ? 'all' : '';
+  if (normalized === 'community-platform') return '';
+  return normalized;
+}
+
 export function resolveSelectedAdminSite() {
-  const fromStorage = String(
+  const fromStorage = normalizeAdminSiteSlug(String(
     sessionStorage.getItem(ADMIN_SELECTED_SITE_KEY) ||
     sessionStorage.getItem('site_slug') ||
     ''
-  ).trim().toLowerCase();
+  ));
 
-  if (fromStorage && fromStorage !== 'all') return fromStorage;
+  if (fromStorage) return fromStorage;
 
   const parts = String(window?.location?.pathname || '').split('/').filter(Boolean);
   if (parts[0] === 'fanhub' && parts[1] === 'community-platform' && parts[2]) {
-    return String(parts[2]).trim().toLowerCase();
+    return normalizeAdminSiteSlug(parts[2]);
   }
   if (parts[0] === 'fanhub' && parts[1] && parts[1] !== 'community-platform') {
-    return String(parts[1]).trim().toLowerCase();
+    return normalizeAdminSiteSlug(parts[1]);
   }
 
   return '';
@@ -25,10 +38,10 @@ export function resolveSelectedAdminSite() {
 export function resolveAdminSiteFromPath() {
   const parts = String(window?.location?.pathname || '').split('/').filter(Boolean);
   if (parts[0] === 'fanhub' && parts[1] && parts[1] !== 'community-platform') {
-    return String(parts[1]).trim().toLowerCase();
+    return normalizeAdminSiteSlug(parts[1]);
   }
   if (parts[0] === 'fanhub' && parts[1] === 'community-platform' && parts[2]) {
-    return String(parts[2]).trim().toLowerCase();
+    return normalizeAdminSiteSlug(parts[2]);
   }
   return '';
 }
@@ -188,7 +201,9 @@ export async function fetchAdminSites() {
   const seen = new Set();
   return rows
     .map((row, index) => {
-      const domain = String(row?.domain || '').trim().toLowerCase();
+      const domain = normalizeAdminSiteSlug(
+        row?.domain || row?.community_type || row?.community_name || row?.site_name || '',
+      );
       const siteName = String(row?.site_name || row?.name || row?.community_name || domain).trim();
       if (!domain || seen.has(domain)) return null;
       seen.add(domain);
@@ -215,6 +230,5 @@ export async function fetchAdminSites() {
     })
     .filter(Boolean);
 }
-
 
 
