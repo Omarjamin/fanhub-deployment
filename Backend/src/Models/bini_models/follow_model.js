@@ -73,7 +73,10 @@ class Follow {
     // Get suggested followers: users not yet followed by current user
     async getSuggestedFollowers(currentUserId, limit = 10, offset = 0) {
         if (!this.db) await this.connect();
+        const safeLimit = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(Number(limit), 50)) : 10;
+        const safeOffset = Number.isFinite(Number(offset)) ? Math.max(0, Number(offset)) : 0;
         const scoped = await this.getScopedCondition('follows', 'f');
+        const params = [currentUserId, currentUserId, ...scoped.params, safeLimit, safeOffset];
         const [rows] = await this.db.execute(
             `
             SELECT 
@@ -94,7 +97,7 @@ class Follow {
             LIMIT ?
             OFFSET ?
             `,
-            [currentUserId, currentUserId, ...scoped.params, limit, offset]
+            params,
         );
         return rows;
     }

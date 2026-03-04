@@ -10,6 +10,7 @@ const siteNameByDomainCache = {};
 let adminSiteColumnsCache = null;
 let communityTableEnsured = false;
 const poolHealthCache = new Map();
+const poolHealthLogCache = new Map();
 
 function isSingleDatabaseMode() {
   const explicitSingle = String(
@@ -111,7 +112,8 @@ async function isPoolHealthy(pool, cacheKey = "", ttlMs = 30000) {
   const key = String(cacheKey || "").trim().toLowerCase() || "default";
   const now = Date.now();
   const cached = poolHealthCache.get(key);
-  if (cached && now - cached.ts < ttlMs) {
+  const cachedTtl = cached?.ok ? ttlMs : Math.max(ttlMs, 120000);
+  if (cached && now - cached.ts < cachedTtl) {
     return Boolean(cached.ok);
   }
 
@@ -121,11 +123,15 @@ async function isPoolHealthy(pool, cacheKey = "", ttlMs = 30000) {
     return true;
   } catch (error) {
     poolHealthCache.set(key, { ok: false, ts: now });
-    console.error("[database] pool health check failed", {
-      key,
-      code: error?.code || "",
-      message: error?.message || String(error || ""),
-    });
+    const code = String(error?.code || "").trim();
+    const message = String(error?.message || error || "").trim();
+    const logKey = `${key}:${code}:${message}`;
+    const lastLogAt = Number(poolHealthLogCache.get(logKey) || 0);
+    if (now - lastLogAt > 180000) {
+      const level = code === "ECONNREFUSED" || /pool is closed/i.test(message) ? "warn" : "error";
+      console[level]("[database] pool health check failed", { key, code, message });
+      poolHealthLogCache.set(logKey, now);
+    }
     return false;
   }
 }

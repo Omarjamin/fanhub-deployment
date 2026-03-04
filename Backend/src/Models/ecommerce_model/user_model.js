@@ -198,11 +198,12 @@ class UserModel {
       const fullname = `${firstname} ${lastname}`;
       const db = await this.ensureConnection(community_type, site_slug);
       const columns = await this.getUserColumns();
+      const hasCommunityColumn = columns.has('community_id');
 
       const userColumns = ['email', 'fullname', 'password', 'profile_picture', 'google_id', 'auth_provider', 'failed_login_attempts'];
       const placeholders = ['?', '?', '?', '?', 'NULL', "'local'", '0'];
       const params = [email, fullname, hashedPassword, imageUrl || 'none'];
-      if (columns.has('community_id')) {
+      if (hasCommunityColumn) {
         if ((community_type || site_slug) && !this.activeCommunityId) {
           const scopeErr = new Error(`Site/community not found for "${community_type || site_slug}"`);
           scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
@@ -219,6 +220,19 @@ class UserModel {
       `;
 
       const [result] = await db.query(userQuery, params);
+
+      if (hasCommunityColumn && (community_type || site_slug)) {
+        const [verifyRows] = await db.query(
+          'SELECT community_id FROM users WHERE user_id = ? LIMIT 1',
+          [result.insertId],
+        );
+        const insertedCommunityId = Number(verifyRows?.[0]?.community_id || 0) || null;
+        if (!insertedCommunityId) {
+          const scopeErr = new Error(`Failed to persist community scope for "${community_type || site_slug}"`);
+          scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
+          throw scopeErr;
+        }
+      }
 
       return result.insertId;
     } catch (error) {
@@ -455,21 +469,38 @@ class UserModel {
 
   async findOrCreateGoogleUser({ email, fullname, imageUrl = '', googleId = '', community_type, site_slug }) {
     const db = await this.ensureConnection(community_type, site_slug);
+    const columns = await this.getUserColumns();
+    const hasCommunityColumn = columns.has('community_id');
     const existing =
       (await this.findUserByEmail(email, community_type, site_slug)) ||
       (await this.findUserByEmail(email, community_type, site_slug, { ignoreCommunity: true }));
 
     if (existing) {
-      await db.query(
+      if (hasCommunityColumn && (community_type || site_slug) && !this.activeCommunityId) {
+        const scopeErr = new Error(`Site/community not found for "${community_type || site_slug}"`);
+        scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
+        throw scopeErr;
+      }
+      const updateSql = hasCommunityColumn
+        ? `
+          UPDATE users
+          SET auth_provider = 'google',
+              google_id = COALESCE(NULLIF(google_id, ''), ?),
+              failed_login_attempts = 0,
+              community_id = COALESCE(community_id, ?)
+          WHERE user_id = ?
         `
+        : `
           UPDATE users
           SET auth_provider = 'google',
               google_id = COALESCE(NULLIF(google_id, ''), ?),
               failed_login_attempts = 0
           WHERE user_id = ?
-        `,
-        [googleId || null, existing.user_id],
-      );
+        `;
+      const updateParams = hasCommunityColumn
+        ? [googleId || null, this.activeCommunityId, existing.user_id]
+        : [googleId || null, existing.user_id];
+      await db.query(updateSql, updateParams);
 
       return {
         ...existing,
@@ -483,11 +514,10 @@ class UserModel {
     const safeImage = String(imageUrl || 'none').trim() || 'none';
 
     try {
-      const columns = await this.getUserColumns();
       const insertColumns = ['email', 'fullname', 'password', 'profile_picture', 'google_id', 'auth_provider', 'failed_login_attempts'];
       const insertPlaceholders = ['?', '?', '?', '?', '?', "'google'", '0'];
       const insertParams = [email, safeFullname, randomPassword, safeImage, googleId || null];
-      if (columns.has('community_id')) {
+      if (hasCommunityColumn) {
         if ((community_type || site_slug) && !this.activeCommunityId) {
           const scopeErr = new Error(`Site/community not found for "${community_type || site_slug}"`);
           scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
@@ -516,16 +546,31 @@ class UserModel {
       if (err?.code === 'ER_DUP_ENTRY' && String(err?.sqlMessage || '').toLowerCase().includes('users.email')) {
         const dupUser = await this.findUserByEmail(email, community_type, site_slug, { ignoreCommunity: true });
         if (dupUser?.user_id) {
-          await db.query(
+          if (hasCommunityColumn && (community_type || site_slug) && !this.activeCommunityId) {
+            const scopeErr = new Error(`Site/community not found for "${community_type || site_slug}"`);
+            scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
+            throw scopeErr;
+          }
+          const updateDupSql = hasCommunityColumn
+            ? `
+              UPDATE users
+              SET auth_provider = 'google',
+                  google_id = COALESCE(NULLIF(google_id, ''), ?),
+                  failed_login_attempts = 0,
+                  community_id = COALESCE(community_id, ?)
+              WHERE user_id = ?
             `
+            : `
               UPDATE users
               SET auth_provider = 'google',
                   google_id = COALESCE(NULLIF(google_id, ''), ?),
                   failed_login_attempts = 0
               WHERE user_id = ?
-            `,
-            [googleId || null, dupUser.user_id],
-          );
+            `;
+          const updateDupParams = hasCommunityColumn
+            ? [googleId || null, this.activeCommunityId, dupUser.user_id]
+            : [googleId || null, dupUser.user_id];
+          await db.query(updateDupSql, updateDupParams);
           return {
             ...dupUser,
             auth_provider: 'google',
@@ -537,11 +582,10 @@ class UserModel {
       if (err?.code === 'ER_BAD_NULL_ERROR' && String(err?.sqlMessage || '').toLowerCase().includes('username')) {
         const baseUsername = String(email || '').split('@')[0] || 'google_user';
         const username = `${baseUsername}_${Date.now().toString().slice(-6)}`;
-        const columns = await this.getUserColumns();
         const insertColumns = ['username', 'email', 'fullname', 'password', 'profile_picture', 'google_id', 'auth_provider', 'failed_login_attempts'];
         const insertPlaceholders = ['?', '?', '?', '?', '?', '?', "'google'", '0'];
         const insertParams = [username, email, safeFullname, randomPassword, safeImage, googleId || null];
-        if (columns.has('community_id')) {
+        if (hasCommunityColumn) {
           if ((community_type || site_slug) && !this.activeCommunityId) {
             const scopeErr = new Error(`Site/community not found for "${community_type || site_slug}"`);
             scopeErr.code = 'SITE_SCOPE_NOT_FOUND';

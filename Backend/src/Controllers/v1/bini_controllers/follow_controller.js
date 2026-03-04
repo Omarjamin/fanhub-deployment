@@ -17,8 +17,10 @@ class FollowController {
     // Get suggested followers
     async getSuggestedFollowers(req, res) {
         const currentUserId = res.locals.userId;
-        const limit = req.query.limit ? parseInt(req.query.limit) : 10;
-        const offset = req.query.offset ? parseInt(req.query.offset) : 0;
+        const parsedLimit = Number.parseInt(req.query.limit, 10);
+        const parsedOffset = Number.parseInt(req.query.offset, 10);
+        const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(parsedLimit, 50) : 10;
+        const offset = Number.isFinite(parsedOffset) && parsedOffset >= 0 ? parsedOffset : 0;
 
         if (!currentUserId) {
             return res.status(400).json({ error: 'Missing userId' });
