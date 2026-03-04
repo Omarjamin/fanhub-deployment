@@ -61,10 +61,11 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
   import SubAdminReports from './pages/Admin_page/Reports.js';
   import SubAdminThreads from './pages/Admin_page/Threads.js';
   import SubAdminLogin from './pages/Admin_page/login.js';
+  const DEFAULT_API_V1 = 'https://fanhub-deployment-production.up.railway.app/v1';
 
   // Keep runtime API config aligned with env; avoid hardcoded localhost in deployment.
   if (typeof window !== 'undefined') {
-    const apiV1 = String(import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+    const apiV1 = String(import.meta.env.VITE_API_URL || DEFAULT_API_V1).trim().replace(/\/$/, '');
     const apiOrigin = apiV1 ? new URL(apiV1).origin : '';
     if (apiV1) {
       window.__API_BASE__ = `${apiV1}/ecommerce`;

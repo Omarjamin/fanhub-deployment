@@ -27,6 +27,10 @@ SET time_zone = "+00:00";
 -- Table structure for table `carts`
 --
 
+CREATE DATABASE IF NOT EXISTS `bini` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `bini`;
+
+
 CREATE TABLE `carts` (
   `cart_id` int(11) NOT NULL,
   `user_id` int(11) NOT NULL,

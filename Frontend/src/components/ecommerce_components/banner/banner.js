@@ -4,12 +4,13 @@ const FALLBACK_VIDEO = {
   title: 'Cherry On Top',
   subtitle: 'Official Music Video',
 };
+const DEFAULT_API_V1 = 'https://fanhub-deployment-production.up.railway.app/v1';
 
 export default function Banner(root, data) {
   let latestVideo = FALLBACK_VIDEO;
   let moreVideos = [];
   const adminVideoUrl = data?.banner || '';
-  const baseV1 = String(import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+  const baseV1 = String(import.meta.env.VITE_API_URL || DEFAULT_API_V1).trim().replace(/\/$/, '');
   const endpoint = adminVideoUrl
     ? `${baseV1}/youtube/videos?videoUrl=${encodeURIComponent(adminVideoUrl)}`
     : `${baseV1}/youtube/videos`;

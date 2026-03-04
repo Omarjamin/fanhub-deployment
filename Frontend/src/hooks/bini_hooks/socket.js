@@ -1,11 +1,13 @@
 import { io } from "socket.io-client";
 import { getActiveSiteSlug, getSessionToken } from "../../lib/site-context.js";
 
+const DEFAULT_API_V1 = "https://fanhub-deployment-production.up.railway.app/v1";
+const RESOLVED_API_V1 = String(import.meta.env.VITE_API_URL || DEFAULT_API_V1).trim();
 const API_URL =
   (typeof window !== "undefined" && window.__API_ORIGIN__) ||
-  (String(import.meta.env.VITE_API_URL || "").trim()
-    ? new URL(String(import.meta.env.VITE_API_URL).trim()).origin
-    : "");
+  (RESOLVED_API_V1
+    ? new URL(RESOLVED_API_V1).origin
+    : new URL(DEFAULT_API_V1).origin);
 
 let socket = null;
 

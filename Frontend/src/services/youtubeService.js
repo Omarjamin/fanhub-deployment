@@ -1,5 +1,6 @@
 // YouTube API Service for Frontend
-const API_BASE_URL = `${String(import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '')}/youtube`;
+const DEFAULT_API_V1 = 'https://fanhub-deployment-production.up.railway.app/v1';
+const API_BASE_URL = `${String(import.meta.env.VITE_API_URL || DEFAULT_API_V1).trim().replace(/\/$/, '')}/youtube`;
 
 class YouTubeAPIService {
   async getBannerVideos() {

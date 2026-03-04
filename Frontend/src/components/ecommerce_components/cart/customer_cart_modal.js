@@ -2,9 +2,9 @@
 import { getCart, updateCartItem, removeFromCart } from '../cart/cart.js';
 import '../../../styles/ecommerce_styles/cart.css';
 
-const API_ORIGIN = String(import.meta.env.VITE_API_URL || '').trim()
-    ? new URL(String(import.meta.env.VITE_API_URL).trim()).origin
-    : '';
+const DEFAULT_API_V1 = 'https://fanhub-deployment-production.up.railway.app/v1';
+const RESOLVED_API_V1 = String(import.meta.env.VITE_API_URL || DEFAULT_API_V1).trim();
+const API_ORIGIN = RESOLVED_API_V1 ? new URL(RESOLVED_API_V1).origin : '';
 
 function resolveItemWeightGrams(item) {
     const explicitWeight = Number(item?.weight_g ?? item?.weightG ?? item?.weight_grams ?? item?.weight);
