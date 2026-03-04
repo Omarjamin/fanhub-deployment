@@ -15,6 +15,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  min-height: 44px;
 }
 
 .header-title h1 {
@@ -24,25 +25,51 @@
   letter-spacing: 0.2px;
 }
 
-.btn-link {
-  width: 36px;
-  height: 36px;
+.order-history-back-btn {
+  height: 40px;
+  min-width: 40px;
   border: 1px solid #d1d5db;
-  border-radius: 10px;
-  background: #fff;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #374151;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 8px;
+  padding: 0 12px 0 10px;
+  box-shadow: 0 1px 2px rgba(17, 24, 39, 0.05);
+  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
 }
 
-.back-arrow {
+.order-history-back-btn:hover {
+  background: #f9fafb;
+  border-color: #9ca3af;
+  box-shadow: 0 4px 10px rgba(17, 24, 39, 0.08);
+}
+
+.order-history-back-btn:active {
+  transform: translateY(1px);
+}
+
+.order-history-back-btn:focus-visible {
+  outline: 2px solid #93c5fd;
+  outline-offset: 2px;
+}
+
+.order-history-back-arrow {
   width: 10px;
   height: 10px;
   border-left: 2px solid #374151;
   border-bottom: 2px solid #374151;
   transform: rotate(45deg);
   margin-left: 3px;
+}
+
+.back-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1;
 }
 
 .order-stats {
@@ -468,6 +495,12 @@
 @media (max-width: 640px) {
   .order-history-container {
     padding: 0 10px 20px;
+  }
+
+  .order-history-back-btn {
+    min-width: 44px;
+    height: 44px;
+    padding: 0 11px 0 10px;
   }
 
   .orders-table-container {

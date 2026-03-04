@@ -81,93 +81,90 @@ export default async function Header(root) {
     "image-preview-container",
   );
 
-  // Toggle events sidebar functionality
-  const whatsNewBar = document.querySelector(".whats-new-bar");
-  
-  // Use event delegation to handle hamburger clicks
-  document.addEventListener("click", function (event) {
-    // Get current sidebar state
+  // Floating Action Button + Bottom Sheet threads toggle
+  const ensureThreadsFab = () => {
+    let fab = document.getElementById("threads-fab");
+    if (!fab) {
+      fab = document.createElement("button");
+      fab.id = "threads-fab";
+      fab.className = "threads-fab";
+      fab.type = "button";
+      fab.setAttribute("aria-label", "Open community threads");
+      fab.setAttribute("aria-expanded", "false");
+      fab.innerHTML = `<span class="threads-fab-icon" aria-hidden="true">📣</span>`;
+      document.body.appendChild(fab);
+    }
+    return fab;
+  };
+
+  const ensureThreadsBackdrop = () => {
+    let backdrop = document.getElementById("threads-sheet-backdrop");
+    if (!backdrop) {
+      backdrop = document.createElement("div");
+      backdrop.id = "threads-sheet-backdrop";
+      backdrop.className = "threads-sheet-backdrop";
+      document.body.appendChild(backdrop);
+    }
+    return backdrop;
+  };
+
+  const closeThreadsSheet = () => {
     const homepageRight = document.querySelector(".homepage-right");
-    if (!homepageRight) return; // Exit if sidebar doesn't exist yet
-    
+    const fab = document.getElementById("threads-fab");
+    if (homepageRight) homepageRight.classList.remove("events-visible");
+    document.body.classList.remove("threads-sheet-open");
+    if (fab) fab.setAttribute("aria-expanded", "false");
+  };
+
+  const openThreadsSheet = () => {
+    const homepageRight = document.querySelector(".homepage-right");
+    const fab = document.getElementById("threads-fab");
+    if (!homepageRight) return;
+    homepageRight.classList.add("events-visible");
+    document.body.classList.add("threads-sheet-open");
+    if (fab) fab.setAttribute("aria-expanded", "true");
+  };
+
+  const toggleThreadsSheet = () => {
+    const homepageRight = document.querySelector(".homepage-right");
+    if (!homepageRight) return;
     const isVisible = homepageRight.classList.contains("events-visible");
-    
-    // Check if click is on the hamburger menu (fixed positioned)
-    const clickX = event.clientX;
-    const clickY = event.clientY;
+    if (isVisible) closeThreadsSheet();
+    else openThreadsSheet();
+  };
 
-    // Calculate hamburger position based on sidebar state
-    const sidebarWidth = isVisible
-      ? Math.min(320, window.innerWidth * 0.8)
-      : 0;
+  const fab = ensureThreadsFab();
+  const backdrop = ensureThreadsBackdrop();
 
-    // Account for both transform (-320px) and margin (-6rem = -96px) when sidebar is visible
-    // Total offset = 320px (transform) + 96px (margin) = 416px
-    // This now applies to ALL screen sizes since CSS is no longer mobile-specific
-    const totalOffset = isVisible ? -416 : 0; // Combined transform and margin offset
+  if (!window.__threadsFabBound) {
+    window.__threadsFabBound = true;
 
-    // Hamburger click area - updated to match new top position (40px) and include both offsets
-    // Note: Using 40px top position as it was set in mobile CSS, but this may need adjustment for desktop
-    const hamburgerArea = {
-      left: window.innerWidth - 80 - sidebarWidth + totalOffset, // Dynamic left boundary with total offset
-      right: window.innerWidth - 10 - sidebarWidth + totalOffset, // Dynamic right boundary with total offset
-      top: 40, // Top position from CSS
-      bottom: 80, // Bottom position (40px + 40px height)
-    };
-
-    // Check if click is within the hamburger area
-    if (
-      clickX >= hamburgerArea.left &&
-      clickX <= hamburgerArea.right &&
-      clickY >= hamburgerArea.top &&
-      clickY <= hamburgerArea.bottom
-    ) {
+    fab.addEventListener("click", (event) => {
       event.preventDefault();
-      event.stopPropagation();
+      toggleThreadsSheet();
+    });
 
-      // Toggle the events-visible class
-      if (isVisible) {
-        // Close sidebar
-        homepageRight.classList.remove("events-visible");
-        // Slide hamburger back to original position
-        document.documentElement.style.setProperty(
-          "--hamburger-translate",
-          "0px",
-        );
-      } else {
-        // Open sidebar
-        homepageRight.classList.add("events-visible");
-        // Slide hamburger to the left with the sidebar
-        const newSidebarWidth = Math.min(320, window.innerWidth * 0.8); // Max 320px or 80% of viewport
-        document.documentElement.style.setProperty(
-          "--hamburger-translate",
-          `-${newSidebarWidth}px`,
-        );
+    backdrop.addEventListener("click", () => {
+      closeThreadsSheet();
+    });
+
+    document.addEventListener("click", (event) => {
+      const closeBtn = event.target.closest(".events-panel-close");
+      if (closeBtn) {
+        closeThreadsSheet();
       }
+    });
 
-      // Optional: Add visual feedback
-      if (!isVisible) {
-        console.log("Events sidebar shown");
-      } else {
-        console.log("Events sidebar hidden");
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        closeThreadsSheet();
       }
-    }
-  });
+    });
 
-  // Close button: close events panel when .events-panel-close is clicked
-  document.addEventListener("click", function (event) {
-    const closeBtn = event.target.closest(".events-panel-close");
-    const homepageRight = document.querySelector(".homepage-right");
-    
-    if (closeBtn && homepageRight && homepageRight.classList.contains("events-visible")) {
-      homepageRight.classList.remove("events-visible");
-      document.documentElement.style.setProperty(
-        "--hamburger-translate",
-        "0px",
-      );
-      return;
-    }
-  });
+    window.addEventListener("popstate", () => {
+      closeThreadsSheet();
+    });
+  }
 
   // Autosize textarea while typing
   textarea.addEventListener("input", () => {

@@ -25,8 +25,9 @@ export default function OrderHistory() {
         <!-- Header with Stats -->
         <div class="order-history-header">
           <div class="header-title">
-            <button class="btn-link" id="back-to-shop" onclick="window.location.href='${homePath}'">
-              <span class="back-arrow" aria-hidden="false"></span>
+            <button class="order-history-back-btn" id="order-history-back" type="button" aria-label="Back to homepage" onclick="window.location.href='${homePath}'">
+              <span class="order-history-back-arrow" aria-hidden="true"></span>
+              <span class="back-label">Back</span>
             </button>
             <h1>Order History</h1>
           </div>

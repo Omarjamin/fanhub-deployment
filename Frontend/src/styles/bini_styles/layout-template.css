@@ -31,6 +31,17 @@
   flex-shrink: 0;
 }
 
+/* Mobile/tablet: keep footer directly after content (avoid giant empty gap). */
+@media (max-width: 1024px) {
+  #main {
+    flex: 0 0 auto;
+  }
+
+  #footer {
+    margin-top: 0;
+  }
+}
+
 /* Desktop: account for fixed left nav so content is centered and proportional */
 @media (min-width: 769px) {
   body.has-community-side-nav #main {

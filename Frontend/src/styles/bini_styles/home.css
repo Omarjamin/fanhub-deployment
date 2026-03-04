@@ -733,7 +733,7 @@
 
 
 /* Responsive Adjustments */
-@media (min-width: 768px) and (max-width: 1024px) { /* 1024px */
+@media (min-width: 769px) and (max-width: 1024px) { /* 1024px */
   .homepage-container {
     flex-direction: column;
     padding: 0 0 0 15%;
@@ -806,13 +806,14 @@
   }
 
   .homepage-feed {
-    width: 107%;
-    padding: 0.25rem;
+    width: 100%;
+    padding: 0.5rem;
     height: auto;
     min-height: calc(100vh - 3.75rem);
     border-radius: 20px;
     border: 3px solid #e75480;
-    margin: 0rem 0rem 0rem -1rem;
+    margin: 0;
+    box-sizing: border-box;
   }
 
   .homepage-right {
@@ -900,13 +901,14 @@
   }
 
   .homepage-feed {
-    width: 97vw;
-    margin: 0rem 0rem 0rem -0.5rem;
+    width: 100%;
+    margin: 0;
     padding: 1.25rem;
     height: auto;
     min-height: calc(100vh - 3.75rem);
     border-radius: 20px;
     border: 3px solid #e75480;
+    box-sizing: border-box;
   }
   
   .events-header {
@@ -1796,7 +1798,7 @@ animation: none;
 }
 
 /* Tablet */
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (min-width: 769px) and (max-width: 1024px) {
   .homepage-container {
     padding-left: 15% !important;
     padding-right: 0 !important;
@@ -1828,7 +1830,7 @@ animation: none;
 }
 
 /* ===== TABLET FEED PROPORTION (768-1024) ===== */
-@media (min-width: 768px) and (max-width: 1024px) {
+@media (min-width: 769px) and (max-width: 1024px) {
   .homepage-feed {
     width: 66% !important;
     max-width: 760px !important;
@@ -1857,5 +1859,113 @@ animation: none;
 
   .post-action {
     font-size: 0.82rem !important;
+  }
+}
+
+/* Final hard override for mobile/tablet-small feed geometry */
+@media (max-width: 768px) {
+  .homepage-container {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 8px 110px !important;
+    box-sizing: border-box !important;
+  }
+
+  .homepage-feed {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 8px !important;
+    right: 0 !important;
+    min-height: auto !important;
+    height: auto !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .post-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 12px 0 !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* Threads full-screen overlay behavior on mobile/tablet */
+@media (max-width: 1024px) {
+  body.threads-sheet-open {
+    overflow: hidden;
+  }
+
+  .homepage-right.events-visible {
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: fixed !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 100% !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    overflow-y: auto !important;
+    z-index: 2100 !important;
+    box-shadow: none !important;
+    animation: threadsOverlayIn 0.2s ease-out;
+    background: var(--bini-nav-bg-end) !important;
+  }
+
+  .homepage-right.events-visible .events-panel-close {
+    display: inline-flex !important;
+    position: fixed !important;
+    top: 14px !important;
+    right: 14px !important;
+    width: 36px !important;
+    height: 36px !important;
+    border: 2px solid rgba(235, 76, 187, 0.55) !important;
+    border-radius: 999px !important;
+    background: rgba(255, 255, 255, 0.92) !important;
+    color: #d43da0 !important;
+    align-items: center !important;
+    justify-content: center !important;
+    font-size: 1.5rem !important;
+    line-height: 1 !important;
+    cursor: pointer !important;
+    z-index: 2120 !important;
+  }
+
+  .homepage-right.events-visible .threads-sidebar {
+    width: 100% !important;
+    margin-right: 0 !important;
+    box-sizing: border-box !important;
+    padding: 72px 14px 20px !important;
+    min-height: 100vh !important;
+  }
+
+  .homepage-right.events-visible .threads-header {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin: 0 !important;
+    padding: 20px 56px 14px 16px !important;
+    z-index: 2110 !important;
+    background: var(--bini-nav-bg-end) !important;
+    border-bottom: 2px solid rgba(235, 76, 187, 0.35) !important;
+    text-align: left !important;
+  }
+}
+
+@keyframes threadsOverlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
   }
 }
