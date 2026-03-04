@@ -2,10 +2,15 @@ function normalizeSlug(value = "") {
   return String(value || "").trim().toLowerCase();
 }
 
+function isGlobalScope(value = "") {
+  const normalized = normalizeSlug(value);
+  return !normalized || normalized === "all" || normalized === "community-platform";
+}
+
 function pickFirst(...values) {
   for (const value of values) {
     const normalized = normalizeSlug(value);
-    if (normalized) return normalized;
+    if (!isGlobalScope(normalized)) return normalized;
   }
   return "";
 }
@@ -70,4 +75,3 @@ export function attachSiteScope(req = {}, res = {}) {
   res.locals.communityType = siteSlug;
   return siteSlug;
 }
-
