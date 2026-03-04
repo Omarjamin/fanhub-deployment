@@ -5,7 +5,7 @@ import { handleSuspensionNotice } from "./suspension-notice.js";
 const runtimeApiUrl = (typeof window !== "undefined" && window.__API_ORIGIN__)
   ? `${String(window.__API_ORIGIN__).replace(/\/$/, "")}/v1`
   : "";
-const API_URL = runtimeApiUrl || import.meta.env.VITE_API_URL || "http://localhost:4000/v1";
+const API_URL = runtimeApiUrl || import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
 const API_KEY = import.meta.env.VITE_API_KEY || "thread";
 const API_BASE_URL = `${API_URL.replace(/\/$/, "")}/ecommerce`;
 

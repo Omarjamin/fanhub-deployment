@@ -1,4 +1,4 @@
-const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'http://localhost:4000/v1/admin';
+const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/admin';
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 const ADMIN_SELECTED_SITE_KEY = 'admin_selected_site';
 

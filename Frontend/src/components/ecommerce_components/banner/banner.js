@@ -9,9 +9,10 @@ export default function Banner(root, data) {
   let latestVideo = FALLBACK_VIDEO;
   let moreVideos = [];
   const adminVideoUrl = data?.banner || '';
+  const baseV1 = String(import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
   const endpoint = adminVideoUrl
-    ? `http://localhost:4000/v1/youtube/videos?videoUrl=${encodeURIComponent(adminVideoUrl)}`
-    : 'http://localhost:4000/v1/youtube/videos';
+    ? `${baseV1}/youtube/videos?videoUrl=${encodeURIComponent(adminVideoUrl)}`
+    : `${baseV1}/youtube/videos`;
   
   // Fetch latest videos from backend API
   fetch(endpoint)

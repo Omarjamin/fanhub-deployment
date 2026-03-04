@@ -13,7 +13,7 @@ import {
 
 export default function createMarketplace() {
   const ADMIN_SELECTED_COMMUNITY_KEY = 'admin_selected_site';
-  const BASE_V1 = import.meta.env.VITE_API_URL || 'http://localhost:4000/v1';
+  const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 
   function getSelectedCommunity() {
     try {
@@ -173,7 +173,7 @@ export default function createMarketplace() {
     try {
       return new URL(BASE_V1).origin;
     } catch (_) {
-      return 'http://localhost:4000';
+      return '';
     }
   }
 
@@ -188,9 +188,9 @@ export default function createMarketplace() {
 
     const base = getBackendOrigin();
     if (value.startsWith('/')) {
-      return `${base}${value}`;
+      return base ? `${base}${value}` : value;
     }
-    return `${base}/${value}`;
+    return base ? `${base}/${value}` : value;
   }
 
   function findProductById(productId) {

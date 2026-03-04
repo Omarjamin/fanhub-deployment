@@ -67,7 +67,7 @@ const allowedOrigins = [
     .map((origin) => origin.trim())
     .filter(Boolean),
   ...(process.env.FRONTEND_URL ? [String(process.env.FRONTEND_URL).trim()] : []),
-  "http://localhost:5173",
+  "https://fanhub-production.up.railway.app",
 ];
 
 app.use(
@@ -184,7 +184,8 @@ server.on("error", (err) => {
 });
 
 server.listen(PORT, HOST, () => {
-  console.log(`Server is running on http://localhost:${PORT}`);
+  const publicUrl = String(process.env.BACKEND_PUBLIC_URL || "https://fanhub-deployment-production.up.railway.app/v1").trim();
+  console.log(`Server is running on ${publicUrl}`);
 });
 
 

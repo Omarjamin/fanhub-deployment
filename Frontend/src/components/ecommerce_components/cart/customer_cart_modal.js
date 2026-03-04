@@ -2,6 +2,10 @@
 import { getCart, updateCartItem, removeFromCart } from '../cart/cart.js';
 import '../../../styles/ecommerce_styles/cart.css';
 
+const API_ORIGIN = String(import.meta.env.VITE_API_URL || '').trim()
+    ? new URL(String(import.meta.env.VITE_API_URL).trim()).origin
+    : '';
+
 function resolveItemWeightGrams(item) {
     const explicitWeight = Number(item?.weight_g ?? item?.weightG ?? item?.weight_grams ?? item?.weight);
     if (Number.isFinite(explicitWeight) && explicitWeight >= 0) return explicitWeight;
@@ -82,8 +86,8 @@ async function loadCartItems(modal) {
 
             // Handle image URL
             let imageSrc = item.image_url || '/placeholder.png';
-            if (imageSrc.startsWith('/')) {
-                imageSrc = 'http://localhost:4000' + imageSrc;
+            if (imageSrc.startsWith('/') && API_ORIGIN) {
+                imageSrc = API_ORIGIN + imageSrc;
             }
 
             const isSelected = selectedItems[item.variant_id] || false;

@@ -3,7 +3,9 @@ import { getActiveSiteSlug, getSessionToken } from "../../lib/site-context.js";
 
 const API_URL =
   (typeof window !== "undefined" && window.__API_ORIGIN__) ||
-  "http://localhost:4000";
+  (String(import.meta.env.VITE_API_URL || "").trim()
+    ? new URL(String(import.meta.env.VITE_API_URL).trim()).origin
+    : "");
 
 let socket = null;
 

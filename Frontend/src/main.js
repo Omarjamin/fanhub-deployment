@@ -62,10 +62,14 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
   import SubAdminThreads from './pages/Admin_page/Threads.js';
   import SubAdminLogin from './pages/Admin_page/login.js';
 
-  // Force local API base in this local/dev workspace even if an older bundle/env leaks in.
+  // Keep runtime API config aligned with env; avoid hardcoded localhost in deployment.
   if (typeof window !== 'undefined') {
-    window.__API_BASE__ = 'http://localhost:4000/v1/ecommerce';
-    window.__API_ORIGIN__ = 'http://localhost:4000';
+    const apiV1 = String(import.meta.env.VITE_API_URL || '').trim().replace(/\/$/, '');
+    const apiOrigin = apiV1 ? new URL(apiV1).origin : '';
+    if (apiV1) {
+      window.__API_BASE__ = `${apiV1}/ecommerce`;
+      window.__API_ORIGIN__ = apiOrigin;
+    }
   }
 
 
@@ -252,7 +256,7 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
   app.add('/order-history', OrderHistory);
   app.add('/order-confirmation', OrderConfirmation);
 
-  const ADMIN_API_BASE = import.meta.env.VITE_API_URL || "http://localhost:4000/v1";
+  const ADMIN_API_BASE = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
   const API_KEY = import.meta.env.VITE_API_KEY || "thread";
 
   function applyButtonStyle(style, root = document.documentElement) {
