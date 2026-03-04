@@ -9,6 +9,7 @@ const dynamicDbLookupCache = {};
 const siteNameByDomainCache = {};
 let adminSiteColumnsCache = null;
 let communityTableEnsured = false;
+const poolHealthCache = new Map();
 
 function isSingleDatabaseMode() {
   const explicitSingle = String(
@@ -102,6 +103,30 @@ function createPoolFromMysqlUrl(rawUrl) {
   } catch (err) {
     console.error("Invalid MYSQL_URL:", err?.message || err);
     return null;
+  }
+}
+
+async function isPoolHealthy(pool, cacheKey = "", ttlMs = 30000) {
+  if (!pool) return false;
+  const key = String(cacheKey || "").trim().toLowerCase() || "default";
+  const now = Date.now();
+  const cached = poolHealthCache.get(key);
+  if (cached && now - cached.ts < ttlMs) {
+    return Boolean(cached.ok);
+  }
+
+  try {
+    await pool.query("SELECT 1 AS ok");
+    poolHealthCache.set(key, { ok: true, ts: now });
+    return true;
+  } catch (error) {
+    poolHealthCache.set(key, { ok: false, ts: now });
+    console.error("[database] pool health check failed", {
+      key,
+      code: error?.code || "",
+      message: error?.message || String(error || ""),
+    });
+    return false;
   }
 }
 
@@ -351,7 +376,9 @@ async function connect(community_type) {
         database: process.env[`DB_${type.toUpperCase()}_DB_NAME`],
       });
     }
-    return pools[type];
+    const healthy = await isPoolHealthy(pools[type], `env:${type}`);
+    if (healthy) return pools[type];
+    return pools['default'];
   }
 
   // Resolve from generated sites DB mapping (sites + site_databases in admin DB)
@@ -376,7 +403,13 @@ async function connect(community_type) {
           queueLimit: 0,
         });
       }
-      return pools[poolKey];
+      const healthy = await isPoolHealthy(pools[poolKey], poolKey);
+      if (healthy) return pools[poolKey];
+      try {
+        await pools[poolKey].end();
+      } catch (_) {}
+      delete pools[poolKey];
+      return pools['default'];
     }
   }
 

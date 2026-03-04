@@ -68,12 +68,23 @@ const allowedOrigins = [
     .filter(Boolean),
   ...(process.env.FRONTEND_URL ? [String(process.env.FRONTEND_URL).trim()] : []),
   "https://fanhub-production.up.railway.app",
+  "https://fanhub-deployment-production.up.railway.app",
+];
+
+const allowedOriginPatterns = [
+  /^https:\/\/[a-z0-9-]+\.up\.railway\.app$/i,
+  /^http:\/\/localhost(?::\d+)?$/i,
+  /^http:\/\/127\.0\.0\.1(?::\d+)?$/i,
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      const isAllowedByList = Boolean(origin && allowedOrigins.includes(origin));
+      const isAllowedByPattern = Boolean(
+        origin && allowedOriginPatterns.some((pattern) => pattern.test(origin)),
+      );
+      if (!origin || isAllowedByList || isAllowedByPattern) {
         return callback(null, true);
       }
       return callback(new Error("CORS blocked for this origin"));

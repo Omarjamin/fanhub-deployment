@@ -5,7 +5,10 @@ import { showToast, showConfirmToast } from '../../utils/toast.js';
 
 export default function Navigation(root, data = {}) {
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
-  const urlCommunityType = pathParts[0] === 'fanhub' ? pathParts[1] : '';
+  const urlCommunityType =
+    pathParts[0] === 'fanhub'
+      ? (pathParts[1] === 'community-platform' ? (pathParts[2] || '') : (pathParts[1] || ''))
+      : '';
   const storedCommunityType = String(
     sessionStorage.getItem('community_type') || localStorage.getItem('community_type') || ''
   ).trim();

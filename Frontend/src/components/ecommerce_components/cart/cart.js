@@ -3,10 +3,32 @@ import { api } from '../../../services/ecommerce_services/api.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
 import { getActiveSiteSlug } from '../../../lib/site-context.js';
 
-function buildHeaders() {
+function resolveSiteSlug() {
+  const direct = String(getActiveSiteSlug() || '').trim().toLowerCase();
+  if (direct && direct !== 'community-platform' && direct !== 'all') return direct;
+
+  const fromStorage = String(
+    sessionStorage.getItem('site_slug') ||
+    sessionStorage.getItem('community_type') ||
+    localStorage.getItem('active_site_slug') ||
+    ''
+  ).trim().toLowerCase();
+  if (fromStorage && fromStorage !== 'community-platform' && fromStorage !== 'all') return fromStorage;
+
+  const parts = String(window.location.pathname || '').split('/').filter(Boolean);
+  if (parts[0] === 'fanhub' && parts[1] === 'community-platform' && parts[2]) {
+    return String(parts[2]).trim().toLowerCase();
+  }
+  if (parts[0] === 'fanhub' && parts[1] && parts[1] !== 'community-platform') {
+    return String(parts[1]).trim().toLowerCase();
+  }
+  return '';
+}
+
+function buildHeaders(siteSlug = '') {
   return {
     'Content-Type': 'application/json',
-    ...authHeaders()
+    ...authHeaders(siteSlug)
   };
 }
 
@@ -16,7 +38,7 @@ function toInt(value, fallback = 0) {
 }
 
 function getSigninPath() {
-  const siteSlug = String(getActiveSiteSlug() || '').trim().toLowerCase();
+  const siteSlug = resolveSiteSlug();
   return siteSlug ? `/fanhub/${siteSlug}/signin` : '/signin';
 }
 
@@ -32,14 +54,25 @@ async function readJson(response) {
   return response.json().catch(() => ({}));
 }
 
+function withSiteScope(path, siteSlug = '') {
+  const slug = String(siteSlug || '').trim().toLowerCase();
+  if (!slug) return path;
+  const joiner = path.includes('?') ? '&' : '?';
+  return `${path}${joiner}site_slug=${encodeURIComponent(slug)}`;
+}
+
 // Get cart items
 export async function getCart() {
   try {
-    const response = await api('/cart/items', { method: 'GET', headers: buildHeaders() });
+    const siteSlug = resolveSiteSlug();
+    const response = await api(withSiteScope('/cart/items', siteSlug), {
+      method: 'GET',
+      headers: buildHeaders(siteSlug)
+    });
     const data = await readJson(response);
     if (!response.ok) {
       handleAuthFailure(response.status);
-      console.error('Error loading cart:', data.message || `HTTP ${response.status}`);
+      console.error('Error loading cart:', data.message || `HTTP ${response.status}`, { siteSlug });
       return [];
     }
     return data.success ? data.data : [];
@@ -52,6 +85,7 @@ export async function getCart() {
 // Add item to cart
 export async function addToCart(variantId, quantity = 1) {
   try {
+    const siteSlug = resolveSiteSlug();
     const parsedVariantId = toInt(variantId);
     const parsedQuantity = Math.max(1, toInt(quantity, 1));
     if (!parsedVariantId || parsedVariantId <= 0) {
@@ -66,10 +100,11 @@ export async function addToCart(variantId, quantity = 1) {
       return updateCartItem(parsedVariantId, newQuantity);
     }
 
-    const response = await api('/cart/add', {
+    const response = await api(withSiteScope('/cart/add', siteSlug), {
       method: 'POST',
-      headers: buildHeaders(),
+      headers: buildHeaders(siteSlug),
       body: JSON.stringify({
+        site_slug: siteSlug,
         variantId: parsedVariantId,
         quantity: parsedQuantity
       })
@@ -96,10 +131,12 @@ export async function addToCart(variantId, quantity = 1) {
 // Update cart item quantity
 export async function updateCartItem(variantId, quantity) {
   try {
-    const response = await api('/cart/update', {
+    const siteSlug = resolveSiteSlug();
+    const response = await api(withSiteScope('/cart/update', siteSlug), {
       method: 'PUT',
-      headers: buildHeaders(),
+      headers: buildHeaders(siteSlug),
       body: JSON.stringify({
+        site_slug: siteSlug,
         variantId: toInt(variantId),
         quantity: Math.max(1, toInt(quantity, 1))
       })
@@ -123,10 +160,14 @@ export async function updateCartItem(variantId, quantity) {
 // Remove item from cart
 export async function removeFromCart(variantId) {
   try {
-    const response = await api('/cart/remove', {
+    const siteSlug = resolveSiteSlug();
+    const response = await api(withSiteScope('/cart/remove', siteSlug), {
       method: 'DELETE',
-      headers: buildHeaders(),
-      body: JSON.stringify({ variantId: toInt(variantId) })
+      headers: buildHeaders(siteSlug),
+      body: JSON.stringify({
+        site_slug: siteSlug,
+        variantId: toInt(variantId)
+      })
     });
 
     const resData = await readJson(response);
