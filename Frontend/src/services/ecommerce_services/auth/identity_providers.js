@@ -1,6 +1,6 @@
 const RECAPTCHA_SITE_KEY = (import.meta.env.VITE_RECAPTCHA_SITE_KEY || '').trim();
 const RECAPTCHA_V2_SITE_KEY = (import.meta.env.VITE_RECAPTCHA_V2_SITE_KEY || '6Lcob3ssAAAAALav3iLyGBCw-I5nGpirGYMP57_T').trim();
-const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '272242058427-7c0i9t3c464u5j9nfq6oo0u64ap263b0.apps.googleusercontent.com').trim();
+const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID || '').trim();
 
 const scriptPromises = new Map();
 const recaptchaWidgetIds = new WeakMap();
