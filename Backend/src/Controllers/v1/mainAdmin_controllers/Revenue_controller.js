@@ -37,31 +37,40 @@ class DashboardController {
     }
 
     resolveCommunity(req, res, { fallbackAll = true } = {}) {
-        const numericCommunityId = Number(
-            req.query?.community_id ?? req.body?.community_id ?? 0,
-        );
-        if (Number.isFinite(numericCommunityId) && numericCommunityId > 0) {
-            return String(numericCommunityId);
-        }
         const scoped = String(
             req.query?.community ||
             req.body?.community ||
             resolveSiteSlug(req, res) ||
             '',
         ).trim().toLowerCase();
+        if (scoped) return scoped;
+
+        const numericCommunityId = Number(
+            req.query?.community_id ?? req.body?.community_id ?? 0,
+        );
+        if (Number.isFinite(numericCommunityId) && numericCommunityId > 0) {
+            return String(numericCommunityId);
+        }
         if (!scoped && fallbackAll) return 'all';
         return scoped;
     }
 
-    async getLowStockCount(db) {
+    async getLowStockCount(db, scopedCommunityId = null) {
         const threshold = this.lowStockThreshold;
 
         // Prefer variant-level stock if available to avoid double-counting
         // the same inventory from both products and product_variants tables.
         if (await this.tableExists(db, 'product_variants')) {
+            const hasCommunityId = await this.tableHasColumn(db, 'product_variants', 'community_id');
+            const params = [threshold];
+            let whereSql = 'WHERE COALESCE(stock, 0) <= ?';
+            if (scopedCommunityId && hasCommunityId) {
+                whereSql += ' AND COALESCE(community_id, 0) = ?';
+                params.push(scopedCommunityId);
+            }
             const [[{ count = 0 }]] = await db.query(
-                'SELECT COUNT(*) AS count FROM product_variants WHERE COALESCE(stock, 0) <= ?',
-                [threshold],
+                `SELECT COUNT(*) AS count FROM product_variants ${whereSql}`,
+                params,
             );
             return Number(count || 0);
         }
@@ -72,9 +81,16 @@ class DashboardController {
             );
 
             if (Number(has_stock) > 0) {
+                const hasCommunityId = await this.tableHasColumn(db, 'products', 'community_id');
+                const params = [threshold];
+                let whereSql = 'WHERE COALESCE(stock, 0) <= ?';
+                if (scopedCommunityId && hasCommunityId) {
+                    whereSql += ' AND COALESCE(community_id, 0) = ?';
+                    params.push(scopedCommunityId);
+                }
                 const [[{ count = 0 }]] = await db.query(
-                    'SELECT COUNT(*) AS count FROM products WHERE COALESCE(stock, 0) <= ?',
-                    [threshold],
+                    `SELECT COUNT(*) AS count FROM products ${whereSql}`,
+                    params,
                 );
                 return Number(count || 0);
             }
@@ -172,11 +188,21 @@ class DashboardController {
 
                     let total_posts = 0;
                     if (await this.tableExists(siteDB, 'posts')) {
-                        const [postRows] = await siteDB.query('SELECT COUNT(*) AS total_posts FROM posts');
+                        const hasCommunityId = await this.tableHasColumn(siteDB, 'posts', 'community_id');
+                        const params = [];
+                        let whereSql = '';
+                        if (scopedCommunityId && hasCommunityId) {
+                            whereSql = 'WHERE COALESCE(community_id, 0) = ?';
+                            params.push(scopedCommunityId);
+                        }
+                        const [postRows] = await siteDB.query(
+                            `SELECT COUNT(*) AS total_posts FROM posts ${whereSql}`,
+                            params,
+                        );
                         total_posts = Number(postRows?.[0]?.total_posts || 0);
                     }
                     const pending_moderation = 0;
-                    const low_stock = await this.getLowStockCount(siteDB);
+                    const low_stock = await this.getLowStockCount(siteDB, scopedCommunityId);
                     let new_orders_today = 0;
                     if (await this.tableExists(siteDB, 'orders')) {
                         const hasCommunityId = await this.tableHasColumn(siteDB, 'orders', 'community_id');

@@ -30,9 +30,13 @@ export default function Threads() {
   function getSelectedSiteId() {
     try {
       if (isForcedSingleSite) return forcedSiteSlug;
+      const globalSelected = String(
+        sessionStorage.getItem(ADMIN_SELECTED_SITE_KEY) || '',
+      ).trim().toLowerCase();
+      if (globalSelected && globalSelected !== 'all') return globalSelected;
       return String(
         sessionStorage.getItem(ADMIN_SELECTED_THREAD_SITE_ID_KEY) ||
-        sessionStorage.getItem(ADMIN_SELECTED_SITE_KEY) ||
+        globalSelected ||
         'all'
       ).trim().toLowerCase() || 'all';
     } catch (_) {

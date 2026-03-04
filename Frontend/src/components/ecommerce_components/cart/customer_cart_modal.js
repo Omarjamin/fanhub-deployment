@@ -1,4 +1,4 @@
-
+s
 import { getCart, updateCartItem, removeFromCart } from '../cart/cart.js';
 import '../../../styles/ecommerce_styles/cart.css';
 
@@ -101,16 +101,21 @@ async function loadCartItems(modal) {
                            ${isSelected ? 'checked' : ''}>
                 </div>
                 <div class="item-info">
-                    <div class="item-media">
-                        <img src="${imageSrc}" alt="${productName}" class="item-image" onerror="this.src='/placeholder.png'">
-                        <h4 class="item-name">${productName}</h4>
+                    <div class="item-main">
+                        <div class="item-media">
+                            <img src="${imageSrc}" alt="${productName}" class="item-image" onerror="this.src='/placeholder.png'">
+                        </div>
+                        <div class="item-details">
+                            <h4 class="item-name">${productName}</h4>
+                            <p class="item-variant">Size/Variant: <strong>${variantLabel}</strong></p>
+                            <p class="item-weight">Weight: ${itemWeight.toLocaleString()}g each</p>
+                        </div>
                     </div>
-                    <div class="item-details">
-                        <p class="item-variant">Size/Variant: <strong>${variantLabel}</strong></p>
-                        <p class="item-price">Unit: PHP ${price.toFixed(2)}</p>
-                        <p class="item-price">Weight: ${itemWeight.toLocaleString()}g each</p>
-                        <p class="item-price">Total Weight: ${itemTotalWeight.toLocaleString()}g</p>
-                        <p class="item-subtotal">Subtotal: PHP ${itemTotal.toFixed(2)}</p>
+                    <div class="item-side">
+                        <p class="item-side-label">Unit</p>
+                        <p class="item-price">PHP ${price.toFixed(2)}</p>
+                        <p class="item-side-label">Qty</p>
+                        <p class="item-side-qty">${qty}</p>
                     </div>
                 </div>
                 <div class="item-controls">
@@ -119,7 +124,7 @@ async function loadCartItems(modal) {
                         <span class="quantity">${qty}</span>
                         <button class="qty-btn plus" data-variant-id="${item.variant_id}">+</button>
                     </div>
-                    <div class="item-total">PHP ${itemTotal.toFixed(2)}</div>
+                    <div class="item-subtotal">Subtotal: PHP ${itemTotal.toFixed(2)}</div>
                     <button class="remove-btn" data-variant-id="${item.variant_id}">Remove</button>
                 </div>
             `;
@@ -192,9 +197,8 @@ async function loadCartItems(modal) {
 
 
         const checkoutBtn = modal.querySelector('.checkout-button');
-        if (!checkoutBtn.hasAttribute('data-handler-attached')) {
-            checkoutBtn.setAttribute('data-handler-attached', 'true');
-            checkoutBtn.addEventListener('click', async () => {
+
+        checkoutBtn.addEventListener('click', async () => {
             const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
             let communityType = '';
             if (pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]) {
@@ -247,8 +251,7 @@ async function loadCartItems(modal) {
             setTimeout(() => {
                 window.location.href = checkoutPath;
             }, 300);
-            });
-        }
+        });
 
 
 
@@ -280,6 +283,3 @@ function updateSelectedTotal(modal) {
     const selectedTotalElement = modal.querySelector('.selected-total');
     selectedTotalElement.textContent = `PHP ${selectedTotal.toFixed(2)}`;
 }
-
-
-

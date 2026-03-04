@@ -152,10 +152,27 @@ export default function Dashboard() {
     }
   }
 
-  function updateStatCards(communityKey) {
-    const stats = communityStats[communityKey] || {
+  function resolveStatsBucket(communityKey, communityId = null, siteName = '') {
+    const byKey = communityStats?.[communityKey];
+    if (byKey) return byKey;
+
+    const numericId = Number(communityId || 0);
+    if (numericId > 0 && communityStats?.[String(numericId)]) {
+      return communityStats[String(numericId)];
+    }
+
+    const normalizedSiteName = String(siteName || '').trim().toLowerCase();
+    if (normalizedSiteName && communityStats?.[normalizedSiteName]) {
+      return communityStats[normalizedSiteName];
+    }
+
+    return communityStats?.all || {
       revenue: 0, orders: 0, posts: 0, lowStock: 0, newOrdersToday: 0
     };
+  }
+
+  function updateStatCards(communityKey, communityId = null, siteName = '') {
+    const stats = resolveStatsBucket(communityKey, communityId, siteName);
 
     const ids = ['totalRevenue','totalOrders','totalPosts','lowStock','newOrdersToday'];
     const keys = ['revenue','orders','posts','lowStock','newOrdersToday'];
@@ -163,7 +180,8 @@ export default function Dashboard() {
     ids.forEach((id, idx) => {
       const el = document.getElementById(id);
       if (el) {
-        el.textContent = id === 'totalRevenue' ? `₱${stats[keys[idx]].toLocaleString()}` : stats[keys[idx]];
+        const value = Number(stats?.[keys[idx]] || 0);
+        el.textContent = id === 'totalRevenue' ? `₱${value.toLocaleString()}` : String(value);
       }
     });
   }
@@ -211,7 +229,7 @@ export default function Dashboard() {
 
     await fetchCommunityStats(communityKey, siteName, communityId);
     await fetchRevenueData(communityKey, siteName, communityId);
-    updateStatCards(communityKey);
+    updateStatCards(communityKey, communityId, siteName);
     updateTableAndPagination();
     dashboardDebug('initCommunityData:done', {
       selectedCommunity: communityKey,
@@ -352,6 +370,7 @@ export default function Dashboard() {
 
   return section;
 }
+
 
 
 

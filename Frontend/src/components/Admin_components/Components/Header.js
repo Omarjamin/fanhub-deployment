@@ -141,9 +141,10 @@ function getReadKey(item) {
 }
 
 function renderNotifItems(items) {
-  if (!items.length) return `<p class="notif-empty">No new notifications.</p>`;
+  const visibleItems = (items || []).filter((item) => !item.read && item.status !== "resolved");
+  if (!visibleItems.length) return `<p class="notif-empty">No new notifications.</p>`;
 
-  return items
+  return visibleItems
     .map((item) => {
       const reasonsHtml = item.reasons.length
         ? `<div class="notif-item-bottom">${item.reasons
@@ -243,7 +244,7 @@ export default function Header(root) {
     if (!readKey) return;
     readMap[readKey] = true;
     saveReadMap(readMap);
-    notifItems = notifItems.map((item) => (item.readKey === readKey ? { ...item, read: true } : item));
+    notifItems = notifItems.filter((item) => item.readKey !== readKey);
     updateBadge();
     renderModal();
   }
@@ -282,9 +283,7 @@ export default function Header(root) {
     });
     saveReadMap(readMap);
     await markAllSuggestionsRead();
-    notifItems = notifItems
-      .filter((item) => item.kind !== "suggestion")
-      .map((item) => ({ ...item, read: true }));
+    notifItems = [];
     updateBadge();
     renderModal();
   }
