@@ -106,7 +106,9 @@ function createPoolFromMysqlUrl(rawUrl) {
 }
 
 // 🔹 Pre-create pools (optional: lazy-load)
-const mysqlUrlPool = createPoolFromMysqlUrl(process.env.MYSQL_URL);
+const mysqlUrlPool = createPoolFromMysqlUrl(
+  process.env.MYSQL_URL || process.env.MYSQL_PUBLIC_URL
+);
 pools['admin'] = mysqlUrlPool || createPool('DB_ADMIN', {
   host: process.env.DB_HOST_ADMIN,
   user: process.env.DB_USER_ADMIN,
