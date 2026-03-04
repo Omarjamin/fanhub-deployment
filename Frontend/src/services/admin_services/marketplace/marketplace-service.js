@@ -1,8 +1,20 @@
 import { api } from '../../ecommerce_services/api.js';
 import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
 
-const ADMIN_API_BASE =
-  import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/admin';
+const DEFAULT_ADMIN_API_BASE = 'https://fanhub-deployment-production.up.railway.app/v1/admin';
+function resolveAdminApiBase() {
+  const raw = String(import.meta.env.VITE_ADMIN_API_URL || '').trim().replace(/\/+$/, '');
+  const normalized = raw.toLowerCase();
+  const unusable =
+    !raw ||
+    normalized === 'thread' ||
+    normalized === 'null' ||
+    normalized === 'undefined';
+  if (unusable) return DEFAULT_ADMIN_API_BASE;
+  if (/^https?:\/\//i.test(raw)) return raw;
+  return DEFAULT_ADMIN_API_BASE;
+}
+const ADMIN_API_BASE = resolveAdminApiBase();
 const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
 
