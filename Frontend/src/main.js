@@ -416,27 +416,62 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "./lib/sit
 
     setActiveSiteSlug(slug);
     const token = getSessionToken(slug);
-    const res = await fetch(`${ADMIN_API_BASE}/generate/generated-websites/type/${encodeURIComponent(slug)}`, {
-      headers: {
-        apikey: API_KEY,
-        "x-site-slug": slug,
-        "x-community-type": slug,
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-    });
+    const slugVariants = Array.from(new Set([
+      slug,
+      slug.replace(/-website$/i, ''),
+      slug.endsWith('-website') ? slug : `${slug}-website`,
+    ].filter(Boolean)));
+    const baseVariants = Array.from(new Set([
+      String(ADMIN_API_BASE || '').trim().replace(/\/$/, ''),
+      `${String(ADMIN_API_BASE || '').trim().replace(/\/$/, '')}/admin`,
+    ]));
 
-    const json = await res.json().catch(() => ({}));
-    if (!res.ok || !json?.success || !json?.data) {
-      throw new Error(json?.message || "Failed to fetch website");
+    let payload = null;
+    let lastError = null;
+
+    for (const base of baseVariants) {
+      for (const candidate of slugVariants) {
+        try {
+          const res = await fetch(`${base}/generate/generated-websites/type/${encodeURIComponent(candidate)}`, {
+            headers: {
+              apikey: API_KEY,
+              "x-site-slug": candidate,
+              "x-community-type": candidate,
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          });
+
+          const json = await res.json().catch(() => ({}));
+          if (res.ok && json?.success && json?.data) {
+            payload = json.data;
+            break;
+          }
+          lastError = new Error(json?.message || `Failed to fetch website (${res.status})`);
+        } catch (err) {
+          lastError = err;
+        }
+      }
+      if (payload) break;
     }
-    const payload = json.data;
+
+    if (!payload) {
+      throw lastError || new Error("Failed to fetch website");
+    }
+
+    const resolvedSlug = String(
+      payload?.community_type ||
+      payload?.site_slug ||
+      payload?.domain ||
+      slug,
+    ).trim().toLowerCase() || slug;
+    setActiveSiteSlug(resolvedSlug);
 
     try {
       sessionStorage.setItem(`site_data:${slug}`, JSON.stringify(payload));
       sessionStorage.setItem("active_site_data", JSON.stringify(payload));
-      sessionStorage.setItem("active_site_slug", slug);
+      sessionStorage.setItem("active_site_slug", resolvedSlug);
       localStorage.setItem("active_site_data", JSON.stringify(payload));
-      localStorage.setItem("active_site_slug", slug);
+      localStorage.setItem("active_site_slug", resolvedSlug);
     } catch (_) {}
 
     applyThemeColors(payload);

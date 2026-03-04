@@ -79,6 +79,8 @@ export function getActiveSiteSlug(preferred = '') {
     const fromStorage = String(
       sessionStorage.getItem('site_slug') ||
       sessionStorage.getItem('community_type') ||
+      sessionStorage.getItem('active_site_slug') ||
+      localStorage.getItem('active_site_slug') ||
       sessionStorage.getItem('admin_selected_site') ||
       ''
     ).trim().toLowerCase();
