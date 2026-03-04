@@ -55,21 +55,55 @@ class DashboardController {
         return scoped;
     }
 
-    async getLowStockCount(db, scopedCommunityId = null) {
+    async resolveCommunityScope(db, tableName, communityType, scopedCommunityId = null) {
+        if (!communityType || communityType === 'all') {
+            return { sql: '', params: [] };
+        }
+
+        const hasCommunityId = await this.tableHasColumn(db, tableName, 'community_id');
+        if (hasCommunityId && scopedCommunityId) {
+            return {
+                sql: 'COALESCE(community_id, 0) = ?',
+                params: [Number(scopedCommunityId)],
+            };
+        }
+
+        const hasGroupCommunityId = await this.tableHasColumn(db, tableName, 'group_community_id');
+        if (hasGroupCommunityId && scopedCommunityId) {
+            return {
+                sql: 'COALESCE(group_community_id, 0) = ?',
+                params: [Number(scopedCommunityId)],
+            };
+        }
+
+        const hasCommunity = await this.tableHasColumn(db, tableName, 'community');
+        if (hasCommunity) {
+            return {
+                sql: 'LOWER(TRIM(COALESCE(community, \'\'))) = LOWER(TRIM(?))',
+                params: [String(communityType || '').trim().toLowerCase()],
+            };
+        }
+
+        return { sql: '', params: [] };
+    }
+
+    async getLowStockCount(db, communityType = 'all', scopedCommunityId = null) {
         const threshold = this.lowStockThreshold;
 
         // Prefer variant-level stock if available to avoid double-counting
         // the same inventory from both products and product_variants tables.
         if (await this.tableExists(db, 'product_variants')) {
-            const hasCommunityId = await this.tableHasColumn(db, 'product_variants', 'community_id');
-            const params = [threshold];
-            let whereSql = 'WHERE COALESCE(stock, 0) <= ?';
-            if (scopedCommunityId && hasCommunityId) {
-                whereSql += ' AND COALESCE(community_id, 0) = ?';
-                params.push(scopedCommunityId);
-            }
+            const scope = await this.resolveCommunityScope(
+                db,
+                'product_variants',
+                communityType,
+                scopedCommunityId,
+            );
+            const whereParts = ['COALESCE(stock, 0) <= ?'];
+            const params = [threshold, ...scope.params];
+            if (scope.sql) whereParts.push(scope.sql);
             const [[{ count = 0 }]] = await db.query(
-                `SELECT COUNT(*) AS count FROM product_variants ${whereSql}`,
+                `SELECT COUNT(*) AS count FROM product_variants WHERE ${whereParts.join(' AND ')}`,
                 params,
             );
             return Number(count || 0);
@@ -81,15 +115,17 @@ class DashboardController {
             );
 
             if (Number(has_stock) > 0) {
-                const hasCommunityId = await this.tableHasColumn(db, 'products', 'community_id');
-                const params = [threshold];
-                let whereSql = 'WHERE COALESCE(stock, 0) <= ?';
-                if (scopedCommunityId && hasCommunityId) {
-                    whereSql += ' AND COALESCE(community_id, 0) = ?';
-                    params.push(scopedCommunityId);
-                }
+                const scope = await this.resolveCommunityScope(
+                    db,
+                    'products',
+                    communityType,
+                    scopedCommunityId,
+                );
+                const whereParts = ['COALESCE(stock, 0) <= ?'];
+                const params = [threshold, ...scope.params];
+                if (scope.sql) whereParts.push(scope.sql);
                 const [[{ count = 0 }]] = await db.query(
-                    `SELECT COUNT(*) AS count FROM products ${whereSql}`,
+                    `SELECT COUNT(*) AS count FROM products WHERE ${whereParts.join(' AND ')}`,
                     params,
                 );
                 return Number(count || 0);
@@ -150,120 +186,88 @@ class DashboardController {
                     if (physicalDb) processedPhysicalDbs.add(physicalDb);
 
                     let total_revenue = 0;
-                    let total_orders = 0;
-                    const hasOrders = await this.tableExists(siteDB, 'orders');
-                    if (hasOrders) {
-                        const hasCommunityId = await this.tableHasColumn(siteDB, 'orders', 'community_id');
-                        const whereParts = [];
-                        const whereParams = [];
-                        if (scopedCommunityId && hasCommunityId) {
-                            whereParts.push('COALESCE(community_id, 0) = ?');
-                            whereParams.push(scopedCommunityId);
-                        }
-                        const whereSql = whereParts.length ? `WHERE ${whereParts.join(' AND ')}` : '';
-
-                        const [orderCountRows] = await siteDB.query(
-                            `SELECT COUNT(*) AS total_orders FROM orders ${whereSql}`,
-                            whereParams,
+                    if (await this.tableExists(siteDB, 'daily_revenue')) {
+                        const hasTotalAmount = await this.tableHasColumn(siteDB, 'daily_revenue', 'total_amount');
+                        const hasRevenue = await this.tableHasColumn(siteDB, 'daily_revenue', 'revenue');
+                        const hasAmount = await this.tableHasColumn(siteDB, 'daily_revenue', 'amount');
+                        const hasTotal = await this.tableHasColumn(siteDB, 'daily_revenue', 'total');
+                        const amountColumn = hasTotalAmount
+                            ? 'total_amount'
+                            : (hasRevenue ? 'revenue' : (hasAmount ? 'amount' : (hasTotal ? 'total' : 'total_amount')));
+                        const revenueScope = await this.resolveCommunityScope(
+                            siteDB,
+                            'daily_revenue',
+                            communityType,
+                            scopedCommunityId,
                         );
-                        total_orders = Number(orderCountRows?.[0]?.total_orders || 0);
-                        if (total_orders === 0 && scopedCommunityId && hasCommunityId) {
-                            const [legacyOrderRows] = await siteDB.query(
-                                `
-                                  SELECT COUNT(*) AS total_orders
-                                  FROM orders
-                                  WHERE COALESCE(community_id, 0) = ?
-                                     OR COALESCE(community_id, 0) = 0
-                                `,
-                                [scopedCommunityId],
-                            );
-                            total_orders = Number(legacyOrderRows?.[0]?.total_orders || 0);
-                        }
-
-                        const completedParams = [...whereParams];
-                        const completedWhere = [
-                            `LOWER(TRIM(COALESCE(status, ''))) = 'completed'`,
-                        ];
-                        if (scopedCommunityId && hasCommunityId) {
-                            completedWhere.push('COALESCE(community_id, 0) = ?');
-                        }
+                        const revenueWhereSql = revenueScope.sql ? `WHERE ${revenueScope.sql}` : '';
                         const [revenueRows] = await siteDB.query(
                             `
-                              SELECT IFNULL(SUM(total), 0) AS total_revenue
-                              FROM orders
-                              WHERE ${completedWhere.join(' AND ')}
+                              SELECT IFNULL(SUM(COALESCE(${amountColumn}, 0)), 0) AS total_revenue
+                              FROM daily_revenue
+                              ${revenueWhereSql}
                             `,
-                            completedParams,
+                            revenueScope.params,
                         );
                         total_revenue = Number(revenueRows?.[0]?.total_revenue || 0);
-                        if (total_revenue === 0 && scopedCommunityId && hasCommunityId) {
-                            const [legacyRevenueRows] = await siteDB.query(
-                                `
-                                  SELECT IFNULL(SUM(total), 0) AS total_revenue
-                                  FROM orders
-                                  WHERE LOWER(TRIM(COALESCE(status, ''))) = 'completed'
-                                    AND (
-                                      COALESCE(community_id, 0) = ?
-                                      OR COALESCE(community_id, 0) = 0
-                                    )
-                                `,
-                                [scopedCommunityId],
-                            );
-                            total_revenue = Number(legacyRevenueRows?.[0]?.total_revenue || 0);
-                        }
+                    }
+
+                    let total_orders = 0;
+                    if (await this.tableExists(siteDB, 'orders')) {
+                        const orderScope = await this.resolveCommunityScope(
+                            siteDB,
+                            'orders',
+                            communityType,
+                            scopedCommunityId,
+                        );
+                        const orderWhereSql = orderScope.sql ? `WHERE ${orderScope.sql}` : '';
+                        const [orderCountRows] = await siteDB.query(
+                            `SELECT COUNT(*) AS total_orders FROM orders ${orderWhereSql}`,
+                            orderScope.params,
+                        );
+                        total_orders = Number(orderCountRows?.[0]?.total_orders || 0);
                     }
 
                     let total_posts = 0;
                     if (await this.tableExists(siteDB, 'posts')) {
-                        const hasCommunityId = await this.tableHasColumn(siteDB, 'posts', 'community_id');
-                        const params = [];
-                        let whereSql = '';
-                        if (scopedCommunityId && hasCommunityId) {
-                            whereSql = 'WHERE COALESCE(community_id, 0) = ?';
-                            params.push(scopedCommunityId);
-                        }
+                        const postScope = await this.resolveCommunityScope(
+                            siteDB,
+                            'posts',
+                            communityType,
+                            scopedCommunityId,
+                        );
+                        const whereSql = postScope.sql ? `WHERE ${postScope.sql}` : '';
                         const [postRows] = await siteDB.query(
                             `SELECT COUNT(*) AS total_posts FROM posts ${whereSql}`,
-                            params,
+                            postScope.params,
                         );
                         total_posts = Number(postRows?.[0]?.total_posts || 0);
                     }
                     const pending_moderation = 0;
-                    const low_stock = await this.getLowStockCount(siteDB, scopedCommunityId);
+                    const low_stock = await this.getLowStockCount(siteDB, communityType, scopedCommunityId);
                     let new_orders_today = 0;
                     if (await this.tableExists(siteDB, 'orders')) {
-                        const hasCommunityId = await this.tableHasColumn(siteDB, 'orders', 'community_id');
+                        const todayScope = await this.resolveCommunityScope(
+                            siteDB,
+                            'orders',
+                            communityType,
+                            scopedCommunityId,
+                        );
+                        const whereParts = ['DATE(created_at) = CURDATE()'];
                         const params = [];
-                        let extraScope = '';
-                        if (scopedCommunityId && hasCommunityId) {
-                            extraScope = ' AND COALESCE(community_id, 0) = ?';
-                            params.push(scopedCommunityId);
+                        if (todayScope.sql) {
+                            whereParts.push(todayScope.sql);
+                            params.push(...todayScope.params);
                         }
                         const [todayRows] = await siteDB.query(
                             `
                                 SELECT COUNT(*) AS new_orders_today
                                 FROM orders
-                                WHERE DATE(created_at) = CURDATE()
-                                ${extraScope}
+                                WHERE ${whereParts.join(' AND ')}
                             `,
                             params,
                         );
                         new_orders_today = Number(todayRows?.[0]?.new_orders_today || 0);
-                        if (new_orders_today === 0 && scopedCommunityId && hasCommunityId) {
-                            const [legacyTodayRows] = await siteDB.query(
-                                `
-                                  SELECT COUNT(*) AS new_orders_today
-                                  FROM orders
-                                  WHERE DATE(created_at) = CURDATE()
-                                    AND (
-                                      COALESCE(community_id, 0) = ?
-                                      OR COALESCE(community_id, 0) = 0
-                                    )
-                                `,
-                                [scopedCommunityId],
-                            );
-                            new_orders_today = Number(legacyTodayRows?.[0]?.new_orders_today || 0);
-                        }
                     }
 
                     // Only aggregate into a per-community bucket when a specific community is requested.

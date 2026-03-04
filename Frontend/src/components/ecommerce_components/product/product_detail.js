@@ -14,13 +14,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
 
     const parts = String(window.location.pathname || '').split('/').filter(Boolean);
     const communityType = String(
-      explicitCommunityType ||
-      (
-        parts[0] === 'fanhub'
-          ? (parts[1] === 'community-platform' ? parts[2] : parts[1])
-          : ''
-      ) ||
-      ''
+      explicitCommunityType || (parts[0] === 'fanhub' ? parts[1] : '') || ''
     ).trim().toLowerCase();
 
     const { product, variants } = await fetchProductDetails(productId, communityType);
@@ -41,7 +35,10 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
 
     root.innerHTML = `
       <section class="product-detail">
-        <button id="back-to-shop" class="btn-link">Back to shop</button>
+        <button id="product-back-to-shop" class="product-detail-back-btn" type="button" aria-label="Back to shop">
+          <span class="product-detail-back-arrow" aria-hidden="true"></span>
+          <span class="product-detail-back-label">Back to shop</span>
+        </button>
         <div class="product-detail-grid">
           <div class="product-media">
             <img src="${img}" alt="${product.name || ''}" class="product-detail-img" />
@@ -154,7 +151,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
       }
     });
 
-    const backBtn = root.querySelector('#back-to-shop');
+    const backBtn = root.querySelector('#product-back-to-shop');
     backBtn?.addEventListener('click', (e) => {
       e.preventDefault();
       history.back();
