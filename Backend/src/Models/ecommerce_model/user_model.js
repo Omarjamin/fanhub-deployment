@@ -20,6 +20,69 @@ class UserModel {
     this.activeCommunityId = null;
   }
 
+  buildSlugVariants(value = '') {
+    const scoped = String(value || '').trim().toLowerCase();
+    if (!scoped) return [];
+    const set = new Set([scoped]);
+    const withoutWebsite = scoped.replace(/-website$/i, '');
+    if (withoutWebsite) set.add(withoutWebsite);
+    if (!/-website$/i.test(scoped)) set.add(`${scoped}-website`);
+    return Array.from(set).filter(Boolean);
+  }
+
+  async tableExists(tableName) {
+    try {
+      const [rows] = await this.db.query(
+        `SELECT COUNT(*) AS count
+         FROM INFORMATION_SCHEMA.TABLES
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = ?
+         LIMIT 1`,
+        [tableName],
+      );
+      return Number(rows?.[0]?.count || 0) > 0;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async resolveCommunityIdFromCurrentDb(siteKey = '') {
+    const scoped = String(siteKey || '').trim().toLowerCase();
+    if (!scoped) return null;
+
+    const hasCommunitiesTable = await this.tableExists('communities');
+    if (!hasCommunitiesTable) return null;
+
+    const [columns] = await this.db.query('SHOW COLUMNS FROM communities');
+    const colSet = new Set((columns || []).map((c) => String(c?.Field || '').trim().toLowerCase()));
+    if (!colSet.has('community_id')) return null;
+
+    const lookupCols = ['community_type', 'site_slug', 'domain', 'site_name', 'name']
+      .filter((col) => colSet.has(col));
+    if (!lookupCols.length) return null;
+
+    const variants = this.buildSlugVariants(scoped);
+    if (!variants.length) return null;
+
+    const placeholders = variants.map(() => '?').join(', ');
+    const where = lookupCols.map((col) => `LOWER(TRIM(${col})) IN (${placeholders})`).join(' OR ');
+    const params = lookupCols.flatMap(() => variants);
+
+    const [rows] = await this.db.query(
+      `
+      SELECT community_id
+      FROM communities
+      WHERE ${where}
+      ORDER BY community_id ASC
+      LIMIT 1
+      `,
+      params,
+    );
+
+    const id = Number(rows?.[0]?.community_id || 0);
+    return Number.isFinite(id) && id > 0 ? id : null;
+  }
+
   async ensureConnection(community_type, site_slug) {
     const normalizedSite = String(community_type || '').trim().toLowerCase();
     const normalizedSlug = String(site_slug || '').trim().toLowerCase();
@@ -30,12 +93,13 @@ class UserModel {
       this.userAuthColumnsReady = false;
       this.userColumnSet = null;
       const fallbackCommunity = await resolveCommunityContext(scopedKey);
-      if (scopedKey && !fallbackCommunity?.community_id) {
+      const resolvedContextId = Number(fallbackCommunity?.community_id || 0) || null;
+      this.activeCommunityId = resolvedContextId || await this.resolveCommunityIdFromCurrentDb(scopedKey);
+      if (scopedKey && !this.activeCommunityId) {
         const scopeErr = new Error(`Site/community not found for "${scopedKey}"`);
         scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
         throw scopeErr;
       }
-      this.activeCommunityId = Number(fallbackCommunity?.community_id || 0) || null;
       await this.ensureUserAuthColumns();
       await this.ensureRegistrationVerificationTable();
     } catch (err) {
@@ -50,7 +114,12 @@ class UserModel {
       this.db = await connect();
       this.userAuthColumnsReady = false;
       this.userColumnSet = null;
-      this.activeCommunityId = null;
+      this.activeCommunityId = await this.resolveCommunityIdFromCurrentDb(scopedKey);
+      if (scopedKey && !this.activeCommunityId) {
+        const scopeErr = new Error(`Site/community not found for "${scopedKey}"`);
+        scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
+        throw scopeErr;
+      }
       await this.ensureUserAuthColumns();
       await this.ensureRegistrationVerificationTable();
     }
@@ -134,6 +203,11 @@ class UserModel {
       const placeholders = ['?', '?', '?', '?', 'NULL', "'local'", '0'];
       const params = [email, fullname, hashedPassword, imageUrl || 'none'];
       if (columns.has('community_id')) {
+        if ((community_type || site_slug) && !this.activeCommunityId) {
+          const scopeErr = new Error(`Site/community not found for "${community_type || site_slug}"`);
+          scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
+          throw scopeErr;
+        }
         userColumns.push('community_id');
         placeholders.push('?');
         params.push(this.activeCommunityId);
@@ -357,18 +431,19 @@ class UserModel {
     }
   }
 
-  async findUserByEmail(email, community_type, site_slug) {
+  async findUserByEmail(email, community_type, site_slug, options = {}) {
+    const ignoreCommunity = Boolean(options?.ignoreCommunity);
     const db = await this.ensureConnection(community_type, site_slug);
     const columns = await this.getUserColumns();
     const whereParts = ['email = ?'];
     const params = [email];
-    if (columns.has('community_id') && this.activeCommunityId) {
+    if (!ignoreCommunity && columns.has('community_id') && this.activeCommunityId) {
       whereParts.push('community_id = ?');
       params.push(this.activeCommunityId);
     }
     const [rows] = await db.query(
       `
-        SELECT user_id, email, fullname, profile_picture, auth_provider, google_id
+        SELECT user_id, email, fullname, profile_picture, auth_provider, google_id, community_id
         FROM users
         WHERE ${whereParts.join(' AND ')}
         LIMIT 1
@@ -380,7 +455,9 @@ class UserModel {
 
   async findOrCreateGoogleUser({ email, fullname, imageUrl = '', googleId = '', community_type, site_slug }) {
     const db = await this.ensureConnection(community_type, site_slug);
-    const existing = await this.findUserByEmail(email, community_type, site_slug);
+    const existing =
+      (await this.findUserByEmail(email, community_type, site_slug)) ||
+      (await this.findUserByEmail(email, community_type, site_slug, { ignoreCommunity: true }));
 
     if (existing) {
       await db.query(
@@ -411,6 +488,11 @@ class UserModel {
       const insertPlaceholders = ['?', '?', '?', '?', '?', "'google'", '0'];
       const insertParams = [email, safeFullname, randomPassword, safeImage, googleId || null];
       if (columns.has('community_id')) {
+        if ((community_type || site_slug) && !this.activeCommunityId) {
+          const scopeErr = new Error(`Site/community not found for "${community_type || site_slug}"`);
+          scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
+          throw scopeErr;
+        }
         insertColumns.push('community_id');
         insertPlaceholders.push('?');
         insertParams.push(this.activeCommunityId);
@@ -431,6 +513,27 @@ class UserModel {
         profile_picture: safeImage,
       };
     } catch (err) {
+      if (err?.code === 'ER_DUP_ENTRY' && String(err?.sqlMessage || '').toLowerCase().includes('users.email')) {
+        const dupUser = await this.findUserByEmail(email, community_type, site_slug, { ignoreCommunity: true });
+        if (dupUser?.user_id) {
+          await db.query(
+            `
+              UPDATE users
+              SET auth_provider = 'google',
+                  google_id = COALESCE(NULLIF(google_id, ''), ?),
+                  failed_login_attempts = 0
+              WHERE user_id = ?
+            `,
+            [googleId || null, dupUser.user_id],
+          );
+          return {
+            ...dupUser,
+            auth_provider: 'google',
+            google_id: dupUser.google_id || googleId || null,
+          };
+        }
+      }
+
       if (err?.code === 'ER_BAD_NULL_ERROR' && String(err?.sqlMessage || '').toLowerCase().includes('username')) {
         const baseUsername = String(email || '').split('@')[0] || 'google_user';
         const username = `${baseUsername}_${Date.now().toString().slice(-6)}`;
@@ -439,6 +542,11 @@ class UserModel {
         const insertPlaceholders = ['?', '?', '?', '?', '?', '?', "'google'", '0'];
         const insertParams = [username, email, safeFullname, randomPassword, safeImage, googleId || null];
         if (columns.has('community_id')) {
+          if ((community_type || site_slug) && !this.activeCommunityId) {
+            const scopeErr = new Error(`Site/community not found for "${community_type || site_slug}"`);
+            scopeErr.code = 'SITE_SCOPE_NOT_FOUND';
+            throw scopeErr;
+          }
           insertColumns.push('community_id');
           insertPlaceholders.push('?');
           insertParams.push(this.activeCommunityId);

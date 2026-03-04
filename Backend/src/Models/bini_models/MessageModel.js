@@ -180,18 +180,26 @@ class MessageModel {
       COALESCE(unread_sub.unread_count, 0) AS unread_count
     FROM (
       SELECT
-        CASE
-          WHEN sender_id = ? THEN receiver_id
-          ELSE sender_id
-        END AS other_user_id,
-        MAX(message_id) AS last_message_id
-      FROM messages
-      WHERE sender_id = ? OR receiver_id = ?
-      GROUP BY
-        CASE
-          WHEN sender_id = ? THEN receiver_id
-          ELSE sender_id
-        END
+        merged.other_user_id,
+        MAX(merged.last_message_id) AS last_message_id
+      FROM (
+        SELECT
+          receiver_id AS other_user_id,
+          MAX(message_id) AS last_message_id
+        FROM messages
+        WHERE sender_id = ?
+        GROUP BY receiver_id
+
+        UNION ALL
+
+        SELECT
+          sender_id AS other_user_id,
+          MAX(message_id) AS last_message_id
+        FROM messages
+        WHERE receiver_id = ?
+        GROUP BY sender_id
+      ) merged
+      GROUP BY merged.other_user_id
     ) conv
     JOIN users u
       ON u.user_id = conv.other_user_id
@@ -210,8 +218,6 @@ class MessageModel {
   `;
 
     const [rows] = await this.db.execute(sql, [
-      userId,
-      userId,
       userId,
       userId,
       userId,
