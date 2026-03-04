@@ -40,7 +40,9 @@ export async function fetchCommentCounts(postId) {
     const data = response.data;
     return data.commentCount || data.count || 0;
   } catch (error) {
-    console.error("Error fetching comment count:", error);
+    const status = Number(error?.response?.status || 0);
+    const message = error?.response?.data?.message || error?.message || "unknown error";
+    console.warn(`Comment count unavailable for post ${postId} (status ${status || "n/a"}): ${message}`);
     return 0;
   }
 }
