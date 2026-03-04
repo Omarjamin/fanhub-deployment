@@ -13,12 +13,6 @@ class MarketplaceController {
   }
 
   resolveCommunity(req, res, { fallbackAll = true } = {}) {
-    const numericCommunityId = Number(
-      req.query?.community_id ?? req.body?.community_id ?? 0,
-    );
-    if (Number.isFinite(numericCommunityId) && numericCommunityId > 0) {
-      return String(numericCommunityId);
-    }
     const scoped = String(
       req.query?.community ||
       req.body?.community ||
@@ -27,6 +21,14 @@ class MarketplaceController {
     )
       .trim()
       .toLowerCase();
+    if (scoped) return scoped;
+
+    const numericCommunityId = Number(
+      req.query?.community_id ?? req.body?.community_id ?? 0,
+    );
+    if (Number.isFinite(numericCommunityId) && numericCommunityId > 0) {
+      return String(numericCommunityId);
+    }
 
     if (!scoped && fallbackAll) return 'all';
     return scoped;

@@ -48,6 +48,9 @@ class ThreadModel {
   }
 
   async resolveScopedCommunityId(siteDb, site = {}) {
+    const explicitSiteCommunity = Number(site?.community_id || 0) || null;
+    if (explicitSiteCommunity) return explicitSiteCommunity;
+
     const siteKey = String(site?.domain || site?.site_name || '').trim().toLowerCase();
     if (siteKey) {
       try {
@@ -56,9 +59,6 @@ class ThreadModel {
         if (mapped) return mapped;
       } catch (_) {}
     }
-
-    const explicitSiteCommunity = Number(site?.community_id || 0) || null;
-    if (explicitSiteCommunity) return explicitSiteCommunity;
 
     try {
       const hasCommunitiesTable = await this.hasTable(siteDb, 'communities');
@@ -128,6 +128,7 @@ class ThreadModel {
       `
         SELECT
           s.site_id,
+          s.community_id,
           s.site_name,
           s.domain,
           s.status
@@ -148,6 +149,7 @@ class ThreadModel {
       `
         SELECT
           s.site_id,
+          s.community_id,
           s.site_name,
           s.domain,
           s.status
@@ -175,6 +177,7 @@ class ThreadModel {
       `
         SELECT
           s.site_id,
+          s.community_id,
           s.site_name,
           s.domain,
           s.status
@@ -552,7 +555,7 @@ class ThreadModel {
     const db = await this.getAdminDb();
     const [sites] = await db.query(
       `
-        SELECT site_id, site_name, domain, status
+        SELECT site_id, community_id, site_name, domain, status
         FROM sites
         WHERE LOWER(TRIM(COALESCE(status, 'active'))) = 'active'
         ORDER BY site_name ASC

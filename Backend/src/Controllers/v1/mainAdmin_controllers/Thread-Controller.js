@@ -9,10 +9,10 @@ class ThreadController {
   async resolveSiteId(req, res, explicit = null) {
     const candidateRaw = String(
       explicit ??
-      req.query?.community ??
-      req.body?.community ??
       req.query?.site_id ??
       req.body?.site_id ??
+      req.query?.community ??
+      req.body?.community ??
       resolveSiteSlug(req, res) ??
       ''
     ).trim();

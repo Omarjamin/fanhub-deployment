@@ -167,6 +167,18 @@ class DashboardController {
                             whereParams,
                         );
                         total_orders = Number(orderCountRows?.[0]?.total_orders || 0);
+                        if (total_orders === 0 && scopedCommunityId && hasCommunityId) {
+                            const [legacyOrderRows] = await siteDB.query(
+                                `
+                                  SELECT COUNT(*) AS total_orders
+                                  FROM orders
+                                  WHERE COALESCE(community_id, 0) = ?
+                                     OR COALESCE(community_id, 0) = 0
+                                `,
+                                [scopedCommunityId],
+                            );
+                            total_orders = Number(legacyOrderRows?.[0]?.total_orders || 0);
+                        }
 
                         const completedParams = [...whereParams];
                         const completedWhere = [
@@ -184,6 +196,21 @@ class DashboardController {
                             completedParams,
                         );
                         total_revenue = Number(revenueRows?.[0]?.total_revenue || 0);
+                        if (total_revenue === 0 && scopedCommunityId && hasCommunityId) {
+                            const [legacyRevenueRows] = await siteDB.query(
+                                `
+                                  SELECT IFNULL(SUM(total), 0) AS total_revenue
+                                  FROM orders
+                                  WHERE LOWER(TRIM(COALESCE(status, ''))) = 'completed'
+                                    AND (
+                                      COALESCE(community_id, 0) = ?
+                                      OR COALESCE(community_id, 0) = 0
+                                    )
+                                `,
+                                [scopedCommunityId],
+                            );
+                            total_revenue = Number(legacyRevenueRows?.[0]?.total_revenue || 0);
+                        }
                     }
 
                     let total_posts = 0;
@@ -222,6 +249,21 @@ class DashboardController {
                             params,
                         );
                         new_orders_today = Number(todayRows?.[0]?.new_orders_today || 0);
+                        if (new_orders_today === 0 && scopedCommunityId && hasCommunityId) {
+                            const [legacyTodayRows] = await siteDB.query(
+                                `
+                                  SELECT COUNT(*) AS new_orders_today
+                                  FROM orders
+                                  WHERE DATE(created_at) = CURDATE()
+                                    AND (
+                                      COALESCE(community_id, 0) = ?
+                                      OR COALESCE(community_id, 0) = 0
+                                    )
+                                `,
+                                [scopedCommunityId],
+                            );
+                            new_orders_today = Number(legacyTodayRows?.[0]?.new_orders_today || 0);
+                        }
                     }
 
                     // Only aggregate into a per-community bucket when a specific community is requested.
