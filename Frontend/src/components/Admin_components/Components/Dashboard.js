@@ -46,10 +46,18 @@ export default function Dashboard() {
   async function fetchCommunityStats(communityKey, siteName = '') {
     try {
       const finalCommunity = isForcedSingleSite ? forcedSiteSlug : communityKey;
-      const data = await fetchAdminJsonWithFallback('dashboard/stats', {
-        community: finalCommunity,
-        site_name: siteName || '',
-      }, getAdminRequestOptions());
+      const params = { community: finalCommunity };
+      const normalizedSiteName = String(siteName || '').trim();
+      // Only pass site_name in "all" mode to avoid over-filtering when
+      // community_table.site_name differs from sites.site_name in deployed DBs.
+      if (finalCommunity === 'all' && normalizedSiteName && normalizedSiteName.toLowerCase() !== 'all') {
+        params.site_name = normalizedSiteName;
+      }
+      const data = await fetchAdminJsonWithFallback(
+        'dashboard/stats',
+        params,
+        getAdminRequestOptions(),
+      );
       communityStats = data;  // { all: {...}, music: {...}, gaming: {...}, ... }
     } catch (err) {
       console.error('Error fetching community stats:', err);
@@ -95,10 +103,16 @@ export default function Dashboard() {
   async function fetchRevenueData(communityKey, siteName = '') {
     try {
       const finalCommunity = isForcedSingleSite ? forcedSiteSlug : communityKey;
-      const data = await fetchAdminJsonWithFallback('dashboard/community', {
-        community: finalCommunity,
-        site_name: siteName || '',
-      }, getAdminRequestOptions());
+      const params = { community: finalCommunity };
+      const normalizedSiteName = String(siteName || '').trim();
+      if (finalCommunity === 'all' && normalizedSiteName && normalizedSiteName.toLowerCase() !== 'all') {
+        params.site_name = normalizedSiteName;
+      }
+      const data = await fetchAdminJsonWithFallback(
+        'dashboard/community',
+        params,
+        getAdminRequestOptions(),
+      );
       revenueData[communityKey] = Array.isArray(data)
         ? data.map((row) => ({
             orderId: row.order_id ? `#${row.order_id}` : '-',

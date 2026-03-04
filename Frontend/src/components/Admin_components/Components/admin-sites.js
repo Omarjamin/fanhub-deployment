@@ -164,26 +164,35 @@ export async function fetchAdminJsonWithFallback(endpointPath, params = {}, requ
 }
 
 export async function fetchAdminSites() {
-  const payload = await fetchAdminJsonWithFallback(
-    'generate/generated-websites',
-    {},
-    { headers: getAdminHeaders() },
-  );
-
-  const rows = Array.isArray(payload?.data)
-    ? payload.data
-    : Array.isArray(payload?.websites)
-      ? payload.websites
-      : [];
+  let rows = [];
+  try {
+    const communityPayload = await fetchAdminJsonWithFallback(
+      'generate/community-selections',
+      {},
+      { headers: getAdminHeaders() },
+    );
+    rows = Array.isArray(communityPayload?.data) ? communityPayload.data : [];
+  } catch (_) {
+    const payload = await fetchAdminJsonWithFallback(
+      'generate/generated-websites',
+      {},
+      { headers: getAdminHeaders() },
+    );
+    rows = Array.isArray(payload?.data)
+      ? payload.data
+      : Array.isArray(payload?.websites)
+        ? payload.websites
+        : [];
+  }
 
   const seen = new Set();
   return rows
     .map((row, index) => {
       const domain = String(row?.domain || '').trim().toLowerCase();
-      const siteName = String(row?.site_name || row?.name || domain).trim();
+      const siteName = String(row?.site_name || row?.name || row?.community_name || domain).trim();
       if (!domain || seen.has(domain)) return null;
       seen.add(domain);
-      const parsedId = Number(row?.site_id ?? row?.id ?? 0);
+      const parsedId = Number(row?.site_id ?? row?.community_id ?? row?.id ?? 0);
       return {
         id: Number.isFinite(parsedId) && parsedId > 0 ? parsedId : index + 1,
         key: domain,

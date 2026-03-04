@@ -232,6 +232,26 @@ class GenerateController {
     }
   }
 
+  // GET /community-selections
+  async getCommunitySelections(req, res) {
+    try {
+      const rows = await this.model.getCommunitySelections();
+      res.status(200).json({
+        success: true,
+        message: 'Community selections fetched successfully',
+        data: rows,
+        total: rows.length,
+      });
+    } catch (err) {
+      console.error('GetCommunitySelections error:', err);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch community selections',
+        error: err.message,
+      });
+    }
+  }
+
   // GET /generated-websites/:id
   async getWebsiteById(req, res) {
     try {

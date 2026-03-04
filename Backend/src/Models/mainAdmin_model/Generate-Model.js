@@ -496,12 +496,22 @@ class GenerateModel {
     if (!hasCommunityTable) return [];
 
     const hasCommunities = await this.hasTable('communities');
-    const communityJoin = hasCommunities
-      ? 'LEFT JOIN communities c ON c.community_id = ct.community_id'
-      : '';
-    const communityKeySql = hasCommunities
-      ? "LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, ''))))"
-      : "LOWER(TRIM(COALESCE(NULLIF(ct.domain, ''), NULLIF(ct.site_name, ''))))";
+    let communityJoin = '';
+    let communityKeySql = "LOWER(TRIM(COALESCE(NULLIF(ct.domain, ''), NULLIF(ct.site_name, ''))))";
+    if (hasCommunities) {
+      const communityCols = await this.getTableColumns('communities');
+      const communityPk = communityCols.has('community_id')
+        ? 'community_id'
+        : (communityCols.has('id') ? 'id' : null);
+      const hasCommunityName = communityCols.has('name');
+      if (communityPk) {
+        communityJoin = `LEFT JOIN communities c ON c.${communityPk} = ct.community_id`;
+        if (hasCommunityName) {
+          communityKeySql =
+            "LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, ''))))";
+        }
+      }
+    }
 
     const [rows] = await this.db.query(
       `
@@ -522,6 +532,23 @@ class GenerateModel {
         site_name: String(row?.site_name || '').trim(),
         domain: String(row?.domain || '').trim().toLowerCase(),
         status: String(row?.status || 'active').trim().toLowerCase(),
+      }))
+      .filter((row) => row.community_id && row.domain);
+  }
+
+  async getCommunitySelections() {
+    if (!this.db) await this.connectAdmin();
+    const rows = await this.getCommunityTableSelections();
+    if (rows.length) return rows;
+
+    // Fallback for environments that still don't have community_table rows.
+    const sites = await this.getGeneratedWebsites();
+    return (sites || [])
+      .map((site) => ({
+        community_id: Number(site?.community_id || site?.site_id || site?.id || 0) || null,
+        site_name: String(site?.site_name || site?.name || '').trim(),
+        domain: String(site?.domain || site?.community_type || '').trim().toLowerCase(),
+        status: String(site?.status || 'active').trim().toLowerCase(),
       }))
       .filter((row) => row.community_id && row.domain);
   }
