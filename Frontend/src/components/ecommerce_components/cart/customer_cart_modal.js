@@ -1,4 +1,3 @@
-s
 import { getCart, updateCartItem, removeFromCart } from '../cart/cart.js';
 import '../../../styles/ecommerce_styles/cart.css';
 
