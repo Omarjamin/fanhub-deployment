@@ -10,6 +10,13 @@ class Thread {
   async ensureConnection(siteSlug = '') {
     try {
       this.db = await connect(siteSlug);
+      const hasThreads = await this.hasTableOnPool(this.db, 'community_threads');
+      if (!hasThreads) {
+        console.warn(
+          `[ThreadModel] Falling back to default DB because community_threads table is missing for site "${siteSlug}"`,
+        );
+        this.db = await connect();
+      }
       this.threadColumnSet = null;
       const community = await resolveCommunityContext(siteSlug);
       this.activeCommunityId = Number(community?.community_id || 0) || null;
@@ -20,6 +27,22 @@ class Thread {
       this.activeCommunityId = null;
     }
     return this.db;
+  }
+
+  async hasTableOnPool(pool, tableName) {
+    try {
+      const [rows] = await pool.query(
+        `SELECT 1
+         FROM INFORMATION_SCHEMA.TABLES
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = ?
+         LIMIT 1`,
+        [tableName],
+      );
+      return Boolean(rows?.length);
+    } catch (_) {
+      return false;
+    }
   }
 
   async getThreadColumns(db) {

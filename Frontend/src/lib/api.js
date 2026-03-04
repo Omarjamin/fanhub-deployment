@@ -7,7 +7,37 @@ const runtimeApiUrl = (typeof window !== "undefined" && window.__API_ORIGIN__)
   : "";
 const API_URL = runtimeApiUrl || import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
 const API_KEY = import.meta.env.VITE_API_KEY || "thread";
-const API_BASE_URL = `${API_URL.replace(/\/$/, "")}/ecommerce`;
+const API_V1_BASE = API_URL.replace(/\/$/, "");
+
+function isCommunityPlatformRoute(pathname = "") {
+  const path = String(pathname || "").toLowerCase();
+  return path.includes("/fanhub/community-platform/") || path.startsWith("/bini");
+}
+
+function resolveBaseUrl() {
+  if (typeof window !== "undefined" && isCommunityPlatformRoute(window.location?.pathname || "")) {
+    return API_V1_BASE;
+  }
+  return `${API_V1_BASE}/ecommerce`;
+}
+
+function shouldPrefixEcommerce(url = "") {
+  const path = String(url || "").trim();
+  if (!path || /^https?:\/\//i.test(path)) return false;
+  if (!path.startsWith("/")) return false;
+  if (
+    path.startsWith("/ecommerce/") ||
+    path.startsWith("/bini/") ||
+    path.startsWith("/admin/") ||
+    path.startsWith("/generate/") ||
+    path.startsWith("/youtube/")
+  ) {
+    return false;
+  }
+  return /^\/(users|shop|community|cart|shipping|orders|discography|events)(\/|$)/i.test(path);
+}
+
+const API_BASE_URL = resolveBaseUrl();
 
 console.log("API Config:", { API_BASE_URL, API_KEY });
 
@@ -20,6 +50,12 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
+  config.baseURL = resolveBaseUrl();
+
+  if (shouldPrefixEcommerce(config.url)) {
+    config.url = `/ecommerce${config.url}`;
+  }
+
   const siteSlug = getActiveSiteSlug();
   const token = getSessionToken(siteSlug);
   Object.assign(config.headers, getSiteHeaders(siteSlug));
@@ -37,7 +73,10 @@ api.interceptors.response.use(
     const status = Number(error?.response?.status || 0);
     const data = error?.response?.data || {};
     if (status === 403 && String(data?.code || '').trim() === 'ACCOUNT_SUSPENDED') {
-      handleSuspensionNotice(data, { platform: 'ecommerce', siteSlug: getActiveSiteSlug() });
+      const platform = isCommunityPlatformRoute(typeof window !== "undefined" ? window.location?.pathname || "" : "")
+        ? "bini"
+        : "ecommerce";
+      handleSuspensionNotice(data, { platform, siteSlug: getActiveSiteSlug() });
     }
     return Promise.reject(error);
   },
