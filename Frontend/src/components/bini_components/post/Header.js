@@ -4,7 +4,8 @@ import { getActiveSiteSlug, getSessionToken } from "../../../lib/site-context.js
 import { showToast } from "../../../utils/toast.js";
 
 export default async function Header(root) {
-  let profilePicUrl = "";
+  const defaultProfilePic = "/circle-user.png";
+  let profilePicUrl = defaultProfilePic;
   let currentUser = null;
 
   const token = getSessionToken(getActiveSiteSlug());
@@ -15,7 +16,7 @@ export default async function Header(root) {
         if (user.profile_picture) profilePicUrl = user.profile_picture;
         currentUser = {
           fullname: user.fullname,
-          profile_picture: user.profile_picture,
+          profile_picture: user.profile_picture || defaultProfilePic,
         };
       }
     } catch (error) {
@@ -29,7 +30,7 @@ export default async function Header(root) {
       <!-- ROW 1: Profile Pic → Textarea → Icon → Button -->
       <div class="post-input-container">
         <!-- Profile Picture -->
-        <img src="${profilePicUrl}" alt="Profile" class="profile-pic"/>
+        <img src="${profilePicUrl}" alt="Profile" class="profile-pic" onerror="this.src='${defaultProfilePic}'"/>
         
         <!-- Text Area -->
         <textarea
@@ -277,7 +278,7 @@ export default async function Header(root) {
       const newPostPayload = {
         ...result,
         fullname: currentUser?.fullname || "You",
-        profile_picture: currentUser?.profile_picture || profilePicUrl,
+        profile_picture: currentUser?.profile_picture || profilePicUrl || defaultProfilePic,
       };
 
       window.dispatchEvent(

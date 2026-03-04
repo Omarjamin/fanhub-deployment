@@ -1096,3 +1096,84 @@ body {
     max-width: 640px !important;
   }
 }
+
+/* Final tablet layout lock: match homepage behavior (content + fixed right threads) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root {
+    --bini-tablet-right-panel-width: clamp(248px, 30vw, 300px);
+  }
+
+  .search-page {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0.75rem 0.5rem 1rem !important;
+  }
+
+  .search-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0.5rem 0 !important;
+    display: block !important;
+    position: relative !important;
+    left: 0 !important;
+    right: 0 !important;
+  }
+
+  .search-container > .homepage-right {
+    position: fixed !important;
+    top: 0 !important;
+    right: 0 !important;
+    width: var(--bini-tablet-right-panel-width) !important;
+    max-width: var(--bini-tablet-right-panel-width) !important;
+    height: 100vh !important;
+    margin: 0 !important;
+    padding: 0.75rem !important;
+    overflow-y: auto !important;
+    z-index: 20 !important;
+    box-sizing: border-box !important;
+    background: var(--bini-nav-bg-end, #FFB6C1) !important;
+  }
+
+  .search-container > .homepage-right .threads-sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+
+  .search-bar,
+  .search-results,
+  .search-suggest_to_follow {
+    width: auto !important;
+    max-width: none !important;
+    margin-left: 12px !important;
+    margin-right: calc(var(--bini-tablet-right-panel-width) + 12px) !important;
+  }
+
+  .suggested-follow-list {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto 1.25rem auto !important;
+    min-width: 0 !important;
+  }
+
+  #head .search-header {
+    width: auto !important;
+    max-width: none !important;
+    margin-left: 12px !important;
+    margin-right: calc(var(--bini-tablet-right-panel-width) + 12px) !important;
+    text-align: center !important;
+    display: block !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  #head .search-header {
+    width: auto !important;
+    max-width: none !important;
+    margin-left: 12px !important;
+    margin-right: calc(var(--bini-right-panel-width, clamp(260px, 24vw, 340px)) + 12px) !important;
+    text-align: center !important;
+    display: block !important;
+  }
+}

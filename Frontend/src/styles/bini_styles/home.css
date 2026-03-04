@@ -398,6 +398,18 @@
   width: 100%;
 }
 
+.post-meta1 .profile-link {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* The name link must be shrinkable so the 3-dot menu stays inside card bounds */
+.post-meta1 .profile-link + .profile-link {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .post-meta1 img {
   width: clamp(2.25rem, 8vw, 3rem);
   height: clamp(2.25rem, 8vw, 3rem);
@@ -408,6 +420,7 @@
 .post-fullname {
   font-weight: 600;
   font-size: clamp(0.9rem, 1.5vw, 0.98rem);
+  display: block;
   margin-left: 0;
   color: #333;
   flex: 1 1 auto;
@@ -486,15 +499,30 @@
 
 @media (max-width: 640px) {
   .post-report-dropdown {
-    right: auto;
-    left: 0;
+    /* Open inward from the 3-dot button on narrow screens */
+    right: 0;
+    left: auto;
     min-width: 200px;
-    max-width: 78vw;
+    max-width: min(78vw, 320px);
   }
 
   .post-menu-btn {
     width: 30px;
     height: 30px;
+  }
+}
+
+@media (max-width: 425px) {
+  .post-meta1 {
+    gap: 0.5rem;
+  }
+
+  .post-time {
+    font-size: 0.78rem;
+  }
+
+  .post-menu-container {
+    margin-left: 0.25rem;
   }
 }
 
@@ -1862,6 +1890,48 @@ animation: none;
   }
 }
 
+/* Final tablet balancing: prevent feed/header squeeze between side nav + threads panel */
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root {
+    --bini-tablet-right-panel-width: clamp(248px, 30vw, 300px);
+  }
+
+  .homepage-container {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+    align-items: stretch !important;
+  }
+
+  .homepage-right {
+    width: var(--bini-tablet-right-panel-width) !important;
+    padding: 0.75rem !important;
+  }
+
+  .homepage-right .threads-sidebar {
+    width: 100% !important;
+    margin-right: 0 !important;
+  }
+
+  .homepage-right .thread-item,
+  .homepage-right .event-item {
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
+  }
+
+  .homepage-feed {
+    width: auto !important;
+    max-width: none !important;
+    margin: 0.75rem calc(var(--bini-tablet-right-panel-width) + 12px) 3.25rem 8px !important;
+    padding: 0.8rem !important;
+    right: 0 !important;
+  }
+
+  .post-card {
+    max-width: 100% !important;
+  }
+}
+
 /* Final hard override for mobile/tablet-small feed geometry */
 @media (max-width: 768px) {
   .homepage-container {
@@ -1967,5 +2037,49 @@ animation: none;
   }
   to {
     opacity: 1;
+  }
+}
+
+/* Final desktop lock: align feed with header and reserve stable right panel space */
+@media (min-width: 1025px) {
+  .homepage-container {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 12px 24px !important;
+    box-sizing: border-box !important;
+    display: block !important;
+  }
+
+  .homepage-right {
+    width: var(--bini-right-panel-width, clamp(260px, 24vw, 340px)) !important;
+    right: 0 !important;
+    top: 0 !important;
+    height: 100vh !important;
+    padding: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  .homepage-right .threads-sidebar,
+  .homepage-right .events-list {
+    width: 100% !important;
+    margin-right: 0 !important;
+  }
+
+  .homepage-feed {
+    width: auto !important;
+    max-width: none !important;
+    right: 0 !important;
+    margin: 12px calc(var(--bini-right-panel-width, clamp(260px, 24vw, 340px)) + 12px) 24px 12px !important;
+    padding: 14px !important;
+    min-height: calc(100vh - 24px) !important;
+    height: auto !important;
+    box-sizing: border-box !important;
+    overflow-x: hidden !important;
+  }
+
+  .post-card {
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }

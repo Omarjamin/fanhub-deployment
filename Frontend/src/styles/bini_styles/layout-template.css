@@ -1,5 +1,5 @@
 :root {
-  --bini-left-nav-width: 150px;
+  --bini-left-nav-width: clamp(120px, 11vw, 150px);
   --bini-right-panel-width: clamp(15.625rem, 30vw, 40rem);
   --bini-content-max: 1280px;
   --bini-gap: clamp(12px, 2vw, 24px);
@@ -44,7 +44,29 @@
 
 /* Desktop: account for fixed left nav so content is centered and proportional */
 @media (min-width: 769px) {
+  body.has-community-side-nav #head,
   body.has-community-side-nav #main {
+    margin-left: var(--bini-left-nav-width);
+    width: calc(100% - var(--bini-left-nav-width));
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  :root {
+    --bini-left-nav-width: clamp(136px, 18vw, 152px);
+  }
+}
+
+/* Desktop lock: keep nav/content/right panel proportions stable on larger screens */
+@media (min-width: 1025px) {
+  :root {
+    --bini-left-nav-width: clamp(120px, 8.5vw, 148px);
+    --bini-right-panel-width: clamp(260px, 24vw, 340px);
+  }
+
+  body.has-community-side-nav #head,
+  body.has-community-side-nav #main,
+  body.has-community-side-nav #footer {
     margin-left: var(--bini-left-nav-width);
     width: calc(100% - var(--bini-left-nav-width));
   }
