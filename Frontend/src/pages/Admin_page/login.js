@@ -7,16 +7,39 @@ export default function AdminLoginPage() {
   const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/admin';
   const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 
-  function resolveAdminLoginUrl(rawBase) {
+  function resolveAdminLoginUrls(rawBase) {
+    const urls = [];
+    const push = (value) => {
+      const url = String(value || '').trim().replace(/\/+$/, '');
+      if (!url) return;
+      if (!urls.includes(url)) urls.push(url);
+    };
+
     const trimmed = String(rawBase || '').trim().replace(/\/+$/, '');
-    const fallback = 'https://fanhub-deployment-production.up.railway.app/v1/admin/login';
-    if (!trimmed) return fallback;
+    if (trimmed) {
+      if (/\/admin\/login$/i.test(trimmed)) {
+        push(trimmed);
+      } else if (/\/admin$/i.test(trimmed)) {
+        push(`${trimmed}/login`);
+      } else if (/\/v1$/i.test(trimmed)) {
+        push(`${trimmed}/admin/login`);
+      } else if (/\/login$/i.test(trimmed)) {
+        push(trimmed);
+        push(`${trimmed.replace(/\/login$/i, '')}/admin/login`);
+      } else {
+        push(`${trimmed}/admin/login`);
+        push(`${trimmed}/v1/admin/login`);
+      }
+    }
 
-    if (/\/admin\/login$/i.test(trimmed)) return trimmed;
-    if (/\/admin$/i.test(trimmed)) return `${trimmed}/login`;
-    if (/\/login$/i.test(trimmed)) return `${trimmed.replace(/\/login$/i, '')}/admin/login`;
+    const apiOrigin = String(window.__API_ORIGIN__ || '').trim().replace(/\/+$/, '');
+    if (apiOrigin) {
+      push(`${apiOrigin}/v1/admin/login`);
+      push(`${apiOrigin}/admin/login`);
+    }
 
-    return `${trimmed}/admin/login`;
+    push('https://fanhub-deployment-production.up.railway.app/v1/admin/login');
+    return urls;
   }
 
   function resolveAdminSiteSlug() {
@@ -108,19 +131,34 @@ export default function AdminLoginPage() {
     errorDiv.classList.add('hidden');
 
     try {
-      const loginUrl = resolveAdminLoginUrl(ADMIN_API_BASE);
+      const loginUrls = resolveAdminLoginUrls(ADMIN_API_BASE);
       const scopedSite = resolveAdminSiteSlug();
-      const response = await fetch(loginUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          apikey: API_KEY,
-          ...(scopedSite ? { 'x-site-slug': scopedSite, 'x-community-type': scopedSite } : {}),
-        },
-        body: JSON.stringify({ email, password })
-      });
+      let response = null;
+      let data = {};
+      let lastError = null;
 
-      const data = await safeParseResponse(response);
+      for (const loginUrl of loginUrls) {
+        try {
+          response = await fetch(loginUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              apikey: API_KEY,
+              ...(scopedSite ? { 'x-site-slug': scopedSite, 'x-community-type': scopedSite } : {}),
+            },
+            body: JSON.stringify({ email, password })
+          });
+
+          data = await safeParseResponse(response);
+          if (response.status !== 404) break;
+        } catch (error) {
+          lastError = error;
+        }
+      }
+
+      if (!response) {
+        throw (lastError || new Error('Unable to reach admin login endpoint.'));
+      }
 
       if (response.ok && data.success) {
         const siteSlug = resolveAdminSiteSlug();
