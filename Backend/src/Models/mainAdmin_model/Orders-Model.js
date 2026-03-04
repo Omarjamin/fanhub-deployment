@@ -235,7 +235,7 @@ class OrdersModel {
             ? `WHERE ${whereParts.join(' AND ')}`
             : '';
 
-          const [rows] = await siteDB.query(
+          let [rows] = await siteDB.query(
             `
               SELECT 
                 o.order_id,
@@ -255,6 +255,44 @@ class OrdersModel {
             `,
             params,
           );
+
+          // Legacy fallback: include rows with missing community_id (NULL/0)
+          // when strict scoped filter returns empty.
+          if (
+            (!rows || rows.length === 0) &&
+            scopedCommunityId &&
+            hasCommunityId
+          ) {
+            const fallbackParams = [];
+            const fallbackWhereParts = [];
+            if (status) {
+              fallbackWhereParts.push('status = ?');
+              fallbackParams.push(status);
+            }
+            fallbackWhereParts.push('(COALESCE(o.community_id, 0) = ? OR COALESCE(o.community_id, 0) = 0)');
+            fallbackParams.push(scopedCommunityId);
+
+            [rows] = await siteDB.query(
+              `
+                SELECT 
+                  o.order_id,
+                  o.user_id,
+                  u.fullname AS customer_name,
+                  o.subtotal,
+                  o.shipping_fee,
+                  o.total,
+                  o.payment_method,
+                  o.shipping_address,
+                  o.status,
+                  o.created_at
+                FROM orders o
+                LEFT JOIN users u ON u.user_id = o.user_id
+                WHERE ${fallbackWhereParts.join(' AND ')}
+                ORDER BY o.created_at DESC
+              `,
+              fallbackParams,
+            );
+          }
 
           for (const row of rows) {
             allOrders.push({
@@ -335,7 +373,7 @@ class OrdersModel {
             ? `WHERE ${whereParts.join(' AND ')}`
             : '';
 
-          const [rows] = await siteDB.query(
+          let [rows] = await siteDB.query(
             `
               SELECT 
                 o.order_id,
@@ -356,6 +394,45 @@ class OrdersModel {
             `,
             params,
           );
+
+          // Legacy fallback: include rows with missing community_id (NULL/0)
+          // when strict scoped filter returns empty.
+          if (
+            (!rows || rows.length === 0) &&
+            scopedCommunityId &&
+            hasCommunityId
+          ) {
+            const fallbackParams = [];
+            const fallbackWhereParts = [];
+            if (status) {
+              fallbackWhereParts.push('o.status = ?');
+              fallbackParams.push(status);
+            }
+            fallbackWhereParts.push('(COALESCE(o.community_id, 0) = ? OR COALESCE(o.community_id, 0) = 0)');
+            fallbackParams.push(scopedCommunityId);
+
+            [rows] = await siteDB.query(
+              `
+                SELECT 
+                  o.order_id,
+                  o.user_id,
+                  u.fullname AS customer_name,
+                  u.email AS customer_email,
+                  o.subtotal,
+                  o.shipping_fee,
+                  o.total,
+                  o.payment_method,
+                  o.shipping_address,
+                  o.status,
+                  o.created_at
+                FROM orders o
+                LEFT JOIN users u ON u.user_id = o.user_id
+                WHERE ${fallbackWhereParts.join(' AND ')}
+                ORDER BY o.created_at DESC
+              `,
+              fallbackParams,
+            );
+          }
 
           for (const order of rows) {
             // Get order items for each order
