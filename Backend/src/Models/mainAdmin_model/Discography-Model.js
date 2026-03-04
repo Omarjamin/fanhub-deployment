@@ -69,25 +69,17 @@ class DiscographyModel {
     const db = await this.getAdminDb();
     const hasCommunityTable = await this.hasAdminTable(db, 'community_table');
     if (hasCommunityTable) {
-      const communityCols = await this.getAdminTableColumns(db, 'communities');
-      const communityPk = communityCols.has('community_id')
-        ? 'community_id'
-        : (communityCols.has('id') ? 'id' : null);
-      const communityJoin = communityPk
-        ? `LEFT JOIN communities c ON c.${communityPk} = ct.community_id`
-        : '';
-      const communityNameExpr = communityPk ? "NULLIF(c.name, '')" : 'NULL';
       const [rows] = await db.query(
         `
           SELECT
             COALESCE(s.site_id, ct.community_id) AS site_id,
             COALESCE(NULLIF(TRIM(s.site_name), ''), NULLIF(TRIM(ct.site_name), ''), 'community') AS site_name,
-            LOWER(TRIM(COALESCE(${communityNameExpr}, NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, '')))) AS domain,
+            LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, '')))) AS domain,
             LOWER(TRIM(COALESCE(s.status, ct.status, 'active'))) AS status,
             ct.community_id
           FROM community_table ct
           LEFT JOIN sites s ON s.community_id = ct.community_id
-          ${communityJoin}
+          LEFT JOIN communities c ON c.community_id = ct.community_id OR c.id = ct.community_id
           WHERE LOWER(TRIM(COALESCE(s.status, ct.status, 'active'))) = 'active'
           ORDER BY site_name ASC
         `,
@@ -106,24 +98,16 @@ class DiscographyModel {
     if (!numeric || Number.isNaN(numeric)) return null;
 
     const db = await this.getAdminDb();
-    const communityCols = await this.getAdminTableColumns(db, 'communities');
-    const communityPk = communityCols.has('community_id')
-      ? 'community_id'
-      : (communityCols.has('id') ? 'id' : null);
-    const communityJoin = communityPk
-      ? `LEFT JOIN communities c ON c.${communityPk} = s.community_id`
-      : '';
-    const communityNameExpr = communityPk ? "NULLIF(c.name, '')" : 'NULL';
     const [rows] = await db.query(
       `
         SELECT
           s.site_id,
           s.site_name,
-          LOWER(TRIM(COALESCE(${communityNameExpr}, NULLIF(s.domain, '')))) AS domain,
+          LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(s.domain, '')))) AS domain,
           s.status,
           COALESCE(s.community_id, s.site_id) AS community_id
         FROM sites s
-        ${communityJoin}
+        LEFT JOIN communities c ON c.community_id = s.community_id OR c.id = s.community_id
         WHERE s.site_id = ?
         LIMIT 1
       `,
@@ -144,26 +128,18 @@ class DiscographyModel {
     const normalized = this.normalizeSiteKey(raw);
     const websiteForm = `${normalized}-website`;
     const db = await this.getAdminDb();
-    const communityCols = await this.getAdminTableColumns(db, 'communities');
-    const communityPk = communityCols.has('community_id')
-      ? 'community_id'
-      : (communityCols.has('id') ? 'id' : null);
-    const communityJoin = communityPk
-      ? `LEFT JOIN communities c ON c.${communityPk} = ct.community_id`
-      : '';
-    const communityNameExpr = communityPk ? "NULLIF(c.name, '')" : 'NULL';
     const [rows] = await db.query(
       `
         SELECT
           COALESCE(s.site_id, ct.community_id) AS site_id,
           COALESCE(NULLIF(TRIM(s.site_name), ''), NULLIF(TRIM(ct.site_name), ''), 'community') AS site_name,
-          LOWER(TRIM(COALESCE(${communityNameExpr}, NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, '')))) AS domain,
+          LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, '')))) AS domain,
           LOWER(TRIM(COALESCE(s.status, ct.status, 'active'))) AS status,
           ct.community_id
         FROM community_table ct
         LEFT JOIN sites s ON s.community_id = ct.community_id
-        ${communityJoin}
-        WHERE LOWER(TRIM(COALESCE(${communityNameExpr}, NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, '')))) = LOWER(TRIM(?))
+        LEFT JOIN communities c ON c.community_id = ct.community_id OR c.id = ct.community_id
+        WHERE LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, '')))) = LOWER(TRIM(?))
            OR LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
            OR LOWER(TRIM(ct.site_name)) = LOWER(TRIM(?))
            OR LOWER(TRIM(ct.domain)) = LOWER(TRIM(?))
