@@ -435,11 +435,95 @@ class GenerateModel {
         }),
       );
 
-      return sitesWithMembers;
+      const communityRows = await this.getCommunityTableSelections();
+      if (!communityRows.length) return sitesWithMembers;
+
+      const byCommunityId = new Map();
+      const byDomain = new Map();
+      const bySiteName = new Map();
+
+      for (const site of sitesWithMembers) {
+        const communityId = Number(site?.community_id || 0) || null;
+        const siteId = Number(site?.site_id || 0) || null;
+        const domain = String(site?.domain || '').trim().toLowerCase();
+        const siteName = String(site?.site_name || '').trim().toLowerCase();
+
+        if (communityId) byCommunityId.set(communityId, site);
+        else if (siteId) byCommunityId.set(siteId, site);
+        if (domain) byDomain.set(domain, site);
+        if (siteName) bySiteName.set(siteName, site);
+      }
+
+      const merged = communityRows.map((row) => {
+        const communityId = Number(row?.community_id || 0) || null;
+        const normalizedDomain = String(row?.domain || '').trim().toLowerCase();
+        const normalizedSiteName = String(row?.site_name || '').trim();
+
+        const matched =
+          (communityId ? byCommunityId.get(communityId) : null) ||
+          byDomain.get(normalizedDomain) ||
+          bySiteName.get(normalizedSiteName.toLowerCase()) ||
+          null;
+
+        const siteId = Number(matched?.site_id || communityId || 0) || null;
+        const mergedStatus = String(
+          row?.status || matched?.status || 'active',
+        ).trim().toLowerCase();
+
+        return {
+          ...matched,
+          site_id: siteId,
+          id: siteId,
+          community_id: communityId || Number(matched?.community_id || 0) || null,
+          site_name: normalizedSiteName || matched?.site_name || normalizedDomain,
+          domain: normalizedDomain || String(matched?.domain || '').trim().toLowerCase(),
+          community_type: normalizedDomain || String(matched?.community_type || matched?.domain || '').trim().toLowerCase(),
+          status: mergedStatus || 'active',
+          members: Array.isArray(matched?.members) ? matched.members : [],
+        };
+      }).filter((row) => String(row?.domain || '').trim());
+
+      return merged;
     } catch (err) {
       console.error('Get generated websites error:', err);
       throw new Error('Failed to fetch websites');
     }
+  }
+
+  async getCommunityTableSelections() {
+    if (!this.db) await this.connectAdmin();
+    const hasCommunityTable = await this.hasTable('community_table');
+    if (!hasCommunityTable) return [];
+
+    const hasCommunities = await this.hasTable('communities');
+    const communityJoin = hasCommunities
+      ? 'LEFT JOIN communities c ON c.community_id = ct.community_id'
+      : '';
+    const communityKeySql = hasCommunities
+      ? "LOWER(TRIM(COALESCE(NULLIF(c.name, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, ''))))"
+      : "LOWER(TRIM(COALESCE(NULLIF(ct.domain, ''), NULLIF(ct.site_name, ''))))";
+
+    const [rows] = await this.db.query(
+      `
+        SELECT
+          ct.community_id,
+          COALESCE(NULLIF(TRIM(ct.site_name), ''), NULLIF(TRIM(ct.domain), ''), 'community') AS site_name,
+          ${communityKeySql} AS domain,
+          LOWER(TRIM(COALESCE(ct.status, 'active'))) AS status
+        FROM community_table ct
+        ${communityJoin}
+        ORDER BY ct.community_id ASC
+      `,
+    );
+
+    return (rows || [])
+      .map((row) => ({
+        community_id: Number(row?.community_id || 0) || null,
+        site_name: String(row?.site_name || '').trim(),
+        domain: String(row?.domain || '').trim().toLowerCase(),
+        status: String(row?.status || 'active').trim().toLowerCase(),
+      }))
+      .filter((row) => row.community_id && row.domain);
   }
 
   async getSiteMembersSafe(siteId) {
@@ -502,8 +586,35 @@ class GenerateModel {
         limitOne: true,
       });
       const [sites] = await this.db.query(siteQuery, [communityType]);
-      if (!sites || sites.length === 0) return null;
-      const site = sites[0];
+      let site = Array.isArray(sites) && sites.length > 0 ? sites[0] : null;
+
+      if (!site) {
+        const key = String(communityType || '').trim().toLowerCase();
+        const communityRows = await this.getCommunityTableSelections();
+        const matchedCommunity = communityRows.find((row) => {
+          const domain = String(row?.domain || '').trim().toLowerCase();
+          const siteName = String(row?.site_name || '').trim().toLowerCase();
+          return domain === key || siteName === key;
+        });
+
+        if (!matchedCommunity) return null;
+
+        const siteId = Number(matchedCommunity.community_id || 0) || null;
+        if (!siteId) return null;
+        site = await this.getWebsiteById(siteId);
+        if (!site) {
+          site = {
+            site_id: siteId,
+            id: siteId,
+            community_id: siteId,
+            site_name: matchedCommunity.site_name,
+            domain: matchedCommunity.domain,
+            community_type: matchedCommunity.domain,
+            status: matchedCommunity.status,
+            members: [],
+          };
+        }
+      }
 
       const members = await this.getSiteMembersSafe(site.site_id);
       return { ...site, members: members || [] };
