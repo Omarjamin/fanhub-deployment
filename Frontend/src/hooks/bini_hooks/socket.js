@@ -59,7 +59,12 @@ const setupSocket = () => {
 
   if (!socket) {
     socket = io(API_URL, {
-      auth: { token: currentToken },
+      auth: {
+        token: currentToken,
+        user_id: userId,
+        site_slug: siteSlug,
+        community_type: siteSlug,
+      },
       autoConnect: true,
       reconnection: true,
       reconnectionAttempts: 5,
@@ -67,7 +72,13 @@ const setupSocket = () => {
       timeout: 20000,
     });
   } else {
-    socket.auth = { ...(socket.auth || {}), token: currentToken };
+    socket.auth = {
+      ...(socket.auth || {}),
+      token: currentToken,
+      user_id: userId,
+      site_slug: siteSlug,
+      community_type: siteSlug,
+    };
   }
 
   socket.off("connect");

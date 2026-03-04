@@ -755,6 +755,7 @@ export default class MessagingModal {
         sender_id: this.currentUserId,
         receiver_id: userId,
         content,
+        community_type: resolveCommunityType() || "bini",
         created_at: new Date().toISOString(),
         timestamp: new Date().toISOString(),
       };
@@ -1174,6 +1175,7 @@ export default class MessagingModal {
             sender_id: this.currentUserId,
             receiver_id: this.currentChatUserId,
             content: message,
+            community_type: resolveCommunityType() || "bini",
             created_at: new Date().toISOString(),
             timestamp: new Date().toISOString(),
           };

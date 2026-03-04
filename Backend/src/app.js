@@ -3,6 +3,7 @@ import { createServer } from "http";
 import { Server } from "socket.io";
 import jwt from "jsonwebtoken";
 import v1 from "./Routers/index.js";
+import MessageModel from "./Models/bini_models/MessageModel.js";
 import "./core/database.js";
 import morgan from "morgan";
 import cookieParser from "cookie-parser";
@@ -42,8 +43,46 @@ const io = new Server(server, {
   },
 });
 
-// Store online users
+// Online presence tracker: userId -> Set(socketId)
 const onlineUsers = new Map();
+
+function normalizeCommunityType(value = "") {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]/g, "");
+}
+
+function resolveSocketUserId(socket = {}) {
+  const user = socket?.user || {};
+  const resolved = user?.id ?? user?.user_id ?? user?.userId ?? user?.sub ?? null;
+  if (resolved === null || resolved === undefined || resolved === "") return null;
+  return String(resolved);
+}
+
+function addOnlineSocket(userId, socketId) {
+  if (!onlineUsers.has(userId)) {
+    onlineUsers.set(userId, new Set());
+  }
+  onlineUsers.get(userId).add(socketId);
+}
+
+function removeOnlineSocket(userId, socketId) {
+  const socketSet = onlineUsers.get(userId);
+  if (!socketSet) return false;
+  socketSet.delete(socketId);
+  if (socketSet.size === 0) {
+    onlineUsers.delete(userId);
+    return true;
+  }
+  return false;
+}
+
+function getOnlineUserIds() {
+  return Array.from(onlineUsers.entries())
+    .filter(([, socketSet]) => socketSet && socketSet.size > 0)
+    .map(([id]) => id);
+}
 
 // Middleware to attach io to requests
 app.use((req, res, next) => {
@@ -102,78 +141,143 @@ app.use(fileUpload({ useTempFiles: true }));
 // Socket.IO authentication middleware
 io.use((socket, next) => {
   const token = socket.handshake.auth.token;
-
   if (!token) {
     return next(new Error("Authentication error: No token provided"));
   }
 
-  try {
-    const decoded = jwt.verify(token, process.env.API_SECRET_KEY);
-    socket.user = decoded;
-    console.log("JWT decoded", decoded);
-    next();
-  } catch (err) {
+  const secrets = [process.env.API_SECRET_KEY, process.env.JWT_SECRET].filter(Boolean);
+  if (secrets.length === 0) {
+    return next(new Error("Authentication error: JWT secret is not configured"));
+  }
+
+  let decoded = null;
+  for (const secret of secrets) {
+    try {
+      decoded = jwt.verify(token, secret);
+      break;
+    } catch (_) {}
+  }
+
+  if (!decoded) {
     return next(new Error("Authentication error: Invalid token"));
   }
+
+  socket.user = decoded;
+  next();
 });
 
 io.on("connection", (socket) => {
-  const userId = socket.user?.id;
+  const userId = resolveSocketUserId(socket);
+  if (!userId) {
+    socket.disconnect(true);
+    return;
+  }
+
+  socket.userId = userId;
+  socket.communityType =
+    normalizeCommunityType(
+      socket.handshake?.auth?.community_type ||
+        socket.handshake?.auth?.site_slug ||
+        socket.handshake?.headers?.["x-community-type"] ||
+        socket.handshake?.headers?.["x-site-slug"] ||
+        "",
+    ) || "bini";
+
   console.log(`User connected: ${userId}`);
 
   // Join personal room
   socket.join(String(userId));
   console.log(`User ${userId} joined private room`);
 
-  // 🟢 Mark user as online
-  onlineUsers.set(userId, socket.id);
+  // Mark user as online
+  const wasOffline = !onlineUsers.has(userId);
+  addOnlineSocket(userId, socket.id);
 
   // Send current online users list to the newly connected user
-  const onlineUsersList = Array.from(onlineUsers.keys());
+  const onlineUsersList = getOnlineUserIds();
   socket.emit("online_users_list", { users: onlineUsersList });
   console.log(`Sent ${onlineUsersList.length} online users to ${userId}`);
 
-  // Broadcast user's online status to ALL other users
-  socket.broadcast.emit("user_status", { id: userId, status: "online" });
+  // Broadcast online status only when this is the first active socket
+  if (wasOffline) {
+    socket.broadcast.emit("user_status", { id: userId, status: "online" });
+  }
 
   // Handle request for online users list
   socket.on("request_online_users", () => {
-    const currentOnlineUsers = Array.from(onlineUsers.keys());
+    const currentOnlineUsers = getOnlineUserIds();
     socket.emit("online_users_list", { users: currentOnlineUsers });
-    console.log(
-      `Re-sent ${currentOnlineUsers.length} online users to ${userId}`,
-    );
+    console.log(`Re-sent ${currentOnlineUsers.length} online users to ${userId}`);
   });
 
   // Typing indicators
   socket.on("typing", ({ to }) => {
     if (!to) return;
-    console.log(`typing event from ${userId} to ${to}`);
     io.to(String(to)).emit("show_typing", { from: userId });
   });
 
   socket.on("stop_typing", ({ to }) => {
     if (!to) return;
-    console.log(`stop typing from ${userId} to ${to}`);
     io.to(String(to)).emit("hide_typing", { from: userId });
+  });
+
+  // Real-time chat send + DB persist
+  socket.on("send_message", async (payload = {}) => {
+    const receiverId = String(
+      payload?.receiver_id || payload?.receiverId || payload?.to || "",
+    ).trim();
+    const content = String(payload?.content || "").trim();
+    if (!receiverId || !content) {
+      socket.emit("message_error", { error: "receiver_id and content are required" });
+      return;
+    }
+
+    const communityType =
+      normalizeCommunityType(payload?.community_type) ||
+      normalizeCommunityType(socket.communityType) ||
+      "bini";
+
+    try {
+      const messageModel = new MessageModel();
+      await messageModel.ensureConnection(communityType);
+      await messageModel.sendMessage(Number(userId), Number(receiverId), content);
+
+      const now = new Date().toISOString();
+      const messageData = {
+        sender_id: Number(userId),
+        receiver_id: Number(receiverId),
+        content,
+        community_type: communityType,
+        created_at: now,
+        timestamp: now,
+      };
+
+      io.to(String(receiverId)).emit("receive_message", messageData);
+      io.to(String(userId)).emit("message_sent", messageData);
+
+      const unreadCount = await messageModel.getUnreadCount(Number(receiverId));
+      io.to(String(receiverId)).emit("unread_count_update", { unread_count: unreadCount });
+    } catch (error) {
+      console.error("Socket send_message error:", error?.message || error);
+      socket.emit("message_error", { error: "Failed to send message" });
+    }
   });
 
   // Disconnect
   socket.on("disconnect", () => {
-    if (userId) {
-      onlineUsers.delete(userId);
-      // Broadcast offline status to all other users
+    const nowOffline = removeOnlineSocket(userId, socket.id);
+    if (nowOffline) {
+      // Broadcast offline only when all sockets are disconnected
       socket.broadcast.emit("user_status", { id: userId, status: "offline" });
-      console.log(`User ${userId} disconnected`);
     }
+    console.log(`User ${userId} disconnected`);
   });
 });
 
 // Routes
 app.get("/", (req, res) => {
-  res.json({ success: true, message: "Welcome to Bini API!✨🤖" });
+  res.json({ success: true, message: "Welcome to Bini API!" });
 });
-
 
 app.get("/health", async (req, res) => {
   try {
@@ -213,9 +317,8 @@ server.on("error", (err) => {
 });
 
 server.listen(PORT, HOST, () => {
-  const publicUrl = String(process.env.BACKEND_PUBLIC_URL || "https://fanhub-deployment-production.up.railway.app/v1").trim();
+  const publicUrl = String(
+    process.env.BACKEND_PUBLIC_URL || "https://fanhub-deployment-production.up.railway.app/v1",
+  ).trim();
   console.log(`Server is running on ${publicUrl}`);
 });
-
-
-

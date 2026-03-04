@@ -1,5 +1,4 @@
 import MessageModel from "../../../Models/bini_models/MessageModel.js";
-import { saveMessageToFile } from "../../../utils/conversationFileManager.js";
 import { resolveSiteSlug } from "../../../utils/site-scope.js";
 
 class MessageController {
@@ -35,15 +34,6 @@ class MessageController {
         content,
         timestamp: new Date().toISOString(),
       };
-
-      // Save message to text file in BiniCommunity folder
-      await saveMessageToFile(
-        sender_id,
-        receiver_id,
-        content,
-        messageData.timestamp,
-        communityType,
-      );
 
       /* real-time message */
       req.io.to(receiver_id).emit("receive_message", messageData);
