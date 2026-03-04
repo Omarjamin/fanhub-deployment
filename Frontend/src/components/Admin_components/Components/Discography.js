@@ -144,11 +144,13 @@ export default function Discography() {
   function getCommunities() {
     return communities
       .map((c) => ({
-        id: c.community_id ?? c.id ?? c.site_id,
+        id: c.site_id ?? c.id ?? c.community_id,
+        site_id: c.site_id ?? c.id ?? c.community_id,
+        community_id: c.community_id ?? null,
         name: c.name ?? c.site_name ?? c.domain,
         domain: c.domain ?? c.community_type ?? c.name,
       }))
-      .filter((c) => Number(c.id) > 0 && String(c.name || '').trim());
+      .filter((c) => Number(c.site_id || c.id) > 0 && String(c.name || '').trim());
   }
 
 function loadCommunityFilter() {
@@ -251,7 +253,8 @@ function loadCommunityFilter() {
     try {
       const rows = await fetchAdminSites();
       communities = rows.map((site) => ({
-        community_id: site.id ?? site.site_id,
+        community_id: site.community_id ?? null,
+        site_id: site.site_id ?? site.id,
         name: site.site_name,
         domain: site.domain,
       }));

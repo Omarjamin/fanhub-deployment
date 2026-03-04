@@ -318,11 +318,12 @@ export default function Threads() {
       const rows = await fetchAdminSites();
       const normalized = rows
         .map((row) => ({
-          site_id: row.id ?? row.site_id,
+          site_id: row.site_id ?? row.id,
           site_name: row.site_name,
           community: row.domain || row.community_type || row.site_name || '',
           domain: row.domain,
           status: row.status,
+          community_id: row.community_id ?? null,
         }))
         .filter((row) => Number(row.site_id) > 0);
       state.sites = normalized;

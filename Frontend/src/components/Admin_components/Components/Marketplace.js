@@ -567,7 +567,7 @@ export default function createMarketplace() {
         excludeAll ? option.key !== 'all' : true
       );
       return rows
-        .map(option => `<option value="${option.key}">${option.label}</option>`)
+        .map(option => `<option value="${option.key}" data-community-id="${option.community_id || ''}">${option.label}</option>`)
         .join('');
     }
 
@@ -598,7 +598,7 @@ export default function createMarketplace() {
       event.preventDefault();
       const community = String(collectionModalCommunity.value || '').trim().toLowerCase();
       const selectedOption = collectionModalCommunity.options?.[collectionModalCommunity.selectedIndex];
-      const community_id = Number(selectedOption?.dataset?.communityId || 0) || null;
+      const community_id = Number(selectedOption?.dataset?.communityId || 0) || getCommunityIdByKey(community) || null;
       const name = String(collectionModalName.value || '').trim();
       if (!community || !name) return;
 

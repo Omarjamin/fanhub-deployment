@@ -265,10 +265,15 @@ export async function fetchAdminSites() {
       const siteName = String(row?.site_name || row?.name || row?.community_name || domain).trim();
       if (!domain || seen.has(domain)) return null;
       seen.add(domain);
-      const parsedId = Number(row?.community_id ?? row?.site_id ?? row?.id ?? 0);
+      const parsedCommunityId = Number(row?.community_id ?? row?.id ?? 0);
+      const parsedSiteId = Number(row?.site_id ?? 0);
+      const parsedId = Number.isFinite(parsedCommunityId) && parsedCommunityId > 0
+        ? parsedCommunityId
+        : (Number.isFinite(parsedSiteId) && parsedSiteId > 0 ? parsedSiteId : Number(row?.id ?? 0));
       return {
         id: Number.isFinite(parsedId) && parsedId > 0 ? parsedId : index + 1,
-        community_id: Number.isFinite(parsedId) && parsedId > 0 ? parsedId : null,
+        site_id: Number.isFinite(parsedSiteId) && parsedSiteId > 0 ? parsedSiteId : null,
+        community_id: Number.isFinite(parsedCommunityId) && parsedCommunityId > 0 ? parsedCommunityId : null,
         key: domain,
         domain,
         site_name: siteName || domain,
