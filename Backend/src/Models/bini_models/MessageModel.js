@@ -16,14 +16,39 @@ class MessageModel {
   async ensureConnection(community_type) {
     try {
       this.db = await connect(community_type);
+      const hasMessages = await this.hasTableOnPool(this.db, 'messages');
+      const hasUsers = await this.hasTableOnPool(this.db, 'users');
+      if (!hasMessages || !hasUsers) {
+        console.warn(
+          `[MessageModel] Falling back to default DB because messages/users table is missing for community "${community_type}"`,
+        );
+        this.db = await connect();
+      }
+      this.columnCache.clear();
       const ctx = await resolveCommunityContext(community_type);
       this.activeCommunityId = Number(ctx?.community_id || 0) || null;
     } catch (err) {
       console.error("<error> MessageModel.ensureConnection failed:", err?.message || err);
       this.db = await connect();
+      this.columnCache.clear();
       this.activeCommunityId = null;
     }
     return this.db;
+  }
+  async hasTableOnPool(pool, tableName) {
+    try {
+      const [rows] = await pool.query(
+        `SELECT 1
+         FROM INFORMATION_SCHEMA.TABLES
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = ?
+         LIMIT 1`,
+        [tableName],
+      );
+      return Boolean(rows?.length);
+    } catch (_) {
+      return false;
+    }
   }
   async hasColumn(tableName, columnName) {
     const key = `${tableName}:${columnName}`.toLowerCase();

@@ -15,9 +15,15 @@ class UserModel {
     try {
       this.db = await connect(community_type);
       const hasUsers = await this.hasTableOnPool(this.db, "users");
+      const hasFollows = await this.hasTableOnPool(this.db, "follows");
       if (!hasUsers) {
         console.warn(
           `[UserModel] Falling back to default DB because users table is missing for community "${community_type}"`,
+        );
+        this.db = await connect();
+      } else if (!hasFollows) {
+        console.warn(
+          `[UserModel] Falling back to default DB because follows table is missing for community "${community_type}"`,
         );
         this.db = await connect();
       }

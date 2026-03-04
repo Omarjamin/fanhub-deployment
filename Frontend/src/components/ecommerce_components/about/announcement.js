@@ -1,9 +1,7 @@
 import { getActiveSiteSlug, getSiteHeaders } from '../../../lib/site-context.js';
+import { getRuntimeApiV1 } from '../../../lib/runtime-api.js';
 
-const BASE_V1 =
-  (typeof window !== 'undefined' && window.__API_ORIGIN)
-    ? `${String(window.__API_ORIGIN).replace(/\/$/, '')}/v1`
-    : (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1');
+const BASE_V1 = getRuntimeApiV1();
 const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
 
 function resolveSiteSlug(data = {}) {
@@ -51,13 +49,13 @@ function renderAnnouncement(section, payload = {}) {
   const hasThread = threadLink !== '#';
 
   section.innerHTML = `
-    <h2 class="section-title">Announcements</h2>
-    <div class="announcement-box">
-      <p><strong>${title}</strong></p>
-      ${venue ? `<p>Venue: ${venue}</p>` : ''}
-      ${date ? `<p>Date: ${date}</p>` : ''}
-      <div class="see-details-center">
-        <a href="${threadLink}" class="btn-see-details" ${hasThread ? 'data-link' : 'aria-disabled="true"'}>${hasThread ? 'See details' : 'No thread yet'}</a>
+    <h2 class="ec-announcement-title">Announcements</h2>
+    <div class="ec-announcement-card">
+      <p class="ec-announcement-headline"><strong>${title}</strong></p>
+      ${venue ? `<p class="ec-announcement-meta">Venue: ${venue}</p>` : ''}
+      ${date ? `<p class="ec-announcement-meta">Date: ${date}</p>` : ''}
+      <div class="ec-announcement-action">
+        <a href="${threadLink}" class="ec-announcement-btn" ${hasThread ? 'data-link' : 'aria-disabled="true"'}>${hasThread ? 'See details' : 'No thread yet'}</a>
       </div>
     </div>
   `;
@@ -89,7 +87,7 @@ export default function announcement(root, data = {}) {
 
   const section = document.createElement('section');
   section.id = 'announcements';
-  section.className = 'announcement-section';
+  section.className = 'ec-announcement';
   root.appendChild(section);
 
   renderAnnouncement(section, {
@@ -140,7 +138,3 @@ export default function announcement(root, data = {}) {
     });
   });
 }
-
-
-
-

@@ -75,7 +75,7 @@ export default function Discography(root, data = {}) {
     "beforeend",
     `
     <section id="music" class="discography-section">
-      <h2 class="section-title">Discography</h2>
+      <h2 class="discography-title">Discography</h2>
       <div class="album-carousel">
         <button class="carousel-btn prev" type="button" aria-label="Previous album">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -325,6 +325,3 @@ export default function Discography(root, data = {}) {
     );
   }, 8000);
 }
-
-
-
