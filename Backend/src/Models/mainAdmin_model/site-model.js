@@ -9,30 +9,50 @@ async function hasTable(adminDB, tableName) {
   return Array.isArray(rows) && rows.length > 0;
 }
 
+async function getTableColumns(adminDB, tableName) {
+  if (!(await hasTable(adminDB, tableName))) return new Set();
+  const [rows] = await adminDB.query(`SHOW COLUMNS FROM ${tableName}`);
+  return new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+}
+
 async function fetchSites(adminDB, siteKey = 'all', siteName = '') {
   const key = normalize(siteKey);
   const name = normalize(siteName);
   const where = [];
   const params = [];
+  const siteCols = await getTableColumns(adminDB, 'sites');
+  const hasSiteCommunityId = siteCols.has('community_id');
+  const hasSiteDomain = siteCols.has('domain');
+  const hasSiteName = siteCols.has('site_name');
+  const hasSiteCreatedAt = siteCols.has('created_at');
   const hasCommunities = await hasTable(adminDB, 'communities');
   const hasCommunityTable = await hasTable(adminDB, 'community_table');
+  const communityCols = hasCommunities ? await getTableColumns(adminDB, 'communities') : new Set();
+  const communityPk = communityCols.has('community_id')
+    ? 'community_id'
+    : (communityCols.has('id') ? 'id' : null);
+  const hasCommunityName = communityCols.has('name');
   const joins = [];
 
-  if (hasCommunities) {
-    joins.push('LEFT JOIN communities c ON c.community_id = s.community_id');
+  if (hasCommunities && hasSiteCommunityId && communityPk) {
+    joins.push(`LEFT JOIN communities c ON c.${communityPk} = s.community_id`);
   }
-  if (hasCommunityTable) {
+  if (hasCommunityTable && hasSiteCommunityId) {
     joins.push('LEFT JOIN community_table ct ON ct.community_id = s.community_id');
   }
 
   if (key && key !== 'all') {
-    const predicates = [
-      'LOWER(TRIM(s.domain)) = ?',
-      'LOWER(TRIM(s.site_name)) = ?',
-    ];
-    params.push(key, key);
+    const predicates = [];
+    if (hasSiteDomain) {
+      predicates.push('LOWER(TRIM(s.domain)) = ?');
+      params.push(key);
+    }
+    if (hasSiteName) {
+      predicates.push('LOWER(TRIM(s.site_name)) = ?');
+      params.push(key);
+    }
 
-    if (hasCommunities) {
+    if (hasCommunities && hasCommunityName && hasSiteCommunityId && communityPk) {
       predicates.push('LOWER(TRIM(c.name)) = ?');
       params.push(key);
     }
@@ -46,39 +66,49 @@ async function fetchSites(adminDB, siteKey = 'all', siteName = '') {
     if (key.endsWith('-website')) {
       const trimmedKey = key.replace(/-website$/, '');
       if (trimmedKey) {
-        predicates.push('LOWER(TRIM(s.domain)) = ?');
-        predicates.push('LOWER(TRIM(s.site_name)) = ?');
-        params.push(trimmedKey, trimmedKey);
-        if (hasCommunities) {
+        if (hasSiteDomain) {
+          predicates.push('LOWER(TRIM(s.domain)) = ?');
+          params.push(trimmedKey);
+        }
+        if (hasSiteName) {
+          predicates.push('LOWER(TRIM(s.site_name)) = ?');
+          params.push(trimmedKey);
+        }
+        if (hasCommunities && hasCommunityName && hasSiteCommunityId && communityPk) {
           predicates.push('LOWER(TRIM(c.name)) = ?');
           params.push(trimmedKey);
         }
       }
     } else {
       const websiteKey = `${key}-website`;
-      predicates.push('LOWER(TRIM(s.domain)) = ?');
-      params.push(websiteKey);
+      if (hasSiteDomain) {
+        predicates.push('LOWER(TRIM(s.domain)) = ?');
+        params.push(websiteKey);
+      }
       if (hasCommunityTable) {
         predicates.push('LOWER(TRIM(ct.domain)) = ?');
         params.push(websiteKey);
       }
     }
 
-    where.push(`(${predicates.join(' OR ')})`);
+    if (predicates.length) {
+      where.push(`(${predicates.join(' OR ')})`);
+    }
   }
-  if (name && name !== 'all') {
+  if (name && name !== 'all' && hasSiteName) {
     where.push('LOWER(TRIM(s.site_name)) = ?');
     params.push(name);
   }
 
   const whereSql = where.length ? `WHERE ${where.join(' AND ')}` : '';
+  const orderBy = hasSiteCreatedAt ? 's.created_at DESC' : 's.site_id DESC';
   const [rows] = await adminDB.query(
     `
       SELECT DISTINCT s.site_id, s.site_name, s.domain, s.status
       FROM sites s
       ${joins.join('\n      ')}
       ${whereSql}
-      ORDER BY s.created_at DESC
+      ORDER BY ${orderBy}
     `,
     params,
   );
@@ -113,7 +143,7 @@ export async function getDBNamesByCommunityType(communityType, siteName = '') {
     return mapped.map((x) => x.db_name).filter(Boolean);
   } catch (error) {
     console.error(`Error fetching db_names for "${communityType}":`, error);
-    throw error;
+    return [];
   }
 }
 
