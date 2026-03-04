@@ -83,6 +83,62 @@ class GenerateModel {
     return null;
   }
 
+  async ensureCommunityRecord(siteName = '', domain = '', communityType = '', description = '') {
+    const hasCommunities = await this.hasTable('communities');
+    if (!hasCommunities) return null;
+
+    const communityCols = await this.getTableColumns('communities');
+    const idCol = communityCols.has('community_id')
+      ? 'community_id'
+      : (communityCols.has('id') ? 'id' : null);
+    if (!communityCols.has('name') || !idCol) return null;
+
+    const normalizedName = String(communityType || domain || siteName || '')
+      .trim()
+      .toLowerCase();
+    if (!normalizedName) return null;
+
+    try {
+      const [existingRows] = await this.db.query(
+        `SELECT ${idCol} AS id FROM communities WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1`,
+        [normalizedName],
+      );
+      const existingId = Number(existingRows?.[0]?.id || 0);
+      if (existingId > 0) return existingId;
+    } catch (_) {}
+
+    const insertCols = ['name'];
+    const insertValues = ['?'];
+    const insertParams = [normalizedName];
+
+    if (communityCols.has('description')) {
+      insertCols.push('description');
+      insertValues.push('?');
+      insertParams.push(String(description || '').trim());
+    }
+    if (communityCols.has('created_at')) {
+      insertCols.push('created_at');
+      insertValues.push('NOW()');
+    }
+
+    try {
+      const [insertRes] = await this.db.query(
+        `INSERT INTO communities (${insertCols.join(', ')}) VALUES (${insertValues.join(', ')})`,
+        insertParams,
+      );
+      const insertedId = Number(insertRes?.insertId || 0);
+      if (insertedId > 0) return insertedId;
+    } catch (err) {
+      if (String(err?.code || '') !== 'ER_DUP_ENTRY') throw err;
+    }
+
+    const [rows] = await this.db.query(
+      `SELECT ${idCol} AS id FROM communities WHERE LOWER(TRIM(name)) = LOWER(TRIM(?)) LIMIT 1`,
+      [normalizedName],
+    );
+    return Number(rows?.[0]?.id || 0) || null;
+  }
+
   async getTableColumns(tableName) {
     if (this.tableColumnsCache.has(tableName)) {
       return this.tableColumnsCache.get(tableName);
@@ -117,8 +173,10 @@ class GenerateModel {
     `);
   }
 
-  async upsertCommunityTable({ siteId, siteName, domain, status = 'active' }) {
+  async upsertCommunityTable({ communityId, siteId, siteName, domain, status = 'active' }) {
     await this.ensureCommunityTable();
+    const rowId = Number(communityId || siteId || 0);
+    if (!rowId) return;
     await this.db.query(
       `
       INSERT INTO community_table (community_id, site_name, domain, status)
@@ -129,7 +187,7 @@ class GenerateModel {
         status = VALUES(status)
       `,
       [
-        Number(siteId),
+        rowId,
         String(siteName || '').trim(),
         String(domain || '').trim(),
         String(status || 'active').trim() || 'active',
@@ -211,7 +269,6 @@ class GenerateModel {
     accentColor,
     buttonStyle,
     fontStyle,
-    navPosition,
     logo,
     banner,
     members,
@@ -227,6 +284,13 @@ class GenerateModel {
 
     if (!normalizedSiteName) throw new Error('site_name is required');
     if (!normalizedDomain) throw new Error('domain is required');
+
+    const resolvedCommunityId = await this.ensureCommunityRecord(
+      normalizedSiteName,
+      normalizedDomain,
+      normalizedCommunityType,
+      normalizedDescription || normalizedShortBio,
+    );
 
     const insertColumns = ['site_name', 'domain'];
     const insertValues = ['?', '?'];
@@ -253,11 +317,6 @@ class GenerateModel {
       insertParams.push(normalizedCommunityType);
     }
     if (siteCols.has('community_id')) {
-      const resolvedCommunityId = await this.resolveCommunityId(
-        normalizedSiteName,
-        normalizedDomain,
-        normalizedCommunityType,
-      );
       insertColumns.push('community_id');
       insertValues.push('?');
       insertParams.push(resolvedCommunityId);
@@ -293,7 +352,6 @@ class GenerateModel {
       addSettingValue('accent_color', accentColor);
       addSettingValue('button_style', buttonStyle);
       addSettingValue('font_style', fontStyle);
-      addSettingValue('nav_position', navPosition);
       addSettingValue('logo', logo);
       addSettingValue('banner', banner);
 
@@ -354,6 +412,7 @@ class GenerateModel {
     }
 
     await this.upsertCommunityTable({
+      communityId: resolvedCommunityId,
       siteId,
       siteName: normalizedSiteName,
       domain: normalizedDomain,

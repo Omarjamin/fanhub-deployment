@@ -7,10 +7,16 @@ export default function AdminLoginPage() {
   const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/admin';
   const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 
-  function normalizeAdminBase(rawBase) {
+  function resolveAdminLoginUrl(rawBase) {
     const trimmed = String(rawBase || '').trim().replace(/\/+$/, '');
-    if (!trimmed) return 'https://fanhub-deployment-production.up.railway.app/v1/admin';
-    return /\/admin$/i.test(trimmed) ? trimmed : `${trimmed}/admin`;
+    const fallback = 'https://fanhub-deployment-production.up.railway.app/v1/admin/login';
+    if (!trimmed) return fallback;
+
+    if (/\/admin\/login$/i.test(trimmed)) return trimmed;
+    if (/\/admin$/i.test(trimmed)) return `${trimmed}/login`;
+    if (/\/login$/i.test(trimmed)) return `${trimmed.replace(/\/login$/i, '')}/admin/login`;
+
+    return `${trimmed}/admin/login`;
   }
 
   function resolveAdminSiteSlug() {
@@ -102,9 +108,9 @@ export default function AdminLoginPage() {
     errorDiv.classList.add('hidden');
 
     try {
-      const adminBase = normalizeAdminBase(ADMIN_API_BASE);
+      const loginUrl = resolveAdminLoginUrl(ADMIN_API_BASE);
       const scopedSite = resolveAdminSiteSlug();
-      const response = await fetch(`${adminBase}/login`, {
+      const response = await fetch(loginUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

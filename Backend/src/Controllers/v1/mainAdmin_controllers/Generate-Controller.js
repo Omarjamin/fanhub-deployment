@@ -94,7 +94,6 @@ class GenerateController {
         accentColor,
         buttonStyle,
         fontStyle,
-        navPosition,
         bannerLink,
         members // array of objects {name, role, description, image}
       } = req.body;
@@ -189,7 +188,6 @@ class GenerateController {
         accentColor,
         buttonStyle,
         fontStyle,
-        navPosition,
         logo: logoUrl,
         banner: bannerUrl,
         members: normalizedMembers

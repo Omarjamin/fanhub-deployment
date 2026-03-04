@@ -41,7 +41,6 @@ export default function GenerateWebsite() {
     accentColor: '#333333',
     buttonStyle: 'rounded',
     fontStyle: 'sans-serif',
-    navPosition: 'top',
     logo: null,
     bannerLink: '',
     members: []
@@ -87,7 +86,6 @@ export default function GenerateWebsite() {
       submitData.append('accentColor', formData.accentColor);
       submitData.append('buttonStyle', formData.buttonStyle);
       submitData.append('fontStyle', formData.fontStyle);
-      submitData.append('navPosition', formData.navPosition);
       submitData.append('bannerLink', formData.bannerLink);
       
       if (formData.logo) submitData.append('logo', formData.logo);
@@ -148,7 +146,6 @@ export default function GenerateWebsite() {
       accentColor: '#333333',
       buttonStyle: 'rounded',
       fontStyle: 'sans-serif',
-      navPosition: 'top',
       logo: null,
       bannerLink: '',
       members: []
@@ -273,14 +270,6 @@ export default function GenerateWebsite() {
                   <option value="Trebuchet MS" style="font-family: 'Trebuchet MS', sans-serif;">Aa Trebuchet MS</option>
                   <option value="Georgia" style="font-family: Georgia, serif;">Aa Georgia</option>
                   <option value="Times New Roman" style="font-family: 'Times New Roman', serif;">Aa Times New Roman</option>
-                </select>
-              </div>
-              <div class="gw-form-group">
-                <label for="navPosition">Navigation Position</label>
-                <select id="navPosition" required>
-                  <option value="top">Top</option>
-                  <option value="side">Side</option>
-                  <option value="bottom">Bottom</option>
                 </select>
               </div>
             </div>
@@ -604,10 +593,6 @@ export default function GenerateWebsite() {
 
     section.querySelector('#fontStyle')?.addEventListener('change', (e) => {
       formData.fontStyle = e.target.value;
-    });
-
-    section.querySelector('#navPosition')?.addEventListener('change', (e) => {
-      formData.navPosition = e.target.value;
     });
 
     section.querySelector('#logo')?.addEventListener('change', (e) => {
