@@ -92,7 +92,10 @@ class SettingsModel {
     const hasGroupCommunityId = Boolean(columns.group_community_id);
     const hasCommunityId = Boolean(columns.community_id);
     const scopeColumn = hasGroupCommunityId ? 'group_community_id' : (hasCommunityId ? 'community_id' : null);
-    const scopeWhere = scopeColumn && scopedCommunityId ? ` AND COALESCE(${scopeColumn}, 0) IN (?, 0)` : '';
+    if (scopeColumn && !scopedCommunityId) {
+      return [];
+    }
+    const scopeWhere = scopeColumn && scopedCommunityId ? ` AND COALESCE(${scopeColumn}, 0) = ?` : '';
     const params = scopeWhere ? [scopedCommunityId] : [];
     const [rows] = await db.query(
       `SELECT event_id, ticket_link, image_url${nameSelect}
@@ -240,6 +243,9 @@ class SettingsModel {
     const scoped = this.normalizeSiteSlug(communityType);
     if (!scoped || scoped === this.globalSlug) return [];
     const scopedCommunityId = Number((await resolveCommunityContext(scoped))?.community_id || 0) || null;
+    if (!scopedCommunityId) {
+      return [];
+    }
 
     const variants = this.buildSiteSlugVariants(scoped);
     console.log('[settings-model] getEventPosters variants', {
@@ -314,6 +320,9 @@ class SettingsModel {
       throw new Error('site/community is required');
     }
     const scopedCommunityId = Number((await resolveCommunityContext(scoped))?.community_id || 0) || null;
+    if (!scopedCommunityId) {
+      throw new Error('site/community scope is required');
+    }
 
     const db = await this.resolveStrictSiteDb(scoped);
     await this.ensureEventColumns(db);
@@ -371,10 +380,10 @@ class SettingsModel {
       }
       if (columns.group_community_id) {
         insertCols.push('group_community_id');
-        insertVals.push(scopedCommunityId || 0);
+        insertVals.push(scopedCommunityId);
       } else if (columns.community_id) {
         insertCols.push('community_id');
-        insertVals.push(scopedCommunityId || 0);
+        insertVals.push(scopedCommunityId);
       }
 
       const placeholders = insertCols.map(() => '?').join(', ');

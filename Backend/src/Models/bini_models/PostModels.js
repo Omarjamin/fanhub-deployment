@@ -160,6 +160,11 @@ class PostModel {
 
       await this.ensureConnection(community_type);
       const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
+      if (hasPostCommunityId && !this.activeCommunityId) {
+        const err = new Error('community scope is required');
+        err.code = 'SITE_SCOPE_NOT_FOUND';
+        throw err;
+      }
       const query = hasPostCommunityId
         ? `INSERT INTO posts (user_id, content, img_url, community_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`
         : `INSERT INTO posts (user_id, content, img_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?)`;
@@ -193,13 +198,23 @@ class PostModel {
   async addHashtags(postId, tags) {
     if (tags.length === 0) return;
 
-    const placeholders = tags.map(() => `(?, ?)`).join(", ");
-    const params = tags.flatMap(tag => [postId, tag]);
+    const hasHashtagCommunityId = await this.hasColumn('hashtags', 'community_id');
+    if (hasHashtagCommunityId && !this.activeCommunityId) {
+      const err = new Error('community scope is required for hashtags');
+      err.code = 'SITE_SCOPE_NOT_FOUND';
+      throw err;
+    }
 
-    const query = `
-      INSERT INTO hashtags (post_id, tag) 
-      VALUES ${placeholders}
-    `;
+    const placeholders = hasHashtagCommunityId
+      ? tags.map(() => `(?, ?, ?)`).join(', ')
+      : tags.map(() => `(?, ?)`).join(', ');
+    const params = hasHashtagCommunityId
+      ? tags.flatMap((tag) => [postId, tag, this.activeCommunityId])
+      : tags.flatMap((tag) => [postId, tag]);
+
+    const query = hasHashtagCommunityId
+      ? `INSERT INTO hashtags (post_id, tag, community_id) VALUES ${placeholders}`
+      : `INSERT INTO hashtags (post_id, tag) VALUES ${placeholders}`;
 
     await this.db.query(query, params);
   }
@@ -514,11 +529,18 @@ class PostModel {
       }
 
       const contentToRepost = post.content || 'Original post content unavailable';
-      const query = `
-        INSERT INTO posts (user_id, content, img_url, repost_id) 
-        VALUES (?, ?, ?, ?)
-      `;
-      const params = [userId, contentToRepost, post.img_url || null, postId];
+      const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
+      if (hasPostCommunityId && !this.activeCommunityId) {
+        const err = new Error('community scope is required');
+        err.code = 'SITE_SCOPE_NOT_FOUND';
+        throw err;
+      }
+      const query = hasPostCommunityId
+        ? `INSERT INTO posts (user_id, content, img_url, repost_id, community_id) VALUES (?, ?, ?, ?, ?)`
+        : `INSERT INTO posts (user_id, content, img_url, repost_id) VALUES (?, ?, ?, ?)`;
+      const params = hasPostCommunityId
+        ? [userId, contentToRepost, post.img_url || null, postId, this.activeCommunityId]
+        : [userId, contentToRepost, post.img_url || null, postId];
       await this.db.query(query, params);
 
       const originalPostOwnerId = post.user_id;
