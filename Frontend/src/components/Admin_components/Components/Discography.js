@@ -199,7 +199,11 @@ function loadCommunityFilter() {
       const matchId = String(album.album_id) === String(albumId);
       if (!matchId) return false;
       if (!siteId) return true;
-      return String(album.site_id || album.community_id) === String(siteId);
+      const normalizedSiteId = String(siteId);
+      return (
+        String(album.site_id || '') === normalizedSiteId ||
+        String(album.community_id || '') === normalizedSiteId
+      );
     });
   }
 
@@ -208,7 +212,13 @@ function loadCommunityFilter() {
     const selectedCommunity = section.querySelector('#communityFilter').value;
 
     const filtered = selectedCommunity
-      ? albums.filter(album => String(album.site_id || album.community_id) === String(selectedCommunity))
+      ? albums.filter((album) => {
+          const normalizedSelected = String(selectedCommunity);
+          return (
+            String(album.site_id || '') === normalizedSelected ||
+            String(album.community_id || '') === normalizedSelected
+          );
+        })
       : albums;
 
     tbody.innerHTML = filtered.map(album => `

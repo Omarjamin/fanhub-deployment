@@ -159,15 +159,27 @@ class RevenueModel {
                                     communityWhere = `
                                       WHERE (
                                         COALESCE(dr.community_id, 0) = ?
+                                        OR COALESCE(dr.community_id, 0) = 0
                                         OR COALESCE(o.community_id, 0) = ?
+                                        OR COALESCE(o.community_id, 0) = 0
                                       )
                                     `;
                                     params.push(scopedCommunityId, scopedCommunityId);
                                 } else if (hasDailyRevenueCommunityId) {
-                                    communityWhere = 'WHERE COALESCE(dr.community_id, 0) = ?';
+                                    communityWhere = `
+                                      WHERE (
+                                        COALESCE(dr.community_id, 0) = ?
+                                        OR COALESCE(dr.community_id, 0) = 0
+                                      )
+                                    `;
                                     params.push(scopedCommunityId);
                                 } else if (hasCommunityId) {
-                                    communityWhere = 'WHERE COALESCE(o.community_id, 0) = ?';
+                                    communityWhere = `
+                                      WHERE (
+                                        COALESCE(o.community_id, 0) = ?
+                                        OR COALESCE(o.community_id, 0) = 0
+                                      )
+                                    `;
                                     params.push(scopedCommunityId);
                                 }
                             }
@@ -193,7 +205,12 @@ class RevenueModel {
                             if ((!dailyRevenue || dailyRevenue.length === 0) && scopedCommunityId) {
                                 const relaxedWhere =
                                     hasDailyRevenueCommunityId
-                                        ? 'WHERE COALESCE(dr.community_id, 0) = ?'
+                                        ? `
+                                          WHERE (
+                                            COALESCE(dr.community_id, 0) = ?
+                                            OR COALESCE(dr.community_id, 0) = 0
+                                          )
+                                        `
                                         : '';
                                 const [relaxedRows] = await siteDB.query(
                                     `
@@ -249,7 +266,7 @@ class RevenueModel {
                         const whereParts = [`LOWER(TRIM(COALESCE(o.status, ''))) = 'completed'`];
                         const params = [];
                         if (scopedCommunityId && hasCommunityId) {
-                            whereParts.push('COALESCE(o.community_id, 0) = ?');
+                            whereParts.push('(COALESCE(o.community_id, 0) = ? OR COALESCE(o.community_id, 0) = 0)');
                             params.push(scopedCommunityId);
                         }
                         const [orderRows] = await siteDB.query(

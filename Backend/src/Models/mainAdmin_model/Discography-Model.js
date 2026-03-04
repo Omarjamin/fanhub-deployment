@@ -133,11 +133,35 @@ class DiscographyModel {
         FROM sites s
         ${communityJoin}
         WHERE s.site_id = ?
+           OR COALESCE(s.community_id, 0) = ?
+        LIMIT 1
+      `,
+      [numeric, numeric],
+    );
+    if (rows?.[0]) return rows[0];
+
+    // Fallback: resolve directly from community_table for deployments where
+    // the selected value corresponds to community_id but no direct site_id row is present.
+    const hasCommunityTable = await this.hasAdminTable(db, 'community_table');
+    if (!hasCommunityTable) return null;
+
+    const [communityRows] = await db.query(
+      `
+        SELECT
+          COALESCE(s.site_id, ct.community_id) AS site_id,
+          COALESCE(NULLIF(TRIM(s.site_name), ''), NULLIF(TRIM(ct.site_name), ''), 'community') AS site_name,
+          LOWER(TRIM(COALESCE(${communityNameExpr}, NULLIF(s.domain, ''), NULLIF(ct.domain, ''), NULLIF(ct.site_name, '')))) AS domain,
+          LOWER(TRIM(COALESCE(s.status, ct.status, 'active'))) AS status,
+          ct.community_id
+        FROM community_table ct
+        LEFT JOIN sites s ON s.community_id = ct.community_id
+        ${communityJoin}
+        WHERE ct.community_id = ?
         LIMIT 1
       `,
       [numeric],
     );
-    return rows?.[0] || null;
+    return communityRows?.[0] || null;
   }
 
   async getSiteByKey(siteKey) {
