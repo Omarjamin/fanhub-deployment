@@ -144,14 +144,32 @@ class RevenueModel {
 
                     // Primary source of truth: daily_revenue.
                     if (await this.tableExists(siteDB, 'daily_revenue')) {
+                        const hasDailyRevenueCommunityId = await this.tableHasColumn(
+                            siteDB,
+                            'daily_revenue',
+                            'community_id',
+                        );
                         const hasOrders = await this.tableExists(siteDB, 'orders');
                         if (hasOrders) {
                             const hasCommunityId = await this.tableHasColumn(siteDB, 'orders', 'community_id');
                             const params = [];
                             let communityWhere = '';
-                            if (scopedCommunityId && hasCommunityId) {
-                                communityWhere = 'WHERE COALESCE(o.community_id, 0) = ?';
-                                params.push(scopedCommunityId);
+                            if (scopedCommunityId) {
+                                if (hasDailyRevenueCommunityId && hasCommunityId) {
+                                    communityWhere = `
+                                      WHERE (
+                                        COALESCE(dr.community_id, 0) = ?
+                                        OR COALESCE(o.community_id, 0) = ?
+                                      )
+                                    `;
+                                    params.push(scopedCommunityId, scopedCommunityId);
+                                } else if (hasDailyRevenueCommunityId) {
+                                    communityWhere = 'WHERE COALESCE(dr.community_id, 0) = ?';
+                                    params.push(scopedCommunityId);
+                                } else if (hasCommunityId) {
+                                    communityWhere = 'WHERE COALESCE(o.community_id, 0) = ?';
+                                    params.push(scopedCommunityId);
+                                }
                             }
 
                             const [legacyRows] = await siteDB.query(
@@ -172,11 +190,11 @@ class RevenueModel {
                             );
                             dailyRevenue = legacyRows || [];
 
-                            if (
-                                (!dailyRevenue || dailyRevenue.length === 0) &&
-                                scopedCommunityId &&
-                                hasCommunityId
-                            ) {
+                            if ((!dailyRevenue || dailyRevenue.length === 0) && scopedCommunityId) {
+                                const relaxedWhere =
+                                    hasDailyRevenueCommunityId
+                                        ? 'WHERE COALESCE(dr.community_id, 0) = ?'
+                                        : '';
                                 const [relaxedRows] = await siteDB.query(
                                     `
                                       SELECT
@@ -186,9 +204,11 @@ class RevenueModel {
                                         dr.total_amount,
                                         dr.created_at
                                       FROM daily_revenue dr
+                                      ${relaxedWhere}
                                       ORDER BY dr.created_at DESC
                                       LIMIT 30
                                     `,
+                                    relaxedWhere ? [scopedCommunityId] : [],
                                 );
                                 dailyRevenue = relaxedRows || [];
                                 debugLog('getRevenueForCommunity:relaxed-daily-revenue-fallback', {
@@ -198,6 +218,12 @@ class RevenueModel {
                                 });
                             }
                         } else {
+                            const params = [];
+                            const where =
+                                scopedCommunityId && hasDailyRevenueCommunityId
+                                    ? 'WHERE COALESCE(dr.community_id, 0) = ?'
+                                    : '';
+                            if (where) params.push(scopedCommunityId);
                             const [legacyRows] = await siteDB.query(
                                 `
                                   SELECT
@@ -207,9 +233,11 @@ class RevenueModel {
                                     dr.total_amount,
                                     dr.created_at
                                   FROM daily_revenue dr
+                                  ${where}
                                   ORDER BY dr.created_at DESC
                                   LIMIT 30
                                 `,
+                                params,
                             );
                             dailyRevenue = legacyRows || [];
                         }
