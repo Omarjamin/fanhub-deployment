@@ -2,7 +2,7 @@ const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-dep
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 const ADMIN_SELECTED_SITE_KEY = 'admin_selected_site';
 
-function resolveSelectedAdminSite() {
+export function resolveSelectedAdminSite() {
   const fromStorage = String(
     sessionStorage.getItem(ADMIN_SELECTED_SITE_KEY) ||
     sessionStorage.getItem('site_slug') ||
@@ -20,6 +20,69 @@ function resolveSelectedAdminSite() {
   }
 
   return '';
+}
+
+export function resolveAdminSiteFromPath() {
+  const parts = String(window?.location?.pathname || '').split('/').filter(Boolean);
+  if (parts[0] === 'fanhub' && parts[1] && parts[1] !== 'community-platform') {
+    return String(parts[1]).trim().toLowerCase();
+  }
+  if (parts[0] === 'fanhub' && parts[1] === 'community-platform' && parts[2]) {
+    return String(parts[2]).trim().toLowerCase();
+  }
+  return '';
+}
+
+export function getAdminApiBase() {
+  return ADMIN_API_BASE;
+}
+
+function buildQueryString(params = {}) {
+  const query = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    const normalized = String(value).trim();
+    if (!normalized) return;
+    query.set(key, normalized);
+  });
+  return query.toString();
+}
+
+export function resolveAdminEndpointUrls(endpointPath, params = {}, rawBase = ADMIN_API_BASE) {
+  const urls = [];
+  const push = (value) => {
+    const normalized = String(value || '').trim().replace(/\/+$/, '');
+    if (!normalized) return;
+    if (!urls.includes(normalized)) urls.push(normalized);
+  };
+
+  const endpoint = String(endpointPath || '').trim().replace(/^\/+/, '');
+  const query = buildQueryString(params);
+  const pathWithQuery = query ? `${endpoint}?${query}` : endpoint;
+  const trimmedBase = String(rawBase || '').trim().replace(/\/+$/, '');
+
+  if (trimmedBase) {
+    if (/\/v1\/admin$/i.test(trimmedBase)) {
+      push(`${trimmedBase}/${pathWithQuery}`);
+    } else if (/\/admin$/i.test(trimmedBase)) {
+      push(`${trimmedBase}/${pathWithQuery}`);
+      push(`${trimmedBase.replace(/\/admin$/i, '/v1/admin')}/${pathWithQuery}`);
+    } else if (/\/v1$/i.test(trimmedBase)) {
+      push(`${trimmedBase}/admin/${pathWithQuery}`);
+    } else {
+      push(`${trimmedBase}/admin/${pathWithQuery}`);
+      push(`${trimmedBase}/v1/admin/${pathWithQuery}`);
+    }
+  }
+
+  const apiOrigin = String(window.__API_ORIGIN__ || '').trim().replace(/\/+$/, '');
+  if (apiOrigin) {
+    push(`${apiOrigin}/v1/admin/${pathWithQuery}`);
+    push(`${apiOrigin}/admin/${pathWithQuery}`);
+  }
+
+  push(`https://fanhub-deployment-production.up.railway.app/v1/admin/${pathWithQuery}`);
+  return urls;
 }
 
 export function getAdminToken() {
@@ -61,15 +124,51 @@ export function getAdminHeaders() {
   return headers;
 }
 
-export async function fetchAdminSites() {
-  const res = await fetch(`${ADMIN_API_BASE}/generate/generated-websites`, {
-    method: 'GET',
-    headers: getAdminHeaders(),
-  });
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(payload?.message || payload?.error || `HTTP ${res.status}`);
+export async function fetchAdminJsonWithFallback(endpointPath, params = {}, requestInit = {}) {
+  const candidateUrls = resolveAdminEndpointUrls(endpointPath, params);
+  let response = null;
+  let payload = {};
+  let lastError = null;
+
+  for (const candidateUrl of candidateUrls) {
+    try {
+      response = await fetch(candidateUrl, {
+        method: 'GET',
+        ...requestInit,
+      });
+      const raw = await response.text().catch(() => '');
+      if (raw) {
+        try {
+          payload = JSON.parse(raw);
+        } catch (_) {
+          payload = { message: raw };
+        }
+      } else {
+        payload = {};
+      }
+      if (response.status !== 404) break;
+    } catch (error) {
+      lastError = error;
+    }
   }
+
+  if (!response) {
+    throw (lastError || new Error('Unable to reach admin API endpoint.'));
+  }
+
+  if (!response.ok) {
+    throw new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+  }
+
+  return payload;
+}
+
+export async function fetchAdminSites() {
+  const payload = await fetchAdminJsonWithFallback(
+    'generate/generated-websites',
+    {},
+    { headers: getAdminHeaders() },
+  );
 
   const rows = Array.isArray(payload?.data)
     ? payload.data

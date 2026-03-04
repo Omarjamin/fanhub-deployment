@@ -1,9 +1,12 @@
 import { getAdminHeaders } from './admin-sites.js';
-import { fetchAdminSites } from './admin-sites.js';
+import { fetchAdminSites, resolveAdminSiteFromPath } from './admin-sites.js';
 
 export default function Threads() {
   const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
   const ADMIN_SELECTED_THREAD_SITE_ID_KEY = 'admin_selected_thread_site_id';
+  const ADMIN_SELECTED_SITE_KEY = 'admin_selected_site';
+  const forcedSiteSlug = resolveAdminSiteFromPath();
+  const isForcedSingleSite = Boolean(forcedSiteSlug);
   const section = document.createElement('section');
   section.id = 'threads';
   section.className = 'content-section active threads-section';
@@ -26,8 +29,11 @@ export default function Threads() {
 
   function getSelectedSiteId() {
     try {
+      if (isForcedSingleSite) return forcedSiteSlug;
       return String(
-        sessionStorage.getItem(ADMIN_SELECTED_THREAD_SITE_ID_KEY) || 'all'
+        sessionStorage.getItem(ADMIN_SELECTED_THREAD_SITE_ID_KEY) ||
+        sessionStorage.getItem(ADMIN_SELECTED_SITE_KEY) ||
+        'all'
       ).trim().toLowerCase() || 'all';
     } catch (_) {
       return 'all';
@@ -38,6 +44,14 @@ export default function Threads() {
     try {
       const normalized = String(value || 'all').trim().toLowerCase() || 'all';
       sessionStorage.setItem(ADMIN_SELECTED_THREAD_SITE_ID_KEY, normalized);
+
+      const selectedSite = state.sites.find((site) => String(site.site_id) === String(normalized));
+      const slug = String(selectedSite?.domain || selectedSite?.community || '').trim().toLowerCase();
+      if (slug) {
+        sessionStorage.setItem(ADMIN_SELECTED_SITE_KEY, slug);
+      } else if (normalized === 'all' && !isForcedSingleSite) {
+        sessionStorage.setItem(ADMIN_SELECTED_SITE_KEY, 'all');
+      }
     } catch (_) {}
   }
 
@@ -182,20 +196,35 @@ export default function Threads() {
   }
 
   function renderSiteOptions() {
-    const options = state.sites
+    const rows = isForcedSingleSite
+      ? state.sites.filter((site) => String(site.domain || site.community || '').trim().toLowerCase() === forcedSiteSlug)
+      : state.sites;
+    const options = rows
       .map((site) => {
         const sid = site.id ?? site.site_id ?? site.siteId ?? '';
         return `<option value="${sid}">${escapeHtml(site.site_name)}</option>`;
       })
       .join('');
 
-    siteFilter.innerHTML = `<option value="all">All Sites</option>${options}`;
-    if (state.selectedSite && state.selectedSite !== 'all') {
+    siteFilter.innerHTML = `${isForcedSingleSite ? '' : '<option value="all">All Sites</option>'}${options}`;
+    if (isForcedSingleSite) {
+      const forcedSite = rows[0];
+      if (forcedSite) state.selectedSite = String(forcedSite.site_id);
+      if (!forcedSite) {
+        siteFilter.innerHTML = `<option value="all">${escapeHtml(forcedSiteSlug.toUpperCase())}</option>`;
+        state.selectedSite = 'all';
+      }
+      siteFilter.value = state.selectedSite;
+      siteFilter.disabled = true;
+    } else if (state.selectedSite && state.selectedSite !== 'all') {
       siteFilter.value = state.selectedSite;
     }
 
     const formSite = section.querySelector('#threadSite');
     formSite.innerHTML = `<option value="">Select Site</option>${options}`;
+    if (isForcedSingleSite && state.selectedSite && state.selectedSite !== 'all') {
+      formSite.value = state.selectedSite;
+    }
   }
 
   function renderThreadsList() {
@@ -293,6 +322,18 @@ export default function Threads() {
         }))
         .filter((row) => Number(row.site_id) > 0);
       state.sites = normalized;
+
+      const storedSlug = String(sessionStorage.getItem(ADMIN_SELECTED_SITE_KEY) || '').trim().toLowerCase();
+      if (isForcedSingleSite) {
+        const forcedSite = state.sites.find((row) => String(row.domain || row.community || '').trim().toLowerCase() === forcedSiteSlug);
+        if (forcedSite) state.selectedSite = String(forcedSite.site_id);
+      } else if (!state.selectedSite || state.selectedSite === 'all' || Number.isNaN(Number(state.selectedSite))) {
+        if (storedSlug && storedSlug !== 'all') {
+          const bySlug = state.sites.find((row) => String(row.domain || row.community || '').trim().toLowerCase() === storedSlug);
+          if (bySlug) state.selectedSite = String(bySlug.site_id);
+        }
+      }
+
       renderSiteOptions();
     } catch (error) {
       console.error('Error fetching sites:', error);
@@ -306,10 +347,11 @@ export default function Threads() {
 
     try {
       let url = `${BASE_V1}/admin/threads`;
-      if (state.selectedSite !== 'all') {
+      const selectedSiteIdNum = Number.parseInt(state.selectedSite, 10);
+      if (state.selectedSite !== 'all' && Number.isFinite(selectedSiteIdNum) && selectedSiteIdNum > 0) {
         const site = state.sites.find((item) => String(item.site_id) === String(state.selectedSite));
         const params = new URLSearchParams();
-        params.set('site_id', String(state.selectedSite));
+        params.set('site_id', String(selectedSiteIdNum));
         if (site?.community) params.set('community', String(site.community).toLowerCase());
         url = `${BASE_V1}/admin/threads?${params.toString()}`;
       }
@@ -516,8 +558,10 @@ export default function Threads() {
   });
 
   state.selectedSite = getSelectedSiteId();
-  fetchSites();
-  fetchThreads();
+  (async () => {
+    await fetchSites();
+    await fetchThreads();
+  })();
 
   return section;
 }

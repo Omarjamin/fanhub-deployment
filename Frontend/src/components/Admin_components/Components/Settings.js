@@ -1,8 +1,16 @@
 import '../../../styles/Admin_styles/Settings.css';
-import { fetchAdminSites } from './admin-sites.js';
+import {
+  fetchAdminJsonWithFallback,
+  fetchAdminSites,
+  getAdminApiBase,
+  getAdminHeaders,
+  resolveAdminEndpointUrls,
+  resolveAdminSiteFromPath,
+} from './admin-sites.js';
 import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
 
 const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
+const ADMIN_API_BASE = getAdminApiBase();
 const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
 
 const defaultEventPosters = [];
@@ -19,10 +27,12 @@ function getAuthHeaders() {
     sessionStorage.getItem('token') ||
     '';
 
-  return {
+  const headers = {
     apikey: API_KEY,
-    Authorization: `Bearer ${token}`,
+    ...getAdminHeaders(),
   };
+  if (token) headers.Authorization = `Bearer ${token}`;
+  return headers;
 }
 
 async function uploadImage(file) {
@@ -43,37 +53,47 @@ async function uploadImage(file) {
 }
 
 async function fetchShippingRegionOverrides() {
-  const res = await fetch(
-    `${BASE_V1}/admin/settings/shipping-regions?community=global`,
-    {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    },
+  const payload = await fetchAdminJsonWithFallback(
+    'settings/shipping-regions',
+    { community: 'global' },
+    { headers: getAuthHeaders() },
   );
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(payload?.error || payload?.message || `HTTP ${res.status}`);
-  }
   return payload?.data || {};
 }
 
 async function saveShippingRegionOverrides(provinceRegions, shippingRates) {
-  const res = await fetch(`${BASE_V1}/admin/settings/shipping-regions`, {
-    method: 'PUT',
-    headers: {
-      ...getAuthHeaders(),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      community: 'global',
-      province_regions: provinceRegions,
-      shipping_rates: shippingRates,
-    }),
-  });
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(payload?.error || payload?.message || `HTTP ${res.status}`);
+  const candidateUrls = resolveAdminEndpointUrls(
+    'settings/shipping-regions',
+    {},
+    ADMIN_API_BASE,
+  );
+  let response = null;
+  let payload = {};
+  let lastError = null;
+
+  for (const url of candidateUrls) {
+    try {
+      response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          community: 'global',
+          province_regions: provinceRegions,
+          shipping_rates: shippingRates,
+        }),
+      });
+      payload = await response.json().catch(() => ({}));
+      if (response.status !== 404) break;
+    } catch (error) {
+      lastError = error;
+    }
   }
+
+  if (!response) throw (lastError || new Error('Failed to reach shipping settings endpoint.'));
+  if (!response.ok) throw new Error(payload?.error || payload?.message || `HTTP ${response.status}`);
   return payload;
 }
 
@@ -81,17 +101,11 @@ async function fetchEventPosters(siteSlug = '') {
   const community = String(siteSlug || '').trim().toLowerCase();
   if (!community) return [...defaultEventPosters];
 
-  const res = await fetch(
-    `${BASE_V1}/admin/settings/event-posters?community=${encodeURIComponent(community)}`,
-    {
-      method: 'GET',
-      headers: getAuthHeaders(),
-    },
+  const payload = await fetchAdminJsonWithFallback(
+    'settings/event-posters',
+    { community },
+    { headers: getAuthHeaders() },
   );
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(payload?.error || payload?.message || `HTTP ${res.status}`);
-  }
 
   const saved = Array.isArray(payload?.data) ? payload.data : [];
   if (!saved.length) return [...defaultEventPosters];
@@ -107,25 +121,43 @@ async function saveEventPosters(siteSlug = '', posters = []) {
   const community = String(siteSlug || '').trim().toLowerCase();
   if (!community) throw new Error('Please select a site first.');
 
-  const res = await fetch(`${BASE_V1}/admin/settings/event-posters`, {
-    method: 'PUT',
-    headers: {
-      ...getAuthHeaders(),
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      community,
-      posters,
-    }),
-  });
-  const payload = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    throw new Error(payload?.error || payload?.message || `HTTP ${res.status}`);
+  const candidateUrls = resolveAdminEndpointUrls(
+    'settings/event-posters',
+    {},
+    ADMIN_API_BASE,
+  );
+  let response = null;
+  let payload = {};
+  let lastError = null;
+
+  for (const url of candidateUrls) {
+    try {
+      response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          ...getAuthHeaders(),
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          community,
+          posters,
+        }),
+      });
+      payload = await response.json().catch(() => ({}));
+      if (response.status !== 404) break;
+    } catch (error) {
+      lastError = error;
+    }
   }
+
+  if (!response) throw (lastError || new Error('Failed to reach event poster endpoint.'));
+  if (!response.ok) throw new Error(payload?.error || payload?.message || `HTTP ${response.status}`);
   return payload;
 }
 
 export default function createSettings() {
+  const forcedSiteSlug = resolveAdminSiteFromPath();
+  const isForcedSingleSite = Boolean(forcedSiteSlug);
   const section = document.createElement('section');
   section.id = 'settings';
   section.className = 'content-section active settings-page';
@@ -264,15 +296,21 @@ export default function createSettings() {
   async function loadSiteOptions() {
     try {
       const sites = await fetchAdminSites();
+      const scopedSites = isForcedSingleSite
+        ? sites.filter((site) => String(site.domain || '').trim().toLowerCase() === forcedSiteSlug)
+        : sites;
       const select = section.querySelector('#settingsSiteSelect');
       if (!select) return;
       const persisted = String(sessionStorage.getItem('admin_selected_site') || '').trim().toLowerCase();
       const activeSite = String(getActiveSiteSlug() || '').trim().toLowerCase();
       select.innerHTML = `
-        <option value="">All Sites</option>
-        ${sites.map((site) => `<option value="${site.domain}">${site.site_name}</option>`).join('')}
+        ${isForcedSingleSite ? '' : '<option value="">All Sites</option>'}
+        ${scopedSites.map((site) => `<option value="${site.domain}">${site.site_name}</option>`).join('')}
       `;
-      if (persisted) {
+      if (isForcedSingleSite) {
+        select.value = forcedSiteSlug;
+        select.disabled = true;
+      } else if (persisted) {
         select.value = persisted;
       } else if (activeSite) {
         select.value = activeSite;
@@ -439,7 +477,12 @@ export default function createSettings() {
   const shippingManager = setupShippingManager();
 
   section.querySelector('#settingsSiteSelect')?.addEventListener('change', async (event) => {
-    selectedSite = String(event.target.value || '').trim().toLowerCase();
+    selectedSite = isForcedSingleSite
+      ? forcedSiteSlug
+      : String(event.target.value || '').trim().toLowerCase();
+    try {
+      sessionStorage.setItem('admin_selected_site', selectedSite || 'all');
+    } catch (_) {}
     Object.keys(provinceShippingCategory).forEach((province) => delete provinceShippingCategory[province]);
     if (!selectedSite) {
       section.querySelector('#shippingProvinceWrapper').innerHTML = `<p class="shipping-empty">Select a region to show provinces.</p>`;

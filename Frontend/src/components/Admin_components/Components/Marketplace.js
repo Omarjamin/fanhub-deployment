@@ -1,5 +1,5 @@
 import '../../../styles/Admin_styles/Marketplace.css';
-import { fetchAdminSites } from './admin-sites.js';
+import { fetchAdminSites, resolveAdminSiteFromPath } from './admin-sites.js';
 import {
   fetchMarketplaceProducts,
   fetchMarketplaceCollections,
@@ -13,9 +13,12 @@ import {
 
 export default function createMarketplace() {
   const ADMIN_SELECTED_COMMUNITY_KEY = 'admin_selected_site';
+  const forcedSiteSlug = resolveAdminSiteFromPath();
+  const isForcedSingleSite = Boolean(forcedSiteSlug);
   const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 
   function getSelectedCommunity() {
+    if (isForcedSingleSite) return forcedSiteSlug;
     try {
       return String(
         sessionStorage.getItem(ADMIN_SELECTED_COMMUNITY_KEY) ||
@@ -29,8 +32,9 @@ export default function createMarketplace() {
   function persistSelectedCommunity(value) {
     try {
       const normalized = String(value || 'all').trim().toLowerCase() || 'all';
-      sessionStorage.setItem(ADMIN_SELECTED_COMMUNITY_KEY, normalized);
-      sessionStorage.setItem('site_slug', normalized === 'all' ? '' : normalized);
+      const finalValue = isForcedSingleSite ? forcedSiteSlug : normalized;
+      sessionStorage.setItem(ADMIN_SELECTED_COMMUNITY_KEY, finalValue);
+      sessionStorage.setItem('site_slug', finalValue === 'all' ? '' : finalValue);
     } catch (_) {}
   }
 
@@ -46,7 +50,7 @@ export default function createMarketplace() {
 
     <div class="marketplace-filters">
       <select class="category-filter" id="communityFilter">
-        <option value="">All Sites</option>
+        ${isForcedSingleSite ? '' : '<option value="">All Sites</option>'}
       </select>
       <select class="category-filter" id="collectionFilter" disabled>
         <option value="">All Collections</option>
@@ -225,7 +229,7 @@ export default function createMarketplace() {
     const selected = getSelectedCommunity();
 
     communityFilter.innerHTML = `
-      <option value="">All Sites</option>
+      ${isForcedSingleSite ? '' : '<option value="">All Sites</option>'}
       ${communityOptions
         .filter(option => option.key !== 'all')
         .map(option => (
@@ -233,7 +237,10 @@ export default function createMarketplace() {
       )).join('')}
     `;
 
-    if (selected && selected !== 'all') {
+    if (isForcedSingleSite) {
+      communityFilter.value = forcedSiteSlug;
+      communityFilter.disabled = true;
+    } else if (selected && selected !== 'all') {
       communityFilter.value = selected;
     }
   }
@@ -848,10 +855,13 @@ export default function createMarketplace() {
   async function fetchCommunityOptions() {
     try {
       const rows = await fetchAdminSites();
+      const scopedRows = isForcedSingleSite
+        ? rows.filter((row) => String(row?.domain || '').trim().toLowerCase() === forcedSiteSlug)
+        : rows;
 
       const seen = new Set();
-      const options = [{ key: 'all', label: 'All Sites' }];
-      rows.forEach(row => {
+      const options = isForcedSingleSite ? [] : [{ key: 'all', label: 'All Sites' }];
+      scopedRows.forEach(row => {
         const key = String(row?.domain || '').trim().toLowerCase();
         const normalized = String(row?.site_name || row?.domain || '').trim();
         if (!key || !normalized || seen.has(key)) return;
@@ -861,7 +871,9 @@ export default function createMarketplace() {
 
       communityOptions = options.length
         ? options
-        : [{ key: 'all', label: 'All Sites' }];
+        : (isForcedSingleSite
+          ? [{ key: forcedSiteSlug, label: forcedSiteSlug.toUpperCase() }]
+          : [{ key: 'all', label: 'All Sites' }]);
     } catch (error) {
       console.error('Error fetching communities from admin database:', error);
       communityOptions = [{ key: 'all', label: 'All Sites' }];

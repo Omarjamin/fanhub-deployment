@@ -1,11 +1,18 @@
 import '../../../styles/Admin_styles/Orders.css';
-import { fetchAdminSites } from './admin-sites.js';
+import {
+  fetchAdminJsonWithFallback,
+  fetchAdminSites,
+  getAdminApiBase,
+  resolveAdminEndpointUrls,
+  resolveAdminSiteFromPath,
+} from './admin-sites.js';
 import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
 // import { adminApi } from '../../../services/admin_services/auth.js';
 
 export default function createOrders() {
-  const ADMIN_API_BASE =
-    import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/admin';
+  const ADMIN_API_BASE = getAdminApiBase();
+  const forcedSiteSlug = resolveAdminSiteFromPath();
+  const isForcedSingleSite = Boolean(forcedSiteSlug);
 
   const section = document.createElement('section');
   section.id = 'orders';
@@ -131,7 +138,9 @@ export default function createOrders() {
 
   let orders = [];
   let siteOptions = [];
-  let selectedCommunity = 'all';
+  let selectedCommunity = isForcedSingleSite
+    ? forcedSiteSlug
+    : String(sessionStorage.getItem('admin_selected_site') || 'all').trim().toLowerCase() || 'all';
   let editingOrderId = null;
   let deletingOrderId = null;
 
@@ -179,7 +188,10 @@ export default function createOrders() {
     section
       .querySelector('#orderCommunityFilter')
       .addEventListener('change', async event => {
-        selectedCommunity = event.target.value || 'all';
+        selectedCommunity = isForcedSingleSite ? forcedSiteSlug : (event.target.value || 'all');
+        try {
+          sessionStorage.setItem('admin_selected_site', selectedCommunity);
+        } catch (_) {}
         await fetchOrders(selectedCommunity);
         filterOrders();
       });
@@ -189,21 +201,14 @@ export default function createOrders() {
 
   async function fetchOrders(communityKey = 'all') {
     try {
-      const params = new URLSearchParams();
-      if (communityKey && communityKey !== 'all') {
-        params.append('community', communityKey);
-      }
-
-      const url = `${ADMIN_API_BASE}/orders/with-items${
-        params.toString() ? `?${params.toString()}` : ''
-      }`;
-
-      const res = await fetch(url, { headers: getAuthHeaders() });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      
-      const payload = await res.json();
+      const effectiveCommunity = isForcedSingleSite ? forcedSiteSlug : communityKey;
+      const payload = await fetchAdminJsonWithFallback(
+        'orders/with-items',
+        effectiveCommunity && effectiveCommunity !== 'all'
+          ? { community: effectiveCommunity }
+          : {},
+        { headers: getAuthHeaders() },
+      );
       const rows = Array.isArray(payload.data) ? payload.data : [];
 
       orders = rows.map(row => {
@@ -238,24 +243,41 @@ export default function createOrders() {
 
   async function updateOrderStatusOnServer(order, nextStatus) {
     try {
-      const url = `${ADMIN_API_BASE}/orders/${order.orderId}/status`;
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({
-          db_name: order.db_name,
-          status: nextStatus,
-        }),
-      });
+      const candidateUrls = resolveAdminEndpointUrls(
+        `orders/${order.orderId}/status`,
+        {},
+        ADMIN_API_BASE,
+      );
+      let response = null;
+      let payload = {};
+      let lastError = null;
 
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
+      for (const url of candidateUrls) {
+        try {
+          response = await fetch(url, {
+            method: 'PATCH',
+            headers: {
+              'Content-Type': 'application/json',
+              ...getAuthHeaders(),
+            },
+            body: JSON.stringify({
+              db_name: order.db_name,
+              status: nextStatus,
+            }),
+          });
+          payload = await response.json().catch(() => ({}));
+          if (response.status !== 404) break;
+        } catch (error) {
+          lastError = error;
+        }
       }
 
-      const payload = await res.json();
+      if (!response) {
+        throw (lastError || new Error('Failed to reach order update endpoint.'));
+      }
+      if (!response.ok) {
+        throw new Error(payload?.error || payload?.message || `HTTP ${response.status}`);
+      }
       const updated = payload.data || {};
 
       const statusRaw = (updated.status || nextStatus).toLowerCase();
@@ -507,14 +529,23 @@ export default function createOrders() {
   async function loadSiteOptions() {
     try {
       const sites = await fetchAdminSites();
-      siteOptions = sites;
+      const normalizedSites = isForcedSingleSite
+        ? sites.filter((site) => String(site.domain || '').trim().toLowerCase() === forcedSiteSlug)
+        : sites;
+      siteOptions = normalizedSites;
       const select = section.querySelector('#orderCommunityFilter');
       if (!select) return;
       select.innerHTML = `
-        <option value="all">All Sites</option>
-        ${sites.map((site) => `<option value="${site.domain}">${site.site_name}</option>`).join('')}
+        ${isForcedSingleSite ? '' : '<option value="all">All Sites</option>'}
+        ${normalizedSites.map((site) => `<option value="${site.domain}">${site.site_name}</option>`).join('')}
       `;
-      if (selectedCommunity && selectedCommunity !== 'all') {
+      if (isForcedSingleSite) {
+        if (!normalizedSites.length) {
+          select.innerHTML = `<option value="${forcedSiteSlug}">${forcedSiteSlug.toUpperCase()}</option>`;
+        }
+        select.value = forcedSiteSlug;
+        select.disabled = true;
+      } else if (selectedCommunity && selectedCommunity !== 'all') {
         select.value = selectedCommunity;
       }
     } catch (error) {

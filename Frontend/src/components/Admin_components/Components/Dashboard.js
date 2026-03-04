@@ -1,15 +1,23 @@
-import { api } from '../../../services/ecommerce_services/api.js';
-import { fetchAdminSites, getAdminHeaders, getAdminToken } from './admin-sites.js';
+import {
+  fetchAdminJsonWithFallback,
+  fetchAdminSites,
+  getAdminHeaders,
+  getAdminToken,
+  resolveAdminSiteFromPath,
+} from './admin-sites.js';
 
 export default function Dashboard() {
   const ADMIN_SELECTED_COMMUNITY_KEY = 'admin_selected_site';
-  const ADMIN_API_BASE = import.meta.env.VITE_ADMIN_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1/admin';
   const section = document.createElement('section');
   section.id = 'dashboard';
   section.className = 'content-section active';
+  const forcedSiteSlug = resolveAdminSiteFromPath();
+  const isForcedSingleSite = Boolean(forcedSiteSlug);
 
   // Current selected site
-  let selectedCommunity = 'all';
+  let selectedCommunity = isForcedSingleSite
+    ? forcedSiteSlug
+    : String(sessionStorage.getItem(ADMIN_SELECTED_COMMUNITY_KEY) || 'all').trim().toLowerCase() || 'all';
   let currentPage = 1;
   const rowsPerPage = 5;
   let communityOptions = [{ key: 'all', label: 'All Sites', siteName: 'all' }];
@@ -22,85 +30,13 @@ export default function Dashboard() {
   function persistSelectedCommunity(value) {
     try {
       const normalized = String(value || 'all').trim().toLowerCase() || 'all';
-      sessionStorage.setItem(ADMIN_SELECTED_COMMUNITY_KEY, normalized);
+      const finalValue = isForcedSingleSite ? forcedSiteSlug : normalized;
+      sessionStorage.setItem(ADMIN_SELECTED_COMMUNITY_KEY, finalValue);
     } catch (_) {}
   }
 
   function getAdminRequestOptions() {
     return { headers: getAdminHeaders() };
-  }
-
-  function buildQuery(params = {}) {
-    const entries = Object.entries(params).filter(([, value]) => value !== undefined && value !== null);
-    return new URLSearchParams(
-      entries.map(([key, value]) => [key, String(value)])
-    ).toString();
-  }
-
-  function resolveAdminEndpointUrls(rawBase, endpointPath, params = {}) {
-    const urls = [];
-    const push = (value) => {
-      const url = String(value || '').trim().replace(/\/+$/, '');
-      if (!url) return;
-      if (!urls.includes(url)) urls.push(url);
-    };
-
-    const cleanEndpointPath = String(endpointPath || '').trim().replace(/^\/+/, '');
-    const query = buildQuery(params);
-    const endpointWithQuery = query ? `${cleanEndpointPath}?${query}` : cleanEndpointPath;
-
-    const trimmed = String(rawBase || '').trim().replace(/\/+$/, '');
-    if (trimmed) {
-      if (/\/v1\/admin$/i.test(trimmed)) {
-        push(`${trimmed}/${endpointWithQuery}`);
-      } else if (/\/admin$/i.test(trimmed)) {
-        push(`${trimmed}/${endpointWithQuery}`);
-        push(`${trimmed.replace(/\/admin$/i, '/v1/admin')}/${endpointWithQuery}`);
-      } else if (/\/v1$/i.test(trimmed)) {
-        push(`${trimmed}/admin/${endpointWithQuery}`);
-      } else {
-        push(`${trimmed}/admin/${endpointWithQuery}`);
-        push(`${trimmed}/v1/admin/${endpointWithQuery}`);
-      }
-    }
-
-    const apiOrigin = String(window.__API_ORIGIN__ || '').trim().replace(/\/+$/, '');
-    if (apiOrigin) {
-      push(`${apiOrigin}/v1/admin/${endpointWithQuery}`);
-      push(`${apiOrigin}/admin/${endpointWithQuery}`);
-    }
-
-    push(`https://fanhub-deployment-production.up.railway.app/v1/admin/${endpointWithQuery}`);
-    return urls;
-  }
-
-  async function fetchAdminJsonWithFallback(endpointPath, params = {}) {
-    const requestOptions = getAdminRequestOptions();
-    const candidateUrls = resolveAdminEndpointUrls(ADMIN_API_BASE, endpointPath, params);
-    let response = null;
-    let payload = {};
-    let lastError = null;
-
-    for (const candidateUrl of candidateUrls) {
-      try {
-        response = await api(candidateUrl, requestOptions);
-        const rawText = await response.text().catch(() => '');
-        payload = rawText ? JSON.parse(rawText) : {};
-        if (response.status !== 404) break;
-      } catch (err) {
-        lastError = err;
-      }
-    }
-
-    if (!response) {
-      throw (lastError || new Error('Unable to reach admin dashboard endpoint.'));
-    }
-
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}`);
-    }
-
-    return payload;
   }
 
   // -----------------------------
@@ -109,10 +45,11 @@ export default function Dashboard() {
   
   async function fetchCommunityStats(communityKey, siteName = '') {
     try {
+      const finalCommunity = isForcedSingleSite ? forcedSiteSlug : communityKey;
       const data = await fetchAdminJsonWithFallback('dashboard/stats', {
-        community: communityKey,
+        community: finalCommunity,
         site_name: siteName || '',
-      });
+      }, getAdminRequestOptions());
       communityStats = data;  // { all: {...}, music: {...}, gaming: {...}, ... }
     } catch (err) {
       console.error('Error fetching community stats:', err);
@@ -122,30 +59,46 @@ export default function Dashboard() {
   async function fetchCommunityOptions() {
     try {
       const sites = await fetchAdminSites();
-      const options = [{ key: 'all', label: 'All Sites', siteName: 'all' }];
+      const options = isForcedSingleSite
+        ? []
+        : [{ key: 'all', label: 'All Sites', siteName: 'all' }];
       sites.forEach((site) => {
+        const key = String(site.domain || '').trim().toLowerCase();
+        if (!key) return;
+        if (isForcedSingleSite && key !== forcedSiteSlug) return;
         options.push({
-          key: site.domain,
+          key,
           label: site.site_name,
           siteName: site.site_name,
         });
       });
+
+      if (isForcedSingleSite && !options.length) {
+        options.push({
+          key: forcedSiteSlug,
+          label: forcedSiteSlug.toUpperCase(),
+          siteName: forcedSiteSlug,
+        });
+      }
 
       communityOptions = options.length
         ? options
         : [{ key: 'all', label: 'All Sites', siteName: 'all' }];
     } catch (err) {
       console.error('Error fetching communities from admin database:', err);
-      communityOptions = [{ key: 'all', label: 'All Sites', siteName: 'all' }];
+      communityOptions = isForcedSingleSite
+        ? [{ key: forcedSiteSlug, label: forcedSiteSlug.toUpperCase(), siteName: forcedSiteSlug }]
+        : [{ key: 'all', label: 'All Sites', siteName: 'all' }];
     }
   }
 
   async function fetchRevenueData(communityKey, siteName = '') {
     try {
+      const finalCommunity = isForcedSingleSite ? forcedSiteSlug : communityKey;
       const data = await fetchAdminJsonWithFallback('dashboard/community', {
-        community: communityKey,
+        community: finalCommunity,
         site_name: siteName || '',
-      });
+      }, getAdminRequestOptions());
       revenueData[communityKey] = Array.isArray(data)
         ? data.map((row) => ({
             orderId: row.order_id ? `#${row.order_id}` : '-',
@@ -278,7 +231,7 @@ export default function Dashboard() {
   function bindEvents() {
     section.addEventListener('change', function(e) {
       if (e.target.id === 'communitySelect') {
-        selectedCommunity = e.target.value;
+        selectedCommunity = isForcedSingleSite ? forcedSiteSlug : e.target.value;
         persistSelectedCommunity(selectedCommunity);
         const option = e.target.options?.[e.target.selectedIndex];
         selectedSiteName = option?.dataset?.siteName || '';
@@ -319,6 +272,11 @@ export default function Dashboard() {
     bindEvents();
     const select = section.querySelector('#communitySelect');
     if (select) {
+      if (isForcedSingleSite) selectedCommunity = forcedSiteSlug;
+      const exists = Array.from(select.options || []).some((opt) => opt.value === selectedCommunity);
+      if (!exists) {
+        selectedCommunity = select.options?.[0]?.value || (isForcedSingleSite ? forcedSiteSlug : 'all');
+      }
       select.value = selectedCommunity;
       persistSelectedCommunity(selectedCommunity);
       const option = select.options?.[select.selectedIndex];

@@ -100,15 +100,6 @@ export default function Community() {
             </select>
           </div>
           <div class="form-group">
-            <label>Navigation Position</label>
-            <select id="navPosition">
-              <option value="">Default</option>
-              <option value="top">Top</option>
-              <option value="side">Side</option>
-              <option value="bottom">Bottom</option>
-            </select>
-          </div>
-          <div class="form-group">
             <label>Members</label>
             <div id="membersEditor"></div>
             <button type="button" class="cm-btn cm-btn-edit" id="addMemberBtn">+ Add Member</button>
@@ -147,7 +138,6 @@ export default function Community() {
         accent_color: String(row.accent_color || '').trim(),
         button_style: String(row.button_style || '').trim(),
         font_style: String(row.font_style || '').trim(),
-        nav_position: String(row.nav_position || '').trim(),
         members: Array.isArray(row.members) ? row.members : [],
       };
     }).filter((row) => row.domain);
@@ -288,7 +278,6 @@ export default function Community() {
     section.querySelector('#accentColor').value = site.accent_color || '';
     section.querySelector('#buttonStyle').value = site.button_style || '';
     section.querySelector('#fontStyle').value = site.font_style || '';
-    section.querySelector('#navPosition').value = site.nav_position || '';
     editingMembers = Array.isArray(site.members) ? [...site.members] : [];
     renderMembersEditor();
     section.querySelector('#editModal').style.display = 'flex';
@@ -322,7 +311,6 @@ export default function Community() {
     const accent_color = String(section.querySelector('#accentColor').value || '').trim();
     const button_style = String(section.querySelector('#buttonStyle').value || '').trim();
     const font_style = String(section.querySelector('#fontStyle').value || '').trim();
-    const nav_position = String(section.querySelector('#navPosition').value || '').trim();
 
     if (!site_name || !domain) return;
 
@@ -349,7 +337,6 @@ export default function Community() {
         accent_color,
         button_style,
         font_style,
-        nav_position,
         members: editingMembers,
       });
       await fetchSites();

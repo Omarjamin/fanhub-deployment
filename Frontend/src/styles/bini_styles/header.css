@@ -1,3 +1,4 @@
+
 /* Shared sizing tokens */
 :root {
   --bini-nav-width: clamp(120px, 11vw, 150px);
@@ -785,5 +786,202 @@
 
   #head .search-header {
     font-size: 1.15rem !important;
+  }
+}
+
+/* Threads FAB + Bottom Sheet trigger (replaces pseudo hamburger) */
+@media (max-width: 768px) {
+  .whats-new-bar::before {
+    content: none !important;
+    display: none !important;
+  }
+
+  .threads-fab {
+    position: fixed;
+    right: 16px;
+    bottom: 86px;
+    width: 56px;
+    height: 56px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(145deg, #ff6ab5, #eb4cbb);
+    color: #ffffff;
+    box-shadow: 0 8px 18px rgba(235, 76, 187, 0.38);
+    z-index: 2200;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  }
+
+  .threads-fab:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 22px rgba(235, 76, 187, 0.44);
+    filter: saturate(1.04);
+  }
+
+  .threads-fab:active {
+    transform: translateY(0);
+  }
+
+  .threads-fab:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.9);
+    outline-offset: 2px;
+  }
+
+  .threads-fab-icon {
+    font-size: 1.35rem;
+    line-height: 1;
+  }
+
+  .threads-sheet-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.36);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    z-index: 2090;
+    transition: opacity 0.22s ease, visibility 0.22s ease;
+  }
+
+  body.threads-sheet-open .threads-sheet-backdrop {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+  }
+}
+
+@media (min-width: 769px) {
+  .threads-fab,
+  .threads-sheet-backdrop {
+    display: none !important;
+  }
+}
+
+/* Final override: force threads panel to true full-screen on <=1024px */
+@media (max-width: 1024px) {
+  .homepage-right.events-visible {
+    position: fixed !important;
+    inset: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    max-width: 100vw !important;
+    min-width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    transform: none !important;
+    box-shadow: none !important;
+    z-index: 2100 !important;
+  }
+
+  .homepage-right.events-visible .events-panel-close {
+    position: fixed !important;
+    top: 12px !important;
+    right: 12px !important;
+    z-index: 2120 !important;
+  }
+}
+
+/* Final responsive cleanup: composer/header sizing for tablet/mobile */
+@media (max-width: 768px) {
+  .whats-new-bar {
+    width: calc(100% - 24px) !important;
+    max-width: calc(100vw - 24px) !important;
+    margin: 0.75rem auto 1rem !important;
+    padding: 12px !important;
+    border-radius: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  .post-input-container {
+    display: grid !important;
+    grid-template-columns: 44px minmax(0, 1fr) auto auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .profile-pic {
+    width: 44px !important;
+    height: 44px !important;
+    min-width: 44px !important;
+    margin: 0 !important;
+  }
+
+  .post-textarea {
+    width: 100% !important;
+    min-height: 44px !important;
+    max-height: 96px !important;
+    padding: 10px 12px !important;
+    font-size: 14px !important;
+    line-height: 1.35 !important;
+    border-radius: 16px !important;
+    margin: 0 !important;
+    resize: none !important;
+  }
+
+  .image-icon {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    margin: 0 !important;
+  }
+
+  .image-icon::before {
+    font-size: 1.45rem !important;
+    margin: 0 !important;
+    line-height: 1 !important;
+  }
+
+  #submit-post.btn-primary {
+    width: auto !important;
+    min-width: 86px !important;
+    height: 40px !important;
+    padding: 0 14px !important;
+    font-size: 14px !important;
+    border-radius: 12px !important;
+    margin: 0 !important;
+  }
+}
+
+/* Tablet: keep composer column aligned with homepage-feed width/offset */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .whats-new-bar {
+    width: 66% !important;
+    max-width: 760px !important;
+    margin: 0.75rem 0 1rem 15% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .whats-new-bar {
+    max-width: calc(100vw - 12px) !important;
+    margin: 0.5rem auto 0.875rem !important;
+    padding: 10px !important;
+  }
+
+  .post-input-container {
+    grid-template-columns: 44px minmax(0, 1fr) auto auto !important;
+    grid-template-areas: "avatar input icon post" !important;
+    row-gap: 0 !important;
+    column-gap: 8px !important;
+    align-items: center !important;
+  }
+
+  .profile-pic { grid-area: avatar !important; }
+  .post-textarea { grid-area: input !important; }
+  .image-icon { grid-area: icon !important; justify-self: start !important; }
+  #submit-post.btn-primary {
+    grid-area: post !important;
+    justify-self: end !important;
+    min-width: 82px !important;
   }
 }

@@ -1,5 +1,5 @@
 import '../../../styles/Admin_styles/Discography.css';
-import { getAdminHeaders } from './admin-sites.js';
+import { fetchAdminSites, getAdminHeaders, resolveAdminSiteFromPath } from './admin-sites.js';
 
 const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 
@@ -38,6 +38,8 @@ async function uploadImage(file) {
 }
 
 export default function Discography() {
+  const forcedSiteSlug = resolveAdminSiteFromPath();
+  const isForcedSingleSite = Boolean(forcedSiteSlug);
   const section = document.createElement('section');
   section.id = 'discography';
   section.className = 'content-section active discography';
@@ -134,30 +136,60 @@ export default function Discography() {
   // albums will be loaded from backend
   let albums = [];
   let communities = [];
+  let selectedSiteSlug = String(sessionStorage.getItem('admin_selected_site') || '').trim().toLowerCase();
 
   let editingAlbumId = null;
   let deletingAlbumId = null;
 
   function getCommunities() {
-    return communities.map(c => ({ id: c.community_id, name: c.name }));
+    return communities
+      .map((c) => ({
+        id: c.community_id ?? c.id ?? c.site_id,
+        name: c.name ?? c.site_name ?? c.domain,
+        domain: c.domain ?? c.community_type ?? c.name,
+      }))
+      .filter((c) => Number(c.id) > 0 && String(c.name || '').trim());
   }
 
 function loadCommunityFilter() {
     const filter = section.querySelector('#communityFilter');
-    const communities = getCommunities();
+    const options = getCommunities();
+    const scoped = isForcedSingleSite
+      ? options.filter((community) => String(community.domain || '').trim().toLowerCase() === forcedSiteSlug)
+      : options;
     filter.innerHTML = `
-      <option value="">All Sites</option>
-      ${communities.map((community) => `<option value="${community.id}">${community.name}</option>`).join('')}
+      ${isForcedSingleSite ? '' : '<option value="">All Sites</option>'}
+      ${scoped.map((community) => `<option value="${community.id}" data-domain="${community.domain}">${community.name}</option>`).join('')}
     `;
+    if (isForcedSingleSite) {
+      const forced = scoped[0];
+      if (forced) {
+        filter.value = String(forced.id);
+        selectedSiteSlug = String(forced.domain || '').trim().toLowerCase();
+      }
+      filter.disabled = true;
+      return;
+    }
+
+    if (selectedSiteSlug && selectedSiteSlug !== 'all') {
+      const matched = scoped.find((community) => String(community.domain || '').trim().toLowerCase() === selectedSiteSlug);
+      if (matched) filter.value = String(matched.id);
+    }
   }
 
   function loadCommunityOptions() {
     const select = section.querySelector('#albumCommunity');
-    const communities = getCommunities();
+    const options = getCommunities();
+    const scoped = isForcedSingleSite
+      ? options.filter((community) => String(community.domain || '').trim().toLowerCase() === forcedSiteSlug)
+      : options;
     select.innerHTML = `
       <option value="">Select Site</option>
-      ${communities.map(community => `<option value="${community.id}">${community.name}</option>`).join('')}
+      ${scoped.map(community => `<option value="${community.id}" data-domain="${community.domain}">${community.name}</option>`).join('')}
     `;
+    if (isForcedSingleSite && scoped[0]) {
+      select.value = String(scoped[0].id);
+    }
   }
 
   function findAlbumById(albumId, siteId = null) {
@@ -217,14 +249,14 @@ function loadCommunityFilter() {
 
   async function fetchCommunities() {
     try {
-      const res = await fetch(`${BASE_V1}/admin/discography/communities/list`, { headers: authHeaders() });
-      const json = await readJsonSafe(res);
-      if (!res.ok) throw new Error(json.error || json.message || 'Failed to fetch communities');
-      communities = json.data || [];
-      // populate both filter and select
-      const filter = section.querySelector('#communityFilter');
-      filter.innerHTML = `\n        <option value="">All Sites</option>\n        ${communities.map(c => `<option value="${c.community_id}">${c.name}</option>`).join('')}\n      `;
+      const rows = await fetchAdminSites();
+      communities = rows.map((site) => ({
+        community_id: site.id ?? site.site_id,
+        name: site.site_name,
+        domain: site.domain,
+      }));
       loadCommunityOptions();
+      loadCommunityFilter();
     } catch (err) {
       console.error('fetchCommunities error', err);
     }
@@ -296,6 +328,10 @@ function loadCommunityFilter() {
       editingAlbumId = null;
       form.reset();
       loadCommunityOptions();
+      const currentFilterValue = String(section.querySelector('#communityFilter')?.value || '').trim();
+      if (currentFilterValue) {
+        communityInput.value = currentFilterValue;
+      }
       title.textContent = 'Add Album';
       saveBtn.textContent = 'Save Album';
       modal.classList.remove('hidden');
@@ -448,14 +484,21 @@ function loadCommunityFilter() {
   function setupFilters() {
     section.querySelector('#communityFilter').addEventListener('change', async (e) => {
       const val = e.target.value;
+      const option = e.target.options?.[e.target.selectedIndex];
+      const domain = String(option?.dataset?.domain || '').trim().toLowerCase();
+      selectedSiteSlug = domain || 'all';
+      try {
+        sessionStorage.setItem('admin_selected_site', selectedSiteSlug || 'all');
+      } catch (_) {}
       await fetchAlbums(val || null);
     });
   }
 
-  function init() {
+  async function init() {
     // load data from backend
-    fetchCommunities();
-    fetchAlbums();
+    await fetchCommunities();
+    const selectedId = String(section.querySelector('#communityFilter')?.value || '').trim();
+    await fetchAlbums(selectedId || null);
     setupFilters();
 
     const editModalApi = setupAddEditModal();
