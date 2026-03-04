@@ -181,7 +181,11 @@ export default function Dashboard() {
       const el = document.getElementById(id);
       if (el) {
         const value = Number(stats?.[keys[idx]] || 0);
-        el.textContent = id === 'totalRevenue' ? `₱${value.toLocaleString()}` : String(value);
+        if (id === 'totalRevenue') {
+          el.textContent = `₱${value.toLocaleString()}`;
+        } else {
+          el.textContent = String(value);
+        }
       }
     });
   }
