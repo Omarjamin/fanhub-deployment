@@ -694,10 +694,108 @@ class UserModel {
     }
   }
 
+  sanitizeHexColor(input, fallback) {
+    const raw = String(input || '').trim();
+    if (!raw) return fallback;
+    const normalized = raw.startsWith('#') ? raw : `#${raw}`;
+    if (!/^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(normalized)) return fallback;
+    if (normalized.length === 4) {
+      return `#${normalized[1]}${normalized[1]}${normalized[2]}${normalized[2]}${normalized[3]}${normalized[3]}`;
+    }
+    return normalized;
+  }
+
+  async getOtpEmailBranding() {
+    const defaults = {
+      communityName: 'Fanhub',
+      logoUrl: String(process.env.FANHUB_LOGO_URL || '').trim(),
+      primaryColor: '#0b5fff',
+      deepColor: '#0b1f5e',
+      supportEmail: '',
+      helpCenterUrl: 'https://fanhub-production.up.railway.app',
+    };
+
+    try {
+      if (!this.db) return defaults;
+      const hasCommunities = await this.tableExists('communities');
+      if (!hasCommunities) return defaults;
+
+      let rows = [];
+      if (this.activeCommunityId) {
+        [rows] = await this.db.query(
+          'SELECT * FROM communities WHERE community_id = ? LIMIT 1',
+          [this.activeCommunityId],
+        );
+      } else {
+        [rows] = await this.db.query(
+          'SELECT * FROM communities ORDER BY community_id ASC LIMIT 1',
+        );
+      }
+
+      const row = rows?.[0];
+      if (!row) return defaults;
+
+      const pick = (...keys) => {
+        for (const key of keys) {
+          const val = row?.[key];
+          if (val !== undefined && val !== null && String(val).trim()) {
+            return String(val).trim();
+          }
+        }
+        return '';
+      };
+
+      const communityName =
+        pick('name', 'community_name', 'site_name', 'community_type', 'slug') ||
+        defaults.communityName;
+      const logoUrl =
+        pick('logo_url', 'logo', 'community_logo', 'image_url', 'brand_logo') ||
+        defaults.logoUrl;
+      const primaryColor = this.sanitizeHexColor(
+        pick('primary_color', 'brand_color', 'theme_color', 'color_primary', 'accent_color'),
+        defaults.primaryColor,
+      );
+      const deepColor = this.sanitizeHexColor(
+        pick('secondary_color', 'brand_secondary_color', 'color_secondary', 'header_color'),
+        defaults.deepColor,
+      );
+      const supportEmail =
+        pick('support_email', 'contact_email', 'email') ||
+        String(process.env.FANHUB_SUPPORT_EMAIL || '').trim();
+
+      const explicitHelpCenter = String(process.env.FANHUB_HELP_CENTER_URL || '').trim();
+      const domain = pick('domain', 'site_url', 'url');
+      const siteSlug = pick('site_slug', 'slug');
+      const helpCenterUrl =
+        explicitHelpCenter ||
+        (domain ? `https://${domain.replace(/^https?:\/\//i, '')}` : '') ||
+        (siteSlug ? `https://${siteSlug}` : '') ||
+        defaults.helpCenterUrl;
+
+      return {
+        communityName,
+        logoUrl,
+        primaryColor,
+        deepColor,
+        supportEmail,
+        helpCenterUrl,
+      };
+    } catch (err) {
+      console.warn('<warning> getOtpEmailBranding failed:', {
+        message: err?.message || String(err || ''),
+      });
+      return defaults;
+    }
+  }
+
   async sendOtpEmail(email, otp, subject = 'Password Reset OTP') {
     const brevoApiKey = String(process.env.BREVO_API_KEY || '').trim();
     const senderEmail = String(process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || '').trim();
-    const senderName = String(process.env.BREVO_SENDER_NAME || 'Uniteam').trim();
+    const branding = await this.getOtpEmailBranding();
+    const senderName = String(process.env.BREVO_SENDER_NAME || branding.communityName || 'Fanhub').trim();
+    const logoUrl = branding.logoUrl;
+    const primaryColor = branding.primaryColor;
+    const deepColor = branding.deepColor;
 
     console.log('[OTP MAIL] provider:selected', {
       provider: 'brevo-api',
@@ -715,9 +813,8 @@ class UserModel {
       month: 'short',
       year: 'numeric',
     });
-    const logoUrl = String(process.env.FANHUB_LOGO_URL || '').trim();
-    const supportEmail = String(process.env.FANHUB_SUPPORT_EMAIL || senderEmail).trim();
-    const helpCenterUrl = String(process.env.FANHUB_HELP_CENTER_URL || 'https://fanhub-production.up.railway.app').trim();
+    const supportEmail = String(branding.supportEmail || process.env.FANHUB_SUPPORT_EMAIL || senderEmail).trim();
+    const helpCenterUrl = String(branding.helpCenterUrl || process.env.FANHUB_HELP_CENTER_URL || 'https://fanhub-production.up.railway.app').trim();
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
@@ -729,13 +826,13 @@ class UserModel {
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body style="margin:0;font-family:'Poppins',sans-serif;background:#ffffff;font-size:14px;">
-    <div style="max-width:680px;margin:0 auto;padding:45px 30px 60px;background:#f4f7ff;background-image:linear-gradient(180deg,#0b1f5e 0%, #1659d8 38%, #f4f7ff 38.1%);background-repeat:no-repeat;background-size:800px 452px;background-position:top center;font-size:14px;color:#434343;">
+    <div style="max-width:680px;margin:0 auto;padding:45px 30px 60px;background:#f4f7ff;background-image:linear-gradient(180deg,${deepColor} 0%, ${primaryColor} 38%, #f4f7ff 38.1%);background-repeat:no-repeat;background-size:800px 452px;background-position:top center;font-size:14px;color:#434343;">
       <header>
         <table style="width:100%;">
           <tbody>
             <tr style="height:0;">
               <td>
-                ${logoUrl ? `<img alt="Fanhub" src="${logoUrl}" height="36px" />` : `<span style="font-size:24px;line-height:36px;color:#ffffff;font-weight:700;letter-spacing:.6px;">FANHUB</span>`}
+                ${logoUrl ? `<img alt="${branding.communityName}" src="${logoUrl}" height="36px" />` : `<span style="font-size:24px;line-height:36px;color:#ffffff;font-weight:700;letter-spacing:.6px;">${String(branding.communityName || 'Fanhub').toUpperCase()}</span>`}
               </td>
               <td style="text-align:right;">
                 <span style="font-size:14px;line-height:30px;color:#ffffff;">${todayLabel}</span>
@@ -748,29 +845,29 @@ class UserModel {
       <main>
         <div style="margin:0;margin-top:70px;padding:92px 30px 100px;background:#ffffff;border-radius:30px;text-align:center;">
           <div style="width:100%;max-width:520px;margin:0 auto;">
-            <h1 style="margin:0;font-size:26px;font-weight:600;color:#102a5c;">Verify Your Fanhub Account</h1>
+            <h1 style="margin:0;font-size:26px;font-weight:600;color:${deepColor};">Verify Your ${branding.communityName} Account</h1>
             <p style="margin:0;margin-top:17px;font-size:16px;font-weight:500;color:#1f1f1f;">Hi there,</p>
             <p style="margin:0;margin-top:17px;font-weight:500;letter-spacing:.2px;line-height:1.75;color:#4b5563;">
-              Use the OTP below to continue your request on Fanhub. This code is valid for
-              <span style="font-weight:700;color:#102a5c;">5 minutes</span>.
+              Use the OTP below to continue your request on ${branding.communityName}. This code is valid for
+              <span style="font-weight:700;color:${deepColor};">5 minutes</span>.
               Never share this code with anyone.
             </p>
-            <p style="margin:0;margin-top:60px;font-size:40px;font-weight:700;letter-spacing:18px;color:#0b5fff;">${safeOtp}</p>
+            <p style="margin:0;margin-top:60px;font-size:40px;font-weight:700;letter-spacing:18px;color:${primaryColor};">${safeOtp}</p>
           </div>
         </div>
 
         <p style="max-width:430px;margin:0 auto;margin-top:70px;text-align:center;font-weight:500;color:#8c8c8c;line-height:1.7;">
           Need help? Contact us at
-          <a href="mailto:${supportEmail}" style="color:#0b5fff;text-decoration:none;">${supportEmail}</a>
+          <a href="mailto:${supportEmail}" style="color:${primaryColor};text-decoration:none;">${supportEmail}</a>
           or visit our
-          <a href="${helpCenterUrl}" target="_blank" style="color:#0b5fff;text-decoration:none;">Help Center</a>.
+          <a href="${helpCenterUrl}" target="_blank" style="color:${primaryColor};text-decoration:none;">Help Center</a>.
         </p>
       </main>
 
       <footer style="width:100%;max-width:490px;margin:20px auto 0;text-align:center;border-top:1px solid #e6ebf1;">
-        <p style="margin:0;margin-top:34px;font-size:16px;font-weight:700;color:#1f2937;">Fanhub</p>
+        <p style="margin:0;margin-top:34px;font-size:16px;font-weight:700;color:#1f2937;">${branding.communityName}</p>
         <p style="margin:0;margin-top:8px;color:#64748b;">Building stronger digital communities.</p>
-        <p style="margin:0;margin-top:16px;color:#64748b;">Copyright © ${new Date().getFullYear()} Fanhub. All rights reserved.</p>
+        <p style="margin:0;margin-top:16px;color:#64748b;">Copyright © ${new Date().getFullYear()} ${branding.communityName}. All rights reserved.</p>
       </footer>
     </div>
   </body>
@@ -781,7 +878,7 @@ class UserModel {
       sender: { email: senderEmail, name: senderName },
       to: [{ email }],
       subject,
-      textContent: `${subject}: ${safeOtp}`,
+      textContent: `${branding.communityName} ${subject}: ${safeOtp}`,
       htmlContent,
     };
 
