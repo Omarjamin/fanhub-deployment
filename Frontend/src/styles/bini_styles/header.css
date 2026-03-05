@@ -985,3 +985,74 @@
     min-width: 82px !important;
   }
 }
+
+/* ===== CONSOLIDATED HOMEPAGE COMPOSER FIX (<=768px) ===== */
+@media (max-width: 768px) {
+  .whats-new-bar {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0.625rem auto 0.875rem !important;
+    padding: 10px !important;
+    border-radius: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  .post-input-container {
+    display: grid !important;
+    grid-template-columns: 42px minmax(0, 1fr) auto auto !important;
+    align-items: center !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .profile-pic {
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    margin: 0 !important;
+  }
+
+  .post-textarea {
+    width: 100% !important;
+    min-height: 42px !important;
+    max-height: 96px !important;
+    padding: 10px 12px !important;
+    margin: 0 !important;
+    border-radius: 16px !important;
+    resize: none !important;
+  }
+
+  .image-icon {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    margin: 0 !important;
+  }
+
+  #submit-post.btn-primary {
+    min-width: 84px !important;
+    height: 38px !important;
+    padding: 0 12px !important;
+    margin: 0 !important;
+    border-radius: 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .whats-new-bar {
+    margin: 0.5rem auto 0.75rem !important;
+    padding: 8px !important;
+    border-radius: 14px !important;
+  }
+
+  .post-input-container {
+    grid-template-columns: 40px minmax(0, 1fr) auto auto !important;
+    gap: 6px !important;
+  }
+
+  .profile-pic {
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+  }
+}

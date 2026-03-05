@@ -1969,3 +1969,56 @@ animation: none;
     opacity: 1;
   }
 }
+
+/* ===== CONSOLIDATED HOMEPAGE LAYOUT FIX (<=768px) ===== */
+@media (max-width: 768px) {
+  .homepage-container {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 10px 110px !important;
+    box-sizing: border-box !important;
+  }
+
+  .homepage-feed {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 auto !important;
+    right: 0 !important;
+    padding: 10px !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-radius: 16px !important;
+    overflow-x: clip !important;
+    box-sizing: border-box !important;
+  }
+
+  .post-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 0 12px 0 !important;
+  }
+
+  .post-meta1 {
+    gap: 0.5rem !important;
+  }
+
+  .post-fullname {
+    min-width: 0 !important;
+    max-width: 42vw !important;
+  }
+
+  .post-time {
+    font-size: 0.78rem !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .homepage-container {
+    padding: 0 6px 104px !important;
+  }
+
+  .homepage-feed {
+    padding: 8px !important;
+    border-radius: 14px !important;
+  }
+}
