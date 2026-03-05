@@ -714,61 +714,84 @@ class UserModel {
       throw new Error('Email service is not configured (missing EMAIL_USER/EMAIL_PASS).');
     }
 
-    const smtpHost = String(process.env.EMAIL_HOST || process.env.SMTP_HOST || '').trim();
+    const smtpHost = String(process.env.EMAIL_HOST || process.env.SMTP_HOST || '').trim() || 'smtp.gmail.com';
     const smtpPortRaw = String(process.env.EMAIL_PORT || process.env.SMTP_PORT || '').trim();
     const smtpSecureRaw = String(process.env.EMAIL_SECURE || process.env.SMTP_SECURE || '').trim().toLowerCase();
-    const smtpPort = Number(smtpPortRaw || 0) || (smtpSecureRaw === 'true' ? 465 : 587);
-    const smtpSecure = smtpSecureRaw ? smtpSecureRaw === 'true' : smtpPort === 465;
-    const defaultHost = smtpHost || 'smtp.gmail.com';
+    const configuredPort = Number(smtpPortRaw || 0) || (smtpSecureRaw === 'true' ? 465 : 587);
+    const configuredSecure = smtpSecureRaw ? smtpSecureRaw === 'true' : configuredPort === 465;
 
-    let resolvedHost = defaultHost;
-    try {
-      const ipv4 = await dnsPromises.resolve4(defaultHost);
-      if (Array.isArray(ipv4) && ipv4.length > 0) {
-        resolvedHost = String(ipv4[0]).trim();
+    const attempts = [];
+    const addAttempt = (host, port, secure, label) => {
+      const key = `${host}:${port}:${secure ? 'ssl' : 'starttls'}`;
+      if (!attempts.some((x) => x.key === key)) {
+        attempts.push({ key, host, port, secure, label });
       }
-    } catch (_) {
-      // Keep hostname when IPv4 lookup is unavailable.
-    }
+    };
 
-    const transporter = nodemailer.createTransport(
-      {
+    // Try configured route first, then common Gmail ports.
+    addAttempt(smtpHost, configuredPort, configuredSecure, 'configured');
+    addAttempt('smtp.gmail.com', 587, false, 'gmail-587');
+    addAttempt('smtp.gmail.com', 465, true, 'gmail-465');
+
+    let lastError = null;
+    for (const attempt of attempts) {
+      let resolvedHost = attempt.host;
+      try {
+        const ipv4 = await dnsPromises.resolve4(attempt.host);
+        if (Array.isArray(ipv4) && ipv4.length > 0) {
+          resolvedHost = String(ipv4[0]).trim();
+        }
+      } catch (_) {}
+
+      const transporter = nodemailer.createTransport({
         host: resolvedHost,
-        port: smtpPort,
-        secure: smtpSecure,
+        port: attempt.port,
+        secure: attempt.secure,
         auth: { user: smtpUser, pass: smtpPass },
-        connectionTimeout: 30000,
-        greetingTimeout: 30000,
-        socketTimeout: 30000,
-        // Preserve TLS SNI for providers when connecting via resolved IPv4.
-        tls: {
-          servername: defaultHost,
-        },
+        connectionTimeout: 12000,
+        greetingTimeout: 12000,
+        socketTimeout: 12000,
+        tls: { servername: attempt.host },
         name: smtpService || undefined,
-      },
-    );
-    const sendPromise = transporter.sendMail({
-      from: smtpUser,
-      to: email,
-      subject,
-      text: `${subject}: ${otp}`,
-    });
-
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Email service timeout while sending OTP.')), 35000);
-    });
-
-    try {
-      await Promise.race([sendPromise, timeoutPromise]);
-    } catch (error) {
-      console.error('<error> sendOtpEmail failed', {
-        message: error?.message || String(error || ''),
-        code: error?.code || '',
-        responseCode: error?.responseCode || '',
-        command: error?.command || '',
       });
-      throw error;
+
+      const sendPromise = transporter.sendMail({
+        from: smtpUser,
+        to: email,
+        subject,
+        text: `${subject}: ${otp}`,
+      });
+
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Email service timeout while sending OTP.')), 15000);
+      });
+
+      try {
+        await Promise.race([sendPromise, timeoutPromise]);
+        console.log('[OTP MAIL] smtp-sent', {
+          attempt: attempt.label,
+          host: attempt.host,
+          port: attempt.port,
+          secure: attempt.secure,
+        });
+        return;
+      } catch (error) {
+        lastError = error;
+        console.error('<error> sendOtpEmail attempt failed', {
+          attempt: attempt.label,
+          host: attempt.host,
+          resolvedHost,
+          port: attempt.port,
+          secure: attempt.secure,
+          message: error?.message || String(error || ''),
+          code: error?.code || '',
+          responseCode: error?.responseCode || '',
+          command: error?.command || '',
+        });
+      }
     }
+
+    throw (lastError || new Error('Email delivery failed.'));
   }
 
   async saveResetToken(email, otp, otpExpiry, community_type, site_slug) {
