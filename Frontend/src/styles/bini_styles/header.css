@@ -1083,3 +1083,19 @@
     box-sizing: border-box !important;
   }
 }
+
+/* ===== SINGLE-SOURCE HOMEPAGE COLUMN SYSTEM (HEADER BINDING) ===== */
+@media (min-width: 769px) {
+  body:has(.homepage-container) #head {
+    width: calc(100% - var(--bini-left-nav-width, 150px)) !important;
+    margin-left: var(--bini-left-nav-width, 150px) !important;
+    box-sizing: border-box !important;
+  }
+
+  body:has(.homepage-container) #head .whats-new-bar {
+    width: var(--home-content-width, min(860px, 62vw)) !important;
+    max-width: var(--home-content-width, min(860px, 62vw)) !important;
+    margin: 0.75rem 0 0.875rem var(--home-content-offset, 20px) !important;
+    box-sizing: border-box !important;
+  }
+}
