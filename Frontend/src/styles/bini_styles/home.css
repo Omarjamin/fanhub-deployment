@@ -1899,7 +1899,7 @@ animation: none;
 
   body:has(.homepage-container) .homepage-container {
     width: calc(100% - var(--bini-left-nav-width, 150px)) !important;
-    margin-left: var(--bini-left-nav-width, 150px) !important;
+    margin-left: calc(var(--bini-left-nav-width, 150px) - 14px) !important;
     padding: 0 !important;
     box-sizing: border-box !important;
   }
