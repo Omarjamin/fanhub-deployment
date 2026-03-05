@@ -63,7 +63,7 @@ class DashboardController {
         const hasCommunityId = await this.tableHasColumn(db, tableName, 'community_id');
         if (hasCommunityId && scopedCommunityId) {
             return {
-                sql: 'COALESCE(community_id, 0) = ?',
+                sql: '(COALESCE(community_id, 0) = ? OR COALESCE(community_id, 0) = 0)',
                 params: [Number(scopedCommunityId)],
             };
         }
@@ -71,7 +71,7 @@ class DashboardController {
         const hasGroupCommunityId = await this.tableHasColumn(db, tableName, 'group_community_id');
         if (hasGroupCommunityId && scopedCommunityId) {
             return {
-                sql: 'COALESCE(group_community_id, 0) = ?',
+                sql: '(COALESCE(group_community_id, 0) = ? OR COALESCE(group_community_id, 0) = 0)',
                 params: [Number(scopedCommunityId)],
             };
         }
