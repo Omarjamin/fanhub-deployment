@@ -63,7 +63,7 @@ class DashboardController {
         const hasCommunityId = await this.tableHasColumn(db, tableName, 'community_id');
         if (hasCommunityId && scopedCommunityId) {
             return {
-                sql: '(COALESCE(community_id, 0) = ? OR COALESCE(community_id, 0) = 0)',
+                sql: 'COALESCE(community_id, 0) = ?',
                 params: [Number(scopedCommunityId)],
             };
         }
@@ -71,7 +71,7 @@ class DashboardController {
         const hasGroupCommunityId = await this.tableHasColumn(db, tableName, 'group_community_id');
         if (hasGroupCommunityId && scopedCommunityId) {
             return {
-                sql: '(COALESCE(group_community_id, 0) = ? OR COALESCE(group_community_id, 0) = 0)',
+                sql: 'COALESCE(group_community_id, 0) = ?',
                 params: [Number(scopedCommunityId)],
             };
         }
@@ -232,21 +232,26 @@ class DashboardController {
                             communityType,
                             scopedCommunityId,
                         );
-                        const revenueWhereSql = revenueScope.sql ? `WHERE ${revenueScope.sql}` : '';
+                        const revenueWhereParts = ['DATE(date) = CURDATE()'];
+                        const revenueParams = [];
+                        if (revenueScope.sql) {
+                            revenueWhereParts.push(revenueScope.sql);
+                            revenueParams.push(...revenueScope.params);
+                        }
                         const [revenueRows] = await siteDB.query(
                             `
                               SELECT IFNULL(SUM(COALESCE(${amountColumn}, 0)), 0) AS total_revenue
                               FROM daily_revenue
-                              ${revenueWhereSql}
+                              WHERE ${revenueWhereParts.join(' AND ')}
                             `,
-                            revenueScope.params,
+                            revenueParams,
                         );
                         total_revenue = Number(revenueRows?.[0]?.total_revenue || 0);
                         statDebug.revenue = {
                             sourceTable: 'daily_revenue',
                             amountColumn,
-                            where: revenueScope.sql || '',
-                            params: revenueScope.params,
+                            where: revenueWhereParts.join(' AND '),
+                            params: revenueParams,
                             value: total_revenue,
                         };
                     } else {
