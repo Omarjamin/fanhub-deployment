@@ -1056,3 +1056,30 @@
     min-width: 40px !important;
   }
 }
+
+/* ===== CONSOLIDATED HOMEPAGE COLUMN ALIGNMENT (>=769px) ===== */
+@media (min-width: 769px) {
+  body:has(.homepage-container) #head {
+    margin-left: var(--bini-left-nav-width, 150px) !important;
+    width: calc(100% - var(--bini-left-nav-width, 150px)) !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  body:has(.homepage-container) #head .whats-new-bar {
+    width: 66% !important;
+    max-width: 760px !important;
+    margin: 0.75rem 0 0.875rem 15% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+@media (min-width: 1025px) {
+  body:has(.homepage-container) #head .whats-new-bar {
+    width: min(68%, 980px) !important;
+    max-width: min(68%, 980px) !important;
+    margin: 0.75rem 0 0.875rem 7rem !important;
+    box-sizing: border-box !important;
+  }
+}
