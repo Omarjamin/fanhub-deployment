@@ -2,10 +2,8 @@ import { connect, resolveCommunityContext } from '../../core/database.js';
 import { encryptPassword } from '../../utils/hash.js';
 import crypto from "crypto";
 import nodemailer from 'nodemailer';
-import dns from 'node:dns';
-import dnsPromises from 'node:dns/promises';
-
-dns.setDefaultResultOrder('ipv4first');
+import dns from 'node:dns/promises';
+require('dns').setDefaultResultOrder('ipv4first');
 
 class UserModel {
   constructor() {
@@ -717,7 +715,7 @@ class UserModel {
 
     let resolvedHost = defaultHost;
     try {
-      const ipv4 = await dnsPromises.resolve4(defaultHost);
+      const ipv4 = await dns.resolve4(defaultHost);
       if (Array.isArray(ipv4) && ipv4.length > 0) {
         resolvedHost = String(ipv4[0]).trim();
       }
