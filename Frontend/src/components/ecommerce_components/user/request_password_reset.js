@@ -58,20 +58,21 @@ function createPasswordResetModal() {
 
       try {
         const { success, message } = await requestPasswordReset(email);
+        const normalizedMessage = String(message || '');
+        const shouldOpenVerifyModal =
+          success || /otp already sent|already sent|please wait/i.test(normalizedMessage);
         
-        if (success) {
+        if (shouldOpenVerifyModal) {
           messageContainer.textContent = message;
           messageContainer.className = 'message-container success';
-          setTimeout(() => {
-            modal.classList.remove('show');
-            form.reset();
-            messageContainer.className = 'message-container';
-            messageContainer.textContent = '';
-            // After sending the OTP/email, open the update-password modal and prefill the email
-            if (typeof window.showUpdatePasswordModal === 'function') {
-              window.showUpdatePasswordModal(email);
-            }
-          }, 3000);
+          // Open verify OTP modal immediately after requesting reset.
+          if (typeof window.showUpdatePasswordModal === 'function') {
+            window.showUpdatePasswordModal(email);
+          }
+          modal.classList.remove('show');
+          form.reset();
+          messageContainer.className = 'message-container';
+          messageContainer.textContent = '';
         } else {
           messageContainer.textContent = message;
           messageContainer.className = 'message-container error';

@@ -31,7 +31,7 @@ export async function requestPasswordReset(email) {
 
         return {
             success: true,
-            message: 'Password reset link has been sent to your email address. Please check your inbox.'
+            message: data?.message || 'OTP sent. Please check your email inbox.'
         };
 
     } catch (error) {

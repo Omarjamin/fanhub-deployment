@@ -136,6 +136,11 @@ export default function Signup(root, data = {}) {
       site_slug: siteSlug,
     };
 
+    openOtpModal(
+      pendingRegistration.email,
+      `Sending verification code to ${pendingRegistration.email}...`
+    );
+
     try {
       await registerUser({
         email: pendingRegistration.email,
@@ -143,15 +148,25 @@ export default function Signup(root, data = {}) {
         request_email_otp: true,
         recaptcha_token: recaptchaToken,
       });
-      openOtpModal(pendingRegistration.email);
+      openOtpModal(
+        pendingRegistration.email,
+        `A verification code was sent to ${pendingRegistration.email}.`
+      );
       showToast('Verification code sent to Gmail.', 'success');
     } catch (err) {
       console.error('Failed to register:', err);
       const message = String(err?.message || 'Unknown error');
       if (/verification code already sent|already sent/i.test(message)) {
-        openOtpModal(pendingRegistration?.email || String(formData.get('email') || ''));
+        openOtpModal(
+          pendingRegistration?.email || String(formData.get('email') || ''),
+          message,
+        );
         showToast(message, 'info');
       } else {
+        openOtpModal(
+          pendingRegistration?.email || String(formData.get('email') || ''),
+          `Unable to send OTP right now: ${message}. You can retry using Resend OTP.`,
+        );
         showToast('Registration failed: ' + message, 'error');
       }
     } finally {
@@ -185,7 +200,7 @@ export default function Signup(root, data = {}) {
     return modal;
   }
 
-  function openOtpModal(email) {
+  function openOtpModal(email, hintText = '') {
     const modal = getOrCreateOtpModal();
     const emailHint = modal.querySelector('#signupOtpEmailHint');
     const otpInput = modal.querySelector('#signupOtpInput');
@@ -193,7 +208,7 @@ export default function Signup(root, data = {}) {
     const resendBtn = modal.querySelector('#signupOtpResendBtn');
     const closeBtn = modal.querySelector('#signupOtpCloseBtn');
 
-    emailHint.textContent = `A verification code was sent to ${email}.`;
+    emailHint.textContent = hintText || `A verification code was sent to ${email}.`;
     otpInput.value = '';
     modal.style.display = 'flex';
 

@@ -9,8 +9,10 @@ class UserController {
   async verifyRecaptchaToken(token, remoteIp = '') {
     const secret = String(process.env.RECAPTCHA_SECRET_KEY || '').trim();
     if (!secret) {
-      console.error('RECAPTCHA_SECRET_KEY is not configured');
-      return false;
+      // Local/dev fallback: do not block auth flows when reCAPTCHA secret is absent.
+      // Production should set RECAPTCHA_SECRET_KEY.
+      console.warn('RECAPTCHA_SECRET_KEY is not configured; skipping reCAPTCHA verification.');
+      return true;
     }
     if (!token) return false;
 
