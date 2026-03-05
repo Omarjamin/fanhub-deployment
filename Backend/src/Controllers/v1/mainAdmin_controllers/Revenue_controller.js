@@ -170,12 +170,15 @@ class DashboardController {
                 .map((name) => String(name || '').trim())
                 .filter(Boolean);
             const uniqueDbNames = [...new Set(normalizedDbNames)];
+            const resolvedDbNames = uniqueDbNames.length ? uniqueDbNames : ['__default__'];
             const processedPhysicalDbs = new Set();
             const duplicates = normalizedDbNames.filter((v, i, a) => a.indexOf(v) !== i);
             console.log('getCommunityStats: dbNames', {
                 communityType,
                 inputCount: normalizedDbNames.length,
                 uniqueCount: uniqueDbNames.length,
+                resolvedCount: resolvedDbNames.length,
+                usedDefaultFallback: uniqueDbNames.length === 0,
                 duplicates: [...new Set(duplicates)],
             });
 
@@ -187,10 +190,10 @@ class DashboardController {
                 stats[communityType] = { revenue: 0, orders: 0, posts: 0, pendingModeration: 0, lowStock: 0, newOrdersToday: 0 };
             }
 
-            for (const dbName of uniqueDbNames) {
+            for (const dbName of resolvedDbNames) {
                 let siteDB;
                 try {
-                    siteDB = await connect(dbName);
+                    siteDB = await connect(dbName === '__default__' ? '' : dbName);
                     console.log(`Connected to site DB: ${dbName} for community: ${communityType}`);
                     const [dbRows] = await siteDB.query('SELECT DATABASE() AS current_db');
                     const physicalDb = String(dbRows?.[0]?.current_db || '').trim().toLowerCase();
@@ -394,13 +397,14 @@ class DashboardController {
                 all: stats?.all || null,
             });
             if (includeDebug) {
-                return res.json({
+                        return res.json({
                     ...stats,
                     __debug: {
                         communityType,
                         siteName,
                         scopedCommunityId,
                         dbNames: uniqueDbNames,
+                        resolvedDbNames,
                         perDb: perDbDebug,
                     },
                 });
