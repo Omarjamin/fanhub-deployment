@@ -147,7 +147,13 @@ export default function Signup(root, data = {}) {
       showToast('Verification code sent to Gmail.', 'success');
     } catch (err) {
       console.error('Failed to register:', err);
-      showToast('Registration failed: ' + (err.message || 'Unknown error'), 'error');
+      const message = String(err?.message || 'Unknown error');
+      if (/verification code already sent|already sent/i.test(message)) {
+        openOtpModal(pendingRegistration?.email || String(formData.get('email') || ''));
+        showToast(message, 'info');
+      } else {
+        showToast('Registration failed: ' + message, 'error');
+      }
     } finally {
       resetRecaptchaWidget(recaptchaSignupBox);
     }

@@ -258,8 +258,11 @@ class UserModel {
       const remainingMs = new Date(activeOtp.expires_at) - new Date();
       const remainingSec = Math.ceil(remainingMs / 1000);
       return {
-        status: 'error',
-        message: `Verification code already sent. Please wait ${remainingSec} seconds.`,
+        status: 'success',
+        message: `Verification code already sent. Please check your inbox or wait ${remainingSec} seconds before resending.`,
+        requires_email_verification: true,
+        already_sent: true,
+        remaining_seconds: remainingSec,
       };
     }
 
