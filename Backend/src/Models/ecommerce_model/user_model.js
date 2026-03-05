@@ -282,6 +282,11 @@ class UserModel {
       await this.sendOtpEmail(email, otp, 'Email verification code');
       return { status: 'success', message: 'Verification code sent to your email.' };
     } catch (error) {
+      // Roll back pending registration OTP if email delivery failed,
+      // so user can request a fresh OTP immediately.
+      try {
+        await db.query('DELETE FROM registration_verifications WHERE email = ?', [email]);
+      } catch (_) {}
       return {
         status: 'error',
         code: 'OTP_EMAIL_SEND_FAILED',
@@ -655,7 +660,25 @@ class UserModel {
         return { status: 'error', message: 'Failed to save OTP in database.' };
       }
 
-      await this.sendOtpEmail(email, otp);
+      try {
+        await this.sendOtpEmail(email, otp);
+      } catch (sendErr) {
+        // Roll back reset OTP if email send fails to avoid "OTP already sent" dead-end.
+        try {
+          const columns = await this.getUserColumns();
+          const whereParts = ['email = ?'];
+          const params = [email];
+          if (columns.has('community_id') && this.activeCommunityId) {
+            whereParts.push('community_id = ?');
+            params.push(this.activeCommunityId);
+          }
+          await db.query(
+            `UPDATE users SET reset_otp = NULL, reset_expr = NULL WHERE ${whereParts.join(' AND ')}`,
+            params,
+          );
+        } catch (_) {}
+        throw sendErr;
+      }
 
       return {
         status: 'success',
@@ -699,7 +722,17 @@ class UserModel {
       setTimeout(() => reject(new Error('Email service timeout while sending OTP.')), 12000);
     });
 
-    await Promise.race([sendPromise, timeoutPromise]);
+    try {
+      await Promise.race([sendPromise, timeoutPromise]);
+    } catch (error) {
+      console.error('<error> sendOtpEmail failed', {
+        message: error?.message || String(error || ''),
+        code: error?.code || '',
+        responseCode: error?.responseCode || '',
+        command: error?.command || '',
+      });
+      throw error;
+    }
   }
 
   async saveResetToken(email, otp, otpExpiry, community_type, site_slug) {
