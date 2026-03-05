@@ -152,6 +152,8 @@ class DashboardController {
         try {
             const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
             const siteName = String(req.query.site_name || '').trim();
+            const includeDebug = String(req.query?.debug || '').trim() === '1';
+            const perDbDebug = [];
             debugLog('getCommunityStats:start', { communityType, siteName });
             const scopedCommunityCtx =
                 communityType && communityType !== 'all'
@@ -193,6 +195,14 @@ class DashboardController {
                     const [dbRows] = await siteDB.query('SELECT DATABASE() AS current_db');
                     const physicalDb = String(dbRows?.[0]?.current_db || '').trim().toLowerCase();
                     if (physicalDb && processedPhysicalDbs.has(physicalDb)) {
+                        if (includeDebug) {
+                            perDbDebug.push({
+                                inputDbName: dbName,
+                                physicalDb,
+                                skipped: true,
+                                reason: 'duplicate-physical-db',
+                            });
+                        }
                         continue;
                     }
                     if (physicalDb) processedPhysicalDbs.add(physicalDb);
@@ -349,6 +359,7 @@ class DashboardController {
                     }
 
                     debugLog('getCommunityStats:per-db-stat', statDebug);
+                    if (includeDebug) perDbDebug.push(statDebug);
 
                     // Only aggregate into a per-community bucket when a specific community is requested.
                     // For "all", we aggregate exclusively via stats.all below to avoid double counting.
@@ -382,6 +393,18 @@ class DashboardController {
                 scoped: stats?.[communityType] || null,
                 all: stats?.all || null,
             });
+            if (includeDebug) {
+                return res.json({
+                    ...stats,
+                    __debug: {
+                        communityType,
+                        siteName,
+                        scopedCommunityId,
+                        dbNames: uniqueDbNames,
+                        perDb: perDbDebug,
+                    },
+                });
+            }
             res.json(stats);
         } catch (error) {
             console.error('Error fetching community stats:', error);

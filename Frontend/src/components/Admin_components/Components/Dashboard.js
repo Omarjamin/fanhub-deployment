@@ -68,6 +68,9 @@ export default function Dashboard() {
       if (finalCommunity === 'all' && normalizedSiteName && normalizedSiteName.toLowerCase() !== 'all') {
         params.site_name = normalizedSiteName;
       }
+      if (DASHBOARD_DEBUG) {
+        params.debug = '1';
+      }
       dashboardDebug('fetchCommunityStats:request', { communityKey, siteName, params });
       const data = await fetchAdminJsonWithFallback(
         'dashboard/stats',
@@ -76,6 +79,9 @@ export default function Dashboard() {
       );
       communityStats = data;  // { all: {...}, music: {...}, gaming: {...}, ... }
       dashboardDebug('fetchCommunityStats:response', data);
+      if (DASHBOARD_DEBUG && data?.__debug) {
+        console.log('[DASHBOARD DEBUG] fetchCommunityStats:debug-json', JSON.stringify(data.__debug));
+      }
     } catch (err) {
       console.error('Error fetching community stats:', err);
     }
