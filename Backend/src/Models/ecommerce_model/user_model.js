@@ -1,7 +1,7 @@
 import { connect, resolveCommunityContext } from '../../core/database.js';
 import { encryptPassword } from '../../utils/hash.js';
 import crypto from "crypto";
-import nodemailer from 'nodemailer';
+import axios from 'axios';
 
 class UserModel {
   constructor() {
@@ -695,54 +695,40 @@ class UserModel {
   }
 
   async sendOtpEmail(email, otp, subject = 'Password Reset OTP') {
-    const smtpUser = String(process.env.BREVO_SMTP_USER || process.env.EMAIL_USER || '').trim();
-    const smtpPass = String(process.env.BREVO_SMTP_PASS || process.env.EMAIL_PASS || '').trim().replace(/\s+/g, '');
-    const smtpHost = String(process.env.BREVO_SMTP_HOST || process.env.EMAIL_HOST || process.env.SMTP_HOST || '').trim() || 'smtp-relay.brevo.com';
-    const smtpPortRaw = String(process.env.BREVO_SMTP_PORT || process.env.EMAIL_PORT || process.env.SMTP_PORT || '').trim();
-    const smtpSecureRaw = String(process.env.BREVO_SMTP_SECURE || process.env.EMAIL_SECURE || process.env.SMTP_SECURE || '').trim().toLowerCase();
-    const smtpPort = Number(smtpPortRaw || 0) || 587;
-    const smtpSecure = smtpSecureRaw ? smtpSecureRaw === 'true' : smtpPort === 465;
-    const fromAddress = String(process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_FROM || smtpUser).trim();
+    const brevoApiKey = String(process.env.BREVO_API_KEY || '').trim();
+    const senderEmail = String(process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || '').trim();
+    const senderName = String(process.env.BREVO_SENDER_NAME || 'Uniteam').trim();
 
     console.log('[OTP MAIL] provider:selected', {
-      provider: 'brevo-smtp',
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      hasSmtpUser: Boolean(smtpUser),
-      hasSmtpPass: Boolean(smtpPass),
+      provider: 'brevo-api',
+      hasApiKey: Boolean(brevoApiKey),
+      hasSenderEmail: Boolean(senderEmail),
     });
 
-    if (!smtpUser || !smtpPass) {
-      throw new Error('Email service is not configured (missing BREVO_SMTP_USER/BREVO_SMTP_PASS).');
+    if (!brevoApiKey || !senderEmail) {
+      throw new Error('Email service is not configured (missing BREVO_API_KEY/BREVO_SENDER_EMAIL).');
     }
 
-    const transporter = nodemailer.createTransport({
-      host: smtpHost,
-      port: smtpPort,
-      secure: smtpSecure,
-      auth: { user: smtpUser, pass: smtpPass },
-      connectionTimeout: 12000,
-      greetingTimeout: 12000,
-      socketTimeout: 12000,
-    });
+    const payload = {
+      sender: { email: senderEmail, name: senderName },
+      to: [{ email }],
+      subject,
+      textContent: `${subject}: ${otp}`,
+    };
 
     try {
-      await transporter.sendMail({
-        from: fromAddress,
-        to: email,
-        subject,
-        text: `${subject}: ${otp}`,
+      await axios.post('https://api.brevo.com/v3/smtp/email', payload, {
+        headers: {
+          'api-key': brevoApiKey,
+          'content-type': 'application/json',
+        },
+        timeout: 15000,
       });
-      console.log('[OTP MAIL] brevo-smtp-sent', { to: email, subject });
+      console.log('[OTP MAIL] brevo-api-sent', { to: email, subject });
       return;
     } catch (error) {
-      console.error('<error> sendOtpEmail brevo-smtp failed', {
-        message: error?.message || String(error || ''),
-        code: error?.code || '',
-        responseCode: error?.responseCode || '',
-        command: error?.command || '',
-      });
+      const details = error?.response?.data || error?.message || String(error || '');
+      console.error('<error> sendOtpEmail brevo-api failed', details);
       throw new Error('Email delivery failed.');
     }
   }
