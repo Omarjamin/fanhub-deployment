@@ -2,6 +2,7 @@ import { connect, resolveCommunityContext } from '../../core/database.js';
 import { encryptPassword } from '../../utils/hash.js';
 import crypto from "crypto";
 import nodemailer from 'nodemailer';
+import dns from 'node:dns/promises';
 
 class UserModel {
   constructor() {
@@ -709,25 +710,33 @@ class UserModel {
     const smtpSecureRaw = String(process.env.EMAIL_SECURE || process.env.SMTP_SECURE || '').trim().toLowerCase();
     const smtpPort = Number(smtpPortRaw || 0) || (smtpSecureRaw === 'true' ? 465 : 587);
     const smtpSecure = smtpSecureRaw ? smtpSecureRaw === 'true' : smtpPort === 465;
+    const defaultHost = smtpHost || 'smtp.gmail.com';
+
+    let resolvedHost = defaultHost;
+    try {
+      const ipv4 = await dns.resolve4(defaultHost);
+      if (Array.isArray(ipv4) && ipv4.length > 0) {
+        resolvedHost = String(ipv4[0]).trim();
+      }
+    } catch (_) {
+      // Keep hostname when IPv4 lookup is unavailable.
+    }
 
     const transporter = nodemailer.createTransport(
-      smtpHost
-        ? {
-            host: smtpHost,
-            port: smtpPort,
-            secure: smtpSecure,
-            auth: { user: smtpUser, pass: smtpPass },
-            connectionTimeout: 30000,
-            greetingTimeout: 30000,
-            socketTimeout: 30000,
-          }
-        : {
-            service: smtpService || 'gmail',
-            auth: { user: smtpUser, pass: smtpPass },
-            connectionTimeout: 30000,
-            greetingTimeout: 30000,
-            socketTimeout: 30000,
-          },
+      {
+        host: resolvedHost,
+        port: smtpPort,
+        secure: smtpSecure,
+        auth: { user: smtpUser, pass: smtpPass },
+        connectionTimeout: 30000,
+        greetingTimeout: 30000,
+        socketTimeout: 30000,
+        // Preserve TLS SNI for providers when connecting via resolved IPv4.
+        tls: {
+          servername: defaultHost,
+        },
+        name: smtpService || undefined,
+      },
     );
     const sendPromise = transporter.sendMail({
       from: smtpUser,
