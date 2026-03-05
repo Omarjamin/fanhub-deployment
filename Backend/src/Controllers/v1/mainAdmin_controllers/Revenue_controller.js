@@ -87,7 +87,7 @@ class DashboardController {
         return { sql: '', params: [] };
     }
 
-    async getLowStockCount(db, communityType = 'all', scopedCommunityId = null) {
+    async getLowStockCount(db, communityType = 'all', scopedCommunityId = null, debugMeta = null) {
         const threshold = this.lowStockThreshold;
 
         // Prefer variant-level stock if available to avoid double-counting
@@ -106,6 +106,12 @@ class DashboardController {
                 `SELECT COUNT(*) AS count FROM product_variants WHERE ${whereParts.join(' AND ')}`,
                 params,
             );
+            if (debugMeta && typeof debugMeta === 'object') {
+                debugMeta.sourceTable = 'product_variants';
+                debugMeta.where = whereParts.join(' AND ');
+                debugMeta.params = [...params];
+                debugMeta.threshold = threshold;
+            }
             return Number(count || 0);
         }
 
@@ -128,6 +134,12 @@ class DashboardController {
                     `SELECT COUNT(*) AS count FROM products WHERE ${whereParts.join(' AND ')}`,
                     params,
                 );
+                if (debugMeta && typeof debugMeta === 'object') {
+                    debugMeta.sourceTable = 'products';
+                    debugMeta.where = whereParts.join(' AND ');
+                    debugMeta.params = [...params];
+                    debugMeta.threshold = threshold;
+                }
                 return Number(count || 0);
             }
         }
@@ -185,6 +197,13 @@ class DashboardController {
                     }
                     if (physicalDb) processedPhysicalDbs.add(physicalDb);
 
+                    const statDebug = {
+                        inputDbName: dbName,
+                        physicalDb,
+                        communityType,
+                        scopedCommunityId,
+                    };
+
                     let total_revenue = 0;
                     if (await this.tableExists(siteDB, 'daily_revenue')) {
                         const hasTotalAmount = await this.tableHasColumn(siteDB, 'daily_revenue', 'total_amount');
@@ -210,6 +229,19 @@ class DashboardController {
                             revenueScope.params,
                         );
                         total_revenue = Number(revenueRows?.[0]?.total_revenue || 0);
+                        statDebug.revenue = {
+                            sourceTable: 'daily_revenue',
+                            amountColumn,
+                            where: revenueScope.sql || '',
+                            params: revenueScope.params,
+                            value: total_revenue,
+                        };
+                    } else {
+                        statDebug.revenue = {
+                            sourceTable: 'daily_revenue',
+                            missingTable: true,
+                            value: total_revenue,
+                        };
                     }
 
                     let total_orders = 0;
@@ -226,6 +258,18 @@ class DashboardController {
                             orderScope.params,
                         );
                         total_orders = Number(orderCountRows?.[0]?.total_orders || 0);
+                        statDebug.orders = {
+                            sourceTable: 'orders',
+                            where: orderScope.sql || '',
+                            params: orderScope.params,
+                            value: total_orders,
+                        };
+                    } else {
+                        statDebug.orders = {
+                            sourceTable: 'orders',
+                            missingTable: true,
+                            value: total_orders,
+                        };
                     }
 
                     let total_posts = 0;
@@ -242,9 +286,31 @@ class DashboardController {
                             postScope.params,
                         );
                         total_posts = Number(postRows?.[0]?.total_posts || 0);
+                        statDebug.posts = {
+                            sourceTable: 'posts',
+                            where: postScope.sql || '',
+                            params: postScope.params,
+                            value: total_posts,
+                        };
+                    } else {
+                        statDebug.posts = {
+                            sourceTable: 'posts',
+                            missingTable: true,
+                            value: total_posts,
+                        };
                     }
                     const pending_moderation = 0;
-                    const low_stock = await this.getLowStockCount(siteDB, communityType, scopedCommunityId);
+                    const lowStockDebug = {};
+                    const low_stock = await this.getLowStockCount(
+                        siteDB,
+                        communityType,
+                        scopedCommunityId,
+                        lowStockDebug,
+                    );
+                    statDebug.lowStock = {
+                        ...lowStockDebug,
+                        value: low_stock,
+                    };
                     let new_orders_today = 0;
                     if (await this.tableExists(siteDB, 'orders')) {
                         const todayScope = await this.resolveCommunityScope(
@@ -268,7 +334,21 @@ class DashboardController {
                             params,
                         );
                         new_orders_today = Number(todayRows?.[0]?.new_orders_today || 0);
+                        statDebug.newOrdersToday = {
+                            sourceTable: 'orders',
+                            where: whereParts.join(' AND '),
+                            params,
+                            value: new_orders_today,
+                        };
+                    } else {
+                        statDebug.newOrdersToday = {
+                            sourceTable: 'orders',
+                            missingTable: true,
+                            value: new_orders_today,
+                        };
                     }
+
+                    debugLog('getCommunityStats:per-db-stat', statDebug);
 
                     // Only aggregate into a per-community bucket when a specific community is requested.
                     // For "all", we aggregate exclusively via stats.all below to avoid double counting.
