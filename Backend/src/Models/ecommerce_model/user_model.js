@@ -709,11 +709,80 @@ class UserModel {
       throw new Error('Email service is not configured (missing BREVO_API_KEY/BREVO_SENDER_EMAIL).');
     }
 
+    const safeOtp = String(otp || '').trim();
+    const todayLabel = new Date().toLocaleDateString('en-US', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+    const logoUrl = String(process.env.FANHUB_LOGO_URL || '').trim();
+    const supportEmail = String(process.env.FANHUB_SUPPORT_EMAIL || senderEmail).trim();
+    const helpCenterUrl = String(process.env.FANHUB_HELP_CENTER_URL || 'https://fanhub-production.up.railway.app').trim();
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Fanhub OTP</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  </head>
+  <body style="margin:0;font-family:'Poppins',sans-serif;background:#ffffff;font-size:14px;">
+    <div style="max-width:680px;margin:0 auto;padding:45px 30px 60px;background:#f4f7ff;background-image:linear-gradient(180deg,#0b1f5e 0%, #1659d8 38%, #f4f7ff 38.1%);background-repeat:no-repeat;background-size:800px 452px;background-position:top center;font-size:14px;color:#434343;">
+      <header>
+        <table style="width:100%;">
+          <tbody>
+            <tr style="height:0;">
+              <td>
+                ${logoUrl ? `<img alt="Fanhub" src="${logoUrl}" height="36px" />` : `<span style="font-size:24px;line-height:36px;color:#ffffff;font-weight:700;letter-spacing:.6px;">FANHUB</span>`}
+              </td>
+              <td style="text-align:right;">
+                <span style="font-size:14px;line-height:30px;color:#ffffff;">${todayLabel}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </header>
+
+      <main>
+        <div style="margin:0;margin-top:70px;padding:92px 30px 100px;background:#ffffff;border-radius:30px;text-align:center;">
+          <div style="width:100%;max-width:520px;margin:0 auto;">
+            <h1 style="margin:0;font-size:26px;font-weight:600;color:#102a5c;">Verify Your Fanhub Account</h1>
+            <p style="margin:0;margin-top:17px;font-size:16px;font-weight:500;color:#1f1f1f;">Hi there,</p>
+            <p style="margin:0;margin-top:17px;font-weight:500;letter-spacing:.2px;line-height:1.75;color:#4b5563;">
+              Use the OTP below to continue your request on Fanhub. This code is valid for
+              <span style="font-weight:700;color:#102a5c;">5 minutes</span>.
+              Never share this code with anyone.
+            </p>
+            <p style="margin:0;margin-top:60px;font-size:40px;font-weight:700;letter-spacing:18px;color:#0b5fff;">${safeOtp}</p>
+          </div>
+        </div>
+
+        <p style="max-width:430px;margin:0 auto;margin-top:70px;text-align:center;font-weight:500;color:#8c8c8c;line-height:1.7;">
+          Need help? Contact us at
+          <a href="mailto:${supportEmail}" style="color:#0b5fff;text-decoration:none;">${supportEmail}</a>
+          or visit our
+          <a href="${helpCenterUrl}" target="_blank" style="color:#0b5fff;text-decoration:none;">Help Center</a>.
+        </p>
+      </main>
+
+      <footer style="width:100%;max-width:490px;margin:20px auto 0;text-align:center;border-top:1px solid #e6ebf1;">
+        <p style="margin:0;margin-top:34px;font-size:16px;font-weight:700;color:#1f2937;">Fanhub</p>
+        <p style="margin:0;margin-top:8px;color:#64748b;">Building stronger digital communities.</p>
+        <p style="margin:0;margin-top:16px;color:#64748b;">Copyright © ${new Date().getFullYear()} Fanhub. All rights reserved.</p>
+      </footer>
+    </div>
+  </body>
+</html>
+    `;
+
     const payload = {
       sender: { email: senderEmail, name: senderName },
       to: [{ email }],
       subject,
-      textContent: `${subject}: ${otp}`,
+      textContent: `${subject}: ${safeOtp}`,
+      htmlContent,
     };
 
     try {
