@@ -696,21 +696,39 @@ class UserModel {
 
   async sendOtpEmail(email, otp, subject = 'Password Reset OTP') {
     const smtpUser = String(process.env.EMAIL_USER || '').trim();
-    const smtpPass = String(process.env.EMAIL_PASS || '').trim();
+    // Gmail app passwords are often copied with spaces (e.g. "abcd efgh ...").
+    // Normalize to avoid auth failures.
+    const smtpPass = String(process.env.EMAIL_PASS || '').trim().replace(/\s+/g, '');
+    const smtpService = String(process.env.EMAIL_SERVICE || '').trim();
     if (!smtpUser || !smtpPass) {
       throw new Error('Email service is not configured (missing EMAIL_USER/EMAIL_PASS).');
     }
 
-    const transporter = nodemailer.createTransport({
-      service: 'gmail',
-      auth: {
-        user: smtpUser,
-        pass: smtpPass,
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
-    });
+    const smtpHost = String(process.env.EMAIL_HOST || process.env.SMTP_HOST || '').trim();
+    const smtpPortRaw = String(process.env.EMAIL_PORT || process.env.SMTP_PORT || '').trim();
+    const smtpSecureRaw = String(process.env.EMAIL_SECURE || process.env.SMTP_SECURE || '').trim().toLowerCase();
+    const smtpPort = Number(smtpPortRaw || 0) || (smtpSecureRaw === 'true' ? 465 : 587);
+    const smtpSecure = smtpSecureRaw ? smtpSecureRaw === 'true' : smtpPort === 465;
+
+    const transporter = nodemailer.createTransport(
+      smtpHost
+        ? {
+            host: smtpHost,
+            port: smtpPort,
+            secure: smtpSecure,
+            auth: { user: smtpUser, pass: smtpPass },
+            connectionTimeout: 30000,
+            greetingTimeout: 30000,
+            socketTimeout: 30000,
+          }
+        : {
+            service: smtpService || 'gmail',
+            auth: { user: smtpUser, pass: smtpPass },
+            connectionTimeout: 30000,
+            greetingTimeout: 30000,
+            socketTimeout: 30000,
+          },
+    );
     const sendPromise = transporter.sendMail({
       from: smtpUser,
       to: email,
@@ -719,7 +737,7 @@ class UserModel {
     });
 
     const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('Email service timeout while sending OTP.')), 12000);
+      setTimeout(() => reject(new Error('Email service timeout while sending OTP.')), 35000);
     });
 
     try {
