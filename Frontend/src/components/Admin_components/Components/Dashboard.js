@@ -38,6 +38,7 @@ export default function Dashboard() {
   // Store fetched data
   let communityStats = {};
   let revenueData = {};
+  let activeCommunityRequestId = 0;
 
   function persistSelectedCommunity(value) {
     try {
@@ -55,7 +56,7 @@ export default function Dashboard() {
   // 🔹 Helper Functions
   // -----------------------------
   
-  async function fetchCommunityStats(communityKey, siteName = '', communityId = null) {
+  async function fetchCommunityStats(communityKey, siteName = '', communityId = null, requestId = 0) {
     try {
       const finalCommunity = isForcedSingleSite ? forcedSiteSlug : communityKey;
       const params = { community: finalCommunity };
@@ -77,6 +78,7 @@ export default function Dashboard() {
         params,
         getAdminRequestOptions(),
       );
+      if (requestId !== activeCommunityRequestId) return;
       communityStats = data;  // { all: {...}, music: {...}, gaming: {...}, ... }
       dashboardDebug('fetchCommunityStats:response', data);
       if (DASHBOARD_DEBUG && data?.__debug) {
@@ -126,7 +128,7 @@ export default function Dashboard() {
     }
   }
 
-  async function fetchRevenueData(communityKey, siteName = '', communityId = null) {
+  async function fetchRevenueData(communityKey, siteName = '', communityId = null, requestId = 0) {
     try {
       const finalCommunity = isForcedSingleSite ? forcedSiteSlug : communityKey;
       const params = { community: finalCommunity };
@@ -143,6 +145,7 @@ export default function Dashboard() {
         params,
         getAdminRequestOptions(),
       );
+      if (requestId !== activeCommunityRequestId) return;
       revenueData[communityKey] = Array.isArray(data)
         ? data.map((row) => ({
             orderId: row.order_id ? `#${row.order_id}` : '-',
@@ -233,12 +236,16 @@ export default function Dashboard() {
 
   async function initCommunityData(communityKey, siteName = '', communityId = null) {
     dashboardDebug('initCommunityData:start', { communityKey, siteName, communityId });
+    const requestId = ++activeCommunityRequestId;
+    communityStats = {};
+    updateStatCards('__clear__');
     // Clear old rows immediately when switching community
     revenueData[communityKey] = [];
     updateTableAndPagination();
 
-    await fetchCommunityStats(communityKey, siteName, communityId);
-    await fetchRevenueData(communityKey, siteName, communityId);
+    await fetchCommunityStats(communityKey, siteName, communityId, requestId);
+    await fetchRevenueData(communityKey, siteName, communityId, requestId);
+    if (requestId !== activeCommunityRequestId) return;
     updateStatCards(communityKey, communityId, siteName);
     updateTableAndPagination();
     dashboardDebug('initCommunityData:done', {
