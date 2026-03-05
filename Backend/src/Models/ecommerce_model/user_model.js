@@ -699,11 +699,70 @@ class UserModel {
   }
 
   async sendOtpEmail(email, otp, subject = 'Password Reset OTP') {
+    const resendApiKey = String(process.env.RESEND_API_KEY || '').trim();
+    const resendFrom = String(
+      process.env.RESEND_FROM_EMAIL ||
+      process.env.RESEND_FROM ||
+      process.env.EMAIL_USER ||
+      '',
+    ).trim();
+    console.log('[OTP MAIL] provider-check', {
+      hasResendApiKey: Boolean(resendApiKey),
+      resendFromConfigured: Boolean(resendFrom),
+      target: String(email || '').replace(/(^.).*(@.*$)/, '$1***$2'),
+    });
+    if (resendApiKey) {
+      if (!resendFrom) {
+        throw new Error('Resend is configured but RESEND_FROM_EMAIL is missing.');
+      }
+      console.log('[OTP MAIL] provider:selected', { provider: 'resend', from: resendFrom });
+      const html = `
+        <div style="font-family:Arial,sans-serif;line-height:1.5;color:#111">
+          <h2 style="margin:0 0 8px">${subject}</h2>
+          <p style="margin:0 0 8px">Your verification code is:</p>
+          <p style="font-size:24px;font-weight:700;letter-spacing:2px;margin:0 0 12px">${otp}</p>
+          <p style="margin:0;color:#555">This code will expire soon. Do not share it with anyone.</p>
+        </div>
+      `;
+
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: resendFrom,
+          to: [email],
+          subject,
+          text: `${subject}: ${otp}`,
+          html,
+        }),
+      });
+
+      if (!response.ok) {
+        const raw = await response.text().catch(() => '');
+        console.error('[OTP MAIL] resend-failed', {
+          status: response.status,
+          body: raw || '',
+        });
+        throw new Error(`Resend API failed (${response.status}): ${raw || 'Unknown error'}`);
+      }
+      console.log('[OTP MAIL] resend-sent', { status: response.status });
+      return;
+    }
+
     const smtpUser = String(process.env.EMAIL_USER || '').trim();
     // Gmail app passwords are often copied with spaces (e.g. "abcd efgh ...").
     // Normalize to avoid auth failures.
     const smtpPass = String(process.env.EMAIL_PASS || '').trim().replace(/\s+/g, '');
     const smtpService = String(process.env.EMAIL_SERVICE || '').trim();
+    console.log('[OTP MAIL] provider:selected', {
+      provider: 'smtp',
+      smtpService: smtpService || 'gmail',
+      hasSmtpUser: Boolean(smtpUser),
+      hasSmtpPass: Boolean(smtpPass),
+    });
     if (!smtpUser || !smtpPass) {
       throw new Error('Email service is not configured (missing EMAIL_USER/EMAIL_PASS).');
     }
