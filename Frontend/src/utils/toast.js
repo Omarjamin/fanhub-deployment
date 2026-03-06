@@ -1,3 +1,46 @@
+const AUTH_TOAST_RULES = {
+  error: [
+    'user not found',
+    'wrong password',
+    'captcha error',
+    'invalid otp',
+    'expired otp',
+  ],
+  warning: [
+    'too many attempts soon',
+    'account will be locked',
+    'suspicious login detected',
+  ],
+};
+
+function normalizeAuthMessage(message = '') {
+  return String(message || '')
+    .toLowerCase()
+    .replace(/^login failed:\s*/i, '')
+    .replace(/^error:\s*/i, '')
+    .trim();
+}
+
+export function getAuthToastType(message, fallbackType = 'error') {
+  const normalizedMessage = normalizeAuthMessage(message);
+
+  if (!normalizedMessage) return fallbackType;
+
+  if (AUTH_TOAST_RULES.warning.some((rule) => normalizedMessage.includes(rule))) {
+    return 'warning';
+  }
+
+  if (AUTH_TOAST_RULES.error.some((rule) => normalizedMessage.includes(rule))) {
+    return 'error';
+  }
+
+  return fallbackType;
+}
+
+export function showAuthToast(message, fallbackType = 'error') {
+  showToast(message, getAuthToastType(message, fallbackType));
+}
+
 // Toast notification utility
 export function showToast(message, type = 'info') {
   // Remove existing toast if any
@@ -17,7 +60,7 @@ export function showToast(message, type = 'info') {
     top: 80px;
     left: 50%;
     transform: translateX(-50%);
-    background: ${type === 'error' ? '#446cefff' : type === 'success' ? '#22c55e' : '#3b82f6'};
+    background: ${type === 'error' ? '#dc2626' : type === 'warning' ? '#f59e0b' : type === 'success' ? '#22c55e' : '#3b82f6'};
     color: white;
     padding: 20px 30px;
     border-radius: 12px;

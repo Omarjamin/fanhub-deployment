@@ -3,7 +3,7 @@ import { continueWithGoogle } from '../../../services/ecommerce_services/auth/si
 import { getAuthToken } from '../../../services/ecommerce_services/auth/auth.js';
 import { getRecaptchaToken, renderGoogleButton, renderRecaptchaWidget, getIdentityProviderStatus } from '../../../services/ecommerce_services/auth/identity_providers.js';
 import '../user/request_password_reset.js';
-import { showToast } from '../../../utils/toast.js';
+import { showAuthToast, showToast } from '../../../utils/toast.js';
 
 function resolveSiteSlug(data = {}) {
   const fromData = data?.siteSlug || data?.site_slug || data?.siteData?.site_slug;
@@ -123,7 +123,7 @@ export default function LoginForm(root, data = {}) {
             window.location.href = redirectAfterLogin;
           }, 700);
         } catch (err) {
-          showToast(`Google login failed: ${err.message}`, 'error');
+          showAuthToast(`Google login failed: ${err.message}`, 'error');
         }
       });
     } catch (err) {
@@ -163,14 +163,14 @@ export default function LoginForm(root, data = {}) {
       }, 1500);
     } catch (err) {
       console.error('Failed to login:', err);
-      if (err?.code === 'PASSWORD_RESET_REQUIRED') {
-        showToast('Too many failed attempts. Please reset your password.', 'error');
-        if (typeof window.showPasswordResetModal === 'function') {
-          window.showPasswordResetModal(err?.email || payload.email);
-        }
+      if (err?.code === 'ACCOUNT_TEMP_LOCKED') {
+        showAuthToast(
+          err?.message || 'Too many login attempts. Your account is temporarily locked. Please try again after 15 minutes.',
+          'warning',
+        );
         return;
       }
-      showToast('Login failed: ' + err.message, 'error');
+      showAuthToast('Login failed: ' + err.message, 'error');
     }
   });
 }

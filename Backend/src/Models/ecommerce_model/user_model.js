@@ -152,6 +152,9 @@ class UserModel {
       if (!columns.has('failed_login_attempts')) {
         alters.push('ADD COLUMN failed_login_attempts INT NOT NULL DEFAULT 0 AFTER auth_provider');
       }
+      if (!columns.has('login_locked_until')) {
+        alters.push('ADD COLUMN login_locked_until DATETIME NULL AFTER failed_login_attempts');
+      }
       if (!columns.has('community_id')) {
         alters.push('ADD COLUMN community_id INT NULL AFTER user_id');
       }
@@ -279,7 +282,7 @@ class UserModel {
     );
 
     try {
-      await this.sendOtpEmail(email, otp, 'Email verification code');
+      await this.sendOtpEmail(email, otp, 'registration_verification');
       return { status: 'success', message: 'Verification code sent to your email.' };
     } catch (error) {
       // Roll back pending registration OTP if email delivery failed,
@@ -337,7 +340,26 @@ class UserModel {
 
   async resetFailedLoginAttempts(userId, dbConn = null) {
     const db = dbConn || this.db;
-    await db.query('UPDATE users SET failed_login_attempts = 0 WHERE user_id = ?', [userId]);
+    await db.query('UPDATE users SET failed_login_attempts = 0, login_locked_until = NULL WHERE user_id = ?', [userId]);
+  }
+
+  async lockUserLogin(userId, dbConn = null, minutes = 15) {
+    const db = dbConn || this.db;
+    await db.query(
+      `
+        UPDATE users
+        SET login_locked_until = DATE_ADD(NOW(), INTERVAL ? MINUTE)
+        WHERE user_id = ?
+      `,
+      [minutes, userId],
+    );
+
+    const [rows] = await db.query(
+      'SELECT login_locked_until FROM users WHERE user_id = ? LIMIT 1',
+      [userId],
+    );
+
+    return rows?.[0]?.login_locked_until || null;
   }
 
   async verify(email, password, community_type, site_slug) {
@@ -352,7 +374,7 @@ class UserModel {
       }
 
       const userQuery = `
-        SELECT user_id, email, password, fullname, auth_provider, failed_login_attempts
+        SELECT user_id, email, password, fullname, auth_provider, failed_login_attempts, login_locked_until
         FROM users
         WHERE ${whereParts.join(' AND ')}
         LIMIT 1
@@ -371,22 +393,33 @@ class UserModel {
         };
       }
 
+      if (user.login_locked_until && new Date(user.login_locked_until) > new Date()) {
+        return {
+          status: 'locked',
+          code: 'ACCOUNT_TEMP_LOCKED',
+          locked_until: user.login_locked_until,
+          message: 'Too many login attempts. Your account is temporarily locked. Please try again after 15 minutes.',
+        };
+      }
+
       const hashedPassword = await encryptPassword(password);
       if (user.password !== hashedPassword) {
         const nextAttempts = await this.incrementFailedLoginAttempts(user.user_id, db);
-        if (nextAttempts >= 5) {
+        if (nextAttempts === 5) {
+          const lockedUntil = await this.lockUserLogin(user.user_id, db, 15);
           return {
-            status: 'reset_required',
-            message: 'Too many failed login attempts. Please reset your password.',
-            code: 'PASSWORD_RESET_REQUIRED',
+            status: 'locked',
+            message: 'Too many login attempts. Your account is temporarily locked. Please try again after 15 minutes.',
+            code: 'ACCOUNT_TEMP_LOCKED',
             failedLoginAttempts: nextAttempts,
+            locked_until: lockedUntil,
             email: user.email,
           };
         }
 
         return {
           status: 'error',
-          message: `Incorrect password (${nextAttempts}/5).`,
+          message: 'Invalid email or password.',
           failedLoginAttempts: nextAttempts,
         };
       }
@@ -788,7 +821,7 @@ class UserModel {
     }
   }
 
-  async sendOtpEmail(email, otp, subject = 'Password Reset OTP') {
+  async sendOtpEmail(email, otp, emailType = 'password_reset') {
     const brevoApiKey = String(process.env.BREVO_API_KEY || '').trim();
     const senderEmail = String(process.env.BREVO_SENDER_EMAIL || process.env.EMAIL_USER || '').trim();
     const branding = await this.getOtpEmailBranding();
@@ -815,6 +848,24 @@ class UserModel {
     });
     const supportEmail = String(branding.supportEmail || process.env.FANHUB_SUPPORT_EMAIL || senderEmail).trim();
     const helpCenterUrl = String(branding.helpCenterUrl || process.env.FANHUB_HELP_CENTER_URL || 'https://fanhub-production.up.railway.app').trim();
+    const communityName = String(branding.communityName || 'Juan').trim() || 'Juan';
+    const normalizedEmailType = String(emailType || 'password_reset').trim().toLowerCase();
+    const isRegistrationVerification = normalizedEmailType === 'registration_verification';
+    const subject = isRegistrationVerification
+      ? `Verify your ${communityName} account`
+      : `Reset your ${communityName} password`;
+    const heading = isRegistrationVerification
+      ? `Verify Your ${communityName} Account`
+      : `Reset Your ${communityName} Password`;
+    const bodyText = isRegistrationVerification
+      ? `Use the OTP below to verify your email and complete your ${communityName} account registration.`
+      : `Use the OTP below to reset your password for your ${communityName} account.`;
+    const ignoreText = isRegistrationVerification
+      ? 'If you did not request this, please ignore this email.'
+      : 'If you did not request a password reset, please ignore this email.';
+    const textContent = isRegistrationVerification
+      ? `Verify Your ${communityName} Account\n\nHi there,\n\nUse the OTP below to verify your email and complete your ${communityName} account registration.\nThis code is valid for 5 minutes. Never share this code with anyone.\n\n${safeOtp}\n\nIf you did not request this, please ignore this email.\n\nNeed help? Contact us at ${supportEmail}\n\n${communityName}\nBuilding stronger digital communities.`
+      : `Reset Your ${communityName} Password\n\nHi there,\n\nUse the OTP below to reset your password for your ${communityName} account.\nThis code is valid for 5 minutes. Never share this code with anyone.\n\n${safeOtp}\n\nIf you did not request a password reset, please ignore this email.\n\nNeed help? Contact us at ${supportEmail}\n\n${communityName}\nBuilding stronger digital communities.`;
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="en">
@@ -822,7 +873,7 @@ class UserModel {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta http-equiv="X-UA-Compatible" content="ie=edge" />
-    <title>Fanhub OTP</title>
+    <title>${heading}</title>
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
   </head>
   <body style="margin:0;font-family:'Poppins',sans-serif;background:#ffffff;font-size:14px;">
@@ -832,7 +883,7 @@ class UserModel {
           <tbody>
             <tr style="height:0;">
               <td>
-                ${logoUrl ? `<img alt="${branding.communityName}" src="${logoUrl}" height="36px" />` : `<span style="font-size:24px;line-height:36px;color:#ffffff;font-weight:700;letter-spacing:.6px;">${String(branding.communityName || 'Fanhub').toUpperCase()}</span>`}
+                ${logoUrl ? `<img alt="${communityName}" src="${logoUrl}" height="36px" />` : `<span style="font-size:24px;line-height:36px;color:#ffffff;font-weight:700;letter-spacing:.6px;">${communityName.toUpperCase()}</span>`}
               </td>
               <td style="text-align:right;">
                 <span style="font-size:14px;line-height:30px;color:#ffffff;">${todayLabel}</span>
@@ -845,14 +896,15 @@ class UserModel {
       <main>
         <div style="margin:0;margin-top:70px;padding:92px 30px 100px;background:#ffffff;border-radius:30px;text-align:center;">
           <div style="width:100%;max-width:520px;margin:0 auto;">
-            <h1 style="margin:0;font-size:26px;font-weight:600;color:${deepColor};">Verify Your ${branding.communityName} Account</h1>
+            <h1 style="margin:0;font-size:26px;font-weight:600;color:${deepColor};">${heading}</h1>
             <p style="margin:0;margin-top:17px;font-size:16px;font-weight:500;color:#1f1f1f;">Hi there,</p>
             <p style="margin:0;margin-top:17px;font-weight:500;letter-spacing:.2px;line-height:1.75;color:#4b5563;">
-              Use the OTP below to continue your request on ${branding.communityName}. This code is valid for
-              <span style="font-weight:700;color:${deepColor};">5 minutes</span>.
+              ${bodyText}<br />
+              This code is valid for <span style="font-weight:700;color:${deepColor};">5 minutes</span>.
               Never share this code with anyone.
             </p>
             <p style="margin:0;margin-top:60px;font-size:40px;font-weight:700;letter-spacing:18px;color:${primaryColor};">${safeOtp}</p>
+            <p style="margin:40px 0 0;color:#64748b;line-height:1.7;">${ignoreText}</p>
           </div>
         </div>
 
@@ -865,9 +917,9 @@ class UserModel {
       </main>
 
       <footer style="width:100%;max-width:490px;margin:20px auto 0;text-align:center;border-top:1px solid #e6ebf1;">
-        <p style="margin:0;margin-top:34px;font-size:16px;font-weight:700;color:#1f2937;">${branding.communityName}</p>
+        <p style="margin:0;margin-top:34px;font-size:16px;font-weight:700;color:#1f2937;">${communityName}</p>
         <p style="margin:0;margin-top:8px;color:#64748b;">Building stronger digital communities.</p>
-        <p style="margin:0;margin-top:16px;color:#64748b;">Copyright © ${new Date().getFullYear()} ${branding.communityName}. All rights reserved.</p>
+        <p style="margin:0;margin-top:16px;color:#64748b;">Copyright © ${new Date().getFullYear()} ${communityName}. All rights reserved.</p>
       </footer>
     </div>
   </body>
@@ -878,7 +930,7 @@ class UserModel {
       sender: { email: senderEmail, name: senderName },
       to: [{ email }],
       subject,
-      textContent: `${branding.communityName} ${subject}: ${safeOtp}`,
+      textContent,
       htmlContent,
     };
 

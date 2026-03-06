@@ -210,12 +210,13 @@ class UserController {
             suspension_until: result.suspension_until || null,
           });
         }
-        if (result?.status === 'reset_required') {
+        if (result?.status === 'locked') {
           return res.status(423).json({
             error: result.message,
-            code: result.code || 'PASSWORD_RESET_REQUIRED',
+            code: result.code || 'ACCOUNT_TEMP_LOCKED',
             email,
             failed_login_attempts: result.failedLoginAttempts || 5,
+            locked_until: result.locked_until || null,
           });
         }
         const message = result?.message || 'Invalid credentials';

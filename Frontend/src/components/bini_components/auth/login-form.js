@@ -2,6 +2,7 @@ import { loginUser } from "../../../services/bini_services/user/User-Api.js";
 import { jwtDecode } from "jwt-decode";
 import api from "../../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug, setSessionToken } from "../../../lib/site-context.js";
+import { showAuthToast, showToast } from "../../../utils/toast.js";
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -99,14 +100,14 @@ export default function LoginformComponent(formElement) {
           console.error("❌ Failed to decode token:", decodeError);
         }
 
-        alert("Login successful!");
+        showToast("Login successful!", "success");
         window.location.href = `/fanhub/community-platform/${encodeURIComponent(siteSlug)}`;
       } else {
-        alert("Login failed: No token received.");
+        showAuthToast("Login failed: No token received.", "error");
       }
     } catch (error) {
       console.error("Error logging in:", error);
-      alert(`Login failed: ${error.message}`);
+      showAuthToast(`Login failed: ${error.message}`, "error");
     }
   });
   // forgot password modal logic
@@ -149,11 +150,11 @@ export default function LoginformComponent(formElement) {
       });
 
       // Axios automatically throws for 4xx/5xx
-      alert("Password reset link has been sent to your email.");
+      showToast("Password reset link has been sent to your email.", "success");
       resetPasswordModal.style.display = "none";
       updatePasswordModal.style.display = "block";
     } catch (error) {
-      alert("Error: " + (error.response?.data?.message || error.message));
+      showAuthToast(error.response?.data?.message || error.message, "error");
     }
   });
 
@@ -174,10 +175,10 @@ export default function LoginformComponent(formElement) {
         newPassword,
       });
 
-      alert("Password has been updated successfully.");
+      showToast("Password has been updated successfully.", "success");
       updatePasswordModal.style.display = "none";
     } catch (error) {
-      alert("Error: " + (error.response?.data?.message || error.message));
+      showAuthToast(error.response?.data?.message || error.message, "error");
     }
   });
 }
