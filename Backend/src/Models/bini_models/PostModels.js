@@ -499,12 +499,13 @@ class PostModel {
   // Update Post
   async updatePost(postId, userId, content, img_url) {
     try {
+      const postScoped = await this.getScopedCondition('posts');
       const query = `
         UPDATE posts 
         SET content = ?, img_url = ?, updated_at = ? 
-        WHERE post_id = ? AND user_id = ?
+        WHERE post_id = ? AND user_id = ?${postScoped.sql}
       `;
-      const params = [content, img_url, new Date(), postId, userId];
+      const params = [content, img_url, new Date(), postId, userId, ...postScoped.params];
       const [result] = await this.db.query(query, params);
       return result.affectedRows;
     } catch (err) {
@@ -514,6 +515,15 @@ class PostModel {
   // Delete Post
   async deletePost(postId, userId) {
     try {
+      const postScoped = await this.getScopedCondition('posts');
+      const [ownedRows] = await this.db.query(
+        `SELECT post_id FROM posts WHERE post_id = ? AND user_id = ?${postScoped.sql} LIMIT 1`,
+        [postId, userId, ...postScoped.params],
+      );
+      if (!ownedRows?.length) {
+        return 0;
+      }
+
       const scopedDeletes = [
         { table: 'comments', column: 'post_id' },
         { table: 'likes', column: 'post_id' },
@@ -532,7 +542,6 @@ class PostModel {
         );
       }
 
-      const postScoped = await this.getScopedCondition('posts');
       const query = `
         DELETE FROM posts 
         WHERE post_id = ? AND user_id = ?${postScoped.sql}

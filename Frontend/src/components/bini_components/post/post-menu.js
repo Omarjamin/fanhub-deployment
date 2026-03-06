@@ -1,5 +1,6 @@
 import api from "../../../services/bini_services/api.js";
 import { reportPost } from "../../../services/bini_services/post/post-interactions.js";
+import { getActiveSiteSlug } from "../../../lib/site-context.js";
 import { showToast } from "../../../utils/toast.js";
 
 let outsideHandlerBound = false;
@@ -121,6 +122,7 @@ async function openEditPostModal(post, onSaved) {
   form.onsubmit = async (event) => {
     event.preventDefault();
     try {
+      const activeCommunity = getActiveSiteSlug();
       let imageUrl = removedImage ? null : post?.img_url || null;
       const imageFile = fileInput.files?.[0];
 
@@ -138,7 +140,9 @@ async function openEditPostModal(post, onSaved) {
         img_url: imageUrl,
       };
 
-      await api.patch(`/bini/posts/${post.post_id}`, payload);
+      await api.patch(`/bini/posts/${post.post_id}`, payload, {
+        headers: activeCommunity ? { "x-community-type": activeCommunity } : {},
+      });
       modal.classList.remove("open");
       showToast("Post updated successfully.", "success");
       if (typeof onSaved === "function") {
@@ -212,7 +216,10 @@ export function bindPostMenuActions(root, options = {}) {
       if (!confirmed) return;
 
       try {
-        await api.delete(`/bini/posts/${postId}`);
+        const activeCommunity = getActiveSiteSlug();
+        await api.delete(`/bini/posts/${postId}`, {
+          headers: activeCommunity ? { "x-community-type": activeCommunity } : {},
+        });
         showToast("Post deleted successfully.", "success");
         onPostDeleted(postId);
       } catch (error) {
