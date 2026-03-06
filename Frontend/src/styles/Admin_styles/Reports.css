@@ -367,13 +367,19 @@
 }
 
 .btn-icon {
-  background: none;
-  border: none;
+  background: #fff;
+  border: 1px solid #e5e7eb;
   cursor: pointer;
-  padding: 6px;
-  margin: 0 2px;
-  border-radius: 4px;
+  padding: 0;
+  margin: 0;
+  border-radius: 8px;
   font-size: 16px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   transition: all 0.2s;
 }
 
@@ -400,6 +406,27 @@
 
 .btn-danger:hover:not(:disabled) {
   background: #fecaca;
+}
+
+.report-actions-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.reporter-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+}
+
+.reporter-meta-sub {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.35;
+  word-break: break-word;
 }
 
 @media (max-width: 768px) {

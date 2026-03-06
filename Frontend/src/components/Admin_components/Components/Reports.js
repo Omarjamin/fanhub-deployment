@@ -57,14 +57,14 @@ export default function ReportsComponent() {
         <table class="reports-table" id="reportsTable" style="display: none;">
           <thead>
             <tr>
-              <th>User ID</th>
+              <th>Report ID</th>
               <th>Reported User</th>
+              <th>Reported By</th>
               <th>Email</th>
               <th>Site</th>
-              <th>Total Reports</th>
-              <th>Reasons</th>
+              <th>Category</th>
               <th>Status</th>
-              <th>Date</th>
+              <th>Time</th>
               <th>Actions</th>
             </tr>
           </thead>
@@ -264,19 +264,19 @@ async function fetchReports() {
 
     const userReports = userRows.map((report) => ({
       ...report,
-      reasons: report.reasons || report.reason || '',
-      status: normalizeReportStatus(report.latest_status || report.status),
+      reasons: report.reason || '',
+      status: normalizeReportStatus(report.status),
       report_source: 'message'
     }));
 
     const postReports = postRows.map((report) => ({
       ...report,
-      reasons: report.reasons || report.reason || '',
-      status: normalizeReportStatus(report.latest_status || report.status),
+      reasons: report.reason || '',
+      status: normalizeReportStatus(report.status),
       report_source: 'post'
     }));
 
-    reportsData = sortByLatestReportDesc(dedupeByReportedEntity([...userReports, ...postReports]));
+    reportsData = sortByLatestReportDesc([...userReports, ...postReports]);
     routeScopedData = applyRouteFilter([...reportsData]);
     filteredData = [...routeScopedData];
     applyFilters();
@@ -356,49 +356,10 @@ function getReasonTokens(report) {
   return String(raw).split(',').map((x) => x.trim()).filter(Boolean);
 }
 
-function dedupeByReportedEntity(rows) {
-  const byEntity = new Map();
-
-  for (const row of rows) {
-    const communityKey = getReportCommunityKey(row);
-    const source = String(row?.report_source || '').toLowerCase();
-    const entityId = source === 'post'
-      ? row?.post_id
-      : (row?.user_id ?? row?.reported_user_id);
-    if (!entityId) continue;
-    const key = `${source || 'report'}::${String(entityId)}::${communityKey}`;
-
-    const prev = byEntity.get(key);
-    if (!prev) {
-      byEntity.set(key, { ...row });
-      continue;
-    }
-
-    const prevTime = new Date(prev.latest_report || 0).getTime();
-    const curTime = new Date(row.latest_report || 0).getTime();
-    const latest = curTime >= prevTime ? row : prev;
-    const older = latest === row ? prev : row;
-
-    const mergedReasons = Array.from(new Set([
-      ...getReasonTokens(prev),
-      ...getReasonTokens(row),
-    ])).join(', ');
-
-    byEntity.set(key, {
-      ...latest,
-      // Keep DB value from latest row to avoid duplicate inflation after dedupe.
-      total_reports: Number(latest.total_reports || 0),
-      reasons: mergedReasons || latest.reasons || latest.reason || older.reasons || older.reason || '',
-    });
-  }
-
-  return Array.from(byEntity.values());
-}
-
 function sortByLatestReportDesc(rows) {
   return [...rows].sort((a, b) => {
-    const aTime = new Date(a?.latest_report || 0).getTime() || 0;
-    const bTime = new Date(b?.latest_report || 0).getTime() || 0;
+    const aTime = new Date(a?.created_at || a?.latest_report || 0).getTime() || 0;
+    const bTime = new Date(b?.created_at || b?.latest_report || 0).getTime() || 0;
     return bTime - aTime;
   });
 }
@@ -422,7 +383,7 @@ function renderReportsTable() {
       const communityKey = getReportCommunityKey(report);
       return `
       <tr>
-        <td>#${report.user_id ?? 'N/A'}</td>
+        <td>#${report.report_id ?? 'N/A'}</td>
         <td>
           <div style="display: flex; align-items: center; gap: 8px;">
             ${report.profile_picture
@@ -434,11 +395,16 @@ function renderReportsTable() {
             </div>
           </div>
         </td>
+        <td>
+          <div class="reporter-meta">
+            <div>${escapeHtml(report.reporter_name || 'Unknown Reporter')}</div>
+            <div class="reporter-meta-sub">${escapeHtml(report.reporter_email || 'N/A')}</div>
+          </div>
+        </td>
         <td>${report.email || 'N/A'}</td>
         <td>${report.site_name || report.domain || report.community_type || report.community_name || 'N/A'}</td>
-        <td><span class="badge badge-secondary">${report.total_reports ?? 0}</span></td>
         <td>${getReasonTokens(report).length
-          ? getReasonTokens(report).map((reason) => `<span class="badge badge-reason">${reason}</span>`).join(' ')
+          ? getReasonTokens(report).map((reason) => `<span class="badge badge-reason">${escapeHtml(reason)}</span>`).join(' ')
           : 'N/A'
         }</td>
         <td>
@@ -446,7 +412,7 @@ function renderReportsTable() {
             ${escapeHtml(String(report.status || 'pending').replace(/^\w/, (match) => match.toUpperCase()))}
           </span>
         </td>
-        <td>${formatDate(report.latest_report)}</td>
+        <td>${formatDateTime(report.created_at || report.latest_report)}</td>
         <td>
           ${report.report_source === 'post'
             ? `<div class="report-actions-row">
@@ -831,6 +797,19 @@ function formatDate(dateString) {
     year: '2-digit',
     month: 'numeric',
     day: 'numeric'
+  });
+}
+
+function formatDateTime(dateString) {
+  if (!dateString) return 'N/A';
+  const date = new Date(dateString);
+  if (Number.isNaN(date.getTime())) return 'N/A';
+  return date.toLocaleString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
   });
 }
 

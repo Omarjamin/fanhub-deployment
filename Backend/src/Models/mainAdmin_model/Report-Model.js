@@ -382,8 +382,6 @@ class ReportModel {
           }
           const hasPostId = cols.has('post_id');
           const hasReportType = cols.has('report_type');
-          const hasReporterId = cols.has('reporter_id');
-          const hasReportId = cols.has('report_id');
           const hasCreatedAt = cols.has('created_at');
           const hasReason = cols.has('reason');
           const hasStatus = cols.has('status');
@@ -419,35 +417,28 @@ class ReportModel {
           if (scopeFilterParts.length) whereClauses.push(`(${scopeFilterParts.join(' AND ')})`);
           const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-          const uniqueReportersExpr = hasReporterId ? 'COUNT(DISTINCT pr.reporter_id)' : 'COUNT(*)';
-          const totalReportsExpr = hasReportId ? 'COUNT(pr.report_id)' : 'COUNT(*)';
-          const latestReportExpr = hasCreatedAt ? 'MAX(pr.created_at)' : 'NULL';
-          const reasonsExpr = hasReason ? 'GROUP_CONCAT(DISTINCT pr.reason)' : `''`;
-          const latestStatusExpr = hasStatus
-            ? `SUBSTRING_INDEX(GROUP_CONCAT(pr.status${hasCreatedAt ? ' ORDER BY pr.created_at DESC' : ''}), ',', 1)`
-            : `'pending'`;
-
           const [rows] = await db.query(`
             SELECT
+              pr.report_id,
               COALESCE(u.user_id, pr.reported_user_id) as user_id,
               COALESCE(u.fullname, 'Deleted User') as fullname,
               COALESCE(u.email, 'N/A') as email,
               u.profile_picture,
+              reporter.user_id as reporter_id,
+              reporter.fullname as reporter_name,
+              reporter.email as reporter_email,
               pr.post_id,
               COALESCE(p.content, '[Post already deleted]') as content,
               p.img_url,
-              ${uniqueReportersExpr} as unique_reporters,
-              ${totalReportsExpr} as total_reports,
-              ${latestReportExpr} as latest_report,
-              ${reasonsExpr} as reasons,
-              ${latestStatusExpr} as latest_status
+              ${hasReason ? 'pr.reason' : `''`} as reason,
+              ${hasStatus ? 'pr.status' : `'pending'`} as status,
+              ${hasCreatedAt ? 'pr.created_at' : 'NULL'} as created_at
             FROM reports pr
             LEFT JOIN posts p ON p.post_id = pr.post_id
             LEFT JOIN users u ON u.user_id = COALESCE(p.user_id, pr.reported_user_id)
+            LEFT JOIN users reporter ON reporter.user_id = pr.reporter_id
             ${whereSql}
-            GROUP BY pr.post_id, u.user_id, u.fullname, u.email, u.profile_picture, p.content, p.img_url, pr.reported_user_id
-            HAVING unique_reporters >= 1
-            ORDER BY unique_reporters DESC, latest_report DESC
+            ORDER BY ${hasCreatedAt ? 'pr.created_at DESC,' : ''} pr.report_id DESC
           `, queryParams);
 
           console.log('[reports] getReportedPosts', {
@@ -498,8 +489,6 @@ class ReportModel {
           }
           const hasMessageId = cols.has('message_id');
           const hasReportType = cols.has('report_type');
-          const hasReporterId = cols.has('reporter_id');
-          const hasReportId = cols.has('report_id');
           const hasCreatedAt = cols.has('created_at');
           const hasReason = cols.has('reason');
           const hasStatus = cols.has('status');
@@ -527,31 +516,24 @@ class ReportModel {
           if (scopeFilterParts.length) whereClauses.push(`(${scopeFilterParts.join(' AND ')})`);
           const whereSql = whereClauses.length ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
-          const uniqueReportersExpr = hasReporterId ? 'COUNT(DISTINCT ur.reporter_id)' : 'COUNT(*)';
-          const totalReportsExpr = hasReportId ? 'COUNT(ur.report_id)' : 'COUNT(*)';
-          const latestReportExpr = hasCreatedAt ? 'MAX(ur.created_at)' : 'NULL';
-          const reasonsExpr = hasReason ? 'GROUP_CONCAT(DISTINCT ur.reason)' : `''`;
-          const latestStatusExpr = hasStatus
-            ? `SUBSTRING_INDEX(GROUP_CONCAT(ur.status${hasCreatedAt ? ' ORDER BY ur.created_at DESC' : ''}), ',', 1)`
-            : `'pending'`;
-
           const [rows] = await db.query(`
             SELECT
+              ur.report_id,
               u.user_id,
               u.fullname,
               u.email,
               u.profile_picture,
-              ${uniqueReportersExpr} as unique_reporters,
-              ${totalReportsExpr} as total_reports,
-              ${latestReportExpr} as latest_report,
-              ${reasonsExpr} as reasons,
-              ${latestStatusExpr} as latest_status
+              reporter.user_id as reporter_id,
+              reporter.fullname as reporter_name,
+              reporter.email as reporter_email,
+              ${hasReason ? 'ur.reason' : `''`} as reason,
+              ${hasStatus ? 'ur.status' : `'pending'`} as status,
+              ${hasCreatedAt ? 'ur.created_at' : 'NULL'} as created_at
             FROM users u
             JOIN reports ur ON u.user_id = ur.reported_user_id
+            LEFT JOIN users reporter ON reporter.user_id = ur.reporter_id
             ${whereSql}
-            GROUP BY u.user_id, u.fullname, u.email, u.profile_picture
-            HAVING unique_reporters >= 1
-            ORDER BY unique_reporters DESC, latest_report DESC
+            ORDER BY ${hasCreatedAt ? 'ur.created_at DESC,' : ''} ur.report_id DESC
           `, queryParams);
 
           console.log('[reports] getReportedUsers', {
