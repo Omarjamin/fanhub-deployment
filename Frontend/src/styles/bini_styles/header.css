@@ -16,7 +16,7 @@
 
 /* Base Container */
 .whats-new-bar {
-  width: 780px;
+  width: 700px;
   max-width: 95%;
   margin: 1rem auto 2rem 9rem;
   background: var(--secondary-background) !important;

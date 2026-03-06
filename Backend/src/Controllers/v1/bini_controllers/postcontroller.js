@@ -1,5 +1,6 @@
 import PostModel from "../../../Models/bini_models/PostModels.js";
 import { resolveSiteSlug } from "../../../utils/site-scope.js";
+import sanitizeHtml from "sanitize-html";
 
 class PostController {
   constructor() {
@@ -27,10 +28,18 @@ class PostController {
     return { hashtags, plainContent };
   }
 
+  sanitizePostContent(content) {
+    return sanitizeHtml(String(content || ""), {
+      allowedTags: [],
+      allowedAttributes: {},
+    }).trim();
+  }
+
   // Create new post
   async createPost(req, res) {
     await this.ensureDbForRequest(req, res);
-    const { content, img_url } = req.body;
+    const { img_url } = req.body;
+    const content = this.sanitizePostContent(req.body?.content);
     const user_id = res.locals.userId;
     const communityType =
       res.locals.communityType ||
@@ -122,7 +131,11 @@ class PostController {
       await this.ensureDbForRequest(req, res);
       const { postId } = req.params;
       const userId = res.locals.userId;
-      const { content, img_url } = req.body;
+      const { img_url } = req.body;
+      const content =
+        req.body?.content !== undefined
+          ? this.sanitizePostContent(req.body.content)
+          : undefined;
       const post = await this.postModel.getPostById(postId);
       const updatedContent = content !== undefined ? content : post.content;
       const updatedImgUrl = img_url !== undefined ? img_url : post.img_url;

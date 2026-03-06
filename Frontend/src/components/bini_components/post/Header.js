@@ -3,6 +3,15 @@ import { fetchProfileData } from "../../../services/bini_services/user/fetchprof
 import { getActiveSiteSlug, getSessionToken } from "../../../lib/site-context.js";
 import { showToast } from "../../../utils/toast.js";
 
+function sanitizePostContent(value) {
+  const html = String(value || "");
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, "text/html");
+  return (doc.body.textContent || "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default async function Header(root) {
   let profilePicUrl = "";
   let currentUser = null;
@@ -240,8 +249,10 @@ export default async function Header(root) {
       return;
     }
 
-    const content = textarea.value.trim();
+    const content = sanitizePostContent(textarea.value);
     const imageFile = imageInput.files[0];
+
+    textarea.value = content;
 
     if (!content && !imageFile) {
       alert("Please enter content or select an image.");
