@@ -5,6 +5,7 @@ class PostModel {
   constructor() {
     this.activeCommunityId = null;
     this.columnCache = new Map();
+    this.reportReasonEnumCache = null;
     this.connect();
   }
   async connect() {
@@ -78,6 +79,48 @@ class PostModel {
     const appDb = String(process.env.DB_NAME || '').trim().toLowerCase();
     const adminDb = String(process.env.DB_NAME_ADMIN || '').trim().toLowerCase();
     return Boolean(appDb && adminDb && appDb === adminDb);
+  }
+  async getReportReasonEnumValues() {
+    if (Array.isArray(this.reportReasonEnumCache)) return this.reportReasonEnumCache;
+    try {
+      const [rows] = await this.db.query(
+        `SELECT COLUMN_TYPE
+         FROM INFORMATION_SCHEMA.COLUMNS
+         WHERE TABLE_SCHEMA = DATABASE()
+           AND TABLE_NAME = 'reports'
+           AND COLUMN_NAME = 'reason'
+         LIMIT 1`,
+      );
+      const columnType = String(rows?.[0]?.COLUMN_TYPE || '').trim();
+      const matches = [...columnType.matchAll(/'([^']+)'/g)];
+      const values = matches
+        .map((match) => String(match?.[1] || '').trim().toLowerCase())
+        .filter(Boolean);
+      this.reportReasonEnumCache = values;
+      return values;
+    } catch (_) {
+      this.reportReasonEnumCache = [];
+      return this.reportReasonEnumCache;
+    }
+  }
+  pickReasonAlias(inputReason, enumValues = [], reportType = 'post') {
+    const normalized = String(inputReason || '').trim().toLowerCase() || 'spam';
+    if (!Array.isArray(enumValues) || enumValues.length === 0) return normalized;
+    if (enumValues.includes(normalized)) return normalized;
+
+    const aliases = {
+      spam: ['sending fake links', 'harassment'],
+      harassment: ['harassment', 'bullying', 'abuse'],
+      'misleading information': ['sending fake links', 'harassment'],
+      'inappropriate content': reportType === 'chat'
+        ? ['inappropriate chat', 'inappropriate picture', 'harassment']
+        : ['malicious photo', 'inappropriate picture', 'harassment'],
+      other: ['harassment', 'sending fake links'],
+    };
+
+    const candidates = aliases[normalized] || [normalized];
+    const match = candidates.find((candidate) => enumValues.includes(candidate));
+    return match || enumValues[0] || normalized;
   }
   // Get Random Posts with Pagination for Infinite Scrolling
   async getRandomPost(limit = 7, offset = 0, community_type = '') {
@@ -345,6 +388,8 @@ class PostModel {
   }
   // Report a post
   async reportPost(reporter_id, reported_user_id, post_id, category, message_id = null, details = {}) {
+    const enumValues = await this.getReportReasonEnumValues();
+    const dbReason = this.pickReasonAlias(category, enumValues, 'post');
     const hasReportCommunityId = await this.hasColumn('reports', 'community_id');
     const hasReportType = await this.hasColumn('reports', 'report_type');
     const hasMessageId = await this.hasColumn('reports', 'message_id');
@@ -371,7 +416,7 @@ class PostModel {
     const metadataText = `REPORT_META:${metadataJson}`;
 
     const columns = ['reporter_id', 'reported_user_id', 'post_id', 'reason'];
-    const values = [reporter_id, reported_user_id, post_id, normalizedCategory];
+    const values = [reporter_id, reported_user_id, post_id, dbReason];
 
     if (hasReportType) {
       columns.push('report_type');

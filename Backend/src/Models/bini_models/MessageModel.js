@@ -147,6 +147,7 @@ class MessageModel {
         ? ['inappropriate chat', 'harassment']
         : ['inappropriate picture', 'malicious photo', 'harassment'],
       harassment: ['harassment'],
+      other: ['harassment', 'sending fake links'],
     };
 
     const candidates = aliases[normalized] || [normalized];
