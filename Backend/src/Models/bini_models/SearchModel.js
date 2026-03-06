@@ -89,6 +89,9 @@ class SearchModel {
 
       const hashtag = raw.startsWith('#') ? raw : `#${raw}`;
       const postScoped = await this.getScopedCondition('posts', 'p');
+      const hashtagScoped = await this.getScopedCondition('hashtags', 'h');
+      const hashtagListScoped = await this.getScopedCondition('hashtags', 'h2');
+      const userScoped = await this.getScopedCondition('users', 'u');
       if (this.activeCommunityType && !this.activeCommunityId && (await this.hasColumn('posts', 'community_id'))) {
         return { posts: [] };
       }
@@ -102,19 +105,27 @@ class SearchModel {
           p.created_at,
           u.fullname,
           u.profile_picture,
-          GROUP_CONCAT(h2.tag) AS tags
+          GROUP_CONCAT(DISTINCT h2.tag) AS tags
         FROM hashtags h
         JOIN posts p ON p.post_id = h.post_id
         JOIN users u ON u.user_id = p.user_id
-        LEFT JOIN hashtags h2 ON h2.post_id = p.post_id
+        LEFT JOIN hashtags h2 ON h2.post_id = p.post_id${hashtagListScoped.sql}
         WHERE LOWER(h.tag) = LOWER(?)
         ${postScoped.sql}
+        ${hashtagScoped.sql}
+        ${userScoped.sql}
         GROUP BY p.post_id, p.user_id, p.content, p.img_url, p.created_at, u.fullname, u.profile_picture
         ORDER BY p.created_at DESC
         LIMIT 50
       `;
 
-      const [rows] = await this.db.query(postQuery, [hashtag, ...postScoped.params]);
+      const [rows] = await this.db.query(postQuery, [
+        hashtag,
+        ...hashtagListScoped.params,
+        ...postScoped.params,
+        ...hashtagScoped.params,
+        ...userScoped.params,
+      ]);
       const posts = rows.map((post) => ({
         ...post,
         tags: post.tags ? String(post.tags).split(',') : [],
@@ -134,6 +145,8 @@ class SearchModel {
 
       const likeValue = `%${raw}%`;
       const postScoped = await this.getScopedCondition('posts', 'p');
+      const hashtagScoped = await this.getScopedCondition('hashtags', 'h');
+      const userScoped = await this.getScopedCondition('users', 'u');
       if (this.activeCommunityType && !this.activeCommunityId && (await this.hasColumn('posts', 'community_id'))) {
         return { posts: [] };
       }
@@ -150,19 +163,26 @@ class SearchModel {
           GROUP_CONCAT(DISTINCT h.tag) AS tags
         FROM posts p
         JOIN users u ON u.user_id = p.user_id
-        LEFT JOIN hashtags h ON h.post_id = p.post_id
+        LEFT JOIN hashtags h ON h.post_id = p.post_id${hashtagScoped.sql}
         WHERE p.repost_id IS NULL
           AND (
             p.content LIKE ?
             OR h.tag LIKE ?
           )
           ${postScoped.sql}
+          ${userScoped.sql}
         GROUP BY p.post_id, p.user_id, p.content, p.img_url, p.created_at, u.fullname, u.profile_picture
         ORDER BY p.created_at DESC
         LIMIT 100
       `;
 
-      const [rows] = await this.db.query(postQuery, [likeValue, likeValue, ...postScoped.params]);
+      const [rows] = await this.db.query(postQuery, [
+        ...hashtagScoped.params,
+        likeValue,
+        likeValue,
+        ...postScoped.params,
+        ...userScoped.params,
+      ]);
       const posts = rows.map((post) => ({
         ...post,
         tags: post.tags ? String(post.tags).split(',') : [],

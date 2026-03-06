@@ -74,6 +74,10 @@ export default async function Search_(root, data = {}) {
   let searchModal = null;
   let postViewerModal = null;
 
+  function setSuggestionsVisible(visible) {
+    suggestToFollowDiv.style.display = visible ? '' : 'none';
+  }
+
   function navigateToProfile(userId) {
     if (!userId) return;
     sessionStorage.setItem('selectedUserId', String(userId));
@@ -126,10 +130,12 @@ export default async function Search_(root, data = {}) {
       searchIcon.style.display = '';
       overlay.style.display = 'none';
       searchResults.innerHTML = '';
+      setSuggestionsVisible(true);
       return;
     }
 
     searchIcon.style.display = 'none';
+    setSuggestionsVisible(false);
     await handleSearchQuery(query, { live: true });
   });
 
@@ -165,32 +171,36 @@ export default async function Search_(root, data = {}) {
   searchBtn.addEventListener('click', async () => {
     const query = searchInput.value.trim();
     if (query) {
+      setSuggestionsVisible(false);
       await handleSearchQuery(query, { live: false });
     } else {
       searchResults.innerHTML = '<p>Please enter a search term.</p>';
+      setSuggestionsVisible(true);
     }
   });
 
   async function handleSearchQuery(query, options = {}) {
     const { live = false } = options;
+    const normalizedQuery = String(query || '').trim();
+    const hashtagOnlyQuery = normalizedQuery.replace(/^#+/, '');
 
-    if (query.startsWith('#')) {
+    if (normalizedQuery.startsWith('#')) {
       overlay.style.display = 'none';
       try {
-        const { posts } = await fetchHashtagPosts(token, query);
+        const { posts } = await fetchHashtagPosts(token, normalizedQuery);
         const safePosts = Array.isArray(posts) ? posts : [];
-        const finalPosts = safePosts.length > 0 ? safePosts : await fallbackHashtagSearch(query);
+        const finalPosts = safePosts.length > 0 ? safePosts : await fallbackHashtagSearch(normalizedQuery);
         if (live) {
-          renderInlinePostPreview(finalPosts, query, 'Hashtag');
+          renderInlinePostPreview(finalPosts, normalizedQuery, 'Hashtag');
         } else {
-          openPostResultsModal(finalPosts, query, 'Hashtag');
+          renderFullPostResults(finalPosts, normalizedQuery, 'Hashtag');
         }
       } catch (_) {
-        const fallbackPosts = await fallbackHashtagSearch(query);
+        const fallbackPosts = await fallbackHashtagSearch(normalizedQuery);
         if (live) {
-          renderInlinePostPreview(fallbackPosts, query, 'Hashtag');
+          renderInlinePostPreview(fallbackPosts, normalizedQuery, 'Hashtag');
         } else {
-          openPostResultsModal(fallbackPosts, query, 'Hashtag');
+          renderFullPostResults(fallbackPosts, normalizedQuery, 'Hashtag');
         }
       }
       return;
@@ -217,23 +227,28 @@ export default async function Search_(root, data = {}) {
 
       if (!live) {
         try {
-          const { posts } = await fetchPostsByQuery(token, query);
+          const { posts } = await fetchPostsByQuery(token, normalizedQuery);
           const safePosts = Array.isArray(posts) ? posts : [];
-          const finalPosts = safePosts.length > 0 ? safePosts : await fallbackPostSearch(query);
-          openPostResultsModal(finalPosts, query, 'Posts');
+          const finalPosts = safePosts.length > 0 ? safePosts : await fallbackPostSearch(normalizedQuery);
+          renderFullPostResults(finalPosts, normalizedQuery, 'Posts');
         } catch (_) {
-          const fallbackPosts = await fallbackPostSearch(query);
-          openPostResultsModal(fallbackPosts, query, 'Posts');
+          const fallbackPosts = await fallbackPostSearch(normalizedQuery);
+          renderFullPostResults(fallbackPosts, normalizedQuery, 'Posts');
         }
       } else {
         try {
-          const { posts } = await fetchPostsByQuery(token, query);
+          const { posts } = await fetchPostsByQuery(token, normalizedQuery);
           const safePosts = Array.isArray(posts) ? posts : [];
-          const previewPosts = safePosts.length > 0 ? safePosts : await fallbackPostSearch(query);
-          renderInlinePostPreview(previewPosts, query, 'Posts');
+          const previewPosts =
+            safePosts.length > 0
+              ? safePosts
+              : await fallbackPostSearch(
+                  hashtagOnlyQuery ? `#${hashtagOnlyQuery}` : normalizedQuery,
+                );
+          renderInlinePostPreview(previewPosts, normalizedQuery, 'Posts');
         } catch (_) {
-          const fallbackPosts = await fallbackPostSearch(query);
-          renderInlinePostPreview(fallbackPosts, query, 'Posts');
+          const fallbackPosts = await fallbackPostSearch(normalizedQuery);
+          renderInlinePostPreview(fallbackPosts, normalizedQuery, 'Posts');
         }
       }
     } catch (_) {
@@ -245,6 +260,7 @@ export default async function Search_(root, data = {}) {
   async function fallbackHashtagSearch(hashtagQuery) {
     const raw = String(hashtagQuery || '').trim();
     const target = raw.startsWith('#') ? raw.toLowerCase() : `#${raw.toLowerCase()}`;
+    const targetWithoutHash = target.replace(/^#/, '');
     try {
       const response = await api.get('/bini/posts/getrandomposts', { params: { limit: 100, offset: 0 } });
       const posts = Array.isArray(response.data)
@@ -254,7 +270,10 @@ export default async function Search_(root, data = {}) {
         const tags = Array.isArray(post.tags)
           ? post.tags
           : (post.tags ? String(post.tags).split(',') : []);
-        return tags.some((tag) => String(tag).trim().toLowerCase() === target);
+        return tags.some((tag) => {
+          const normalizedTag = String(tag).trim().toLowerCase();
+          return normalizedTag === target || normalizedTag.replace(/^#/, '') === targetWithoutHash;
+        });
       });
     } catch (_) {
       return [];
@@ -395,6 +414,47 @@ export default async function Search_(root, data = {}) {
       item.addEventListener('click', () => {
         const idx = Number(item.getAttribute('data-preview-index'));
         const post = preview[idx];
+        if (post?.post_id) navigateToPost(post.post_id);
+      });
+    });
+    searchResults.querySelectorAll('.search-profile-link').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        navigateToProfile(link.getAttribute('data-user-id'));
+      });
+    });
+  }
+
+  function renderFullPostResults(posts, query, label = 'Posts') {
+    const safePosts = Array.isArray(posts) ? posts : [];
+    if (!safePosts.length) {
+      searchResults.innerHTML = `<p style="margin-top:8px;color:#555;">No ${label.toLowerCase()} found for <strong>${query}</strong>.</p>`;
+      return;
+    }
+
+    searchResults.innerHTML = `
+      <div class="search-live-preview">
+        <div class="search-live-preview-head">
+          <strong>${label} results (${safePosts.length})</strong>
+          <span>Showing matching posts</span>
+        </div>
+        ${safePosts.map((post, index) => `
+          <button type="button" class="search-live-preview-item" data-result-index="${index}" data-post-id="${post.post_id}">
+            <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${post.fullname || 'User'}" class="search-live-preview-avatar search-profile-link" data-user-id="${post.user_id || ''}">
+            <div style="min-width:0;">
+              <div class="search-live-preview-name search-profile-link" data-user-id="${post.user_id || ''}">${post.fullname || 'Unknown User'}</div>
+              <div class="search-live-preview-text">${post.content || ''}</div>
+            </div>
+          </button>
+        `).join('')}
+      </div>
+    `;
+
+    searchResults.querySelectorAll('.search-live-preview-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        const idx = Number(item.getAttribute('data-result-index'));
+        const post = safePosts[idx];
         if (post?.post_id) navigateToPost(post.post_id);
       });
     });
@@ -606,6 +666,7 @@ export default async function Search_(root, data = {}) {
   }
 
   loadSuggestedFollowers(0, false);
+  setSuggestionsVisible(true);
 }
 
 

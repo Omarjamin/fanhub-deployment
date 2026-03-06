@@ -101,6 +101,8 @@ class PostModel {
       }
       const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
       const scoped = hasPostCommunityId && this.activeCommunityId;
+      const hashtagScoped = await this.getScopedCondition('hashtags', 'h');
+      const userScoped = await this.getScopedCondition('users', 'u');
       if (community_type && hasPostCommunityId && !scoped) {
         console.warn(
           `[PostModel] Missing community_id context for "${community_type}". Returning empty feed to avoid cross-community posts.`,
@@ -119,15 +121,21 @@ class PostModel {
           u.profile_picture,
           u.fullname
         FROM posts p
-        LEFT JOIN hashtags h ON p.post_id = h.post_id
-        LEFT JOIN users u ON p.user_id = u.user_id
+        LEFT JOIN hashtags h ON p.post_id = h.post_id${hashtagScoped.sql}
+        LEFT JOIN users u ON p.user_id = u.user_id${userScoped.sql}
         WHERE p.repost_id IS NULL
         ${scoped ? 'AND p.community_id = ?' : ''}
         GROUP BY p.post_id
         ORDER BY p.created_at DESC
         LIMIT ? OFFSET ?
       `;
-      const params = scoped ? [this.activeCommunityId, limit, offset] : [limit, offset];
+      const params = [
+        ...hashtagScoped.params,
+        ...userScoped.params,
+        ...(scoped ? [this.activeCommunityId] : []),
+        limit,
+        offset,
+      ];
       const [rows] = await db.query(query, params);
 
       // Normalize tags to an array so the frontend can always rely on it
@@ -571,18 +579,25 @@ class PostModel {
     try {
       const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
       const scoped = hasPostCommunityId && this.activeCommunityId;
+      const hashtagScoped = await this.getScopedCondition('hashtags', 'h');
+      const userScoped = await this.getScopedCondition('users', 'u');
       const query = `
         SELECT p.post_id, p.user_id, p.content, p.img_url, p.created_at, p.updated_at, 
                GROUP_CONCAT(h.tag) AS tags,
                u.profile_picture, u.fullname 
         FROM posts p
-        LEFT JOIN hashtags h ON p.post_id = h.post_id
-        LEFT JOIN users u ON p.user_id = u.user_id 
+        LEFT JOIN hashtags h ON p.post_id = h.post_id${hashtagScoped.sql}
+        LEFT JOIN users u ON p.user_id = u.user_id${userScoped.sql} 
         WHERE p.user_id = ? AND repost_id IS NULL
         ${scoped ? 'AND p.community_id = ?' : ''}
         GROUP BY p.post_id
       `;
-      const params = scoped ? [userId, this.activeCommunityId] : [userId];
+      const params = [
+        ...hashtagScoped.params,
+        ...userScoped.params,
+        userId,
+        ...(scoped ? [this.activeCommunityId] : []),
+      ];
       const [rows] = await this.db.query(query, params);
 
       const posts = rows.map(post => ({
@@ -600,18 +615,25 @@ class PostModel {
     try {
       const hasPostCommunityId = await this.hasColumn('posts', 'community_id');
       const scoped = hasPostCommunityId && this.activeCommunityId;
+      const hashtagScoped = await this.getScopedCondition('hashtags', 'h');
+      const userScoped = await this.getScopedCondition('users', 'u');
       const query = `
         SELECT p.post_id, p.user_id, p.content, p.img_url, p.created_at, p.updated_at, 
                GROUP_CONCAT(h.tag) AS tags,
                u.profile_picture, u.fullname 
         FROM posts p
-        LEFT JOIN hashtags h ON p.post_id = h.post_id
-        LEFT JOIN users u ON p.user_id = u.user_id 
+        LEFT JOIN hashtags h ON p.post_id = h.post_id${hashtagScoped.sql}
+        LEFT JOIN users u ON p.user_id = u.user_id${userScoped.sql} 
         WHERE p.user_id = ? AND repost_id IS NULL
         ${scoped ? 'AND p.community_id = ?' : ''}
         GROUP BY p.post_id
       `;
-      const params = scoped ? [userId, this.activeCommunityId] : [userId];
+      const params = [
+        ...hashtagScoped.params,
+        ...userScoped.params,
+        userId,
+        ...(scoped ? [this.activeCommunityId] : []),
+      ];
       const [rows] = await this.db.query(query, params);
 
       const posts = rows.map(post => ({
