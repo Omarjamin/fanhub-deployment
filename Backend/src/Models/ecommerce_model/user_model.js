@@ -176,6 +176,32 @@ class UserModel {
           await this.db.query('ALTER TABLE users ADD INDEX idx_users_community_id (community_id)');
         } catch (_) {}
       }
+
+      try {
+        const [indexRows] = await this.db.query('SHOW INDEX FROM users');
+        const emailUniqueKeys = new Set(
+          (indexRows || [])
+            .filter((row) => Number(row?.Non_unique) === 0 && String(row?.Column_name || '').toLowerCase() === 'email')
+            .map((row) => String(row?.Key_name || '').trim())
+            .filter(Boolean),
+        );
+        const hasScopedEmailUnique = (indexRows || []).some(
+          (row) =>
+            Number(row?.Non_unique) === 0 &&
+            String(row?.Key_name || '').trim() === 'uq_users_email_community',
+        );
+
+        if (columns.has('community_id') && !hasScopedEmailUnique) {
+          for (const keyName of emailUniqueKeys) {
+            try {
+              await this.db.query(`ALTER TABLE users DROP INDEX \`${keyName}\``);
+            } catch (_) {}
+          }
+          try {
+            await this.db.query('ALTER TABLE users ADD UNIQUE KEY uq_users_email_community (email, community_id)');
+          } catch (_) {}
+        }
+      } catch (_) {}
     } finally {
       this.userAuthColumnsReady = true;
       this.userColumnSet = null;
@@ -187,12 +213,26 @@ class UserModel {
     await this.db.query(`
       CREATE TABLE IF NOT EXISTS registration_verifications (
         email VARCHAR(100) NOT NULL,
+        community_id INT NOT NULL DEFAULT 0,
         otp VARCHAR(10) NOT NULL,
         expires_at DATETIME NOT NULL,
         created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        PRIMARY KEY (email)
+        PRIMARY KEY (email, community_id)
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
     `);
+
+    try {
+      const [rows] = await this.db.query('SHOW COLUMNS FROM registration_verifications');
+      const columns = new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+      if (!columns.has('community_id')) {
+        try {
+          await this.db.query('ALTER TABLE registration_verifications ADD COLUMN community_id INT NOT NULL DEFAULT 0 AFTER email');
+        } catch (_) {}
+      }
+      try {
+        await this.db.query('ALTER TABLE registration_verifications DROP PRIMARY KEY, ADD PRIMARY KEY (email, community_id)');
+      } catch (_) {}
+    } catch (_) {}
   }
 
   async createUser({ password, email, firstname, lastname, imageUrl = '', community_type, site_slug }) {
@@ -202,6 +242,10 @@ class UserModel {
       const db = await this.ensureConnection(community_type, site_slug);
       const columns = await this.getUserColumns();
       const hasCommunityColumn = columns.has('community_id');
+      const existingScopedUser = await this.findUserByEmail(email, community_type, site_slug);
+      if (existingScopedUser?.user_id) {
+        throw new Error('Email already registered');
+      }
 
       const userColumns = ['email', 'fullname', 'password', 'profile_picture', 'google_id', 'auth_provider', 'failed_login_attempts'];
       const placeholders = ['?', '?', '?', '?', 'NULL', "'local'", '0'];
@@ -253,8 +297,8 @@ class UserModel {
     }
 
     const [rows] = await db.query(
-      'SELECT expires_at FROM registration_verifications WHERE email = ? LIMIT 1',
-      [email],
+      'SELECT expires_at FROM registration_verifications WHERE email = ? AND community_id = ? LIMIT 1',
+      [email, Number(this.activeCommunityId || 0)],
     );
     const activeOtp = rows?.[0];
     if (activeOtp?.expires_at && new Date(activeOtp.expires_at) > new Date()) {
@@ -274,11 +318,11 @@ class UserModel {
 
     await db.query(
       `
-        INSERT INTO registration_verifications (email, otp, expires_at)
-        VALUES (?, ?, ?)
+        INSERT INTO registration_verifications (email, community_id, otp, expires_at)
+        VALUES (?, ?, ?, ?)
         ON DUPLICATE KEY UPDATE otp = VALUES(otp), expires_at = VALUES(expires_at), created_at = CURRENT_TIMESTAMP
       `,
-      [email, otp, expiresAt],
+      [email, Number(this.activeCommunityId || 0), otp, expiresAt],
     );
 
     try {
@@ -288,7 +332,7 @@ class UserModel {
       // Roll back pending registration OTP if email delivery failed,
       // so user can request a fresh OTP immediately.
       try {
-        await db.query('DELETE FROM registration_verifications WHERE email = ?', [email]);
+        await db.query('DELETE FROM registration_verifications WHERE email = ? AND community_id = ?', [email, Number(this.activeCommunityId || 0)]);
       } catch (_) {}
       return {
         status: 'error',
@@ -301,8 +345,8 @@ class UserModel {
   async verifyRegistrationOtp(email, otp, community_type, site_slug) {
     const db = await this.ensureConnection(community_type, site_slug);
     const [rows] = await db.query(
-      'SELECT otp, expires_at FROM registration_verifications WHERE email = ? LIMIT 1',
-      [email],
+      'SELECT otp, expires_at FROM registration_verifications WHERE email = ? AND community_id = ? LIMIT 1',
+      [email, Number(this.activeCommunityId || 0)],
     );
     const record = rows?.[0];
     if (!record) {
@@ -315,7 +359,7 @@ class UserModel {
       return { status: 'error', message: 'Invalid or expired verification code.' };
     }
 
-    await db.query('DELETE FROM registration_verifications WHERE email = ?', [email]);
+    await db.query('DELETE FROM registration_verifications WHERE email = ? AND community_id = ?', [email, Number(this.activeCommunityId || 0)]);
     return { status: 'success' };
   }
 
