@@ -3,6 +3,16 @@ import { getAuthToken, removeAuthToken, authHeaders } from '../../services/ecomm
 import CustomerCart from './cart/customer_cart_modal.js';
 import { showToast, showConfirmToast } from '../../utils/toast.js';
 
+function redirectToSigninWithDelay(signinPath) {
+  try {
+    sessionStorage.setItem('postLoginRedirect', window.location.pathname + window.location.search);
+  } catch (_) {}
+
+  setTimeout(() => {
+    window.location.href = signinPath;
+  }, 2000);
+}
+
 export default function Navigation(root, data = {}) {
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
   const urlCommunityType =
@@ -55,8 +65,8 @@ export default function Navigation(root, data = {}) {
       <a href="${communityPlatformPath}" class="nav-link">Community</a>
     </nav>
     <div class="nav-right">
-      <a href="${orderHistoryPath}" class="nav-icon">&#128220;</a>
-      <a href="${cartPath}" class="nav-icon">&#128722;</a>
+      <a href="${orderHistoryPath}" class="nav-icon nav-auth-only" data-auth-feature="order-history">&#128220;</a>
+      <a href="${cartPath}" class="nav-icon nav-auth-only" data-auth-feature="cart">&#128722;</a>
       <a href="${signinPath}" id="signinLink" class="nav-icon">&#128100;</a>
       <a href="#" id="logoutBtn" class="nav-icon" style="display:none" title="Logout">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -95,7 +105,7 @@ export default function Navigation(root, data = {}) {
       if ((href === shopPath || href === communityPlatformPath) && !isAuthenticated()) {
         e.preventDefault();
         showToast('You need an account to access this feature. Please sign in or sign up.', 'error');
-        window.location.href = signinPath;
+        redirectToSigninWithDelay(signinPath);
         return;
       }
 
@@ -150,6 +160,9 @@ export default function Navigation(root, data = {}) {
       if (!isAuthenticated()) {
         e.preventDefault();
         showToast('You need an account to access this feature. Please sign in or sign up.', 'error');
+        if (link.classList.contains('nav-auth-only')) {
+          redirectToSigninWithDelay(signinPath);
+        }
       }
     });
   });
@@ -160,6 +173,7 @@ export default function Navigation(root, data = {}) {
       e.preventDefault();
       if (!isAuthenticated()) {
         showToast('You need an account to access this feature. Please sign in or sign up.', 'error');
+        redirectToSigninWithDelay(signinPath);
         return;
       }
       CustomerCart();
@@ -178,6 +192,10 @@ export default function Navigation(root, data = {}) {
       signinLink && (signinLink.style.display = 'inline');
       logoutBtn && (logoutBtn.style.display = 'none');
     }
+
+    root.querySelectorAll('.nav-auth-only').forEach((link) => {
+      link.style.display = auth ? 'inline-flex' : 'none';
+    });
   }
 
   updateAuthLinks();

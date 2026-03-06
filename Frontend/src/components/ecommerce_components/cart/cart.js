@@ -2,6 +2,7 @@
 import { api } from '../../../services/ecommerce_services/api.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
 import { getActiveSiteSlug } from '../../../lib/site-context.js';
+import { showToast } from '../../../utils/toast.js';
 
 function resolveSiteSlug() {
   const direct = String(getActiveSiteSlug() || '').trim().toLowerCase();
@@ -47,7 +48,10 @@ function handleAuthFailure(status) {
   try {
     sessionStorage.setItem('postLoginRedirect', window.location.pathname + window.location.search);
   } catch (_) {}
-  window.location.href = getSigninPath();
+  showToast('You need to sign in first. Redirecting to login...', 'warning');
+  setTimeout(() => {
+    window.location.href = getSigninPath();
+  }, 2000);
 }
 
 async function readJson(response) {
