@@ -234,7 +234,7 @@ function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeC
   const tagsHtml = tags.length > 0
     ? `<div class="post-tags">${tags.join(', ')}</div>`
     : '';
-
+//
   const displayContent =
     post.content && String(post.content).trim() !== ''
       ? post.content
