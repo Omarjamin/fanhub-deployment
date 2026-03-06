@@ -64,7 +64,7 @@ export default function ReportsComponent() {
               <th>Reported By</th>
               <th>Email</th>
               <th>Site</th>
-              <th>Category</th>
+              <th>Reason Category</th>
               <th>Status</th>
               <th>Time</th>
               <th>Actions</th>
@@ -594,7 +594,7 @@ function showUserReportsModal(userId, reports) {
                 <strong>Category:</strong> <span class="badge badge-reason">${escapeHtml(getReasonLabel(getReportCategory(report)))}</span>
               </div>
               ${getReportReasonText(report)
-                ? `<div class="report-details"><strong>Reason:</strong> ${escapeHtml(getReportReasonText(report))}</div>`
+                ? `<div class="report-details"><strong>User Reason:</strong> ${escapeHtml(getReportReasonText(report))}</div>`
                 : ''
               }
               ${report.message_content
@@ -655,7 +655,7 @@ function showPostReportsModal(postId, reports) {
                 <strong>Category:</strong> <span class="badge badge-reason">${escapeHtml(getReasonLabel(getReportCategory(report)))}</span>
               </div>
               ${getReportReasonText(report)
-                ? `<div class="report-details"><strong>Reason:</strong> ${escapeHtml(getReportReasonText(report))}</div>`
+                ? `<div class="report-details"><strong>User Reason:</strong> ${escapeHtml(getReportReasonText(report))}</div>`
                 : ''
               }
               ${String(report.post_content ?? report.content ?? '').trim()
@@ -832,13 +832,10 @@ async function takePostAction(postId, action, community = '') {
   const confirmed = confirm(`Are you sure you want to ${actionLabel}?`);
   if (!confirmed) return;
 
-  const reason = window.prompt(`Reason for admin action on post ${postId}:`);
-  if (!reason) return;
-
   try {
     const result = await requestJson(`/admin/reports/posts/${postId}/action`, {
       method: 'POST',
-      body: JSON.stringify({ action, reason, community })
+      body: JSON.stringify({ action, reason: '', community })
     });
 
     const resultMessage = String(result.message || result?.data?.message || `Post action "${action}" completed.`);
