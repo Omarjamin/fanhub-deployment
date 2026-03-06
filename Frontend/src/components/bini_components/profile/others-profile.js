@@ -98,6 +98,17 @@ export default async function ProfileInfo(main, params) {
 
     console.log("Fetched user data:", user); // Debug log
 
+    if (!user || !user.user) {
+      main.querySelector(".feed").innerHTML = "<p>User not found.</p>";
+      const fullname = main.querySelector("#fullname");
+      const followBtn = main.querySelector("#followBtn");
+      const editProfileBtn = main.querySelector("#editProfileBtn");
+      if (fullname) fullname.textContent = "User not found";
+      if (followBtn) followBtn.style.display = "none";
+      if (editProfileBtn) editProfileBtn.style.display = "none";
+      return;
+    }
+
     if (user && user.user) {
       const profilePicture = main.querySelector("#profilePicture");
       const fullname = main.querySelector("#fullname");
@@ -198,7 +209,7 @@ export default async function ProfileInfo(main, params) {
             if (res.status >= 200 && res.status < 300) {
               isFollowing = true;
               followBtn.textContent = "Unfollow";
-              // Stats endpoints are failing, so skip refresh
+              await loadProfileStats(viewedUserId, main);
             } else {
               alert("Failed to follow user.");
             }
@@ -208,7 +219,7 @@ export default async function ProfileInfo(main, params) {
             if (res.status >= 200 && res.status < 300) {
               isFollowing = false;
               followBtn.textContent = "Follow";
-              // Stats endpoints are failing, so skip refresh
+              await loadProfileStats(viewedUserId, main);
             } else {
               alert("Failed to unfollow user.");
             }
@@ -234,7 +245,7 @@ export default async function ProfileInfo(main, params) {
 
       // Load profile stats (followers, following) - with better error handling
       // Don't block rendering if stats fail
-      loadProfileStats(viewedUserId, token, main).catch((err) => {
+      loadProfileStats(viewedUserId, main).catch((err) => {
         console.error("Stats loading failed, but continuing:", err);
       });
 
@@ -265,17 +276,56 @@ export default async function ProfileInfo(main, params) {
 
 // LOAD PROFILE STATS (Followers, Following, Posts Count)
 // Skip endpoints that are returning 500 errors - just set defaults
-async function loadProfileStats(userId, token, main) {
-  // Since all stats endpoints are returning 500 errors, just set defaults
-  // This prevents console errors and allows the page to render
+async function loadProfileStats(userId, main) {
   const followersCountEl = main.querySelector("#followersCount .stat-count");
   const followingCountEl = main.querySelector("#followingCount .stat-count");
 
-  if (followersCountEl) {
-    followersCountEl.textContent = "0";
-  }
-  if (followingCountEl) {
-    followingCountEl.textContent = "0";
+  try {
+    const [followersRes, followingRes] = await Promise.allSettled([
+      api.get(`/bini/users/${encodeURIComponent(String(userId))}/follower-count`),
+      api.get(`/bini/users/${encodeURIComponent(String(userId))}/following-count`),
+    ]);
+
+    let followerCount =
+      followersRes.status === "fulfilled"
+        ? Number(followersRes.value?.data?.followerCount ?? followersRes.value?.data?.count ?? 0)
+        : null;
+    let followingCount =
+      followingRes.status === "fulfilled"
+        ? Number(followingRes.value?.data?.followingCount ?? followingRes.value?.data?.count ?? 0)
+        : null;
+
+    if (followerCount === null || followingCount === null) {
+      const [followersListRes, followingListRes] = await Promise.allSettled([
+        api.get(`/bini/users/${encodeURIComponent(String(userId))}/followers`),
+        api.get(`/bini/users/${encodeURIComponent(String(userId))}/following`),
+      ]);
+
+      if (followerCount === null && followersListRes.status === "fulfilled") {
+        const followers = followersListRes.value?.data?.followers;
+        followerCount = Array.isArray(followers) ? followers.length : 0;
+      }
+
+      if (followingCount === null && followingListRes.status === "fulfilled") {
+        const following = followingListRes.value?.data?.following;
+        followingCount = Array.isArray(following) ? following.length : 0;
+      }
+    }
+
+    if (followersCountEl) {
+      followersCountEl.textContent = String(
+        Number.isFinite(followerCount) ? followerCount : 0,
+      );
+    }
+    if (followingCountEl) {
+      followingCountEl.textContent = String(
+        Number.isFinite(followingCount) ? followingCount : 0,
+      );
+    }
+  } catch (error) {
+    console.error("Error loading profile stats:", error);
+    if (followersCountEl) followersCountEl.textContent = "0";
+    if (followingCountEl) followingCountEl.textContent = "0";
   }
 
   // Posts count will be set by renderPosts function

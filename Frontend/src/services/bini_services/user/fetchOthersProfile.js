@@ -1,5 +1,5 @@
 import api from "../api.js";
-import { getActiveSiteSlug } from "../../../lib/site-context.js";
+import { getActiveSiteSlug, setActiveSiteSlug } from "../../../lib/site-context.js";
 
 export async function fetchOthersData(userId, preferredCommunity = "") {
   const resolvedUserId = String(userId || "").trim();
@@ -16,7 +16,13 @@ export async function fetchOthersData(userId, preferredCommunity = "") {
     getActiveSiteSlug() || sessionStorage.getItem("community_type") || "",
   ).trim().toLowerCase();
   const communitiesToTry = Array.from(
-    new Set([normalizedPreferredCommunity, routeCommunity, storedCommunity].filter(Boolean)),
+    new Set([
+      normalizedPreferredCommunity,
+      routeCommunity,
+      storedCommunity,
+      "bini",
+      "",
+    ]),
   );
 
   let lastError = null;
@@ -27,15 +33,22 @@ export async function fetchOthersData(userId, preferredCommunity = "") {
     ];
     for (const endpoint of endpoints) {
       try {
-        const response = await api.get(endpoint, {
-          headers: { "x-community-type": community },
-        });
+        const response = await api.get(endpoint, community
+          ? { headers: { "x-community-type": community } }
+          : undefined);
+        if (community) {
+          setActiveSiteSlug(community);
+        }
         return response.data;
       } catch (error) {
         lastError = error;
         if (error?.response?.status !== 404) break;
       }
     }
+  }
+
+  if (lastError?.response?.status === 404) {
+    return null;
   }
 
   console.error("Error fetching other user profile:", lastError);
