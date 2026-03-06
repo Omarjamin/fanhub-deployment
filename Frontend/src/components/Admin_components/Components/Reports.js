@@ -82,6 +82,71 @@ let reportsData = [];
 let filteredData = [];
 let routeScopedData = [];
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function parseReportMeta(report = {}) {
+  const raw = String(report?.admin_notes || '').trim();
+  const marker = 'REPORT_META:';
+  const markerIndex = raw.indexOf(marker);
+  if (markerIndex === -1) return {};
+  const nextLineIndex = raw.indexOf('\n', markerIndex);
+  const jsonSlice = raw.slice(markerIndex + marker.length, nextLineIndex === -1 ? raw.length : nextLineIndex).trim();
+  try {
+    return JSON.parse(jsonSlice);
+  } catch (_) {
+    return {};
+  }
+}
+
+function getReportCategory(report = {}) {
+  const meta = parseReportMeta(report);
+  return String(
+    report?.category ||
+    report?.report_category ||
+    meta?.category ||
+    report?.reason ||
+    '',
+  ).trim();
+}
+
+function getReportReasonText(report = {}) {
+  const meta = parseReportMeta(report);
+  return String(
+    report?.report_reason ||
+    report?.details ||
+    report?.description ||
+    meta?.reason ||
+    '',
+  ).trim();
+}
+
+function getReportProofUrl(report = {}) {
+  const meta = parseReportMeta(report);
+  return String(
+    report?.proof_url ||
+    report?.evidence_url ||
+    report?.proof_image_url ||
+    meta?.proof_url ||
+    '',
+  ).trim();
+}
+
+function getReasonLabel(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (!normalized) return 'N/A';
+  return normalized
+    .split(' ')
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
 function buildApiUrl(path) {
   return `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
 }
@@ -208,7 +273,7 @@ async function fetchReports() {
       report_source: 'post'
     }));
 
-    reportsData = sortByLatestReportDesc(dedupeByReportedUser([...userReports, ...postReports]));
+    reportsData = sortByLatestReportDesc(dedupeByReportedEntity([...userReports, ...postReports]));
     routeScopedData = applyRouteFilter([...reportsData]);
     filteredData = [...routeScopedData];
     applyFilters();
@@ -285,18 +350,21 @@ function getReasonTokens(report) {
   return String(raw).split(',').map((x) => x.trim()).filter(Boolean);
 }
 
-function dedupeByReportedUser(rows) {
-  const byUser = new Map();
+function dedupeByReportedEntity(rows) {
+  const byEntity = new Map();
 
   for (const row of rows) {
-    const userId = row?.user_id ?? row?.reported_user_id;
     const communityKey = getReportCommunityKey(row);
-    if (!userId) continue;
-    const key = `${String(userId || '')}::${communityKey}`;
+    const source = String(row?.report_source || '').toLowerCase();
+    const entityId = source === 'post'
+      ? row?.post_id
+      : (row?.user_id ?? row?.reported_user_id);
+    if (!entityId) continue;
+    const key = `${source || 'report'}::${String(entityId)}::${communityKey}`;
 
-    const prev = byUser.get(key);
+    const prev = byEntity.get(key);
     if (!prev) {
-      byUser.set(key, { ...row });
+      byEntity.set(key, { ...row });
       continue;
     }
 
@@ -310,7 +378,7 @@ function dedupeByReportedUser(rows) {
       ...getReasonTokens(row),
     ])).join(', ');
 
-    byUser.set(key, {
+    byEntity.set(key, {
       ...latest,
       // Keep DB value from latest row to avoid duplicate inflation after dedupe.
       total_reports: Number(latest.total_reports || 0),
@@ -318,7 +386,7 @@ function dedupeByReportedUser(rows) {
     });
   }
 
-  return Array.from(byUser.values());
+  return Array.from(byEntity.values());
 }
 
 function sortByLatestReportDesc(rows) {
@@ -374,10 +442,17 @@ function renderReportsTable() {
         </td>
         <td>${formatDate(report.latest_report)}</td>
         <td>
-          <div class="report-actions-row">
-            <button class="btn-icon btn-warning" onclick="handleWarning('${report.user_id}', '${communityKey}')" title="Send Warning">&#9888;</button>
-            <button class="btn-icon btn-danger" onclick="handleSuspend('${report.user_id}', '${communityKey}')" title="Suspend User">&#9940;</button>
-          </div>
+          ${report.report_source === 'post'
+            ? `<div class="report-actions-row">
+                <button class="btn-icon btn-secondary" onclick="viewPostReports('${report.post_id}', '${communityKey}')" title="View post report details">&#128065;</button>
+                <button class="btn-icon btn-danger" onclick="handlePostDelete('${report.post_id}', '${communityKey}')" title="Delete reported post">&#128465;</button>
+              </div>`
+            : `<div class="report-actions-row">
+                <button class="btn-icon btn-secondary" onclick="viewUserReports('${report.user_id}', '${communityKey}')" title="View user report details">&#128065;</button>
+                <button class="btn-icon btn-warning" onclick="handleWarning('${report.user_id}', '${communityKey}')" title="Send Warning">&#9888;</button>
+                <button class="btn-icon btn-danger" onclick="handleSuspend('${report.user_id}', '${communityKey}')" title="Suspend User">&#9940;</button>
+              </div>`
+          }
         </td>
       </tr>
     `;
@@ -487,6 +562,7 @@ function showUserReportsModal(userId, reports) {
 }
 
 function showPostReportsModal(postId, reports) {
+  const community = reports[0]?.community_type || reports[0]?.domain || reports[0]?.site_name || '';
   const modal = document.createElement('div');
   modal.className = 'reports-modal';
   modal.innerHTML = `
@@ -505,17 +581,41 @@ function showPostReportsModal(postId, reports) {
                 <strong>Reporter:</strong> ${report.reporter_name} (${report.reporter_email})
               </div>
               <div class="report-details">
-                <strong>Reason:</strong> <span class="badge badge-reason">${report.reason}</span>
+                <strong>Category:</strong> <span class="badge badge-reason">${escapeHtml(getReasonLabel(getReportCategory(report)))}</span>
               </div>
-              ${report.post_content
-                ? `<div class="report-details"><strong>Post:</strong> "${report.post_content}"</div>`
+              ${getReportReasonText(report)
+                ? `<div class="report-details"><strong>Reason:</strong> ${escapeHtml(getReportReasonText(report))}</div>`
                 : ''
               }
+              ${report.post_content
+                ? `<div class="report-details"><strong>Post:</strong> "${escapeHtml(report.post_content)}"</div>`
+                : ''
+              }
+              ${getReportProofUrl(report)
+                ? `<div class="report-details">
+                    <strong>Proof:</strong>
+                    <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+                      <a href="${escapeHtml(getReportProofUrl(report))}" target="_blank" rel="noopener noreferrer">Open proof image</a>
+                      <img src="${escapeHtml(getReportProofUrl(report))}" alt="Report proof" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;border:1px solid #e5e7eb;">
+                    </div>
+                  </div>`
+                : ''
+              }
+              <div class="report-details">
+                <strong>Site:</strong> ${escapeHtml(report.site_name || report.domain || report.community_type || 'N/A')}
+              </div>
               <div class="report-details">
                 <strong>Date:</strong> ${formatDate(report.created_at)}
               </div>
             </div>
           `).join('')
+        }
+        ${reports.length
+          ? `<div class="warning-form-actions" style="margin-top:16px;">
+              <button type="button" class="btn-secondary" onclick="handlePostIgnore('${postId}', '${escapeHtml(community)}')">Dismiss Report</button>
+              <button type="button" class="btn-primary" onclick="handlePostDelete('${postId}', '${escapeHtml(community)}')">Delete Post</button>
+            </div>`
+          : ''
         }
       </div>
     </div>
@@ -652,6 +752,37 @@ async function handleSuspend(userId, community = '') {
   }
 }
 
+async function takePostAction(postId, action, community = '') {
+  const actionLabel = action === 'delete' ? 'delete this reported post' : 'dismiss this post report';
+  const confirmed = confirm(`Are you sure you want to ${actionLabel}?`);
+  if (!confirmed) return;
+
+  const reason = window.prompt(`Reason for admin action on post ${postId}:`);
+  if (!reason) return;
+
+  try {
+    const result = await requestJson(`/admin/reports/posts/${postId}/action`, {
+      method: 'POST',
+      body: JSON.stringify({ action, reason, community })
+    });
+
+    alert(result.message || `Post action "${action}" completed.`);
+    closeReportsModal();
+    await fetchReports();
+  } catch (error) {
+    console.error(`Error taking post action (${action}):`, error);
+    alert(`Failed to ${action} post: ` + error.message);
+  }
+}
+
+async function handlePostDelete(postId, community = '') {
+  await takePostAction(postId, 'delete', community);
+}
+
+async function handlePostIgnore(postId, community = '') {
+  await takePostAction(postId, 'ignore', community);
+}
+
 function formatDate(dateString) {
   if (!dateString) return 'N/A';
   const date = new Date(dateString);
@@ -689,6 +820,8 @@ window.viewUserReports = viewUserReports;
 window.viewPostReports = viewPostReports;
 window.handleWarning = handleWarning;
 window.handleSuspend = handleSuspend;
+window.handlePostDelete = handlePostDelete;
+window.handlePostIgnore = handlePostIgnore;
 window.closeReportsModal = closeReportsModal;
 
 

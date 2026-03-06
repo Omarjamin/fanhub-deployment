@@ -107,9 +107,17 @@ export async function toggleLike(postId, likeType = "post", commentId = null) {
   return response.data;
 }
 
-export async function reportPost(postId, reason, communityType = "") {
+export async function reportPost(postId, reportDetails, communityType = "") {
   const endpoints = [`/bini/posts/${postId}/report`, `/bini/posts/report/${postId}`];
   const activeCommunity = resolveCommunityType(communityType);
+  const payload =
+    typeof reportDetails === "string"
+      ? { category: reportDetails, reason: "" }
+      : {
+          category: String(reportDetails?.category || reportDetails?.reason || "").trim(),
+          reason: String(reportDetails?.reason || "").trim(),
+          proof_url: String(reportDetails?.proof_url || "").trim() || null,
+        };
 
   let lastPayload = null;
   let lastStatus = null;
@@ -118,7 +126,7 @@ export async function reportPost(postId, reason, communityType = "") {
     try {
       const response = await api.post(
         endpoint,
-        { reason },
+        payload,
         { headers: activeCommunity ? { "x-community-type": activeCommunity } : {} },
       );
       const payload = response.data || {};

@@ -318,25 +318,44 @@ class PostController {
       const reporter_id = req.user?.user_id || res.locals.userId;
       const postIdParam = req.params.postId || req.params.id;
       const postId = parseInt(postIdParam, 10);
-      const { reason, message_id } = req.body;
+      const {
+        category,
+        reason,
+        proof_url,
+        message_id,
+      } = req.body || {};
 
       if (!reporter_id) {
         return res.status(401).json({ error: 'Authentication required.' });
       }
 
-      if (!postId || !reason) {
-        return res.status(400).json({ error: 'postId and reason are required.' });
+      if (!postId || !category || !reason) {
+        return res.status(400).json({ error: 'postId, category, and reason are required.' });
       }
 
-      const normalizedReason = String(reason || '').trim().toLowerCase();
-      const validReasons = [
+      const normalizedCategory = String(category || '').trim().toLowerCase();
+      const normalizedReason = sanitizeHtml(String(reason || ''), {
+        allowedTags: [],
+        allowedAttributes: {},
+      }).trim();
+      const normalizedProofUrl = String(proof_url || '').trim() || null;
+      const validCategories = [
         'spam',
         'harassment',
         'misleading information',
         'inappropriate content',
+        'other',
       ];
-      if (!validReasons.includes(normalizedReason)) {
-        return res.status(400).json({ error: `Invalid reason. Must be: ${validReasons.join(', ')}` });
+      if (!validCategories.includes(normalizedCategory)) {
+        return res.status(400).json({ error: `Invalid category. Must be: ${validCategories.join(', ')}` });
+      }
+
+      if (!normalizedReason) {
+        return res.status(400).json({ error: 'Reason is required.' });
+      }
+
+      if (normalizedReason.length > 500) {
+        return res.status(400).json({ error: 'Reason must be less than 500 characters.' });
       }
 
       const post = await this.postModel.getPostById(postId);
@@ -352,7 +371,17 @@ class PostController {
       }
 
       try {
-        await this.postModel.reportPost(reporter_id, reported_user_id, postId, normalizedReason, message_id || null);
+        await this.postModel.reportPost(
+          reporter_id,
+          reported_user_id,
+          postId,
+          normalizedCategory,
+          message_id || null,
+          {
+            reason: normalizedReason,
+            proof_url: normalizedProofUrl,
+          },
+        );
       } catch (err) {
         if (err && err.code === 'ER_DUP_ENTRY') {
           return res.status(409).json({ error: 'You have already reported this post.' });
@@ -383,7 +412,9 @@ class PostController {
           reporter_id,
           reported_user_id,
           post_id: postId,
+          category: normalizedCategory,
           reason: normalizedReason,
+          proof_url: normalizedProofUrl,
           message_id: message_id || null,
           report_count: reportCount,
           action,
@@ -394,7 +425,16 @@ class PostController {
       res.status(201).json({
         success: true,
         message: 'Post reported successfully.',
-        data: { reporter_id, reported_user_id, post_id: postId, reason: normalizedReason, report_count: reportCount, action }
+        data: {
+          reporter_id,
+          reported_user_id,
+          post_id: postId,
+          category: normalizedCategory,
+          reason: normalizedReason,
+          proof_url: normalizedProofUrl,
+          report_count: reportCount,
+          action,
+        }
       });
     } catch (err) {
       console.error('Error reporting post:', err);

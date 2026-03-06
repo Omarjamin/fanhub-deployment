@@ -966,6 +966,24 @@ class ReportModel {
 
       // Update post status based on action
       if (action === 'delete') {
+        const removableRefs = [
+          { table: 'comments', column: 'post_id' },
+          { table: 'likes', column: 'post_id' },
+          { table: 'hashtags', column: 'post_id' },
+          { table: 'notifications', column: 'post_id' },
+        ];
+
+        for (const ref of removableRefs) {
+          const refCols = await this.getTableColumns(connection, ref.table);
+          if (!refCols.has(ref.column)) continue;
+          await connection.query(`DELETE FROM ${ref.table} WHERE ${ref.column} = ?`, [postId]);
+        }
+
+        const postCols = await this.getTableColumns(connection, 'posts');
+        if (postCols.has('repost_id')) {
+          await connection.query('UPDATE posts SET repost_id = NULL WHERE repost_id = ?', [postId]);
+        }
+
         await connection.query('DELETE FROM posts WHERE post_id = ?', [postId]);
         await connection.query(
           `UPDATE reports

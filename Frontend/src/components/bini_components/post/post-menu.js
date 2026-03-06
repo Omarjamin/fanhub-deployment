@@ -4,6 +4,13 @@ import { getActiveSiteSlug } from "../../../lib/site-context.js";
 import { showToast } from "../../../utils/toast.js";
 
 let outsideHandlerBound = false;
+const REPORT_CATEGORY_OPTIONS = [
+  { value: "spam", label: "Spam / Scam" },
+  { value: "harassment", label: "Harassment" },
+  { value: "misleading information", label: "Misleading Information" },
+  { value: "inappropriate content", label: "Inappropriate Content" },
+  { value: "other", label: "Other" },
+];
 
 function ensureOutsideHandler() {
   if (outsideHandlerBound) return;
@@ -31,10 +38,7 @@ export function buildPostMenuHtml({ postId, isOwnPost }) {
   return `<div class="post-menu-container">
     <button class="post-menu-btn" data-post-id="${postId}" aria-label="Post options" title="Post options">&#8942;</button>
     <div class="post-report-dropdown">
-      <button class="report-post-option" data-post-id="${postId}" data-reason="spam">Report spam</button>
-      <button class="report-post-option" data-post-id="${postId}" data-reason="harassment">Report harassment</button>
-      <button class="report-post-option" data-post-id="${postId}" data-reason="misleading information">Report misleading information</button>
-      <button class="report-post-option" data-post-id="${postId}" data-reason="inappropriate content">Report inappropriate content</button>
+      <button class="report-post-option open-report-post-modal" data-post-id="${postId}">Report post</button>
     </div>
   </div>`;
 }
@@ -81,6 +85,124 @@ function ensureEditModal() {
   });
 
   return modal;
+}
+
+function ensureReportModal() {
+  let modal = document.getElementById("report-post-modal");
+  if (modal) return modal;
+
+  modal = document.createElement("div");
+  modal.id = "report-post-modal";
+  modal.className = "search-post-modal";
+  modal.innerHTML = `
+    <div class="search-post-modal-dialog">
+      <div class="search-post-modal-header">
+        <h3 class="search-post-modal-title">Report Post</h3>
+        <button class="search-post-modal-close" aria-label="Close">&times;</button>
+      </div>
+      <div class="search-post-modal-body">
+        <form class="report-post-form" style="display:flex;flex-direction:column;gap:14px;">
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label for="report-post-category" style="font-weight:600;color:#111827;">Report category</label>
+            <select id="report-post-category" name="category" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;background:#fff;">
+              ${REPORT_CATEGORY_OPTIONS.map((option) => `<option value="${option.value}">${option.label}</option>`).join("")}
+            </select>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label for="report-post-reason" style="font-weight:600;color:#111827;">Reason</label>
+            <textarea id="report-post-reason" name="reason" rows="5" maxlength="500" placeholder="Explain the issue clearly for admin review." style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;resize:vertical;"></textarea>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label for="report-post-proof" style="font-weight:600;color:#111827;">Proof of report</label>
+            <input id="report-post-proof" type="file" name="proof_file" accept="image/*" />
+            <small style="color:#6b7280;">Optional image proof. This will be uploaded securely for admin review.</small>
+            <img class="report-post-preview" alt="Report proof preview" style="display:none;width:100%;max-height:240px;object-fit:cover;border-radius:12px;" />
+          </div>
+          <div style="display:flex;justify-content:flex-end;gap:10px;">
+            <button type="button" class="report-post-option report-post-cancel">Cancel</button>
+            <button type="submit" class="report-post-option" style="background:#111827;color:#fff;">Submit report</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  const close = () => modal.classList.remove("open");
+  modal.querySelector(".search-post-modal-close")?.addEventListener("click", close);
+  modal.querySelector(".report-post-cancel")?.addEventListener("click", close);
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) close();
+  });
+
+  return modal;
+}
+
+async function openReportPostModal(postId, communityType = "") {
+  const modal = ensureReportModal();
+  const form = modal.querySelector(".report-post-form");
+  const categorySelect = form.querySelector('select[name="category"]');
+  const reasonInput = form.querySelector('textarea[name="reason"]');
+  const proofInput = form.querySelector('input[name="proof_file"]');
+  const preview = form.querySelector(".report-post-preview");
+
+  categorySelect.value = REPORT_CATEGORY_OPTIONS[0].value;
+  reasonInput.value = "";
+  proofInput.value = "";
+  preview.src = "";
+  preview.style.display = "none";
+
+  proofInput.onchange = () => {
+    const file = proofInput.files?.[0];
+    if (!file) {
+      preview.src = "";
+      preview.style.display = "none";
+      return;
+    }
+    preview.src = URL.createObjectURL(file);
+    preview.style.display = "block";
+  };
+
+  form.onsubmit = async (event) => {
+    event.preventDefault();
+
+    const category = String(categorySelect.value || "").trim();
+    const reason = String(reasonInput.value || "").trim();
+    const proofFile = proofInput.files?.[0] || null;
+
+    if (!category) {
+      showToast("Please choose a report category.", "error");
+      return;
+    }
+
+    if (!reason) {
+      showToast("Please enter the reason for this report.", "error");
+      return;
+    }
+
+    try {
+      let proofUrl = null;
+      if (proofFile) {
+        const uploadData = new FormData();
+        uploadData.append("file", proofFile);
+        const uploadResponse = await api.post("/bini/cloudinary/upload", uploadData);
+        proofUrl = uploadResponse?.data?.url || null;
+      }
+
+      await reportPost(
+        postId,
+        { category, reason, proof_url: proofUrl },
+        communityType,
+      );
+
+      modal.classList.remove("open");
+      showToast("Report submitted successfully.", "success");
+    } catch (error) {
+      showToast(error?.message || "Failed to submit report.", "error");
+    }
+  };
+
+  modal.classList.add("open");
 }
 
 async function openEditPostModal(post, onSaved) {
@@ -228,22 +350,15 @@ export function bindPostMenuActions(root, options = {}) {
     });
   });
 
-  root.querySelectorAll('.report-post-option[data-reason]').forEach((button) => {
+  root.querySelectorAll(".open-report-post-modal").forEach((button) => {
     if (button.dataset.bound === "1") return;
     button.dataset.bound = "1";
     button.addEventListener("click", async (event) => {
       event.preventDefault();
       event.stopPropagation();
       const postId = button.getAttribute("data-post-id");
-      const reason = button.getAttribute("data-reason");
-
-      try {
-        await reportPost(postId, reason, communityType);
-        button.closest(".post-report-dropdown")?.classList.remove("open");
-        showToast("Post reported successfully.", "success");
-      } catch (error) {
-        showToast(error?.message || "Failed to report post.", "error");
-      }
+      button.closest(".post-report-dropdown")?.classList.remove("open");
+      await openReportPostModal(postId, communityType);
     });
   });
 }

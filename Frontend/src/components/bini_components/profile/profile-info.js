@@ -159,19 +159,22 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
 	      const postUserId = post.user_id || ownerUser?.user_id || userId;
 	      const postFullname = post.fullname || ownerUser?.fullname || "You";
 	      const postProfilePic = post.profile_picture || ownerUser?.profile_picture || DEFAULT_PROFILE_IMAGE;
+        const tags = Array.isArray(post.tags) ? post.tags : [];
 
 	      const postContent = `
-	        <div class="post-card" data-post-id="${post.post_id}" style="position:relative;">
-	          <div class="post-meta">
-              <a href="#" class="profile-link" data-user-id="${postUserId}" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
-                <img src="${postProfilePic}" alt="${postFullname}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">
-                <span style="font-weight:600;">${postFullname}</span>
+	        <div class="post-card" data-post-id="${post.post_id}">
+	          <div class="post-meta1">
+              <a href="#" class="profile-link" data-user-id="${postUserId}">
+                <img src="${postProfilePic}" alt="${postFullname}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">
+              </a>
+              <a href="#" class="profile-link" data-user-id="${postUserId}">
+                <span class="post-fullname">${postFullname}</span>
               </a>
 	            <span class="post-time">${postCreationTime}</span>
               ${buildPostMenuHtml({ postId: post.post_id, isOwnPost: true })}
           </div>
           <div class="post-content">${post.content || "No content available"}</div>
-          <div class="post-tags">${post.tags ? post.tags.join(", ") : "No tags available"}</div>
+          ${tags.length ? `<div class="post-tags">${tags.join(", ")}</div>` : ""}
           ${post.img_url ? `<img src="${post.img_url}" alt="Post Image" class="post-image" />` : ""}
 	          <div class="post-actions">
 	            <button class="post-action like-button ${isLiked ? "liked" : ""}" data-post-id="${post.post_id}" data-like-type="post">
@@ -218,6 +221,9 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
         const idx = posts.findIndex((item) => String(item.post_id) === String(postId));
         if (idx >= 0) posts.splice(idx, 1);
         feed.querySelector(`.post-card[data-post-id="${postId}"]`)?.remove();
+        if (!posts.length) {
+          feed.innerHTML = "<p>No posts available.</p>";
+        }
       },
     });
 

@@ -344,63 +344,90 @@ class PostModel {
     }
   }
   // Report a post
-  async reportPost(reporter_id, reported_user_id, post_id, reason, message_id = null) {
+  async reportPost(reporter_id, reported_user_id, post_id, category, message_id = null, details = {}) {
     const hasReportCommunityId = await this.hasColumn('reports', 'community_id');
-    const queryWithMessage = hasReportCommunityId
-      ? `
-      INSERT INTO reports (reporter_id, reported_user_id, report_type, post_id, reason, message_id, community_id, created_at)
-      VALUES (?, ?, 'post', ?, ?, ?, ?, NOW())
-    `
-      : `
-      INSERT INTO reports (reporter_id, reported_user_id, report_type, post_id, reason, message_id, created_at)
-      VALUES (?, ?, 'post', ?, ?, ?, NOW())
-    `;
+    const hasReportType = await this.hasColumn('reports', 'report_type');
+    const hasMessageId = await this.hasColumn('reports', 'message_id');
+    const hasCategoryColumn = await this.hasColumn('reports', 'category');
+    const hasReportCategoryColumn = await this.hasColumn('reports', 'report_category');
+    const hasDetailsColumn = await this.hasColumn('reports', 'details');
+    const hasDescriptionColumn = await this.hasColumn('reports', 'description');
+    const hasReportReasonColumn = await this.hasColumn('reports', 'report_reason');
+    const hasProofUrlColumn = await this.hasColumn('reports', 'proof_url');
+    const hasEvidenceUrlColumn = await this.hasColumn('reports', 'evidence_url');
+    const hasProofImageUrlColumn = await this.hasColumn('reports', 'proof_image_url');
+    const hasAdminNotesColumn = await this.hasColumn('reports', 'admin_notes');
 
-    try {
-      const withMessageParams = hasReportCommunityId
-        ? [reporter_id, reported_user_id, post_id, reason, message_id, this.activeCommunityId]
-        : [reporter_id, reported_user_id, post_id, reason, message_id];
-      const [result] = await this.db.query(queryWithMessage, withMessageParams);
-      return result;
-    } catch (err) {
-      // Some DB schemas do not include message_id/community_id for post reports.
-      if (
-        err?.code === 'ER_BAD_FIELD_ERROR' &&
-        (String(err.message).includes('message_id') || String(err.message).includes('community_id'))
-      ) {
-        const queryWithoutMessage = hasReportCommunityId
-          ? `
-          INSERT INTO reports (reporter_id, reported_user_id, report_type, post_id, reason, community_id, created_at)
-          VALUES (?, ?, 'post', ?, ?, ?, NOW())
-        `
-          : `
-          INSERT INTO reports (reporter_id, reported_user_id, report_type, post_id, reason, created_at)
-          VALUES (?, ?, 'post', ?, ?, NOW())
-        `;
-        const paramsWithoutMessage = hasReportCommunityId
-          ? [reporter_id, reported_user_id, post_id, reason, this.activeCommunityId]
-          : [reporter_id, reported_user_id, post_id, reason];
-        const [result] = await this.db.query(queryWithoutMessage, paramsWithoutMessage);
-        return result;
-      }
-      if (err?.code === 'ER_BAD_FIELD_ERROR' && String(err.message).includes('report_type')) {
-        const queryLegacy = hasReportCommunityId
-          ? `
-          INSERT INTO reports (reporter_id, reported_user_id, post_id, reason, message_id, community_id, created_at)
-          VALUES (?, ?, ?, ?, ?, ?, NOW())
-        `
-          : `
-          INSERT INTO reports (reporter_id, reported_user_id, post_id, reason, message_id, created_at)
-          VALUES (?, ?, ?, ?, ?, NOW())
-        `;
-        const legacyParams = hasReportCommunityId
-          ? [reporter_id, reported_user_id, post_id, reason, message_id, this.activeCommunityId]
-          : [reporter_id, reported_user_id, post_id, reason, message_id];
-        const [result] = await this.db.query(queryLegacy, legacyParams);
-        return result;
-      }
-      throw err;
+    const normalizedCategory = String(category || '').trim().toLowerCase();
+    const normalizedReason = String(details?.reason || '').trim();
+    const normalizedProofUrl = String(details?.proof_url || '').trim() || null;
+    const metadataJson = JSON.stringify({
+      category: normalizedCategory,
+      reason: normalizedReason,
+      proof_url: normalizedProofUrl,
+      submitted_at: new Date().toISOString(),
+    });
+    const metadataText = `REPORT_META:${metadataJson}`;
+
+    const columns = ['reporter_id', 'reported_user_id', 'post_id', 'reason'];
+    const values = [reporter_id, reported_user_id, post_id, normalizedCategory];
+
+    if (hasReportType) {
+      columns.push('report_type');
+      values.push('post');
     }
+    if (hasMessageId) {
+      columns.push('message_id');
+      values.push(message_id);
+    }
+    if (hasReportCommunityId) {
+      columns.push('community_id');
+      values.push(this.activeCommunityId);
+    }
+    if (hasCategoryColumn) {
+      columns.push('category');
+      values.push(normalizedCategory);
+    }
+    if (hasReportCategoryColumn) {
+      columns.push('report_category');
+      values.push(normalizedCategory);
+    }
+    if (hasDetailsColumn) {
+      columns.push('details');
+      values.push(normalizedReason);
+    }
+    if (hasDescriptionColumn) {
+      columns.push('description');
+      values.push(normalizedReason);
+    }
+    if (hasReportReasonColumn) {
+      columns.push('report_reason');
+      values.push(normalizedReason);
+    }
+    if (hasProofUrlColumn) {
+      columns.push('proof_url');
+      values.push(normalizedProofUrl);
+    }
+    if (hasEvidenceUrlColumn) {
+      columns.push('evidence_url');
+      values.push(normalizedProofUrl);
+    }
+    if (hasProofImageUrlColumn) {
+      columns.push('proof_image_url');
+      values.push(normalizedProofUrl);
+    }
+    if (hasAdminNotesColumn) {
+      columns.push('admin_notes');
+      values.push(metadataText);
+    }
+
+    const placeholders = columns.map(() => '?').join(', ');
+    const query = `
+      INSERT INTO reports (${columns.join(', ')}, created_at)
+      VALUES (${placeholders}, NOW())
+    `;
+    const [result] = await this.db.query(query, values);
+    return result;
   }
 
   // Count distinct reporters for a reported user in the last 30 days
