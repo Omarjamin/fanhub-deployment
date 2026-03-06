@@ -20,13 +20,16 @@ class ReportModel {
     for (const row of rows || []) {
       const dbName = String(row?.db_name || '').trim();
       if (!dbName) continue;
-      const dedupeKey = String(row?.domain || row?.site_name || dbName).trim().toLowerCase();
+      const communityId = Number(row?.community_id || row?.site_id || 0) || null;
+      const dedupeKey = `${dbName.toLowerCase()}::${communityId || String(row?.domain || row?.site_name || '').trim().toLowerCase()}`;
       if (seen.has(dedupeKey)) continue;
       seen.add(dedupeKey);
       contexts.push({
         db_name: dbName,
         site_name: row?.site_name || dbName,
         domain: row?.domain || '',
+        community_id: communityId,
+        site_id: Number(row?.site_id || 0) || null,
       });
     }
     return contexts;
@@ -108,6 +111,8 @@ class ReportModel {
   }
 
   async resolveContextCommunityId(ctx = {}) {
+    const explicitCommunityId = Number(ctx?.community_id || ctx?.site_id || 0) || null;
+    if (explicitCommunityId) return explicitCommunityId;
     const key = this.normalizeScope(ctx?.domain || ctx?.site_name || ctx?.db_name || '');
     if (!key) return null;
     if (this.contextCommunityIdCache.has(key)) {
@@ -386,6 +391,9 @@ class ReportModel {
           const hasReason = cols.has('reason');
           const hasStatus = cols.has('status');
           const hasReportCommunityId = cols.has('community_id');
+          const hasCategory = cols.has('category');
+          const hasReportCategory = cols.has('report_category');
+          const hasAdminNotes = cols.has('admin_notes');
           const postCols = await this.getTableColumns(db, 'posts');
           const hasPostCommunityId = postCols.has('community_id');
           const userCols = await this.getTableColumns(db, 'users');
@@ -430,6 +438,9 @@ class ReportModel {
               pr.post_id,
               COALESCE(p.content, '[Post already deleted]') as content,
               p.img_url,
+              ${hasCategory ? 'pr.category' : 'NULL'} as category,
+              ${hasReportCategory ? 'pr.report_category' : 'NULL'} as report_category,
+              ${hasAdminNotes ? 'pr.admin_notes' : 'NULL'} as admin_notes,
               ${hasReason ? 'pr.reason' : `''`} as reason,
               ${hasStatus ? 'pr.status' : `'pending'`} as status,
               ${hasCreatedAt ? 'pr.created_at' : 'NULL'} as created_at
@@ -493,6 +504,9 @@ class ReportModel {
           const hasReason = cols.has('reason');
           const hasStatus = cols.has('status');
           const hasReportCommunityId = cols.has('community_id');
+          const hasCategory = cols.has('category');
+          const hasReportCategory = cols.has('report_category');
+          const hasAdminNotes = cols.has('admin_notes');
           const userCols = await this.getTableColumns(db, 'users');
           const hasUserCommunityId = userCols.has('community_id');
           const contextCommunityId = await this.resolveContextCommunityId(ctx);
@@ -526,6 +540,9 @@ class ReportModel {
               reporter.user_id as reporter_id,
               reporter.fullname as reporter_name,
               reporter.email as reporter_email,
+              ${hasCategory ? 'ur.category' : 'NULL'} as category,
+              ${hasReportCategory ? 'ur.report_category' : 'NULL'} as report_category,
+              ${hasAdminNotes ? 'ur.admin_notes' : 'NULL'} as admin_notes,
               ${hasReason ? 'ur.reason' : `''`} as reason,
               ${hasStatus ? 'ur.status' : `'pending'`} as status,
               ${hasCreatedAt ? 'ur.created_at' : 'NULL'} as created_at

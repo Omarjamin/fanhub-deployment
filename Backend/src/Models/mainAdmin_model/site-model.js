@@ -249,9 +249,14 @@ export async function getCommunityAll(communityType = 'all', siteName = '') {
 // keep key name "community_type" but map it to domain since community_type column is removed.
 export async function getSiteCommunityTypeMap() {
   const adminDB = await connectAdmin();
+  const [siteCols] = await adminDB.query('SHOW COLUMNS FROM sites');
+  const siteColumnSet = new Set((siteCols || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+  const communityIdSelect = siteColumnSet.has('community_id') ? 'community_id,' : 'NULL AS community_id,';
   const [rows] = await adminDB.query(
     `
       SELECT
+        site_id,
+        ${communityIdSelect}
         site_name,
         domain AS community_type,
         domain

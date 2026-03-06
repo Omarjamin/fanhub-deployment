@@ -49,6 +49,7 @@ export default function ReportsComponent() {
           <option value="all">All Status</option>
           <option value="pending">Pending</option>
           <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
         </select>
       </div>
 
@@ -330,13 +331,12 @@ function dedupeReportsById(rows) {
   for (const row of rows || []) {
     const source = String(row?.report_source || '').trim().toLowerCase();
     const reportId = String(row?.report_id || '').trim();
-    const communityKey = getReportCommunityKey(row);
     const fallbackEntity = source === 'post'
       ? String(row?.post_id || '')
       : String(row?.message_id || row?.user_id || row?.reported_user_id || '');
     const key = reportId
-      ? `${source}::${communityKey}::${reportId}`
-      : `${source}::${communityKey}::${fallbackEntity}::${String(row?.created_at || '')}`;
+      ? `${source}::${reportId}`
+      : `${source}::${fallbackEntity}::${String(row?.created_at || '')}`;
     const prev = byId.get(key);
     if (!prev) {
       byId.set(key, row);
@@ -351,10 +351,32 @@ function dedupeReportsById(rows) {
 
 function normalizeReportStatus(rawStatus) {
   const status = String(rawStatus || 'pending').toLowerCase();
-  if (['pending', 'reviewed', 'resolved', 'dismissed'].includes(status)) {
-    return status;
-  }
+  if (status === 'pending') return 'pending';
+  if (status === 'dismissed') return 'closed';
+  if (['reviewed', 'resolved'].includes(status)) return 'resolved';
   return 'pending';
+}
+
+function isDeletedPostReport(report = {}) {
+  const rawContent = String(report?.post_content ?? report?.content ?? '').trim();
+  return !rawContent || rawContent === '[Post already deleted]';
+}
+
+function getDisplayStatus(report = {}) {
+  const normalized = normalizeReportStatus(report?.status);
+  if (String(report?.report_source || '').toLowerCase() === 'post' && isDeletedPostReport(report)) {
+    return 'closed';
+  }
+  return normalized;
+}
+
+function getStatusLabel(report = {}) {
+  const status = getDisplayStatus(report);
+  return String(status || 'pending').replace(/^\w/, (match) => match.toUpperCase());
+}
+
+function getStatusBadgeClass(report = {}) {
+  return getDisplayStatus(report) === 'pending' ? 'badge-pending' : 'badge-resolved';
 }
 
 function getReportCommunityKey(report = {}) {
@@ -466,8 +488,8 @@ function renderReportsTable() {
         <td>${report.site_name || report.domain || report.community_type || report.community_name || 'N/A'}</td>
         <td><span class="badge badge-reason">${escapeHtml(getReasonLabel(getReportCategory(report)))}</span></td>
         <td>
-          <span class="badge ${report.status === 'pending' ? 'badge-pending' : 'badge-resolved'}">
-            ${escapeHtml(String(report.status || 'pending').replace(/^\w/, (match) => match.toUpperCase()))}
+          <span class="badge ${getStatusBadgeClass(report)}">
+            ${escapeHtml(getStatusLabel(report))}
           </span>
         </td>
         <td>${formatDateTime(report.created_at || report.latest_report)}</td>
@@ -515,7 +537,7 @@ function applyFilters() {
     const email = (report.email || '').toLowerCase();
     const reasons = `${getReasonTokens(report).join(' ')} ${getReportCategory(report)}`.toLowerCase();
     const source = (report.report_source || '').toLowerCase();
-    const status = String(report.status || '').toLowerCase();
+    const status = String(getDisplayStatus(report) || '').toLowerCase();
     const statusMatch = selectedStatus === 'all' || status === selectedStatus;
 
     return statusMatch && (
@@ -605,11 +627,9 @@ function showUserReportsModal(userId, reports) {
 
 function showPostReportsModal(postId, reports) {
   const community = reports[0]?.community_type || reports[0]?.domain || reports[0]?.site_name || '';
-  const isDeletedPost = reports.some((report) => {
-    const content = String(report?.post_content || '').trim();
-    return !content || content === '[Post already deleted]';
-  });
+  const isDeletedPost = reports.some((report) => isDeletedPostReport(report));
   const report = reports[0] || {};
+  const displayStatus = getDisplayStatus(report);
   const modal = document.createElement('div');
   modal.className = 'reports-modal';
   modal.innerHTML = `
@@ -638,8 +658,8 @@ function showPostReportsModal(postId, reports) {
                 ? `<div class="report-details"><strong>Reason:</strong> ${escapeHtml(getReportReasonText(report))}</div>`
                 : ''
               }
-              ${report.post_content
-                ? `<div class="report-details"><strong>Post:</strong> "${escapeHtml(report.post_content)}"</div>`
+              ${String(report.post_content ?? report.content ?? '').trim()
+                ? `<div class="report-details"><strong>Post:</strong> "${escapeHtml(String(report.post_content ?? report.content ?? '').trim())}"</div>`
                 : `<div class="report-details"><strong>Post:</strong> <span class="report-muted">Post already deleted</span></div>`
               }
               ${getReportProofUrl(report)
@@ -656,17 +676,21 @@ function showPostReportsModal(postId, reports) {
                 <strong>Site:</strong> ${escapeHtml(report.site_name || report.domain || report.community_type || 'N/A')}
               </div>
               <div class="report-details">
+                <strong>Status:</strong> <span class="badge ${getStatusBadgeClass(report)}">${escapeHtml(getStatusLabel(report))}</span>
+              </div>
+              <div class="report-details">
                 <strong>Date:</strong> ${formatDate(report.created_at)}
               </div>
             </div>
           `).join('')
         }
-        ${reports.length
+        ${reports.length && displayStatus !== 'closed'
           ? `<div class="warning-form-actions report-modal-actions" style="margin-top:16px;">
-              <button type="button" class="btn-secondary" onclick="handlePostIgnore('${postId}', '${escapeHtml(community)}')">Dismiss Report</button>
-              <button type="button" class="btn-primary" onclick="handlePostDelete('${postId}', '${escapeHtml(community)}')">${isDeletedPost ? 'Delete Status Already Applied' : 'Delete Post'}</button>
+              <button type="button" class="btn-primary" onclick="handlePostDelete('${postId}', '${escapeHtml(community)}')">Delete Post</button>
             </div>`
-          : ''
+          : reports.length
+            ? `<div class="report-summary-note report-summary-note-warning" style="margin-top:16px;">This report is already closed.</div>`
+            : ''
         }
       </div>
     </div>
@@ -843,10 +867,6 @@ async function handlePostDelete(postId, community = '') {
   await takePostAction(postId, 'delete', community);
 }
 
-async function handlePostIgnore(postId, community = '') {
-  await takePostAction(postId, 'ignore', community);
-}
-
 function formatDate(dateString) {
   if (!dateString) return 'N/A';
   const date = new Date(dateString);
@@ -898,7 +918,6 @@ window.viewPostReport = viewPostReport;
 window.handleWarning = handleWarning;
 window.handleSuspend = handleSuspend;
 window.handlePostDelete = handlePostDelete;
-window.handlePostIgnore = handlePostIgnore;
 window.closeReportsModal = closeReportsModal;
 
 
