@@ -585,7 +585,7 @@ class PostModel {
       throw err;
     }
   }
-  // Create Notification for Repost
+  //  Notification for Repost
   async createNotificationForRepost(originalPostOwnerId, sourceUserId, postId) {
     const hasNotifCommunity = await this.hasColumn('notifications', 'community_id');
     const query = hasNotifCommunity
