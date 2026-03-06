@@ -190,18 +190,22 @@ export default async function Search_(root, data = {}) {
         const { posts } = await fetchHashtagPosts(token, normalizedQuery);
         const safePosts = Array.isArray(posts) ? posts : [];
         const finalPosts = safePosts.length > 0 ? safePosts : await fallbackHashtagSearch(normalizedQuery);
-        if (live) {
-          renderInlinePostPreview(finalPosts, normalizedQuery, 'Hashtag');
-        } else {
-          renderFullPostResults(finalPosts, normalizedQuery, 'Hashtag');
-        }
+        renderCombinedResults({
+          users: [],
+          posts: finalPosts,
+          query: normalizedQuery,
+          live,
+          postLabel: 'Hashtag',
+        });
       } catch (_) {
         const fallbackPosts = await fallbackHashtagSearch(normalizedQuery);
-        if (live) {
-          renderInlinePostPreview(fallbackPosts, normalizedQuery, 'Hashtag');
-        } else {
-          renderFullPostResults(fallbackPosts, normalizedQuery, 'Hashtag');
-        }
+        renderCombinedResults({
+          users: [],
+          posts: fallbackPosts,
+          query: normalizedQuery,
+          live,
+          postLabel: 'Hashtag',
+        });
       }
       return;
     }
@@ -209,51 +213,42 @@ export default async function Search_(root, data = {}) {
     searchResults.innerHTML = '';
     try {
       const { users } = await fetchSearchAll(token, query);
-      if (users && users.length > 0) {
-        overlay.innerHTML = `
-          <ul class="search-overlay-list" style="padding:0;margin:0;">
-            ${users.map(user => `
-              <li class="search-overlay-item" data-userid="${user.user_id}">
-                <img src="${user.profile_picture || DEFAULT_PROFILE_IMAGE}" alt="${user.fullname}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">
-                <span>${user.fullname}</span>
-              </li>
-            `).join('')}
-          </ul>
-        `;
-      } else {
-        overlay.innerHTML = `<div style="padding:8px;">No users found.</div>`;
-      }
-      overlay.style.display = 'block';
+      overlay.style.display = 'none';
 
+      let resolvedPosts = [];
       if (!live) {
         try {
           const { posts } = await fetchPostsByQuery(token, normalizedQuery);
           const safePosts = Array.isArray(posts) ? posts : [];
-          const finalPosts = safePosts.length > 0 ? safePosts : await fallbackPostSearch(normalizedQuery);
-          renderFullPostResults(finalPosts, normalizedQuery, 'Posts');
+          resolvedPosts = safePosts.length > 0 ? safePosts : await fallbackPostSearch(normalizedQuery);
         } catch (_) {
-          const fallbackPosts = await fallbackPostSearch(normalizedQuery);
-          renderFullPostResults(fallbackPosts, normalizedQuery, 'Posts');
+          resolvedPosts = await fallbackPostSearch(normalizedQuery);
         }
       } else {
         try {
           const { posts } = await fetchPostsByQuery(token, normalizedQuery);
           const safePosts = Array.isArray(posts) ? posts : [];
-          const previewPosts =
+          resolvedPosts =
             safePosts.length > 0
               ? safePosts
               : await fallbackPostSearch(
                   hashtagOnlyQuery ? `#${hashtagOnlyQuery}` : normalizedQuery,
                 );
-          renderInlinePostPreview(previewPosts, normalizedQuery, 'Posts');
         } catch (_) {
-          const fallbackPosts = await fallbackPostSearch(normalizedQuery);
-          renderInlinePostPreview(fallbackPosts, normalizedQuery, 'Posts');
+          resolvedPosts = await fallbackPostSearch(normalizedQuery);
         }
       }
+
+      renderCombinedResults({
+        users: Array.isArray(users) ? users : [],
+        posts: resolvedPosts,
+        query: normalizedQuery,
+        live,
+        postLabel: 'Posts',
+      });
     } catch (_) {
-      overlay.innerHTML = `<div style="padding:8px;">Search failed.</div>`;
-      overlay.style.display = 'block';
+      overlay.style.display = 'none';
+      searchResults.innerHTML = `<p style="margin-top:8px;color:#555;">Search failed.</p>`;
     }
   }
 
@@ -458,6 +453,92 @@ export default async function Search_(root, data = {}) {
         if (post?.post_id) navigateToPost(post.post_id);
       });
     });
+    searchResults.querySelectorAll('.search-profile-link').forEach((link) => {
+      link.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        navigateToProfile(link.getAttribute('data-user-id'));
+      });
+    });
+  }
+
+  function renderCombinedResults({ users = [], posts = [], query = '', live = false, postLabel = 'Posts' }) {
+    const safeUsers = Array.isArray(users) ? users : [];
+    const safePosts = Array.isArray(posts) ? posts : [];
+
+    if (!safeUsers.length && !safePosts.length) {
+      searchResults.innerHTML = `<p style="margin-top:8px;color:#555;">No results found for <strong>${query}</strong>.</p>`;
+      return;
+    }
+
+    const userPreview = live ? safeUsers.slice(0, 5) : safeUsers;
+    const postPreview = live ? safePosts.slice(0, 5) : safePosts;
+
+    searchResults.innerHTML = `
+      <div class="search-results-stack">
+        ${
+          userPreview.length
+            ? `
+          <section class="search-result-section">
+            <div class="search-live-preview-head">
+              <strong>Users (${safeUsers.length})</strong>
+              <span>${live ? 'Matching profiles' : 'All matching profiles'}</span>
+            </div>
+            <div class="search-result-list">
+              ${userPreview.map((user) => `
+                <button type="button" class="search-live-preview-item search-user-result-item" data-user-id="${user.user_id}">
+                  <img src="${user.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${user.fullname || 'User'}" class="search-live-preview-avatar">
+                  <div style="min-width:0;">
+                    <div class="search-live-preview-name">${user.fullname || 'Unknown User'}</div>
+                    <div class="search-live-preview-text">${user.username || 'User profile'}</div>
+                  </div>
+                </button>
+              `).join('')}
+            </div>
+          </section>
+        `
+            : ''
+        }
+        ${
+          postPreview.length
+            ? `
+          <section class="search-result-section">
+            <div class="search-live-preview-head">
+              <strong>${postLabel} (${safePosts.length})</strong>
+              <span>${live ? 'Matching posts' : 'All matching posts'}</span>
+            </div>
+            <div class="search-result-list">
+              ${postPreview.map((post, index) => `
+                <button type="button" class="search-live-preview-item search-post-result-item" data-result-index="${index}" data-post-id="${post.post_id}">
+                  <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${post.fullname || 'User'}" class="search-live-preview-avatar search-profile-link" data-user-id="${post.user_id || ''}">
+                  <div style="min-width:0;">
+                    <div class="search-live-preview-name search-profile-link" data-user-id="${post.user_id || ''}">${post.fullname || 'Unknown User'}</div>
+                    <div class="search-live-preview-text">${post.content || ''}</div>
+                  </div>
+                </button>
+              `).join('')}
+            </div>
+          </section>
+        `
+            : ''
+        }
+      </div>
+    `;
+
+    searchResults.querySelectorAll('.search-user-result-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        navigateToProfile(item.getAttribute('data-user-id'));
+      });
+    });
+
+    searchResults.querySelectorAll('.search-post-result-item').forEach((item) => {
+      item.addEventListener('click', () => {
+        const idx = Number(item.getAttribute('data-result-index'));
+        const post = postPreview[idx];
+        if (post?.post_id) navigateToPost(post.post_id);
+      });
+    });
+
     searchResults.querySelectorAll('.search-profile-link').forEach((link) => {
       link.addEventListener('click', (e) => {
         e.stopPropagation();
