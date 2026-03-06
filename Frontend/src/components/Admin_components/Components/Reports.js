@@ -58,6 +58,7 @@ export default function ReportsComponent() {
           <thead>
             <tr>
               <th>Report ID</th>
+              <th>Attempt</th>
               <th>Reported User</th>
               <th>Reported By</th>
               <th>Email</th>
@@ -276,7 +277,7 @@ async function fetchReports() {
       report_source: 'post'
     }));
 
-    reportsData = sortByLatestReportDesc([...userReports, ...postReports]);
+    reportsData = sortByLatestReportDesc(annotateReportAttempts([...userReports, ...postReports]));
     routeScopedData = applyRouteFilter([...reportsData]);
     filteredData = [...routeScopedData];
     applyFilters();
@@ -364,6 +365,43 @@ function sortByLatestReportDesc(rows) {
   });
 }
 
+function annotateReportAttempts(rows) {
+  const sortedAsc = [...rows].sort((a, b) => {
+    const aTime = new Date(a?.created_at || a?.latest_report || 0).getTime() || 0;
+    const bTime = new Date(b?.created_at || b?.latest_report || 0).getTime() || 0;
+    if (aTime !== bTime) return aTime - bTime;
+    return Number(a?.report_id || 0) - Number(b?.report_id || 0);
+  });
+
+  const counts = new Map();
+  return sortedAsc.map((row) => {
+    const communityKey = getReportCommunityKey(row);
+    const source = String(row?.report_source || '').toLowerCase();
+    const entityId = source === 'post'
+      ? String(row?.post_id || '')
+      : String(row?.user_id ?? row?.reported_user_id ?? '');
+    const key = `${source}::${entityId}::${communityKey}`;
+    const nextAttempt = (counts.get(key) || 0) + 1;
+    counts.set(key, nextAttempt);
+    return {
+      ...row,
+      attempt_number: nextAttempt,
+    };
+  });
+}
+
+function formatAttemptLabel(value) {
+  const num = Number(value || 0);
+  if (!Number.isFinite(num) || num <= 0) return 'N/A';
+  const mod10 = num % 10;
+  const mod100 = num % 100;
+  let suffix = 'th';
+  if (mod10 === 1 && mod100 !== 11) suffix = 'st';
+  else if (mod10 === 2 && mod100 !== 12) suffix = 'nd';
+  else if (mod10 === 3 && mod100 !== 13) suffix = 'rd';
+  return `${num}${suffix} report`;
+}
+
 function renderReportsTable() {
   const tableBody = document.getElementById('reportsTableBody');
   const table = document.getElementById('reportsTable');
@@ -384,6 +422,7 @@ function renderReportsTable() {
       return `
       <tr>
         <td>#${report.report_id ?? 'N/A'}</td>
+        <td><span class="badge badge-secondary">${formatAttemptLabel(report.attempt_number)}</span></td>
         <td>
           <div style="display: flex; align-items: center; gap: 8px;">
             ${report.profile_picture
@@ -416,11 +455,12 @@ function renderReportsTable() {
         <td>
           ${report.report_source === 'post'
             ? `<div class="report-actions-row">
-                <button class="btn-icon btn-secondary" onclick="viewPostReports('${report.post_id}', '${communityKey}')" title="View post report details">&#128065;</button>
-                <button class="btn-icon btn-danger" onclick="handlePostDelete('${report.post_id}', '${communityKey}')" title="Delete reported post">&#128465;</button>
+                <button class="btn-icon btn-view" onclick="viewPostReport('${report.report_id}')" title="View post report details">&#128065;</button>
+                <button class="btn-icon btn-warning" onclick="handleWarning('${report.user_id}', '${communityKey}')" title="Send Warning">&#9888;</button>
+                <button class="btn-icon btn-danger" onclick="handleSuspend('${report.user_id}', '${communityKey}')" title="Suspend User">&#9940;</button>
               </div>`
             : `<div class="report-actions-row">
-                <button class="btn-icon btn-secondary" onclick="viewUserReports('${report.user_id}', '${communityKey}')" title="View user report details">&#128065;</button>
+                <button class="btn-icon btn-view" onclick="viewUserReport('${report.report_id}')" title="View user report details">&#128065;</button>
                 <button class="btn-icon btn-warning" onclick="handleWarning('${report.user_id}', '${communityKey}')" title="Send Warning">&#9888;</button>
                 <button class="btn-icon btn-danger" onclick="handleSuspend('${report.user_id}', '${communityKey}')" title="Suspend User">&#9940;</button>
               </div>`
@@ -472,36 +512,33 @@ function applyFilters() {
   renderReportsTable();
 }
 
-async function viewUserReports(userId, community = '') {
-  try {
-    const q = community ? `?community=${encodeURIComponent(community)}` : '';
-    const result = await requestJson(`/admin/reports/users/${userId}/reports${q}`);
-    showUserReportsModal(userId, result.data || []);
-  } catch (error) {
-    console.error('Error fetching user reports:', error);
-    alert('Failed to fetch user reports: ' + error.message);
+function viewUserReport(reportId) {
+  const report = reportsData.find((item) => String(item.report_id) === String(reportId) && String(item.report_source) === 'message');
+  if (!report) {
+    showToast('Report details not found.', 'error');
+    return;
   }
+  showUserReportsModal(report.user_id, [report]);
 }
 
-async function viewPostReports(postId, community = '') {
-  try {
-    const q = community ? `?community=${encodeURIComponent(community)}` : '';
-    const result = await requestJson(`/admin/reports/posts/${postId}/reports${q}`);
-    showPostReportsModal(postId, result.data || []);
-  } catch (error) {
-    console.error('Error fetching post reports:', error);
-    alert('Failed to fetch post reports: ' + error.message);
+function viewPostReport(reportId) {
+  const report = reportsData.find((item) => String(item.report_id) === String(reportId) && String(item.report_source) === 'post');
+  if (!report) {
+    showToast('Report details not found.', 'error');
+    return;
   }
+  showPostReportsModal(report.post_id, [report]);
 }
 
 function showUserReportsModal(userId, reports) {
+  const report = reports[0] || {};
   const modal = document.createElement('div');
   modal.className = 'reports-modal';
   modal.innerHTML = `
     <div class="modal-overlay" onclick="closeReportsModal()"></div>
     <div class="modal-content report-detail-modal">
       <div class="modal-header">
-        <h3>Reports for User #${userId}</h3>
+        <h3>Message Report #${report.report_id || 'N/A'}</h3>
         <button class="modal-close" onclick="closeReportsModal()">x</button>
       </div>
       <div class="modal-body">
@@ -553,13 +590,14 @@ function showPostReportsModal(postId, reports) {
     const content = String(report?.post_content || '').trim();
     return !content || content === '[Post already deleted]';
   });
+  const report = reports[0] || {};
   const modal = document.createElement('div');
   modal.className = 'reports-modal';
   modal.innerHTML = `
     <div class="modal-overlay" onclick="closeReportsModal()"></div>
     <div class="modal-content report-detail-modal">
       <div class="modal-header">
-        <h3>Reports for Post #${postId}</h3>
+        <h3>Post Report #${report.report_id || 'N/A'}</h3>
         <button class="modal-close" onclick="closeReportsModal()">x</button>
       </div>
       <div class="modal-body">
@@ -836,8 +874,8 @@ function showError(message) {
   }
 }
 
-window.viewUserReports = viewUserReports;
-window.viewPostReports = viewPostReports;
+window.viewUserReport = viewUserReport;
+window.viewPostReport = viewPostReport;
 window.handleWarning = handleWarning;
 window.handleSuspend = handleSuspend;
 window.handlePostDelete = handlePostDelete;

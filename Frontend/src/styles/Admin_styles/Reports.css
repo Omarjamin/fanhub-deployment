@@ -131,6 +131,10 @@
 
 .btn-view {
   color: #3b82f6;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
 }
 
 .btn-view:hover:not(:disabled) {
@@ -394,6 +398,10 @@
 
 .btn-warning {
   color: #f59e0b;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
 }
 
 .btn-warning:hover:not(:disabled) {
@@ -402,6 +410,10 @@
 
 .btn-danger {
   color: #ef4444;
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  min-height: 34px;
 }
 
 .btn-danger:hover:not(:disabled) {
