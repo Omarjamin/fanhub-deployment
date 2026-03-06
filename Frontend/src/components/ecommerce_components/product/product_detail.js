@@ -8,6 +8,11 @@ function resolveVariantWeight(variant) {
   return 0;
 }
 
+function resolveVariantStock(variant) {
+  const stock = Number(variant?.stock ?? variant?.inventory ?? variant?.quantity);
+  return Number.isFinite(stock) && stock >= 0 ? stock : 0;
+}
+
 export default async function ProductDetail(root, productId, explicitCommunityType = '') {
   try {
     root.innerHTML = `<div class="loading">Loading product...</div>`;
@@ -136,10 +141,50 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
         return;
       }
 
+      const availableStock = resolveVariantStock(variant);
+      if (availableStock > 0 && qty > availableStock) {
+        showToast(`Only ${availableStock} item(s) available for this variant`, 'warning');
+        return;
+      }
+
       try {
         const result = await addToCart(variantId, qty);
         if (result.success) {
+          const price = Number(variant.price || product.price || 0);
+          const totalWeightGrams = resolveVariantWeight(variant) * qty;
+          const checkoutItems = [
+            {
+              variant_id: variantId,
+              product_variant_id: variantId,
+              product_id: product.product_id || product.id || null,
+              product_name: product.name || '',
+              variant_name: variant.name || variant.variant_values || 'Variant',
+              image_url:
+                product.img_url ||
+                product.image_url ||
+                product.image ||
+                (Array.isArray(product.images) && product.images[0]) ||
+                '',
+              price,
+              quantity: qty,
+              stock: availableStock,
+              weight_g: resolveVariantWeight(variant),
+            },
+          ];
+
+          sessionStorage.removeItem('selectedCartItems');
           sessionStorage.setItem('checkoutStep', '1');
+          sessionStorage.setItem('checkoutItems', JSON.stringify(checkoutItems));
+          sessionStorage.setItem(
+            'checkoutSummary',
+            JSON.stringify({
+              subtotal: price * qty,
+              shipping_fee: 0,
+              total: price * qty,
+              total_weight_grams: totalWeightGrams,
+            }),
+          );
+          sessionStorage.setItem('checkoutWeightGrams', String(totalWeightGrams));
           const checkoutPath = communityType ? `/fanhub/${communityType}/checkout` : '/checkout';
           history.pushState({ page: 'checkout' }, '', checkoutPath);
           window.dispatchEvent(new PopStateEvent('popstate'));
