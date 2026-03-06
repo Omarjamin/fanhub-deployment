@@ -226,6 +226,7 @@ function getCurrentUserId() {
 }
 
 function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeCount, commentCount, repostCount }) {
+  const isOwnPost = getCurrentUserId() && String(post.user_id || '') === getCurrentUserId();
   const imageHtml = post.img_url
     ? `<img src="${post.img_url}" data-full="${post.img_url}" alt="Post Image" class="post-image" />`
     : '';
@@ -786,5 +787,3 @@ function getFilenameFromUrl(url) {
 function formatDate(timestamp) {
   return formatUserTimestamp(timestamp);
 }
-
-  const isOwnPost = getCurrentUserId() && String(post.user_id || '') === getCurrentUserId();
