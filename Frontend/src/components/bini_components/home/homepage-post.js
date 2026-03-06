@@ -224,6 +224,17 @@ function getCurrentUserId() {
   ).trim();
 }
 
+function findPostCard(container, postId) {
+  if (!container || !postId) return null;
+  if (
+    container.classList?.contains('post-card') &&
+    String(container.getAttribute('data-post-id') || '') === String(postId)
+  ) {
+    return container;
+  }
+  return container.querySelector(`.post-card[data-post-id="${postId}"]`);
+}
+
 function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeCount, commentCount, repostCount }) {
   const isOwnPost = getCurrentUserId() && String(post.user_id || '') === getCurrentUserId();
   const imageHtml = post.img_url
@@ -389,7 +400,7 @@ function attachPostActions(feed, token, scope = null, communityType = '') {
   bindPostMenuActions(root, {
     communityType,
     resolvePost: async (postId) => {
-      const card = root.querySelector(`.post-card[data-post-id="${postId}"]`);
+      const card = findPostCard(root, postId);
       if (!card) return null;
       const imageEl = card.querySelector('.post-image');
       const nameEl = card.querySelector('.post-fullname');
@@ -404,7 +415,7 @@ function attachPostActions(feed, token, scope = null, communityType = '') {
       };
     },
     onPostUpdated: (postId, updatedPost) => {
-      const card = root.querySelector(`.post-card[data-post-id="${postId}"]`);
+      const card = findPostCard(root, postId);
       if (!card) return;
       const contentEl = card.querySelector('.post-content');
       const existingImg = card.querySelector('.post-image');
@@ -424,7 +435,7 @@ function attachPostActions(feed, token, scope = null, communityType = '') {
       }
     },
     onPostDeleted: (postId) => {
-      root.querySelector(`.post-card[data-post-id="${postId}"]`)?.remove();
+      findPostCard(root, postId)?.remove();
     },
   });
 

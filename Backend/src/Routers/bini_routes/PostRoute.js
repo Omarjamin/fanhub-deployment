@@ -56,9 +56,9 @@ postRouter.get('/comments/user', authenticate, commentController.getByUser.bind(
 postRouter.get('/:userId/posts', postController.getOtherUserPosts.bind(postController));
 postRouter.get('/:userId/repost', postController.getothersreposts.bind(postController));
 postRouter.delete('/:postId', postController.deletePost.bind(postController));
+postRouter.patch('/:postId', postController.updatePost.bind(postController));
 postRouter.patch('/:comment_id', authenticate, commentController.update.bind(commentController));
 postRouter.delete('/:comment_id', authenticate, commentController.delete.bind(commentController));
-postRouter.patch('/:postId', postController.updatePost.bind(postController));
 
 // CATCH-ALL - MUST BE LAST
 postRouter.get('/:postId', postController.getPostById.bind(postController));

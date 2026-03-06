@@ -542,6 +542,14 @@ class PostModel {
         );
       }
 
+      const hasRepostIdColumn = await this.hasColumn('posts', 'repost_id');
+      if (hasRepostIdColumn) {
+        await this.db.query(
+          `UPDATE posts SET repost_id = NULL WHERE repost_id = ?${postScoped.sql}`,
+          [postId, ...postScoped.params],
+        );
+      }
+
       const query = `
         DELETE FROM posts 
         WHERE post_id = ? AND user_id = ?${postScoped.sql}
