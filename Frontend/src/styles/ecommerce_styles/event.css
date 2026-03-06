@@ -12,7 +12,8 @@
   text-align: center;
   width: 45%;
   max-width: 300px;
-  display: block;
+  display: flex;
+  flex-direction: column;
   text-decoration: none;
   color: inherit;
   cursor: pointer;
@@ -31,5 +32,17 @@
 }
 .event-list img {
   width: 100%;
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  display: block;
   border-radius: 10px;
+}
+
+.event-list .event-link-card h3 {
+  margin-top: 10px;
+  min-height: 2.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1.2;
 }

@@ -1,4 +1,4 @@
-import { fetchrandomposts } from '../../../services/bini_services/post/fetchrandompost.js';
+﻿import { fetchrandomposts } from '../../../services/bini_services/post/fetchrandompost.js';
 import { repost } from '../../../services/bini_services/post/repost.js';
 import { fetchPostById } from '../../../services/bini_services/post/fetchPostById.js';
 import {
@@ -54,24 +54,27 @@ export default async function Homepage(root, data) {
         ${threadsSidebar.html}
       </div>
     </div>
-
     <!-- IMAGE MODAL (LOCAL TO THIS PAGE) -->
     <div id="image-modal" class="image-modal">
-      <div class="modal-header">
-        <button class="download-button" id="download-btn" title="Download Image">
-          <span class="material-icons">download</span>
-        </button>
+      <div class="image-stage">
+        <div class="modal-header">
+          <button class="download-button" id="download-btn" title="Download image">
+            <span class="material-icons">download</span>
+          </button>
 
-        <!-- ZOOM BUTTONS -->
-        <div class="zoom-controls">
-          <button id="zoom-in">➕</button>
-          <button id="zoom-out">➖</button>
+          <div class="zoom-controls" aria-label="Zoom controls">
+            <button id="zoom-out" type="button" title="Zoom out">-</button>
+            <span id="zoom-level" class="zoom-level" aria-live="polite">100%</span>
+            <button id="zoom-in" type="button" title="Zoom in">+</button>
+            <button id="zoom-reset" type="button" title="Reset zoom">Reset</button>
+          </div>
+
+          <button class="modal-close" type="button" aria-label="Close image viewer">&times;</button>
         </div>
 
-        <span class="modal-close">&times;</span>
+        <img class="modal-content" id="modal-img" alt="Expanded post image">
+        <div class="modal-hint">Esc to close · + / - to zoom</div>
       </div>
-
-      <img class="modal-content" id="modal-img">
     </div>
   `;
 
@@ -578,9 +581,10 @@ function attachLocalImageModal() {
   const closeBtn = document.querySelector('.modal-close');
   const downloadBtn = document.getElementById('download-btn');
 
-  // Zoom buttons
-  const zoomInBtn = document.getElementById("zoom-in");
-  const zoomOutBtn = document.getElementById("zoom-out");
+  const zoomInBtn = document.getElementById('zoom-in');
+  const zoomOutBtn = document.getElementById('zoom-out');
+  const zoomResetBtn = document.getElementById('zoom-reset');
+  const zoomLevelEl = document.getElementById('zoom-level');
 
   // Some views/routes render posts without the local image modal.
   // Skip listener binding safely when modal controls are missing.
@@ -589,20 +593,34 @@ function attachLocalImageModal() {
   }
 
   let currentImageUrl = '';
-  let scale = 1; // zoom level
+  let scale = 1;
+  const minScale = 0.4;
+  const maxScale = 3;
+
+  function applyZoom(nextScale) {
+    scale = Math.max(minScale, Math.min(maxScale, nextScale));
+    modalImg.style.transform = `scale(${scale})`;
+    if (zoomLevelEl) {
+      zoomLevelEl.textContent = `${Math.round(scale * 100)}%`;
+    }
+  }
+
+  function resetModalState() {
+    modal.style.display = 'none';
+    modalImg.src = '';
+    currentImageUrl = '';
+    applyZoom(1);
+  }
 
   // Image click
-  document.querySelectorAll('.post-image').forEach(img => {
+  document.querySelectorAll('.post-image').forEach((img) => {
     if (img.dataset.modalBound === '1') return;
     img.dataset.modalBound = '1';
     img.addEventListener('click', () => {
       modal.style.display = 'flex';
       currentImageUrl = img.dataset.full || img.src;
       modalImg.src = currentImageUrl;
-
-      // Reset zoom every time an image opens
-      scale = 1;
-      modalImg.style.transform = "scale(1)";
+      applyZoom(1);
     });
   });
 
@@ -612,16 +630,20 @@ function attachLocalImageModal() {
   modal.dataset.bound = '1';
 
   // ZOOM IN
-  zoomInBtn.addEventListener("click", () => {
-    scale += 0.2;
-    modalImg.style.transform = `scale(${scale})`;
+  zoomInBtn.addEventListener('click', () => {
+    applyZoom(scale + 0.2);
   });
 
   // ZOOM OUT
-  zoomOutBtn.addEventListener("click", () => {
-    if (scale > 0.4) scale -= 0.2;
-    modalImg.style.transform = `scale(${scale})`;
+  zoomOutBtn.addEventListener('click', () => {
+    applyZoom(scale - 0.2);
   });
+
+  if (zoomResetBtn) {
+    zoomResetBtn.addEventListener('click', () => {
+      applyZoom(1);
+    });
+  }
 
   // Download button
   downloadBtn.addEventListener('click', async () => {
@@ -631,26 +653,30 @@ function attachLocalImageModal() {
   });
 
   // Close X
-  closeBtn.addEventListener('click', () => {
-    modal.style.display = 'none';
-    modalImg.src = '';
-    currentImageUrl = '';
-    scale = 1;
-    modalImg.style.transform = "scale(1)";
-  });
+  closeBtn.addEventListener('click', resetModalState);
 
   // Close by clicking outside modal
   modal.addEventListener('click', (e) => {
     if (e.target === modal) {
-      modal.style.display = 'none';
-      modalImg.src = '';
-      currentImageUrl = '';
-      scale = 1;
-      modalImg.style.transform = "scale(1)";
+      resetModalState();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (modal.style.display !== 'flex') return;
+    if (e.key === 'Escape') {
+      resetModalState();
+      return;
+    }
+    if (e.key === '+' || e.key === '=') {
+      applyZoom(scale + 0.2);
+      return;
+    }
+    if (e.key === '-' || e.key === '_') {
+      applyZoom(scale - 0.2);
     }
   });
 }
-
 // DOWNLOAD IMAGE FUNCTION
 async function downloadImage(imageUrl) {
   try {
@@ -783,3 +809,4 @@ function getFilenameFromUrl(url) {
 function formatDate(timestamp) {
   return formatUserTimestamp(timestamp);
 }
+
