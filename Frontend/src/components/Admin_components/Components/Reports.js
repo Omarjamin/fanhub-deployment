@@ -58,7 +58,7 @@ export default function ReportsComponent() {
           <thead>
             <tr>
               <th>Report ID</th>
-              <th>Attempt</th>
+              <th>Number of Times Reported</th>
               <th>Reported User</th>
               <th>Reported By</th>
               <th>Email</th>
@@ -277,7 +277,11 @@ async function fetchReports() {
       report_source: 'post'
     }));
 
-    reportsData = sortByLatestReportDesc(annotateReportAttempts([...userReports, ...postReports]));
+    reportsData = sortByLatestReportDesc(
+      annotateReportAttempts(
+        dedupeReportsById([...userReports, ...postReports])
+      )
+    );
     routeScopedData = applyRouteFilter([...reportsData]);
     filteredData = [...routeScopedData];
     applyFilters();
@@ -319,6 +323,30 @@ function extractRows(payload) {
   if (Array.isArray(payload.rows)) return payload.rows;
   if (payload.result && Array.isArray(payload.result.data)) return payload.result.data;
   return [];
+}
+
+function dedupeReportsById(rows) {
+  const byId = new Map();
+  for (const row of rows || []) {
+    const source = String(row?.report_source || '').trim().toLowerCase();
+    const reportId = String(row?.report_id || '').trim();
+    const communityKey = getReportCommunityKey(row);
+    const fallbackEntity = source === 'post'
+      ? String(row?.post_id || '')
+      : String(row?.message_id || row?.user_id || row?.reported_user_id || '');
+    const key = reportId
+      ? `${source}::${communityKey}::${reportId}`
+      : `${source}::${communityKey}::${fallbackEntity}::${String(row?.created_at || '')}`;
+    const prev = byId.get(key);
+    if (!prev) {
+      byId.set(key, row);
+      continue;
+    }
+    const prevTime = new Date(prev?.created_at || prev?.latest_report || 0).getTime() || 0;
+    const nextTime = new Date(row?.created_at || row?.latest_report || 0).getTime() || 0;
+    if (nextTime >= prevTime) byId.set(key, row);
+  }
+  return Array.from(byId.values());
 }
 
 function normalizeReportStatus(rawStatus) {
@@ -393,13 +421,7 @@ function annotateReportAttempts(rows) {
 function formatAttemptLabel(value) {
   const num = Number(value || 0);
   if (!Number.isFinite(num) || num <= 0) return 'N/A';
-  const mod10 = num % 10;
-  const mod100 = num % 100;
-  let suffix = 'th';
-  if (mod10 === 1 && mod100 !== 11) suffix = 'st';
-  else if (mod10 === 2 && mod100 !== 12) suffix = 'nd';
-  else if (mod10 === 3 && mod100 !== 13) suffix = 'rd';
-  return `${num}${suffix} report`;
+  return num === 1 ? '1 time' : `${num} times`;
 }
 
 function renderReportsTable() {
@@ -442,10 +464,7 @@ function renderReportsTable() {
         </td>
         <td>${report.email || 'N/A'}</td>
         <td>${report.site_name || report.domain || report.community_type || report.community_name || 'N/A'}</td>
-        <td>${getReasonTokens(report).length
-          ? getReasonTokens(report).map((reason) => `<span class="badge badge-reason">${escapeHtml(reason)}</span>`).join(' ')
-          : 'N/A'
-        }</td>
+        <td><span class="badge badge-reason">${escapeHtml(getReasonLabel(getReportCategory(report)))}</span></td>
         <td>
           <span class="badge ${report.status === 'pending' ? 'badge-pending' : 'badge-resolved'}">
             ${escapeHtml(String(report.status || 'pending').replace(/^\w/, (match) => match.toUpperCase()))}
@@ -494,7 +513,7 @@ function applyFilters() {
   filteredData = routeScopedData.filter((report) => {
     const fullname = (report.fullname || '').toLowerCase();
     const email = (report.email || '').toLowerCase();
-    const reasons = getReasonTokens(report).join(' ').toLowerCase();
+    const reasons = `${getReasonTokens(report).join(' ')} ${getReportCategory(report)}`.toLowerCase();
     const source = (report.report_source || '').toLowerCase();
     const status = String(report.status || '').toLowerCase();
     const statusMatch = selectedStatus === 'all' || status === selectedStatus;
