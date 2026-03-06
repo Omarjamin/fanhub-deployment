@@ -9,14 +9,13 @@ import {
   fetchIsLikedStatus,
   fetchLikedcounts,
   toggleLike,
-  reportPost,
 } from '../../../services/bini_services/post/post-interactions.js';
 import createCommentModal from '../post/comment_modal.js';
+import { buildPostMenuHtml, bindPostMenuActions } from '../post/post-menu.js';
 import { renderThreadsSidebar } from '../threadsSidebar.js';
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from '../../../lib/site-context.js';
 import { formatUserTimestamp } from '../../../utils/user-time.js';
 let isLoading = false;
-let reportMenuOutsideHandlerBound = false;
 
 function resolveCommunityType(dataCommunityType = '') {
   const fromData = String(dataCommunityType || '').trim().toLowerCase();
@@ -251,15 +250,7 @@ function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeC
           <span class="post-fullname">${post.fullname || 'You'}</span>
         </a>
         <span class="post-time">${postCreationTime}</span>
-        ${isOwnPost ? '' : `<div class="post-menu-container">
-          <button class="post-menu-btn" data-post-id="${post.post_id}" aria-label="Post options" title="Post options">&#8942;</button>
-          <div class="post-report-dropdown">
-            <button class="report-post-option" data-post-id="${post.post_id}" data-reason="spam">Report spam</button>
-            <button class="report-post-option" data-post-id="${post.post_id}" data-reason="harassment">Report harassment</button>
-            <button class="report-post-option" data-post-id="${post.post_id}" data-reason="misleading information">Report misleading information</button>
-            <button class="report-post-option" data-post-id="${post.post_id}" data-reason="inappropriate content">Report inappropriate content</button>
-          </div>
-        </div>`}
+        ${buildPostMenuHtml({ postId: post.post_id, isOwnPost })}
       </div>
 
       <div class="post-content">${displayContent}</div>
@@ -395,53 +386,47 @@ async function refreshPostCounts(postId, token) {
 // POST ACTIONS (like, repost, comment, profile). If scope is provided, only attach to that card.
 function attachPostActions(feed, token, scope = null, communityType = '') {
   const root = scope || feed;
-  // Post report menu
-  root.querySelectorAll('.post-menu-btn').forEach((button) => {
-    button.addEventListener('click', (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      const card = button.closest('.post-card');
-      const dropdown = card?.querySelector('.post-report-dropdown');
-      if (!dropdown) return;
-
-      feed.querySelectorAll('.post-report-dropdown.open').forEach((openDropdown) => {
-        if (openDropdown !== dropdown) {
-          openDropdown.classList.remove('open');
-        }
-      });
-
-      dropdown.classList.toggle('open');
-    });
-  });
-
-  root.querySelectorAll('.report-post-option').forEach((button) => {
-    button.addEventListener('click', async (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-
-      const postId = button.getAttribute('data-post-id');
-      const reason = button.getAttribute('data-reason');
-
-      try {
-        await reportPost(postId, reason);
-        const card = button.closest('.post-card');
-        card?.querySelector('.post-report-dropdown')?.classList.remove('open');
-        alert('Post reported successfully.');
-      } catch (error) {
-        alert(`Failed to report post: ${error.message}`);
+  bindPostMenuActions(root, {
+    communityType,
+    resolvePost: async (postId) => {
+      const card = root.querySelector(`.post-card[data-post-id="${postId}"]`);
+      if (!card) return null;
+      const imageEl = card.querySelector('.post-image');
+      const nameEl = card.querySelector('.post-fullname');
+      const contentEl = card.querySelector('.post-content');
+      const post = await fetchPostById(postId).catch(() => null);
+      return {
+        ...(post || {}),
+        post_id: postId,
+        fullname: post?.fullname || nameEl?.textContent || 'You',
+        content: post?.content ?? contentEl?.textContent ?? '',
+        img_url: post?.img_url ?? imageEl?.getAttribute('data-full') ?? imageEl?.getAttribute('src') ?? null,
+      };
+    },
+    onPostUpdated: (postId, updatedPost) => {
+      const card = root.querySelector(`.post-card[data-post-id="${postId}"]`);
+      if (!card) return;
+      const contentEl = card.querySelector('.post-content');
+      const existingImg = card.querySelector('.post-image');
+      if (contentEl) {
+        contentEl.textContent = updatedPost.content || 'No content available';
       }
-    });
+      if (updatedPost.img_url) {
+        if (existingImg) {
+          existingImg.src = updatedPost.img_url;
+          existingImg.dataset.full = updatedPost.img_url;
+        } else {
+          contentEl?.insertAdjacentHTML('afterend', `<img src="${updatedPost.img_url}" data-full="${updatedPost.img_url}" alt="Post Image" class="post-image" />`);
+          attachLocalImageModal();
+        }
+      } else if (existingImg) {
+        existingImg.remove();
+      }
+    },
+    onPostDeleted: (postId) => {
+      root.querySelector(`.post-card[data-post-id="${postId}"]`)?.remove();
+    },
   });
-
-  if (!reportMenuOutsideHandlerBound) {
-    document.addEventListener('click', () => {
-      document.querySelectorAll('.post-report-dropdown.open').forEach((dropdown) => {
-        dropdown.classList.remove('open');
-      });
-    });
-    reportMenuOutsideHandlerBound = true;
-  }
 
   // Like
   root.querySelectorAll('.like-button').forEach(button => {

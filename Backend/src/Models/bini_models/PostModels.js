@@ -514,11 +514,30 @@ class PostModel {
   // Delete Post
   async deletePost(postId, userId) {
     try {
+      const scopedDeletes = [
+        { table: 'comments', column: 'post_id' },
+        { table: 'likes', column: 'post_id' },
+        { table: 'hashtags', column: 'post_id' },
+        { table: 'reports', column: 'post_id' },
+        { table: 'notifications', column: 'post_id' },
+      ];
+
+      for (const entry of scopedDeletes) {
+        const hasTableColumn = await this.hasColumn(entry.table, entry.column);
+        if (!hasTableColumn) continue;
+        const scoped = await this.getScopedCondition(entry.table);
+        await this.db.query(
+          `DELETE FROM ${entry.table} WHERE ${entry.column} = ?${scoped.sql}`,
+          [postId, ...scoped.params],
+        );
+      }
+
+      const postScoped = await this.getScopedCondition('posts');
       const query = `
         DELETE FROM posts 
-        WHERE post_id = ? AND user_id = ?
+        WHERE post_id = ? AND user_id = ?${postScoped.sql}
       `;
-      const [result] = await this.db.query(query, [postId, userId]);
+      const [result] = await this.db.query(query, [postId, userId, ...postScoped.params]);
       return result.affectedRows;
     } catch (err) {
       throw err;

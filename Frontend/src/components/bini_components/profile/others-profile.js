@@ -5,6 +5,7 @@ import "../../../styles/bini_styles/OthersProfile.css";
 import api from "../../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../lib/site-context.js";
 import { formatUserTimestamp } from "../../../utils/user-time.js";
+import { buildPostMenuHtml, bindPostMenuActions } from "../post/post-menu.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
 
@@ -398,7 +399,7 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
       const likeCount = countlike[index];
 
 	      const postContent = `
-	        <div class="post-card">
+	        <div class="post-card" data-post-id="${post.post_id}">
 	          <div class="post-meta">
 	            <a href="#" class="profile-link" data-user-id="${post.user_id || ''}" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
 	              <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" alt="${post.fullname || "User"}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">
@@ -406,6 +407,7 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
 	            </a>
 	            ${tab === "reposts" ? '<span class="repost-indicator">Reposted</span>' : ""}
 	            <span class="post-time">${postCreationTime}</span>
+              ${buildPostMenuHtml({ postId: post.post_id, isOwnPost: false })}
 	          </div>
           <div class="post-content">${post.content || "No content available"}</div>
           <div class="post-tags">${post.tags ? post.tags.join(", ") : "No tags available"}</div>
@@ -468,6 +470,8 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
         }
       });
     });
+
+    bindPostMenuActions(feed);
 
 	    feed.querySelectorAll(".comment-button").forEach((button) => {
 	      button.addEventListener("click", () => {

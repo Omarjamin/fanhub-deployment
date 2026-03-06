@@ -2,6 +2,7 @@ import { fetchProfileData } from "../../../services/bini_services/user/fetchprof
 import { repost } from "../../../services/bini_services/post/repost.js";
 import createCommentModal from "../post/comment_modal.js";
 import showEditProfileModal from "./edit-profile-modal.js"; // Import modal
+import { buildPostMenuHtml, bindPostMenuActions } from "../post/post-menu.js";
 import api from "../../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../lib/site-context.js";
 import { formatUserTimestamp } from "../../../utils/user-time.js";
@@ -160,14 +161,14 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
 	      const postProfilePic = post.profile_picture || ownerUser?.profile_picture || DEFAULT_PROFILE_IMAGE;
 
 	      const postContent = `
-	        <div class="post-card" style="position:relative;">
+	        <div class="post-card" data-post-id="${post.post_id}" style="position:relative;">
 	          <div class="post-meta">
               <a href="#" class="profile-link" data-user-id="${postUserId}" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
                 <img src="${postProfilePic}" alt="${postFullname}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">
                 <span style="font-weight:600;">${postFullname}</span>
               </a>
 	            <span class="post-time">${postCreationTime}</span>
-
+              ${buildPostMenuHtml({ postId: post.post_id, isOwnPost: true })}
           </div>
           <div class="post-content">${post.content || "No content available"}</div>
           <div class="post-tags">${post.tags ? post.tags.join(", ") : "No tags available"}</div>
@@ -187,6 +188,37 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
         </div>
       `;
       feed.innerHTML += postContent;
+    });
+
+    bindPostMenuActions(feed, {
+      resolvePost: async (postId) =>
+        posts.find((item) => String(item.post_id) === String(postId)) || null,
+      onPostUpdated: (postId, updatedPost) => {
+        const target = posts.find((item) => String(item.post_id) === String(postId));
+        if (target) {
+          target.content = updatedPost.content;
+          target.img_url = updatedPost.img_url;
+        }
+        const card = feed.querySelector(`.post-card[data-post-id="${postId}"]`);
+        if (!card) return;
+        const contentEl = card.querySelector(".post-content");
+        const imageEl = card.querySelector(".post-image");
+        if (contentEl) contentEl.textContent = updatedPost.content || "No content available";
+        if (updatedPost.img_url) {
+          if (imageEl) {
+            imageEl.src = updatedPost.img_url;
+          } else {
+            contentEl?.insertAdjacentHTML("afterend", `<img src="${updatedPost.img_url}" alt="Post Image" class="post-image" />`);
+          }
+        } else {
+          imageEl?.remove();
+        }
+      },
+      onPostDeleted: (postId) => {
+        const idx = posts.findIndex((item) => String(item.post_id) === String(postId));
+        if (idx >= 0) posts.splice(idx, 1);
+        feed.querySelector(`.post-card[data-post-id="${postId}"]`)?.remove();
+      },
     });
 
     // Like button event

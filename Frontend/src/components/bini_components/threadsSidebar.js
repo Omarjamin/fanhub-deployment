@@ -1,4 +1,9 @@
-﻿import fetchThreads from "../../services/bini_services/thread/thread-api.js";
+import fetchThreads from "../../services/bini_services/thread/thread-api.js";
+import { formatUserTimestamp } from "../../utils/user-time.js";
+
+function formatThreadDate(value) {
+  return formatUserTimestamp(value) || "No date";
+}
 
 export async function renderThreadsSidebar() {
   const threads = await fetchThreads();
@@ -18,7 +23,7 @@ export async function renderThreadsSidebar() {
             style="cursor: pointer;"
           >
             <div class="thread-item-meta">
-              <div class="thread-date">${thread.date || "No date"}</div>
+              <div class="thread-date">${formatThreadDate(thread.date || thread.created_at)}</div>
               ${thread.isPinned ? '<span class="thread-pin-tag">Pinned</span>' : ""}
             </div>
             <div class="thread-title">${thread.title || "Untitled thread"}</div>
@@ -47,4 +52,3 @@ export async function renderThreadsSidebar() {
     },
   };
 }
-

@@ -59,7 +59,7 @@ export default async function ThreadTopic(params) {
         <button type="button" class="thread-topic-close" aria-label="Close">&times;</button>
         <div class="thread-topic-header">
           <div class="thread-topic-meta">
-            <div class="thread-topic-date">${thread.date}</div>
+            <div class="thread-topic-date">${formatDateDisplay(thread.date || thread.created_at)}</div>
             <div class="thread-topic-venue">${thread.venue}</div>
           </div>
           <h1 class="thread-topic-title">
