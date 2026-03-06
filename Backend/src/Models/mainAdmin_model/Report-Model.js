@@ -400,7 +400,10 @@ class ReportModel {
           if (hasPostId) typeFilterParts.push('pr.post_id IS NOT NULL');
           if (hasReportType) typeFilterParts.push(`pr.report_type = 'post'`);
           if (contextCommunityId) {
-            if (hasPostCommunityId) {
+            if (hasPostCommunityId && hasReportCommunityId) {
+              scopeFilterParts.push('COALESCE(p.community_id, pr.community_id, 0) = ?');
+              queryParams.push(contextCommunityId);
+            } else if (hasPostCommunityId) {
               scopeFilterParts.push('COALESCE(p.community_id, 0) = ?');
               queryParams.push(contextCommunityId);
             } else if (hasUserCommunityId) {
@@ -426,12 +429,12 @@ class ReportModel {
 
           const [rows] = await db.query(`
             SELECT
-              u.user_id,
-              u.fullname,
-              u.email,
+              COALESCE(u.user_id, pr.reported_user_id) as user_id,
+              COALESCE(u.fullname, 'Deleted User') as fullname,
+              COALESCE(u.email, 'N/A') as email,
               u.profile_picture,
-              p.post_id,
-              p.content,
+              pr.post_id,
+              COALESCE(p.content, '[Post already deleted]') as content,
               p.img_url,
               ${uniqueReportersExpr} as unique_reporters,
               ${totalReportsExpr} as total_reports,
@@ -439,10 +442,10 @@ class ReportModel {
               ${reasonsExpr} as reasons,
               ${latestStatusExpr} as latest_status
             FROM reports pr
-            JOIN posts p ON p.post_id = pr.post_id
-            JOIN users u ON u.user_id = p.user_id
+            LEFT JOIN posts p ON p.post_id = pr.post_id
+            LEFT JOIN users u ON u.user_id = COALESCE(p.user_id, pr.reported_user_id)
             ${whereSql}
-            GROUP BY p.post_id, u.user_id, u.fullname, u.email, u.profile_picture
+            GROUP BY pr.post_id, u.user_id, u.fullname, u.email, u.profile_picture, p.content, p.img_url, pr.reported_user_id
             HAVING unique_reporters >= 1
             ORDER BY unique_reporters DESC, latest_report DESC
           `, queryParams);
@@ -746,6 +749,31 @@ class ReportModel {
     return null;
   }
 
+  async findDbContextByReportedPostId(postId, communityType = 'all') {
+    const contexts = await this.getScopedContexts(communityType);
+    for (const ctx of contexts) {
+      try {
+        const db = await connect(ctx.db_name);
+        const reportCols = await this.getTableColumns(db, 'reports');
+        if (!reportCols.has('post_id')) continue;
+        const hasReportCommunityId = reportCols.has('community_id');
+        const contextCommunityId = await this.resolveContextCommunityId(ctx);
+        const whereParts = ['post_id = ?'];
+        const queryParams = [postId];
+        if (contextCommunityId && hasReportCommunityId) {
+          whereParts.push('COALESCE(community_id, 0) = ?');
+          queryParams.push(contextCommunityId);
+        }
+        const [rows] = await db.query(
+          `SELECT post_id FROM reports WHERE ${whereParts.join(' AND ')} LIMIT 1`,
+          queryParams,
+        );
+        if (Array.isArray(rows) && rows.length > 0) return ctx;
+      } catch (_) {}
+    }
+    return null;
+  }
+
   /**
    * Take action on reported user (warning or suspend)
    * @param {number} userId - ID of the user to take action on
@@ -939,7 +967,8 @@ class ReportModel {
    * @returns {Promise<Object>} Action result
    */
   async takePostAction(postId, action, adminId, reason, communityType = 'all') {
-    const ctx = await this.findDbContextByPostId(postId, communityType);
+    const ctx = await this.findDbContextByPostId(postId, communityType)
+      || await this.findDbContextByReportedPostId(postId, communityType);
     if (!ctx?.db_name) {
       throw new Error('Post not found in any site database');
     }
@@ -960,31 +989,31 @@ class ReportModel {
         [postId]
       );
 
-      if (!post || post.length === 0) {
-        throw new Error('Post not found');
-      }
+      const postExists = Array.isArray(post) && post.length > 0;
 
       // Update post status based on action
       if (action === 'delete') {
-        const removableRefs = [
-          { table: 'comments', column: 'post_id' },
-          { table: 'likes', column: 'post_id' },
-          { table: 'hashtags', column: 'post_id' },
-          { table: 'notifications', column: 'post_id' },
-        ];
+        if (postExists) {
+          const removableRefs = [
+            { table: 'comments', column: 'post_id' },
+            { table: 'likes', column: 'post_id' },
+            { table: 'hashtags', column: 'post_id' },
+            { table: 'notifications', column: 'post_id' },
+          ];
 
-        for (const ref of removableRefs) {
-          const refCols = await this.getTableColumns(connection, ref.table);
-          if (!refCols.has(ref.column)) continue;
-          await connection.query(`DELETE FROM ${ref.table} WHERE ${ref.column} = ?`, [postId]);
+          for (const ref of removableRefs) {
+            const refCols = await this.getTableColumns(connection, ref.table);
+            if (!refCols.has(ref.column)) continue;
+            await connection.query(`DELETE FROM ${ref.table} WHERE ${ref.column} = ?`, [postId]);
+          }
+
+          const postCols = await this.getTableColumns(connection, 'posts');
+          if (postCols.has('repost_id')) {
+            await connection.query('UPDATE posts SET repost_id = NULL WHERE repost_id = ?', [postId]);
+          }
+
+          await connection.query('DELETE FROM posts WHERE post_id = ?', [postId]);
         }
-
-        const postCols = await this.getTableColumns(connection, 'posts');
-        if (postCols.has('repost_id')) {
-          await connection.query('UPDATE posts SET repost_id = NULL WHERE repost_id = ?', [postId]);
-        }
-
-        await connection.query('DELETE FROM posts WHERE post_id = ?', [postId]);
         await connection.query(
           `UPDATE reports
            SET status = ?, admin_notes = ?, updated_at = NOW()
@@ -1007,7 +1036,10 @@ class ReportModel {
         success: true,
         post_id: postId,
         action: action,
-        message: `Post successfully ${action}d`
+        already_deleted: action === 'delete' && !postExists,
+        message: action === 'delete' && !postExists
+          ? 'Post already deleted.'
+          : `Post successfully ${action}d`
       };
 
     } catch (error) {

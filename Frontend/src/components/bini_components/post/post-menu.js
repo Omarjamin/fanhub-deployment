@@ -101,26 +101,26 @@ function ensureReportModal() {
         <button class="search-post-modal-close" aria-label="Close">&times;</button>
       </div>
       <div class="search-post-modal-body">
-        <form class="report-post-form" style="display:flex;flex-direction:column;gap:14px;">
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <label for="report-post-category" style="font-weight:600;color:#111827;">Report category</label>
-            <select id="report-post-category" name="category" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;background:#fff;">
+        <form class="report-post-form">
+          <div class="report-form-group">
+            <label class="report-form-label" for="report-post-category">Report category</label>
+            <select id="report-post-category" name="category" class="report-form-select">
               ${REPORT_CATEGORY_OPTIONS.map((option) => `<option value="${option.value}">${option.label}</option>`).join("")}
             </select>
           </div>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <label for="report-post-reason" style="font-weight:600;color:#111827;">Reason</label>
-            <textarea id="report-post-reason" name="reason" rows="5" maxlength="500" placeholder="Explain the issue clearly for admin review." style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;resize:vertical;"></textarea>
+          <div class="report-form-group">
+            <label class="report-form-label" for="report-post-reason">Reason</label>
+            <textarea id="report-post-reason" name="reason" rows="5" maxlength="500" placeholder="Explain the issue clearly for admin review." class="report-form-textarea"></textarea>
           </div>
-          <div style="display:flex;flex-direction:column;gap:6px;">
-            <label for="report-post-proof" style="font-weight:600;color:#111827;">Proof of report</label>
-            <input id="report-post-proof" type="file" name="proof_file" accept="image/*" required />
-            <small style="color:#6b7280;">Proof image is required and will be uploaded securely for admin review.</small>
-            <img class="report-post-preview" alt="Report proof preview" style="display:none;width:100%;max-height:240px;object-fit:cover;border-radius:12px;" />
+          <div class="report-form-group">
+            <label class="report-form-label" for="report-post-proof">Proof of report</label>
+            <input id="report-post-proof" class="report-form-input" type="file" name="proof_file" accept="image/*" required />
+            <small class="report-form-helper">Proof image is required and will be uploaded securely for admin review.</small>
+            <img class="report-post-preview report-form-preview" alt="Report proof preview" />
           </div>
-          <div style="display:flex;justify-content:flex-end;gap:10px;">
+          <div class="report-form-actions">
             <button type="button" class="report-post-option report-post-cancel">Cancel</button>
-            <button type="submit" class="report-post-option" style="background:#111827;color:#fff;">Submit report</button>
+            <button type="submit" class="report-post-option report-form-submit">Submit report</button>
           </div>
         </form>
       </div>

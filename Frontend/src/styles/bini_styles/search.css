@@ -637,6 +637,77 @@ body {
   scrollbar-width: thin;
 }
 
+.report-post-form,
+.message-report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.report-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.report-form-label {
+  font-weight: 600;
+  color: #111827;
+}
+
+.report-form-input,
+.report-form-select,
+.report-form-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+  color: #111827;
+}
+
+.report-form-textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.report-form-input:focus,
+.report-form-select:focus,
+.report-form-textarea:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.18);
+}
+
+.report-form-helper {
+  color: #6b7280;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.report-form-preview {
+  display: none;
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid #dbe3ee;
+}
+
+.report-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.report-form-submit {
+  background: #111827;
+  color: #fff;
+}
+
 .search-modal-empty {
   color: #6c7580;
   text-align: center;
@@ -873,6 +944,35 @@ body {
 
   .search-post-modal-body {
     padding: 10px;
+  }
+
+  .report-post-form,
+  .message-report-form {
+    gap: 12px;
+  }
+
+  .report-form-input,
+  .report-form-select,
+  .report-form-textarea {
+    padding: 11px;
+    font-size: 14px;
+  }
+
+  .report-form-textarea {
+    min-height: 110px;
+  }
+
+  .report-form-actions {
+    flex-direction: column-reverse;
+  }
+
+  .report-form-actions .report-post-option {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .report-form-preview {
+    max-height: 180px;
   }
 
   .search-post-grid {

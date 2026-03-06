@@ -1,5 +1,6 @@
 import '../../../styles/Admin_styles/Reports.css';
 import { getAdminHeaders } from './admin-sites.js';
+import { showToast } from '../../../utils/toast.js';
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1').trim().replace(/\/$/, '');
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
@@ -321,7 +322,10 @@ function extractRows(payload) {
 
 function normalizeReportStatus(rawStatus) {
   const status = String(rawStatus || 'pending').toLowerCase();
-  return status === 'pending' ? 'pending' : 'resolved';
+  if (['pending', 'reviewed', 'resolved', 'dismissed'].includes(status)) {
+    return status;
+  }
+  return 'pending';
 }
 
 function getReportCommunityKey(report = {}) {
@@ -438,8 +442,8 @@ function renderReportsTable() {
           : 'N/A'
         }</td>
         <td>
-          <span class="badge ${report.status === 'resolved' ? 'badge-resolved' : 'badge-pending'}">
-            ${report.status === 'resolved' ? 'Resolved' : 'Pending'}
+          <span class="badge ${report.status === 'pending' ? 'badge-pending' : 'badge-resolved'}">
+            ${escapeHtml(String(report.status || 'pending').replace(/^\w/, (match) => match.toUpperCase()))}
           </span>
         </td>
         <td>${formatDate(report.latest_report)}</td>
@@ -529,7 +533,7 @@ function showUserReportsModal(userId, reports) {
   modal.className = 'reports-modal';
   modal.innerHTML = `
     <div class="modal-overlay" onclick="closeReportsModal()"></div>
-    <div class="modal-content">
+    <div class="modal-content report-detail-modal">
       <div class="modal-header">
         <h3>Reports for User #${userId}</h3>
         <button class="modal-close" onclick="closeReportsModal()">x</button>
@@ -556,9 +560,9 @@ function showUserReportsModal(userId, reports) {
               ${getReportProofUrl(report)
                 ? `<div class="report-details">
                     <strong>Proof:</strong>
-                    <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+                    <div class="report-proof-block">
                       <a href="${escapeHtml(getReportProofUrl(report))}" target="_blank" rel="noopener noreferrer">Open proof image</a>
-                      <img src="${escapeHtml(getReportProofUrl(report))}" alt="Report proof" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;border:1px solid #e5e7eb;">
+                      <img class="report-proof-media" src="${escapeHtml(getReportProofUrl(report))}" alt="Report proof">
                     </div>
                   </div>`
                 : ''
@@ -579,16 +583,24 @@ function showUserReportsModal(userId, reports) {
 
 function showPostReportsModal(postId, reports) {
   const community = reports[0]?.community_type || reports[0]?.domain || reports[0]?.site_name || '';
+  const isDeletedPost = reports.some((report) => {
+    const content = String(report?.post_content || '').trim();
+    return !content || content === '[Post already deleted]';
+  });
   const modal = document.createElement('div');
   modal.className = 'reports-modal';
   modal.innerHTML = `
     <div class="modal-overlay" onclick="closeReportsModal()"></div>
-    <div class="modal-content">
+    <div class="modal-content report-detail-modal">
       <div class="modal-header">
         <h3>Reports for Post #${postId}</h3>
         <button class="modal-close" onclick="closeReportsModal()">x</button>
       </div>
       <div class="modal-body">
+        ${isDeletedPost
+          ? `<div class="report-summary-note report-summary-note-warning">This post was already deleted. Report history is still available for admin review.</div>`
+          : ''
+        }
         ${reports.length === 0
           ? '<p>No detailed reports found for this post.</p>'
           : reports.map((report) => `
@@ -605,14 +617,14 @@ function showPostReportsModal(postId, reports) {
               }
               ${report.post_content
                 ? `<div class="report-details"><strong>Post:</strong> "${escapeHtml(report.post_content)}"</div>`
-                : ''
+                : `<div class="report-details"><strong>Post:</strong> <span class="report-muted">Post already deleted</span></div>`
               }
               ${getReportProofUrl(report)
                 ? `<div class="report-details">
                     <strong>Proof:</strong>
-                    <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+                    <div class="report-proof-block">
                       <a href="${escapeHtml(getReportProofUrl(report))}" target="_blank" rel="noopener noreferrer">Open proof image</a>
-                      <img src="${escapeHtml(getReportProofUrl(report))}" alt="Report proof" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;border:1px solid #e5e7eb;">
+                      <img class="report-proof-media" src="${escapeHtml(getReportProofUrl(report))}" alt="Report proof">
                     </div>
                   </div>`
                 : ''
@@ -627,9 +639,9 @@ function showPostReportsModal(postId, reports) {
           `).join('')
         }
         ${reports.length
-          ? `<div class="warning-form-actions" style="margin-top:16px;">
+          ? `<div class="warning-form-actions report-modal-actions" style="margin-top:16px;">
               <button type="button" class="btn-secondary" onclick="handlePostIgnore('${postId}', '${escapeHtml(community)}')">Dismiss Report</button>
-              <button type="button" class="btn-primary" onclick="handlePostDelete('${postId}', '${escapeHtml(community)}')">Delete Post</button>
+              <button type="button" class="btn-primary" onclick="handlePostDelete('${postId}', '${escapeHtml(community)}')">${isDeletedPost ? 'Delete Status Already Applied' : 'Delete Post'}</button>
             </div>`
           : ''
         }
@@ -663,11 +675,11 @@ async function handleWarning(userId, community = '') {
       })
     });
 
-    alert(result.message || `Warning sent to user ${userId}`);
+    showToast(result.message || `Warning sent to user ${userId}`, 'success');
     await fetchReports();
   } catch (error) {
     console.error('Error sending warning:', error);
-    alert('Failed to send warning: ' + error.message);
+    showToast('Failed to send warning: ' + error.message, 'error');
   }
 }
 
@@ -735,7 +747,7 @@ function openWarningModal(userId) {
       const category = String(categorySelect?.value || defaultCategory.value).trim();
       const content = String(contentInput?.value || '').trim();
       if (!content) {
-        alert('Warning content is required.');
+        showToast('Warning content is required.', 'error');
         return;
       }
       close({ category, content });
@@ -760,11 +772,11 @@ async function handleSuspend(userId, community = '') {
       body: JSON.stringify({ action: 'suspend', reason, community })
     });
 
-    alert(result.message || `User ${userId} has been suspended`);
+    showToast(result.message || `User ${userId} has been suspended`, 'success');
     await fetchReports();
   } catch (error) {
     console.error('Error suspending user:', error);
-    alert('Failed to suspend user: ' + error.message);
+    showToast('Failed to suspend user: ' + error.message, 'error');
   }
 }
 
@@ -782,12 +794,25 @@ async function takePostAction(postId, action, community = '') {
       body: JSON.stringify({ action, reason, community })
     });
 
-    alert(result.message || `Post action "${action}" completed.`);
+    const resultMessage = String(result.message || result?.data?.message || `Post action "${action}" completed.`);
+    showToast(
+      /already deleted/i.test(resultMessage) ? 'Post already deleted.' : resultMessage,
+      /already deleted/i.test(resultMessage) ? 'warning' : 'success',
+    );
     closeReportsModal();
     await fetchReports();
   } catch (error) {
     console.error(`Error taking post action (${action}):`, error);
-    alert(`Failed to ${action} post: ` + error.message);
+    showToast(
+      /already deleted/i.test(String(error?.message || ''))
+        ? 'Post already deleted.'
+        : `Failed to ${action} post: ${error.message}`,
+      /already deleted/i.test(String(error?.message || '')) ? 'warning' : 'error',
+    );
+    if (/already deleted/i.test(String(error?.message || ''))) {
+      closeReportsModal();
+      await fetchReports();
+    }
   }
 }
 
