@@ -121,6 +121,7 @@ export async function reportPost(postId, reportDetails, communityType = "") {
 
   let lastPayload = null;
   let lastStatus = null;
+  let lastErrorMessage = "";
 
   for (const endpoint of endpoints) {
     try {
@@ -140,6 +141,12 @@ export async function reportPost(postId, reportDetails, communityType = "") {
       const payload = error.response?.data || {};
       lastPayload = payload;
       lastStatus = status;
+      lastErrorMessage = String(
+        payload?.error ||
+        payload?.message ||
+        error?.message ||
+        "",
+      ).trim();
       if (status !== 404) {
         break;
       }
@@ -147,5 +154,8 @@ export async function reportPost(postId, reportDetails, communityType = "") {
   }
 
   const detail = lastPayload?.details ? ` (${lastPayload.details})` : "";
-  throw new Error((lastPayload?.error || lastPayload?.message || `HTTP ${lastStatus}`) + detail);
+  const fallbackMessage =
+    lastErrorMessage ||
+    (lastStatus ? `HTTP ${lastStatus}` : "Failed to submit report.");
+  throw new Error(fallbackMessage + detail);
 }

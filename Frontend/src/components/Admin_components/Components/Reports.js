@@ -541,10 +541,24 @@ function showUserReportsModal(userId, reports) {
                 <strong>Reporter:</strong> ${report.reporter_name} (${report.reporter_email})
               </div>
               <div class="report-details">
-                <strong>Reason:</strong> <span class="badge badge-reason">${report.reason}</span>
+                <strong>Category:</strong> <span class="badge badge-reason">${escapeHtml(getReasonLabel(getReportCategory(report)))}</span>
               </div>
+              ${getReportReasonText(report)
+                ? `<div class="report-details"><strong>Reason:</strong> ${escapeHtml(getReportReasonText(report))}</div>`
+                : ''
+              }
               ${report.message_content
-                ? `<div class="report-details"><strong>Message:</strong> "${report.message_content}"</div>`
+                ? `<div class="report-details"><strong>Message:</strong> "${escapeHtml(report.message_content)}"</div>`
+                : ''
+              }
+              ${getReportProofUrl(report)
+                ? `<div class="report-details">
+                    <strong>Proof:</strong>
+                    <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px;">
+                      <a href="${escapeHtml(getReportProofUrl(report))}" target="_blank" rel="noopener noreferrer">Open proof image</a>
+                      <img src="${escapeHtml(getReportProofUrl(report))}" alt="Report proof" style="max-width:100%;max-height:220px;border-radius:12px;object-fit:cover;border:1px solid #e5e7eb;">
+                    </div>
+                  </div>`
                 : ''
               }
               <div class="report-details">

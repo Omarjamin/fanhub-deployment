@@ -109,26 +109,35 @@ class MessageController {
   async reportUser(req, res) {
     try {
       await this.ensureDbForRequest(req, res);
-      const { reported_user_id, reason, message_id } = req.body;
+      const { reported_user_id, category, reason, proof_url, message_id } = req.body;
       const reporter_id = req.user?.user_id || res.locals.userId;
 
-      if (!reported_user_id || !reason) {
+      if (!reported_user_id || !category || !reason || !proof_url) {
         return res.status(400).json({ 
-          error: "reported_user_id and reason are required." 
+          error: "reported_user_id, category, reason, and proof_url are required." 
         });
       }
 
-      const normalizedReason = String(reason || "").trim().toLowerCase();
+      const normalizedCategory = String(category || "").trim().toLowerCase();
+      const normalizedReason = String(reason || "").trim();
+      const normalizedProofUrl = String(proof_url || "").trim();
       const validReasons = [
         "spam",
         "harassment",
         "misleading information",
         "inappropriate content",
+        "other",
       ];
-      if (!validReasons.includes(normalizedReason)) {
+      if (!validReasons.includes(normalizedCategory)) {
         return res.status(400).json({
-          error: `Invalid reason. Must be: ${validReasons.join(", ")}`,
+          error: `Invalid category. Must be: ${validReasons.join(", ")}`,
         });
+      }
+      if (!normalizedReason) {
+        return res.status(400).json({ error: "Reason is required." });
+      }
+      if (normalizedReason.length > 500) {
+        return res.status(400).json({ error: "Reason must be less than 500 characters." });
       }
 
       // Prevent self-reporting
@@ -149,8 +158,12 @@ class MessageController {
       await this.messageModel.reportUser(
         reporter_id,
         reported_user_id,
-        normalizedReason,
+        normalizedCategory,
         linkedMessageId,
+        {
+          reason: normalizedReason,
+          proof_url: normalizedProofUrl,
+        },
       );
 
       // Check report count for automated warnings/bans
@@ -167,7 +180,9 @@ class MessageController {
       req.io.to('admin_room').emit('new_user_report', {
         reporter_id,
         reported_user_id,
+        category: normalizedCategory,
         reason: normalizedReason,
+        proof_url: normalizedProofUrl,
         message_id: linkedMessageId,
         report_count: reportCount,
         action,
@@ -180,7 +195,9 @@ class MessageController {
         data: {
           reporter_id,
           reported_user_id,
+          category: normalizedCategory,
           reason: normalizedReason,
+          proof_url: normalizedProofUrl,
           message_id: linkedMessageId,
           report_count: reportCount,
           action

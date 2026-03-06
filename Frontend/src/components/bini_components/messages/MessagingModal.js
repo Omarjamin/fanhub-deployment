@@ -6,6 +6,13 @@ import { getActiveSiteSlug } from "../../../lib/site-context.js";
 const DEFAULT_AVATAR = "/circle-user.png";
 const API_URL = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
 const API_ORIGIN = String(API_URL).replace(/\/v1\/?$/, "");
+const REPORT_CATEGORY_OPTIONS = [
+  { value: "spam", label: "Spam / Scam" },
+  { value: "harassment", label: "Harassment" },
+  { value: "misleading information", label: "Misleading Information" },
+  { value: "inappropriate content", label: "Inappropriate Content" },
+  { value: "other", label: "Other" },
+];
 
 function normalizeAvatarUrl(value) {
   const raw = String(value || "").trim();
@@ -105,13 +112,133 @@ export default class MessagingModal {
     this.setupSocketHandlers();
   }
 
-  async reportChatUser(reportedUserId, reason, messageId = null) {
+  async reportChatUser(reportedUserId, reportDetails, messageId = null) {
     const payload = {
       reported_user_id: Number(reportedUserId),
-      reason,
+      category: String(reportDetails?.category || "").trim(),
+      reason: String(reportDetails?.reason || "").trim(),
+      proof_url: String(reportDetails?.proof_url || "").trim() || null,
     };
     if (messageId) payload.message_id = messageId;
     await api.post("/bini/message/report", payload);
+  }
+
+  ensureMessageReportModal() {
+    let modal = document.getElementById("message-report-modal");
+    if (modal) return modal;
+
+    modal = document.createElement("div");
+    modal.id = "message-report-modal";
+    modal.className = "search-post-modal";
+    modal.innerHTML = `
+      <div class="search-post-modal-dialog">
+        <div class="search-post-modal-header">
+          <h3 class="search-post-modal-title">Report User</h3>
+          <button class="search-post-modal-close" aria-label="Close">&times;</button>
+        </div>
+        <div class="search-post-modal-body">
+          <form class="message-report-form" style="display:flex;flex-direction:column;gap:14px;">
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <label for="message-report-category" style="font-weight:600;color:#111827;">Report category</label>
+              <select id="message-report-category" name="category" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;background:#fff;">
+                ${REPORT_CATEGORY_OPTIONS.map((option) => `<option value="${option.value}">${option.label}</option>`).join("")}
+              </select>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <label for="message-report-reason" style="font-weight:600;color:#111827;">Reason</label>
+              <textarea id="message-report-reason" name="reason" rows="5" maxlength="500" placeholder="Explain the issue clearly for admin review." style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;resize:vertical;"></textarea>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:6px;">
+              <label for="message-report-proof" style="font-weight:600;color:#111827;">Proof of report</label>
+              <input id="message-report-proof" type="file" name="proof_file" accept="image/*" required />
+              <small style="color:#6b7280;">Proof image is required for message reports.</small>
+              <img class="message-report-preview" alt="Report proof preview" style="display:none;width:100%;max-height:240px;object-fit:cover;border-radius:12px;" />
+            </div>
+            <div style="display:flex;justify-content:flex-end;gap:10px;">
+              <button type="button" class="report-post-option message-report-cancel">Cancel</button>
+              <button type="submit" class="report-post-option" style="background:#111827;color:#fff;">Submit report</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    const close = () => modal.classList.remove("open");
+    modal.querySelector(".search-post-modal-close")?.addEventListener("click", close);
+    modal.querySelector(".message-report-cancel")?.addEventListener("click", close);
+    modal.addEventListener("click", (event) => {
+      if (event.target === modal) close();
+    });
+
+    return modal;
+  }
+
+  async openMessageReportModal(reportedUserId, messageId = null) {
+    const modal = this.ensureMessageReportModal();
+    const form = modal.querySelector(".message-report-form");
+    const categorySelect = form.querySelector('select[name="category"]');
+    const reasonInput = form.querySelector('textarea[name="reason"]');
+    const proofInput = form.querySelector('input[name="proof_file"]');
+    const preview = form.querySelector(".message-report-preview");
+
+    categorySelect.value = REPORT_CATEGORY_OPTIONS[0].value;
+    reasonInput.value = "";
+    proofInput.value = "";
+    preview.src = "";
+    preview.style.display = "none";
+
+    proofInput.onchange = () => {
+      const file = proofInput.files?.[0];
+      if (!file) {
+        preview.src = "";
+        preview.style.display = "none";
+        return;
+      }
+      preview.src = URL.createObjectURL(file);
+      preview.style.display = "block";
+    };
+
+    form.onsubmit = async (event) => {
+      event.preventDefault();
+
+      const category = String(categorySelect.value || "").trim();
+      const reason = String(reasonInput.value || "").trim();
+      const proofFile = proofInput.files?.[0] || null;
+
+      if (!category) {
+        alert("Please choose a report category.");
+        return;
+      }
+      if (!reason) {
+        alert("Please enter the reason for this report.");
+        return;
+      }
+      if (!proofFile) {
+        alert("Proof image is required.");
+        return;
+      }
+
+      try {
+        const uploadData = new FormData();
+        uploadData.append("file", proofFile);
+        const uploadResponse = await api.post("/bini/cloudinary/upload", uploadData);
+        const proofUrl = uploadResponse?.data?.url || null;
+
+        await this.reportChatUser(reportedUserId, {
+          category,
+          reason,
+          proof_url: proofUrl,
+        }, messageId);
+
+        modal.classList.remove("open");
+        alert("Report submitted. Thank you.");
+      } catch (err) {
+        alert(err?.response?.data?.error || err?.message || "Failed to submit report.");
+      }
+    };
+
+    modal.classList.add("open");
   }
 
   timeAgo(date) {
@@ -671,10 +798,7 @@ export default class MessagingModal {
       <div class="mini-chat-header-actions">
         <button class="mini-report-toggle" title="Report options" aria-label="Report options">&#8942;</button>
         <div class="mini-report-menu">
-          <button class="mini-report-option" data-reason="spam">Report spam</button>
-          <button class="mini-report-option" data-reason="harassment">Report harassment</button>
-          <button class="mini-report-option" data-reason="misleading information">Report misleading information</button>
-          <button class="mini-report-option" data-reason="inappropriate content">Report inappropriate content</button>
+          <button class="mini-report-option open-message-report-modal">Report user</button>
         </div>
         <button class="mini-chat-close" title="Close">&times;</button>
       </div>
@@ -716,19 +840,13 @@ export default class MessagingModal {
       });
       reportMenu?.classList.toggle("open");
     });
-    mini.querySelectorAll(".mini-report-option").forEach((optionBtn) => {
+    mini.querySelectorAll(".open-message-report-modal").forEach((optionBtn) => {
       optionBtn.addEventListener("click", async (e) => {
         e.stopPropagation();
-        const reason = optionBtn.getAttribute("data-reason") || "spam";
         const latestMessage = mini.querySelector(".mini-message-row:last-child");
         const messageId = latestMessage?.dataset?.messageId || null;
-        try {
-          await this.reportChatUser(userId, reason, messageId);
-          reportMenu?.classList.remove("open");
-          alert("Report submitted. Thank you.");
-        } catch (err) {
-          alert(err?.response?.data?.error || "Failed to submit report.");
-        }
+        reportMenu?.classList.remove("open");
+        await this.openMessageReportModal(userId, messageId);
       });
     });
 
