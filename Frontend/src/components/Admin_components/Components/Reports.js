@@ -130,9 +130,11 @@ function getReportReasonText(report = {}) {
 function getReportProofUrl(report = {}) {
   const meta = parseReportMeta(report);
   return String(
+    report?.image_url ||
     report?.proof_url ||
     report?.evidence_url ||
     report?.proof_image_url ||
+    meta?.image_url ||
     meta?.proof_url ||
     '',
   ).trim();

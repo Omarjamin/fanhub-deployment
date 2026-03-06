@@ -109,18 +109,18 @@ class MessageController {
   async reportUser(req, res) {
     try {
       await this.ensureDbForRequest(req, res);
-      const { reported_user_id, category, reason, proof_url, message_id } = req.body;
+      const { reported_user_id, category, reason, image_url, message_id } = req.body;
       const reporter_id = req.user?.user_id || res.locals.userId;
 
-      if (!reported_user_id || !category || !reason || !proof_url) {
+      if (!reported_user_id || !category || !reason || !image_url) {
         return res.status(400).json({ 
-          error: "reported_user_id, category, reason, and proof_url are required." 
+          error: "reported_user_id, category, reason, and image_url are required." 
         });
       }
 
       const normalizedCategory = String(category || "").trim().toLowerCase();
       const normalizedReason = String(reason || "").trim();
-      const normalizedProofUrl = String(proof_url || "").trim();
+      const normalizedImageUrl = String(image_url || "").trim();
       const validReasons = [
         "spam",
         "harassment",
@@ -162,7 +162,7 @@ class MessageController {
         linkedMessageId,
         {
           reason: normalizedReason,
-          proof_url: normalizedProofUrl,
+          image_url: normalizedImageUrl,
         },
       );
 
@@ -182,7 +182,7 @@ class MessageController {
         reported_user_id,
         category: normalizedCategory,
         reason: normalizedReason,
-        proof_url: normalizedProofUrl,
+        image_url: normalizedImageUrl,
         message_id: linkedMessageId,
         report_count: reportCount,
         action,
@@ -197,7 +197,7 @@ class MessageController {
           reported_user_id,
           category: normalizedCategory,
           reason: normalizedReason,
-          proof_url: normalizedProofUrl,
+          image_url: normalizedImageUrl,
           message_id: linkedMessageId,
           report_count: reportCount,
           action

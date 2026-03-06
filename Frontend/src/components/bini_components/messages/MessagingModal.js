@@ -117,7 +117,7 @@ export default class MessagingModal {
       reported_user_id: Number(reportedUserId),
       category: String(reportDetails?.category || "").trim(),
       reason: String(reportDetails?.reason || "").trim(),
-      proof_url: String(reportDetails?.proof_url || "").trim() || null,
+      image_url: String(reportDetails?.image_url || reportDetails?.proof_url || "").trim() || null,
     };
     if (messageId) payload.message_id = messageId;
     await api.post("/bini/message/report", payload);
@@ -228,7 +228,7 @@ export default class MessagingModal {
         await this.reportChatUser(reportedUserId, {
           category,
           reason,
-          proof_url: proofUrl,
+          image_url: proofUrl,
         }, messageId);
 
         modal.classList.remove("open");

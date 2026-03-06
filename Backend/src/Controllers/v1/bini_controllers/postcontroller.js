@@ -321,7 +321,7 @@ class PostController {
       const {
         category,
         reason,
-        proof_url,
+        image_url,
         message_id,
       } = req.body || {};
 
@@ -329,8 +329,8 @@ class PostController {
         return res.status(401).json({ error: 'Authentication required.' });
       }
 
-      if (!postId || !category || !reason) {
-        return res.status(400).json({ error: 'postId, category, and reason are required.' });
+      if (!postId || !category || !reason || !image_url) {
+        return res.status(400).json({ error: 'postId, category, reason, and image_url are required.' });
       }
 
       const normalizedCategory = String(category || '').trim().toLowerCase();
@@ -338,7 +338,7 @@ class PostController {
         allowedTags: [],
         allowedAttributes: {},
       }).trim();
-      const normalizedProofUrl = String(proof_url || '').trim() || null;
+      const normalizedImageUrl = String(image_url || '').trim() || null;
       const validCategories = [
         'spam',
         'harassment',
@@ -379,7 +379,7 @@ class PostController {
           message_id || null,
           {
             reason: normalizedReason,
-            proof_url: normalizedProofUrl,
+            image_url: normalizedImageUrl,
           },
         );
       } catch (err) {
@@ -414,7 +414,7 @@ class PostController {
           post_id: postId,
           category: normalizedCategory,
           reason: normalizedReason,
-          proof_url: normalizedProofUrl,
+          image_url: normalizedImageUrl,
           message_id: message_id || null,
           report_count: reportCount,
           action,
@@ -431,7 +431,7 @@ class PostController {
           post_id: postId,
           category: normalizedCategory,
           reason: normalizedReason,
-          proof_url: normalizedProofUrl,
+          image_url: normalizedImageUrl,
           report_count: reportCount,
           action,
         }

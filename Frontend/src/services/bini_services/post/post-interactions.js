@@ -110,13 +110,13 @@ export async function toggleLike(postId, likeType = "post", commentId = null) {
 export async function reportPost(postId, reportDetails, communityType = "") {
   const endpoints = [`/bini/posts/${postId}/report`, `/bini/posts/report/${postId}`];
   const activeCommunity = resolveCommunityType(communityType);
-  const payload =
+  const requestPayload =
     typeof reportDetails === "string"
       ? { category: reportDetails, reason: "" }
       : {
           category: String(reportDetails?.category || reportDetails?.reason || "").trim(),
           reason: String(reportDetails?.reason || "").trim(),
-          proof_url: String(reportDetails?.proof_url || "").trim() || null,
+          image_url: String(reportDetails?.image_url || reportDetails?.proof_url || "").trim() || null,
         };
 
   let lastPayload = null;
@@ -127,23 +127,23 @@ export async function reportPost(postId, reportDetails, communityType = "") {
     try {
       const response = await api.post(
         endpoint,
-        payload,
+        requestPayload,
         { headers: activeCommunity ? { "x-community-type": activeCommunity } : {} },
       );
-      const payload = response.data || {};
-      if (payload.success !== false) {
-        return payload;
+      const responsePayload = response.data || {};
+      if (responsePayload.success !== false) {
+        return responsePayload;
       }
-      lastPayload = payload;
+      lastPayload = responsePayload;
       lastStatus = response.status;
     } catch (error) {
       const status = error.response?.status;
-      const payload = error.response?.data || {};
-      lastPayload = payload;
+      const errorPayload = error.response?.data || {};
+      lastPayload = errorPayload;
       lastStatus = status;
       lastErrorMessage = String(
-        payload?.error ||
-        payload?.message ||
+        errorPayload?.error ||
+        errorPayload?.message ||
         error?.message ||
         "",
       ).trim();

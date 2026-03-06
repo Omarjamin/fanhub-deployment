@@ -353,6 +353,7 @@ class PostModel {
     const hasDetailsColumn = await this.hasColumn('reports', 'details');
     const hasDescriptionColumn = await this.hasColumn('reports', 'description');
     const hasReportReasonColumn = await this.hasColumn('reports', 'report_reason');
+    const hasImageUrlColumn = await this.hasColumn('reports', 'image_url');
     const hasProofUrlColumn = await this.hasColumn('reports', 'proof_url');
     const hasEvidenceUrlColumn = await this.hasColumn('reports', 'evidence_url');
     const hasProofImageUrlColumn = await this.hasColumn('reports', 'proof_image_url');
@@ -360,11 +361,11 @@ class PostModel {
 
     const normalizedCategory = String(category || '').trim().toLowerCase();
     const normalizedReason = String(details?.reason || '').trim();
-    const normalizedProofUrl = String(details?.proof_url || '').trim() || null;
+    const normalizedImageUrl = String(details?.image_url || details?.proof_url || '').trim() || null;
     const metadataJson = JSON.stringify({
       category: normalizedCategory,
       reason: normalizedReason,
-      proof_url: normalizedProofUrl,
+      image_url: normalizedImageUrl,
       submitted_at: new Date().toISOString(),
     });
     const metadataText = `REPORT_META:${metadataJson}`;
@@ -404,17 +405,21 @@ class PostModel {
       columns.push('report_reason');
       values.push(normalizedReason);
     }
+    if (hasImageUrlColumn) {
+      columns.push('image_url');
+      values.push(normalizedImageUrl);
+    }
     if (hasProofUrlColumn) {
       columns.push('proof_url');
-      values.push(normalizedProofUrl);
+      values.push(normalizedImageUrl);
     }
     if (hasEvidenceUrlColumn) {
       columns.push('evidence_url');
-      values.push(normalizedProofUrl);
+      values.push(normalizedImageUrl);
     }
     if (hasProofImageUrlColumn) {
       columns.push('proof_image_url');
-      values.push(normalizedProofUrl);
+      values.push(normalizedImageUrl);
     }
     if (hasAdminNotesColumn) {
       columns.push('admin_notes');

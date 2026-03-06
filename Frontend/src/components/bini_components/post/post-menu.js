@@ -114,8 +114,8 @@ function ensureReportModal() {
           </div>
           <div style="display:flex;flex-direction:column;gap:6px;">
             <label for="report-post-proof" style="font-weight:600;color:#111827;">Proof of report</label>
-            <input id="report-post-proof" type="file" name="proof_file" accept="image/*" />
-            <small style="color:#6b7280;">Optional image proof. This will be uploaded securely for admin review.</small>
+            <input id="report-post-proof" type="file" name="proof_file" accept="image/*" required />
+            <small style="color:#6b7280;">Proof image is required and will be uploaded securely for admin review.</small>
             <img class="report-post-preview" alt="Report proof preview" style="display:none;width:100%;max-height:240px;object-fit:cover;border-radius:12px;" />
           </div>
           <div style="display:flex;justify-content:flex-end;gap:10px;">
@@ -181,17 +181,19 @@ async function openReportPostModal(postId, communityType = "") {
     }
 
     try {
-      let proofUrl = null;
-      if (proofFile) {
-        const uploadData = new FormData();
-        uploadData.append("file", proofFile);
-        const uploadResponse = await api.post("/bini/cloudinary/upload", uploadData);
-        proofUrl = uploadResponse?.data?.url || null;
+      if (!proofFile) {
+        showToast("Proof image is required.", "error");
+        return;
       }
+
+      const uploadData = new FormData();
+      uploadData.append("file", proofFile);
+      const uploadResponse = await api.post("/bini/cloudinary/upload", uploadData);
+      const imageUrl = uploadResponse?.data?.url || null;
 
       await reportPost(
         postId,
-        { category, reason, proof_url: proofUrl },
+        { category, reason, image_url: imageUrl },
         communityType,
       );
 
