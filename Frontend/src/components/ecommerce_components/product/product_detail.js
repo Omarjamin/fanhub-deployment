@@ -135,6 +135,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
         return;
       }
 
+      // For simplicity, we add to cart first, then redirect to checkout. In a real app, you might want a more seamless "Buy Now" flow.
       const variantId = variant.product_variant_id || variant.id || variant.variant_id;
       if (!variantId) {
         showToast('Invalid variant selected', 'error');
