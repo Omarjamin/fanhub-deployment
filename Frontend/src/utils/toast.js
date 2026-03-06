@@ -13,6 +13,12 @@ const AUTH_TOAST_RULES = {
   ],
 };
 
+const ERROR_TOAST_PATTERNS = [
+  'bad detected words',
+  'badwords',
+  'bad words',
+];
+
 function normalizeAuthMessage(message = '') {
   return String(message || '')
     .toLowerCase()
@@ -43,6 +49,11 @@ export function showAuthToast(message, fallbackType = 'error') {
 
 // Toast notification utility
 export function showToast(message, type = 'info') {
+  const normalizedMessage = String(message || '').toLowerCase();
+  const resolvedType =
+    ERROR_TOAST_PATTERNS.some((pattern) => normalizedMessage.includes(pattern))
+      ? 'error'
+      : type;
   // Remove existing toast if any
   const existingToast = document.querySelector('.toast-notification');
   if (existingToast) {
@@ -51,7 +62,7 @@ export function showToast(message, type = 'info') {
 
   // Create toast element
   const toast = document.createElement('div');
-  toast.className = `toast-notification toast-${type}`;
+  toast.className = `toast-notification toast-${resolvedType}`;
   toast.textContent = message;
 
   // Add styles
@@ -60,7 +71,7 @@ export function showToast(message, type = 'info') {
     top: 80px;
     left: 50%;
     transform: translateX(-50%);
-    background: ${type === 'error' ? '#dc2626' : type === 'warning' ? '#f59e0b' : type === 'success' ? '#22c55e' : '#3b82f6'};
+    background: ${resolvedType === 'error' ? '#dc2626' : resolvedType === 'warning' ? '#f59e0b' : resolvedType === 'success' ? '#22c55e' : '#3b82f6'};
     color: white;
     padding: 20px 30px;
     border-radius: 12px;

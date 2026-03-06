@@ -3,6 +3,7 @@ import api from '../../../services/bini_services/api.js';
 import { socket, setupSocket } from '../../../hooks/bini_hooks/socket.js';
 import '../../../styles/bini_styles/comment.css';
 import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
+import { formatUserTimestamp } from '../../../utils/user-time.js';
 
 function getStoredItem(key) {
   if (key === 'authToken') {
@@ -333,9 +334,10 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
       submitReplyBtn.disabled = true;
 
       
-      repliesContainer.style.display = 'none'; 
-      replyInput.style.display = 'none';
+      repliesContainer.classList.remove('show');
+      replyInput.classList.remove('show');
       repliesContainer.innerHTML = ''; 
+      replyButton.click();
     } catch (err) {
       console.error('Reply submission error:', err);
       alert(`Error submitting reply: ${err.message}`);
@@ -404,24 +406,5 @@ async function getReplies(commentId, token) {
 
 // FORMAT COMMENT TIME FUNCTION
 function formatCommentTime(date) {
-  if (!date) return '';
-  
-  const now = new Date();
-  const diffMs = now - date;
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffSeconds < 60) return 'just now';
-  if (diffMinutes < 60) return `${diffMinutes}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays < 7) return `${diffDays}d ago`;
-  
-  // Format as date for older comments
-  return date.toLocaleDateString('en-US', { 
-    month: 'short', 
-    day: 'numeric',
-    year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined
-  });
+  return formatUserTimestamp(date);
 }

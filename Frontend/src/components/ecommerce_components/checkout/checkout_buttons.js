@@ -100,7 +100,7 @@ export default function CheckoutButtons(root) {
             }
 
             if (step === 2) {
-                const paymentSelect = document.querySelector('#paymentMethod');
+                const paymentSelect = document.querySelector('input[name="paymentMethod"]:checked');
                 if (!paymentSelect || !paymentSelect.value || paymentSelect.value === '') {
                     alert('Please select a payment method.');
                     return false;
@@ -109,7 +109,7 @@ export default function CheckoutButtons(root) {
                 sessionStorage.setItem('paymentMethod', paymentSelect.value);
                 const paymentData = {
                     method: paymentSelect.value,
-                    methodText: paymentSelect.options[paymentSelect.selectedIndex].text
+                    methodText: paymentSelect.value === 'cod' ? 'Cash on Delivery' : paymentSelect.value
                 };
                 sessionStorage.setItem('paymentData', JSON.stringify(paymentData));
             }

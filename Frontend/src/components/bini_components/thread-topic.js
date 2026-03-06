@@ -5,6 +5,7 @@ import {
 } from "../../services/bini_services/post/create-comment-api.js";
 import api from "../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken } from "../../lib/site-context.js";
+import { formatUserTimestamp } from "../../utils/user-time.js";
 
 function navigateHome() {
   history.back();
@@ -17,9 +18,7 @@ function attachCloseButton(root) {
 
 function formatDateDisplay(value) {
   if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString();
+  return formatUserTimestamp(value);
 }
 
 export default async function ThreadTopic(params) {
@@ -162,7 +161,10 @@ export default async function ThreadTopic(params) {
       return hydrated;
     }
 
+    let currentComments = [];
+
     function renderComments(comments) {
+      currentComments = Array.isArray(comments) ? comments : [];
       commentsListEl.innerHTML = "";
       if (!comments.length) {
         commentsListEl.innerHTML = `<div class="no-comments">Be the first to comment on this thread.</div>`;
@@ -232,7 +234,7 @@ export default async function ThreadTopic(params) {
     }
 
     async function submitReply(commentId, content) {
-      const comments = readLocalComments().map(normalizeComment);
+      const comments = (currentComments.length ? currentComments : readLocalComments().map(normalizeComment)).map(normalizeComment);
       const idx = comments.findIndex((c) => String(c.id) === String(commentId));
       if (idx !== -1) {
         comments[idx].replies = comments[idx].replies || [];
@@ -240,9 +242,10 @@ export default async function ThreadTopic(params) {
           id: Date.now(),
           content,
           author: "You",
-          date: new Date().toLocaleString(),
+          date: formatUserTimestamp(new Date()),
         });
         saveLocalComments(comments);
+        currentComments = comments;
       }
 
       try {
@@ -258,7 +261,7 @@ export default async function ThreadTopic(params) {
         id: Date.now(),
         content,
         author: "You",
-        date: new Date().toLocaleString(),
+        date: formatUserTimestamp(new Date()),
         replies: [],
       };
       const localComments = readLocalComments();
@@ -290,7 +293,16 @@ export default async function ThreadTopic(params) {
         const seen = new Set(apiList.map((c) => String(c.id ?? "")));
         localComments.forEach((local) => {
           const key = String(local.id ?? "");
-          if (!seen.has(key)) merged.unshift(local);
+          if (!seen.has(key)) {
+            merged.unshift(local);
+            return;
+          }
+          const apiComment = merged.find((item) => String(item.id ?? '') === key);
+          if (apiComment && Array.isArray(local.replies) && local.replies.length > 0) {
+            const existingReplyIds = new Set((apiComment.replies || []).map((reply) => String(reply.id ?? '')));
+            const localOnlyReplies = local.replies.filter((reply) => !existingReplyIds.has(String(reply.id ?? '')));
+            apiComment.replies = [...(apiComment.replies || []), ...localOnlyReplies];
+          }
         });
         comments = await hydrateReplies(merged);
         saveLocalComments(comments);

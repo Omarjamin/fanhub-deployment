@@ -4,6 +4,7 @@ import createCommentModal from "../post/comment_modal.js";
 import showEditProfileModal from "./edit-profile-modal.js"; // Import modal
 import api from "../../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../lib/site-context.js";
+import { formatUserTimestamp } from "../../../utils/user-time.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
 
@@ -166,12 +167,7 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
                 <span style="font-weight:600;">${postFullname}</span>
               </a>
 	            <span class="post-time">${postCreationTime}</span>
-	            <div class="post-menu-container" style="display:inline-block; position:absolute; top:10px; right:10px;">
-	              <button class="post-menu-btn" data-post-id="${post.post_id}" style="background:none; border:none; cursor:pointer; font-size:18px;">&#8942;</button>
-              <div class="post-menu-dropdown" style="display:none; position:absolute; right:0; background:white; border:1px solid #ccc; z-index:10;">
-                <button class="delete-post-btn" data-post-id="${post.post_id}" style="background:none; border:none; color:red; padding:8px 16px; width:100%; text-align:left; cursor:pointer;">Delete Post</button>
-              </div>
-            </div>
+
           </div>
           <div class="post-content">${post.content || "No content available"}</div>
           <div class="post-tags">${post.tags ? post.tags.join(", ") : "No tags available"}</div>
@@ -211,41 +207,6 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
         }
       });
     });
-
-    // Three dots menu logic
-    feed.querySelectorAll(".post-menu-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        feed
-          .querySelectorAll(".post-menu-dropdown")
-          .forEach((drop) => (drop.style.display = "none"));
-        const dropdown = btn.nextElementSibling;
-        dropdown.style.display =
-          dropdown.style.display === "block" ? "none" : "block";
-      });
-    });
-
-    // Hide dropdown when clicking outside
-    document.addEventListener("click", () => {
-      feed
-        .querySelectorAll(".post-menu-dropdown")
-        .forEach((drop) => (drop.style.display = "none"));
-    });
-
-    // Delete post logic
-	    feed.querySelectorAll(".delete-post-btn").forEach((btn) => {
-	      btn.addEventListener("click", async () => {
-        const postId = btn.getAttribute("data-post-id");
-        if (confirm("Are you sure you want to delete this post?")) {
-          try {
-            await deletePost(postId, token);
-            renderPosts(tab, userId, token, feed);
-          } catch (error) {
-            alert("Error deleting post: " + error.message);
-          }
-        }
-      });
-	    });
 
       feed.querySelectorAll(".profile-link").forEach((link) => {
         link.addEventListener("click", (e) => {
@@ -304,18 +265,7 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
 }
 
 function formatDate(timestamp) {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-  if (diffSeconds < 60) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-  if (diffHours < 24) return `${diffHours} hours ago`;
-  if (diffDays < 7) return `${diffDays} days ago`;
-  return date.toLocaleDateString();
+  return formatUserTimestamp(timestamp);
 }
 // Fetch user posts
 async function fetchUserPosts() {

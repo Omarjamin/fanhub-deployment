@@ -14,6 +14,7 @@ import {
 import createCommentModal from '../post/comment_modal.js';
 import { renderThreadsSidebar } from '../threadsSidebar.js';
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from '../../../lib/site-context.js';
+import { formatUserTimestamp } from '../../../utils/user-time.js';
 let isLoading = false;
 let reportMenuOutsideHandlerBound = false;
 
@@ -215,6 +216,15 @@ function sortPostsByRank(posts) {
 }
 
 // Build HTML for a single post (shared by renderPosts and prependSinglePost)
+function getCurrentUserId() {
+  return String(
+    sessionStorage.getItem('currentUserId') ||
+    sessionStorage.getItem('userId') ||
+    sessionStorage.getItem('user_id') ||
+    ''
+  ).trim();
+}
+
 function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeCount, commentCount, repostCount }) {
   const imageHtml = post.img_url
     ? `<img src="${post.img_url}" data-full="${post.img_url}" alt="Post Image" class="post-image" />`
@@ -240,7 +250,7 @@ function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeC
           <span class="post-fullname">${post.fullname || 'You'}</span>
         </a>
         <span class="post-time">${postCreationTime}</span>
-        <div class="post-menu-container">
+        ${isOwnPost ? '' : `<div class="post-menu-container">
           <button class="post-menu-btn" data-post-id="${post.post_id}" aria-label="Post options" title="Post options">&#8942;</button>
           <div class="post-report-dropdown">
             <button class="report-post-option" data-post-id="${post.post_id}" data-reason="spam">Report spam</button>
@@ -248,7 +258,7 @@ function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeC
             <button class="report-post-option" data-post-id="${post.post_id}" data-reason="misleading information">Report misleading information</button>
             <button class="report-post-option" data-post-id="${post.post_id}" data-reason="inappropriate content">Report inappropriate content</button>
           </div>
-        </div>
+        </div>`}
       </div>
 
       <div class="post-content">${displayContent}</div>
@@ -774,20 +784,7 @@ function getFilenameFromUrl(url) {
 
 // FORMAT DATE FUNCTION
 function formatDate(timestamp) {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now - date;
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffSeconds < 60) return 'Just now';
-  if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-  if (diffHours < 24) return `${diffHours} hours ago`;
-  if (diffDays < 7) return `${diffDays} days ago`;
-
-  return date.toLocaleDateString();
+  return formatUserTimestamp(timestamp);
 }
 
-
+  const isOwnPost = getCurrentUserId() && String(post.user_id || '') === getCurrentUserId();

@@ -1,3 +1,5 @@
+import { showToast } from '../../../utils/toast.js';
+
 export default async function PaymentForm(root) {
     root.innerHTML = `
         <div class="form-container">
@@ -5,11 +7,14 @@ export default async function PaymentForm(root) {
             <form id="paymentForm">
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="paymentMethod">Select Payment Method</label>
-                        <select id="paymentMethod" required>
-                            <option value="">Select Payment Method</option>
-                            <option value="cod">Cash on Delivery</option>
-                        </select>
+                        <span style="display:block; margin-bottom:10px; font-weight:600;">Select Payment Method</span>
+                        <label for="paymentMethodCod" style="display:flex; align-items:center; gap:10px; padding:14px 16px; border:1px solid #d1d5db; border-radius:12px; cursor:pointer; background:#fff;">
+                            <input id="paymentMethodCod" type="radio" name="paymentMethod" value="cod" required>
+                            <span>
+                                <strong>Cash on Delivery</strong><br>
+                                <small style="color:#6b7280;">Pay when your order arrives.</small>
+                            </span>
+                        </label>
                     </div>
                     <div class="form-group">
                         <button class="btn-next" id="paymentNextBtn" type="button">Next</button>
@@ -25,7 +30,8 @@ export default async function PaymentForm(root) {
         try {
             const data = JSON.parse(savedPaymentData);
             if (data.method) {
-                document.getElementById('paymentMethod').value = data.method;
+                const matchingInput = root.querySelector(`input[name="paymentMethod"][value="${data.method}"]`);
+                if (matchingInput) matchingInput.checked = true;
             }
         } catch (e) {
             console.error('Error loading saved payment data:', e);
@@ -33,16 +39,17 @@ export default async function PaymentForm(root) {
     }
 
     // Setup event listener to save payment data to sessionStorage
-    const paymentMethodSelect = document.getElementById('paymentMethod');
-    if (paymentMethodSelect) {
-        paymentMethodSelect.addEventListener('change', () => {
+    root.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
+        input.addEventListener('change', () => {
+            const paymentMethodSelect = root.querySelector('input[name="paymentMethod"]:checked');
+            if (!paymentMethodSelect) return;
             const paymentData = {
                 method: paymentMethodSelect.value,
-                methodText: paymentMethodSelect.options[paymentMethodSelect.selectedIndex].text
+                methodText: paymentMethodSelect.value === 'cod' ? 'Cash on Delivery' : paymentMethodSelect.value
             };
             sessionStorage.setItem('paymentData', JSON.stringify(paymentData));
         });
-    }
+    });
 
     // Setup next button functionality
     setTimeout(() => {
@@ -59,13 +66,16 @@ export default async function PaymentForm(root) {
                 
                 try {
                     // Validate payment method is selected
-                    const paymentMethod = document.getElementById('paymentMethod');
+                    const paymentMethod = root.querySelector('input[name="paymentMethod"]:checked');
+                    const paymentCard = root.querySelector('label[for="paymentMethodCod"]');
                     if (!paymentMethod || !paymentMethod.value) {
-                        paymentMethod.style.borderColor = '#ff3d8b';
-                        paymentMethod.addEventListener('change', function() {
-                            this.style.borderColor = '';
-                        }, { once: true });
-                        alert('Please select a payment method');
+                        if (paymentCard) paymentCard.style.borderColor = '#dc2626';
+                        root.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
+                            input.addEventListener('change', () => {
+                                if (paymentCard) paymentCard.style.borderColor = '#d1d5db';
+                            }, { once: true });
+                        });
+                        showToast('Please select a payment method.', 'error');
                         nextBtn.disabled = false;
                         nextBtn.textContent = origText;
                         return;
@@ -74,7 +84,7 @@ export default async function PaymentForm(root) {
                     // Save payment data
                     const paymentData = {
                         method: paymentMethod.value,
-                        methodText: paymentMethod.options[paymentMethod.selectedIndex].text
+                        methodText: paymentMethod.value === 'cod' ? 'Cash on Delivery' : paymentMethod.value
                     };
                     sessionStorage.setItem('paymentMethod', paymentMethod.value);
                     sessionStorage.setItem('paymentData', JSON.stringify(paymentData));
@@ -90,7 +100,7 @@ export default async function PaymentForm(root) {
                     window.scrollTo({ top: 0, behavior: 'smooth' });
                 } catch (error) {
                     console.error('Error in payment form:', error);
-                    alert('An error occurred. Please try again.');
+                    showToast('An error occurred. Please try again.', 'error');
                     nextBtn.disabled = false;
                     nextBtn.textContent = origText;
                 }

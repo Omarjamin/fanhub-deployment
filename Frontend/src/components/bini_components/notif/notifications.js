@@ -6,6 +6,7 @@ import createCommentModal from "../post/comment_modal.js";
 import { renderThreadsSidebar } from "../threadsSidebar.js";
 import api from "../../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../lib/site-context.js";
+import { formatUserTimestamp } from "../../../utils/user-time.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
 
@@ -34,21 +35,7 @@ function resolveCommunityType(data = {}) {
 
 // Format date helper function
 function formatDate(timestamp) {
-  const date = new Date(timestamp);
-  const now = new Date();
-  const diffMs = now - date;
-
-  const diffSeconds = Math.floor(diffMs / 1000);
-  const diffMinutes = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffSeconds < 60) return "Just now";
-  if (diffMinutes < 60) return `${diffMinutes} minutes ago`;
-  if (diffHours < 24) return `${diffHours} hours ago`;
-  if (diffDays < 7) return `${diffDays} days ago`;
-
-  return date.toLocaleDateString();
+  return formatUserTimestamp(timestamp);
 }
 
 function getNotificationText(notif, fromUser) {
