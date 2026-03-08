@@ -7,13 +7,66 @@ export default function GenerateWebsite() {
   section.id = 'generate-website';
   section.className = 'gw-section';
 
+  const defaultPalettes = [
+    { id: 'sunrise', name: 'Sunrise Pop', colors: ['#f4d03f', '#5dade2', '#5b6ee1', '#1a237e', '#ffffff'] },
+    { id: 'rose', name: 'Rose Stage', colors: ['#ff8fab', '#ffb3c6', '#fb6f92', '#7f1734', '#fff8fb'] },
+    { id: 'forest', name: 'Forest Light', colors: ['#95d5b2', '#40916c', '#1b4332', '#081c15', '#f1faee'] },
+    { id: 'night', name: 'Night Neon', colors: ['#00f5d4', '#00bbf9', '#9b5de5', '#240046', '#f8f9fa'] },
+  ];
+
   let templates = [];
+  let selectedPaletteId = defaultPalettes[0].id;
+  let paletteDraft = [...defaultPalettes[0].colors];
+  let paletteEditorTargetId = defaultPalettes[0].id;
   const toTemplateKey = (value) => String(value || '')
     .trim()
     .toLowerCase()
     .replace(/[_\s]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
+  const normalizeHex = (value, fallback = '#000000') => {
+    const raw = String(value || '').trim();
+    if (/^#([A-Fa-f0-9]{6})$/.test(raw)) return raw;
+    if (/^([A-Fa-f0-9]{6})$/.test(raw)) return `#${raw}`;
+    return fallback;
+  };
+  const getBrightness = (hex) => {
+    const safeHex = normalizeHex(hex).replace('#', '');
+    const r = parseInt(safeHex.substring(0, 2), 16);
+    const g = parseInt(safeHex.substring(2, 4), 16);
+    const b = parseInt(safeHex.substring(4, 6), 16);
+    return (r * 299 + g * 587 + b * 114) / 1000;
+  };
+  const getContrastColor = (hex) => getBrightness(hex) > 150 ? '#000000' : '#ffffff';
+  const assignPaletteRoles = (palette) => {
+    const normalized = (Array.isArray(palette) ? palette : [])
+      .map((color) => normalizeHex(color))
+      .filter(Boolean);
+
+    if (!normalized.length) {
+      return {
+        primary: '#3b82f6',
+        accent: '#333333',
+        secondary: '#ffffff',
+        background: '#ffffff',
+        text: '#000000',
+      };
+    }
+
+    const byBrightness = [...normalized].sort((a, b) => getBrightness(b) - getBrightness(a));
+    const background = byBrightness[0];
+    const primary = normalized.find((color) => color !== background) || normalized[0];
+    const accent = normalized.find((color) => color !== primary && color !== background) || primary;
+    const secondary = byBrightness[1] || background;
+
+    return {
+      primary,
+      accent,
+      secondary,
+      background,
+      text: getContrastColor(background),
+    };
+  };
 
   // Fetch available templates from backend
   const fetchTemplates = async () => {
@@ -43,6 +96,7 @@ export default function GenerateWebsite() {
     domain: '',
     shortBio: '',
     description: '',
+    palette: [...defaultPalettes[0].colors],
     primaryColor: '#3b82f6',
     secondaryColor: '#ffffff',
     accentColor: '#333333',
@@ -92,12 +146,21 @@ export default function GenerateWebsite() {
       if (selectedTemplateData?.key) submitData.append('template', selectedTemplateData.key);
       if (selectedTemplateData?.key) submitData.append('templateKey', selectedTemplateData.key);
       if (selectedTemplateData?.name) submitData.append('templateName', selectedTemplateData.name);
+      submitData.append('palette', JSON.stringify(formData.palette || []));
       submitData.append('primaryColor', formData.primaryColor);
       submitData.append('secondaryColor', formData.secondaryColor);
       submitData.append('accentColor', formData.accentColor);
       submitData.append('buttonStyle', formData.buttonStyle);
       submitData.append('fontStyle', formData.fontStyle);
       submitData.append('bannerLink', formData.bannerLink);
+      submitData.append('theme', JSON.stringify({
+        palette: formData.palette || [],
+        primaryColor: formData.primaryColor,
+        secondaryColor: formData.secondaryColor,
+        accentColor: formData.accentColor,
+        buttonStyle: formData.buttonStyle,
+        fontStyle: formData.fontStyle,
+      }));
       
       if (formData.logo) submitData.append('logo', formData.logo);
       
@@ -146,12 +209,15 @@ export default function GenerateWebsite() {
   // Reset form to initial state
   const resetForm = () => {
     selectedTemplate = null;
+    selectedPaletteId = defaultPalettes[0].id;
+    paletteDraft = [...defaultPalettes[0].colors];
     members = [];
     formData = {
       siteName: '',
       domain: '',
       shortBio: '',
       description: '',
+      palette: [...defaultPalettes[0].colors],
       primaryColor: '#3b82f6',
       secondaryColor: '#ffffff',
       accentColor: '#333333',
@@ -227,7 +293,18 @@ export default function GenerateWebsite() {
 
         <!-- Design & Colors -->
         <div class="gw-section-wrapper">
-          <h2 class="gw-section-title">Design & Colors</h2>
+          <div class="gw-section-header">
+            <h2 class="gw-section-title">Design & Colors</h2>
+            <button class="gw-btn-secondary" id="editPaletteBtn" type="button">Edit Palette</button>
+          </div>
+          <div class="gw-palette-toolbar">
+            <div>
+              <h3 class="gw-palette-title">Choose Color Palette</h3>
+              <p class="gw-palette-copy">Pick a preset palette, then fine-tune all 5 colors in the editor.</p>
+            </div>
+          </div>
+          <input type="hidden" id="paletteInput" name="palette">
+          <div class="gw-palette-grid" id="paletteGrid"></div>
           <form class="gw-form" id="designForm">
             <div class="gw-form-row">
               <div class="gw-form-group">
@@ -299,6 +376,26 @@ export default function GenerateWebsite() {
         <!-- Generate Button -->
         <div class="gw-actions">
           <button class="gw-btn-generate" id="generateBtn">🚀 Generate Website</button>
+        </div>
+
+        <div class="gw-palette-modal" id="paletteModal" hidden>
+          <div class="gw-palette-modal-card">
+            <div class="gw-modal-header">
+              <div>
+                <h3>Edit Color Palette</h3>
+                <p class="gw-modal-subtitle">Adjust all 5 colors and preview the palette live.</p>
+              </div>
+              <button class="gw-modal-close" id="closePaletteModal" type="button">&times;</button>
+            </div>
+            <div class="gw-palette-modal-body">
+              <div class="gw-palette-live-preview" id="paletteModalPreview"></div>
+              <div class="gw-palette-editor" id="paletteEditor"></div>
+            </div>
+            <div class="gw-modal-footer">
+              <button class="gw-btn-close-member" id="cancelPaletteBtn" type="button">Cancel</button>
+              <button class="gw-btn-save-member" id="applyPaletteBtn" type="button">Apply Palette</button>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -407,6 +504,142 @@ export default function GenerateWebsite() {
         const templateId = parseInt(btn.dataset.templateId);
         selectedTemplate = selectedTemplate === templateId ? null : templateId;
         renderTemplates();
+      });
+    });
+  };
+
+  const syncColorInputs = () => {
+    const colorBindings = [
+      ['#primaryColor', '#primaryColorPicker', '#primaryColorPreview', formData.primaryColor],
+      ['#secondaryColor', '#secondaryColorPicker', '#secondaryColorPreview', formData.secondaryColor],
+      ['#accentColor', '#accentColorPicker', '#accentColorPreview', formData.accentColor],
+    ];
+
+    colorBindings.forEach(([textSelector, pickerSelector, previewSelector, value]) => {
+      const textInput = section.querySelector(textSelector);
+      const picker = section.querySelector(pickerSelector);
+      const preview = section.querySelector(previewSelector);
+      if (textInput) textInput.value = value;
+      if (picker) picker.value = value;
+      if (preview) preview.style.background = value;
+    });
+
+    const paletteInput = section.querySelector('#paletteInput');
+    if (paletteInput) {
+      paletteInput.value = JSON.stringify(formData.palette || []);
+    }
+  };
+
+  const applyPaletteToForm = (palette) => {
+    const normalizedPalette = (Array.isArray(palette) ? palette : defaultPalettes[0].colors)
+      .map((color) => normalizeHex(color))
+      .slice(0, 5);
+    const paddedPalette = [...normalizedPalette];
+    while (paddedPalette.length < 5) {
+      paddedPalette.push('#ffffff');
+    }
+
+    const roles = assignPaletteRoles(paddedPalette);
+    formData.palette = paddedPalette;
+    formData.primaryColor = roles.primary;
+    formData.secondaryColor = roles.background;
+    formData.accentColor = roles.accent;
+    syncColorInputs();
+  };
+
+  const renderPalettePreviewBars = (palette) => (palette || [])
+    .map((color) => `<span style="background:${normalizeHex(color)}"></span>`)
+    .join('');
+
+  const openPaletteModal = (palette, paletteId = 'custom') => {
+    paletteEditorTargetId = paletteId;
+    paletteDraft = [...(Array.isArray(palette) ? palette : formData.palette || defaultPalettes[0].colors)];
+    while (paletteDraft.length < 5) {
+      paletteDraft.push('#ffffff');
+    }
+    const modal = section.querySelector('#paletteModal');
+    if (modal) {
+      modal.hidden = false;
+    }
+    renderPaletteModal();
+  };
+
+  const closePaletteModal = () => {
+    const modal = section.querySelector('#paletteModal');
+    if (modal) {
+      modal.hidden = true;
+    }
+  };
+
+  const renderPaletteModal = () => {
+    const preview = section.querySelector('#paletteModalPreview');
+    const editor = section.querySelector('#paletteEditor');
+    if (!preview || !editor) return;
+
+    preview.innerHTML = renderPalettePreviewBars(paletteDraft);
+    editor.innerHTML = paletteDraft.map((color, index) => `
+      <label class="gw-palette-editor-item">
+        <span>Color ${index + 1}</span>
+        <input type="color" class="gw-palette-input" data-index="${index}" value="${normalizeHex(color)}">
+        <input type="text" class="gw-palette-text" data-index="${index}" value="${normalizeHex(color)}">
+      </label>
+    `).join('');
+
+    editor.querySelectorAll('.gw-palette-input').forEach((input) => {
+      input.addEventListener('input', (e) => {
+        const index = Number(e.target.dataset.index);
+        paletteDraft[index] = normalizeHex(e.target.value);
+        renderPaletteModal();
+      });
+    });
+
+    editor.querySelectorAll('.gw-palette-text').forEach((input) => {
+      input.addEventListener('input', (e) => {
+        const index = Number(e.target.dataset.index);
+        paletteDraft[index] = normalizeHex(e.target.value, paletteDraft[index] || '#ffffff');
+        const picker = editor.querySelector(`.gw-palette-input[data-index="${index}"]`);
+        if (picker) picker.value = normalizeHex(paletteDraft[index]);
+        const previewBars = section.querySelectorAll('#paletteModalPreview span');
+        if (previewBars[index]) previewBars[index].style.background = normalizeHex(paletteDraft[index]);
+      });
+    });
+  };
+
+  const renderPalettes = () => {
+    const container = section.querySelector('#paletteGrid');
+    if (!container) return;
+
+    const cards = [
+      ...defaultPalettes.map((palette) => ({
+        ...palette,
+        selected: selectedPaletteId === palette.id,
+      })),
+      {
+        id: 'custom',
+        name: 'Current Palette',
+        colors: formData.palette || defaultPalettes[0].colors,
+        selected: selectedPaletteId === 'custom',
+      },
+    ];
+
+    container.innerHTML = cards.map((palette) => `
+      <button type="button" class="gw-palette-card ${palette.selected ? 'active' : ''}" data-palette-id="${palette.id}">
+        <div class="gw-palette-preview">
+          ${renderPalettePreviewBars(palette.colors)}
+        </div>
+        <div class="gw-palette-meta">
+          <strong>${palette.name}</strong>
+          <span>${palette.selected ? 'Selected' : 'Edit palette'}</span>
+        </div>
+      </button>
+    `).join('');
+
+    container.querySelectorAll('.gw-palette-card').forEach((card) => {
+      card.addEventListener('click', () => {
+        const paletteId = card.dataset.paletteId;
+        const paletteData = cards.find((palette) => palette.id === paletteId);
+        if (!paletteData) return;
+        openPaletteModal(paletteData.colors, paletteData.id);
       });
     });
   };
@@ -606,6 +839,10 @@ export default function GenerateWebsite() {
       formData.fontStyle = e.target.value;
     });
 
+    section.querySelector('#editPaletteBtn')?.addEventListener('click', () => {
+      openPaletteModal(formData.palette, selectedPaletteId || 'custom');
+    });
+
     section.querySelector('#logo')?.addEventListener('change', (e) => {
       if (e.target.files[0]) {
         const maxSize = 5 * 1024 * 1024; // 5MB
@@ -675,13 +912,40 @@ export default function GenerateWebsite() {
     });
   };
 
+  const setupPaletteModal = () => {
+    section.querySelector('#closePaletteModal')?.addEventListener('click', closePaletteModal);
+    section.querySelector('#cancelPaletteBtn')?.addEventListener('click', closePaletteModal);
+    section.querySelector('#applyPaletteBtn')?.addEventListener('click', () => {
+      const presetMatch = defaultPalettes.find((palette) =>
+        JSON.stringify((palette.colors || []).map((color) => normalizeHex(color))) ===
+        JSON.stringify((paletteDraft || []).map((color) => normalizeHex(color)))
+      );
+      selectedPaletteId = presetMatch?.id || (paletteEditorTargetId !== 'custom' ? paletteEditorTargetId : 'custom');
+      if (!presetMatch) {
+        selectedPaletteId = 'custom';
+      }
+      applyPaletteToForm(paletteDraft);
+      renderPalettes();
+      closePaletteModal();
+    });
+
+    section.querySelector('#paletteModal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'paletteModal') {
+        closePaletteModal();
+      }
+    });
+  };
+
   renderTemplates();
   // load templates from backend
   fetchTemplates();
+  applyPaletteToForm(defaultPalettes[0].colors);
+  renderPalettes();
   renderMembers();
   setupFormListeners();
   setupGenerateButton();
   setupBackButton();
+  setupPaletteModal();
 
   return section;
 }
