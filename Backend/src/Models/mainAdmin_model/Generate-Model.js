@@ -211,6 +211,10 @@ class GenerateModel {
       's.domain',
       pickSite('community_id'),
       pickSite('community_type', 's.domain AS community_type'),
+      pickSite('template_id'),
+      pickSite('template'),
+      pickSite('template_name'),
+      pickSite('template_key'),
       pickSite('status'),
       pickSite('created_at'),
     ];
@@ -264,6 +268,10 @@ class GenerateModel {
     db_host,
     db_user,
     db_password,
+    templateId,
+    template,
+    templateName,
+    templateKey,
     primaryColor,
     secondaryColor,
     accentColor,
@@ -281,6 +289,15 @@ class GenerateModel {
     const normalizedDomain = String(domain || '').trim() || normalizedSiteName.toLowerCase().replace(/[^a-z0-9-]/g, '-');
     const normalizedShortBio = String(short_bio || '').trim();
     const normalizedDescription = String(description || '').trim();
+    const normalizedTemplateId = Number(templateId);
+    const normalizedTemplate = String(template || templateKey || templateName || '').trim();
+    const normalizedTemplateName = String(templateName || template || '').trim();
+    const normalizedTemplateKey = String(templateKey || template || templateName || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[_\s]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
 
     if (!normalizedSiteName) throw new Error('site_name is required');
     if (!normalizedDomain) throw new Error('domain is required');
@@ -320,6 +337,26 @@ class GenerateModel {
       insertColumns.push('community_id');
       insertValues.push('?');
       insertParams.push(resolvedCommunityId);
+    }
+    if (siteCols.has('template_id') && Number.isFinite(normalizedTemplateId) && normalizedTemplateId > 0) {
+      insertColumns.push('template_id');
+      insertValues.push('?');
+      insertParams.push(normalizedTemplateId);
+    }
+    if (siteCols.has('template') && normalizedTemplate) {
+      insertColumns.push('template');
+      insertValues.push('?');
+      insertParams.push(normalizedTemplate);
+    }
+    if (siteCols.has('template_name') && normalizedTemplateName) {
+      insertColumns.push('template_name');
+      insertValues.push('?');
+      insertParams.push(normalizedTemplateName);
+    }
+    if (siteCols.has('template_key') && normalizedTemplateKey) {
+      insertColumns.push('template_key');
+      insertValues.push('?');
+      insertParams.push(normalizedTemplateKey);
     }
     if (siteCols.has('created_at')) {
       insertColumns.push('created_at');

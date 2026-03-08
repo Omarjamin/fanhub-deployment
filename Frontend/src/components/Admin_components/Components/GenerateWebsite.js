@@ -8,6 +8,12 @@ export default function GenerateWebsite() {
   section.className = 'gw-section';
 
   let templates = [];
+  const toTemplateKey = (value) => String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '');
 
   // Fetch available templates from backend
   const fetchTemplates = async () => {
@@ -20,6 +26,7 @@ export default function GenerateWebsite() {
         templates = Array.isArray(data) ? data.map((t, idx) => ({
           id: t._id || t.id || idx + 1,
           name: t.template_name || `Template ${idx + 1}`,
+          key: toTemplateKey(t.template_key || t.template_name || t.name || `template-${idx + 1}`),
         })) : [];
     } catch (err) {
       console.error('Failed to fetch templates:', err?.response?.data || err.message || err);
@@ -81,6 +88,10 @@ export default function GenerateWebsite() {
       submitData.append('shortBio', formData.shortBio);
       submitData.append('description', formData.description);
       submitData.append('templateId', selectedTemplate);
+      const selectedTemplateData = templates.find((template) => Number(template.id) === Number(selectedTemplate));
+      if (selectedTemplateData?.key) submitData.append('template', selectedTemplateData.key);
+      if (selectedTemplateData?.key) submitData.append('templateKey', selectedTemplateData.key);
+      if (selectedTemplateData?.name) submitData.append('templateName', selectedTemplateData.name);
       submitData.append('primaryColor', formData.primaryColor);
       submitData.append('secondaryColor', formData.secondaryColor);
       submitData.append('accentColor', formData.accentColor);

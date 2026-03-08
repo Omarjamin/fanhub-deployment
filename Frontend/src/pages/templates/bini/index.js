@@ -1,0 +1,9 @@
+export { default as home } from "../../bini_pages/home_page/home";
+export { default as login } from "../../bini_pages/auth_page/login-page";
+export { default as register } from "../../bini_pages/auth_page/register-page";
+export { default as search } from "../../bini_pages/search_page/search-page";
+export { default as profile } from "../../bini_pages/profile_page/profile-page";
+export { default as notifications } from "../../bini_pages/notif_page/notif-page";
+export { default as othersProfile } from "../../bini_pages/profile_page/others-profile-page";
+export { default as pageNotFound } from "../../bini_pages/page_not_found/pageNotFound";
+export { default as thread } from "../../../components/bini_components/thread-topic.js";
