@@ -3,6 +3,7 @@ import { getActiveSiteSlug, getSessionToken } from "./lib/site-context.js";
 import {
   fetchSiteBySlug,
   renderCommunityTemplatePage,
+  renderCommunityTemplateRoute,
   renderEcommerceTemplatePage,
   setupRuntimeApiConfig,
 } from "./lib/site-runtime.js";
@@ -64,7 +65,7 @@ registerAdminRoutes(app, {
 registerBiniRoutes(app, {
   PageNotFound,
   renderCommunityTemplatePage,
-  fetchSiteBySlug,
+  renderCommunityTemplateRoute,
 });
 
 registerEcommerceRoutes(app, {
@@ -87,13 +88,17 @@ const socketUserId =
   sessionStorage.getItem("userId") ||
   sessionStorage.getItem("currentUserId");
 const hasSocketAuth = Boolean(socketToken && socketUserId);
-const socket = isSiteRoute && hasSocketAuth ? setupSocket() : null;
+const socket =
+  window.globalSocket ||
+  (isSiteRoute && hasSocketAuth ? setupSocket() : null);
 
 window.addEventListener("userStatusUpdate", (e) => {
   const { id, status } = e.detail;
   console.log(`Global user status: ${id} -> ${status}`);
 });
 
-window.globalSocket = socket;
+if (socket && !window.globalSocket) {
+  window.globalSocket = socket;
+}
 
 app.handleRouteChanges();

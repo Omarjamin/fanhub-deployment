@@ -18,7 +18,7 @@ export default function registerBiniRoutes(app, deps) {
   const {
     PageNotFound,
     renderCommunityTemplatePage,
-    fetchSiteBySlug,
+    renderCommunityTemplateRoute,
   } = deps;
 
   app.add("/bini", function () {
@@ -151,15 +151,12 @@ export default function registerBiniRoutes(app, deps) {
     const root = resolveRoot(this);
 
     try {
-      const siteData = await fetchSiteBySlug(siteSlug);
-      const templateValue = String(siteData?.template || "bini").trim().toLowerCase();
-      const Page = getTemplatePage(templateValue, "thread");
-
-      if (typeof Page !== "function") {
-        throw new Error("Missing template page: thread");
-      }
-
-      Page.call({ root }, [threadId]);
+      await renderCommunityTemplateRoute({
+        root,
+        siteSlug,
+        page: "thread",
+        payload: [threadId],
+      });
     } catch (err) {
       console.error(err);
       PageNotFound.call({ root });

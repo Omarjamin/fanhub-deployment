@@ -275,6 +275,32 @@ export async function renderCommunityTemplatePage({ root, siteSlug, page }) {
   Page.call({ root }, { siteSlug, siteData });
 }
 
+export async function renderCommunityTemplateRoute({
+  root,
+  siteSlug,
+  page,
+  payload,
+}) {
+  const siteData = await fetchSiteBySlug(siteSlug);
+  const templateValue = String(
+    siteData?.template ||
+    siteData?.template_name ||
+    siteData?.template_key ||
+    siteData?.templateKey ||
+    "bini"
+  ).trim().toLowerCase();
+  const Page = getTemplatePage(templateValue, page);
+
+  if (typeof Page !== "function") {
+    throw new Error(`Missing template page: ${page}`);
+  }
+
+  const resolvedPayload =
+    payload !== undefined ? payload : { siteSlug, siteData };
+
+  Page.call({ root }, resolvedPayload);
+}
+
 export async function renderEcommerceTemplatePage({ root, siteSlug, page, passMode = "object" }) {
   const siteData = await fetchSiteBySlug(siteSlug);
   const templateValue = String(
