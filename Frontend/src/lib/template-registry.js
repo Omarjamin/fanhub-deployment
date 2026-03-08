@@ -1,6 +1,3 @@
-import * as bini from "../pages/templates/bini";
-import * as modern from "../pages/templates/modern";
-import * as minimal from "../pages/templates/minimal";
 import HOMEPAGE from "../pages/ecommerce_page/home_page/home_page.js";
 import SIGNIN from "../pages/ecommerce_page/auth_page/signin_page.js";
 import SIGNUP from "../pages/ecommerce_page/auth_page/signup_page.js";
@@ -8,12 +5,6 @@ import SHOP from "../pages/ecommerce_page/shop_page/shop_page.js";
 import Checkout from "../pages/ecommerce_page/checkout_page/checkout_page/check_page.js";
 import OrderHistory from "../pages/ecommerce_page/order_page/order_history_page.js";
 import OrderConfirmation from "../components/ecommerce_components/order/order_confirmation.js";
-
-const TEMPLATE_REGISTRY = {
-  bini,
-  modern,
-  minimal,
-};
 
 const TEMPLATE_ALIASES = {
   "default template": "bini",
@@ -26,6 +17,8 @@ const TEMPLATE_ALIASES = {
   "minimal template": "minimal",
 };
 
+const TEMPLATE_MODULES = import.meta.glob("../pages/templates/*/*.js");
+
 export function resolveTemplateKey(templateValue) {
   const normalized = String(templateValue || "")
     .trim()
@@ -37,11 +30,27 @@ export function resolveTemplateKey(templateValue) {
   return TEMPLATE_ALIASES[normalized] || "bini";
 }
 
-export function getTemplatePage(templateValue, page) {
-  const templateKey = resolveTemplateKey(templateValue);
-  const activeTemplate = TEMPLATE_REGISTRY[templateKey] || TEMPLATE_REGISTRY.bini;
+async function loadTemplateModule(templateKey, page) {
+  const modulePath = `../pages/templates/${templateKey}/${page}.js`;
+  const importer = TEMPLATE_MODULES[modulePath];
 
-  return activeTemplate?.[page] || TEMPLATE_REGISTRY.bini?.[page] || null;
+  if (!importer) {
+    return null;
+  }
+
+  const module = await importer();
+  return module?.default || null;
+}
+
+export async function getTemplatePage(templateValue, page) {
+  const templateKey = resolveTemplateKey(templateValue);
+  const pageKey = String(page || "home").trim();
+
+  const resolvedPage =
+    (await loadTemplateModule(templateKey, pageKey)) ||
+    (templateKey !== "bini" ? await loadTemplateModule("bini", pageKey) : null);
+
+  return resolvedPage || null;
 }
 
 const ECOMMERCE_TEMPLATE_REGISTRY = {
@@ -77,12 +86,10 @@ const ECOMMERCE_TEMPLATE_REGISTRY = {
   },
 };
 
-export function getEcommerceTemplatePage(templateValue, page) {
+export async function getEcommerceTemplatePage(templateValue, page) {
   const templateKey = resolveTemplateKey(templateValue);
   const activeTemplate =
     ECOMMERCE_TEMPLATE_REGISTRY[templateKey] || ECOMMERCE_TEMPLATE_REGISTRY.bini;
 
   return activeTemplate?.[page] || ECOMMERCE_TEMPLATE_REGISTRY.bini?.[page] || null;
 }
-
-export { TEMPLATE_REGISTRY };

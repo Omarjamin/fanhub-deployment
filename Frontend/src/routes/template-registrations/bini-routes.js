@@ -4,8 +4,8 @@ function resolveRoot(ctx) {
   return ctx?.root || document.getElementById("app");
 }
 
-function renderStaticBiniPage(page, ctx, payload) {
-  const Page = getTemplatePage("bini", page);
+async function renderStaticBiniPage(page, ctx, payload) {
+  const Page = await getTemplatePage("bini", page);
 
   if (typeof Page !== "function") {
     throw new Error(`Missing bini page: ${page}`);
@@ -21,40 +21,40 @@ export default function registerBiniRoutes(app, deps) {
     renderCommunityTemplateRoute,
   } = deps;
 
-  app.add("/bini", function () {
-    renderStaticBiniPage("home", this);
+  app.add("/bini", async function () {
+    await renderStaticBiniPage("home", this);
   });
 
-  app.add("/bini/register", function () {
-    renderStaticBiniPage("register", this);
+  app.add("/bini/register", async function () {
+    await renderStaticBiniPage("register", this);
   });
 
-  app.add("/bini/login", function () {
-    renderStaticBiniPage("login", this);
+  app.add("/bini/login", async function () {
+    await renderStaticBiniPage("login", this);
   });
 
-  app.add("/bini/logina", function () {
-    renderStaticBiniPage("login", this);
+  app.add("/bini/logina", async function () {
+    await renderStaticBiniPage("login", this);
   });
 
-  app.add("/bini/search", function () {
-    renderStaticBiniPage("search", this);
+  app.add("/bini/search", async function () {
+    await renderStaticBiniPage("search", this);
   });
 
-  app.add("/bini/profile", function () {
-    renderStaticBiniPage("profile", this);
+  app.add("/bini/profile", async function () {
+    await renderStaticBiniPage("profile", this);
   });
 
-  app.add("/bini/notifications", function () {
-    renderStaticBiniPage("notifications", this);
+  app.add("/bini/notifications", async function () {
+    await renderStaticBiniPage("notifications", this);
   });
 
-  app.add("/bini/others-profile", function () {
-    renderStaticBiniPage("othersProfile", this);
+  app.add("/bini/others-profile", async function () {
+    await renderStaticBiniPage("othersProfile", this);
   });
 
-  app.add(/\/bini\/thread\/([^/]+)/, function (params) {
-    renderStaticBiniPage("thread", this, [params?.[0]]);
+  app.add(/\/bini\/thread\/([^/]+)/, async function (params) {
+    await renderStaticBiniPage("thread", this, [params?.[0]]);
   });
 
   app.add(/\/fanhub\/community-platform\/([^/]+)\/?$/, async function (params) {
