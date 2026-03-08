@@ -27,8 +27,8 @@ class GenerateController {
     }
   }
 
-  async uploadToCloudinary(source, folder) {
-    const result = await cloudinary.uploader.upload(source, { folder });
+  async uploadToCloudinary(source, folder, options = {}) {
+    const result = await cloudinary.uploader.upload(source, { folder, ...options });
     return result?.secure_url || null;
   }
 
@@ -92,6 +92,11 @@ class GenerateController {
         template,
         templateName,
         templateKey,
+        fontType,
+        fontName,
+        fontUrl,
+        theme,
+        palette,
         subdomain,
         primaryColor,
         secondaryColor,
@@ -134,6 +139,7 @@ class GenerateController {
       // Handle file uploads
       let logoUrl = null;
       let bannerUrl = bannerLink || null;
+      let resolvedFontUrl = fontUrl || null;
       const cloudinaryReady = this.isCloudinaryConfigured();
       let parsedMembers = [];
 
@@ -168,6 +174,18 @@ class GenerateController {
             );
           }
         }
+        if (req.files.fontFile) {
+          if (!cloudinaryReady) {
+            console.warn('[GenerateController] Cloudinary not configured. Skipping font upload.');
+          } else {
+            const fontFile = req.files.fontFile;
+            resolvedFontUrl = await this.uploadToCloudinary(
+              fontFile.tempFilePath || fontFile.path,
+              'websites/fonts',
+              { resource_type: 'auto' }
+            );
+          }
+        }
       }
 
       const normalizedMembers = await this.uploadMemberImages(
@@ -189,6 +207,11 @@ class GenerateController {
         template,
         templateName,
         templateKey,
+        fontType,
+        fontName,
+        fontUrl: resolvedFontUrl,
+        theme,
+        palette,
         primaryColor,
         communityType: normalizedCommunityType,
         community_type: normalizedCommunityType,

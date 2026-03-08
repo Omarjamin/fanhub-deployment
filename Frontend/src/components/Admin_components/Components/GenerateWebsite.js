@@ -1,6 +1,7 @@
 // Move file input listeners inside GenerateWebsite function
 import api from '../../../services/bini_services/api.js';
 import { getAdminHeaders } from './admin-sites.js';
+import { applyFontConfig } from '../../../lib/theme/font-loader.js';
 
 export default function GenerateWebsite() {
   const section = document.createElement('section');
@@ -13,11 +14,25 @@ export default function GenerateWebsite() {
     { id: 'forest', name: 'Forest Light', colors: ['#95d5b2', '#40916c', '#1b4332', '#081c15', '#f1faee'] },
     { id: 'night', name: 'Night Neon', colors: ['#00f5d4', '#00bbf9', '#9b5de5', '#240046', '#f8f9fa'] },
   ];
+  const systemFonts = [
+    'Arial',
+    'Calibri',
+    'Segoe UI',
+    'Century Gothic',
+    'Verdana',
+    'Helvetica',
+    'Tahoma',
+    'Trebuchet MS',
+    'Georgia',
+    'Times New Roman',
+  ];
+  const googleFonts = ['Inter', 'Poppins', 'Montserrat', 'Nunito', 'Oswald'];
 
   let templates = [];
   let selectedPaletteId = defaultPalettes[0].id;
   let paletteDraft = [...defaultPalettes[0].colors];
   let paletteEditorTargetId = defaultPalettes[0].id;
+  let customFontObjectUrl = '';
   const toTemplateKey = (value) => String(value || '')
     .trim()
     .toLowerCase()
@@ -101,7 +116,11 @@ export default function GenerateWebsite() {
     secondaryColor: '#ffffff',
     accentColor: '#333333',
     buttonStyle: 'rounded',
-    fontStyle: 'sans-serif',
+    fontStyle: 'Arial',
+    fontType: 'system',
+    fontName: 'Arial',
+    fontUrl: '',
+    customFontFile: null,
     logo: null,
     bannerLink: '',
     members: []
@@ -152,6 +171,9 @@ export default function GenerateWebsite() {
       submitData.append('accentColor', formData.accentColor);
       submitData.append('buttonStyle', formData.buttonStyle);
       submitData.append('fontStyle', formData.fontStyle);
+      submitData.append('fontType', formData.fontType);
+      submitData.append('fontName', formData.fontName);
+      submitData.append('fontUrl', formData.fontUrl || '');
       submitData.append('bannerLink', formData.bannerLink);
       submitData.append('theme', JSON.stringify({
         palette: formData.palette || [],
@@ -160,9 +182,15 @@ export default function GenerateWebsite() {
         accentColor: formData.accentColor,
         buttonStyle: formData.buttonStyle,
         fontStyle: formData.fontStyle,
+        font: {
+          type: formData.fontType,
+          name: formData.fontName,
+          url: formData.fontUrl || '',
+        },
       }));
       
       if (formData.logo) submitData.append('logo', formData.logo);
+      if (formData.customFontFile) submitData.append('fontFile', formData.customFontFile);
       
       // Add members data as JSON
       submitData.append('members', JSON.stringify(members));
@@ -208,6 +236,10 @@ export default function GenerateWebsite() {
 
   // Reset form to initial state
   const resetForm = () => {
+    if (customFontObjectUrl) {
+      URL.revokeObjectURL(customFontObjectUrl);
+      customFontObjectUrl = '';
+    }
     selectedTemplate = null;
     selectedPaletteId = defaultPalettes[0].id;
     paletteDraft = [...defaultPalettes[0].colors];
@@ -222,7 +254,11 @@ export default function GenerateWebsite() {
       secondaryColor: '#ffffff',
       accentColor: '#333333',
       buttonStyle: 'rounded',
-      fontStyle: 'sans-serif',
+      fontStyle: 'Arial',
+      fontType: 'system',
+      fontName: 'Arial',
+      fontUrl: '',
+      customFontFile: null,
       logo: null,
       bannerLink: '',
       members: []
@@ -308,33 +344,6 @@ export default function GenerateWebsite() {
           <form class="gw-form" id="designForm">
             <div class="gw-form-row">
               <div class="gw-form-group">
-                <label for="primaryColor">Primary Color / Gradient</label>
-                <div style="display:flex; gap:8px; align-items:center;">
-                  <input type="color" id="primaryColorPicker" value="#3b82f6" title="Primary color">
-                  <input type="text" id="primaryColor" value="#3b82f6" placeholder="#3b82f6">
-                  <div id="primaryColorPreview" style="width:28px; height:28px; border-radius:4px; border:1px solid #d1d5db; background:#3b82f6;"></div>
-                </div>
-              </div>
-              <div class="gw-form-group">
-                <label for="secondaryColor">Secondary Color / Gradient</label>
-                <div style="display:flex; gap:8px; align-items:center;">
-                  <input type="color" id="secondaryColorPicker" value="#ffffff" title="Secondary color">
-                  <input type="text" id="secondaryColor" value="#ffffff" placeholder="#ffffff">
-                  <div id="secondaryColorPreview" style="width:28px; height:28px; border-radius:4px; border:1px solid #d1d5db; background:#ffffff;"></div>
-                </div>
-              </div>
-              <div class="gw-form-group">
-                <label for="accentColor">Accent Color / Gradient</label>
-                <div style="display:flex; gap:8px; align-items:center;">
-                  <input type="color" id="accentColorPicker" value="#333333" title="Accent color">
-                  <input type="text" id="accentColor" value="#333333" placeholder="#333333">
-                  <div id="accentColorPreview" style="width:28px; height:28px; border-radius:4px; border:1px solid #d1d5db; background:#333333;"></div>
-                </div>
-              </div>
-            </div>
-
-            <div class="gw-form-row">
-              <div class="gw-form-group">
                 <label for="buttonStyle">Button Style</label>
                 <select id="buttonStyle" required>
                   <option value="rounded">Rounded</option>
@@ -346,20 +355,32 @@ export default function GenerateWebsite() {
            
 
               <div class="gw-form-group">
-                <label for="fontStyle">Font Style</label>
-                <select id="fontStyle" required>
-                  <option value="Arial" style="font-family: Arial, sans-serif;">Aa Arial</option>
-                  <option value="Calibri" style="font-family: Calibri, sans-serif;">Aa Calibri</option>
-                  <option value="Segoe UI" style="font-family: 'Segoe UI', sans-serif;">Aa Segoe UI</option>
-                  <option value="Century Gothic" style="font-family: 'Century Gothic', sans-serif;">Aa Century Gothic</option>
-                  <option value="Verdana" style="font-family: Verdana, sans-serif;">Aa Verdana</option>
-                  <option value="Helvetica" style="font-family: Helvetica, sans-serif;">Aa Helvetica</option>
-                  <option value="Tahoma" style="font-family: Tahoma, sans-serif;">Aa Tahoma</option>
-                  <option value="Trebuchet MS" style="font-family: 'Trebuchet MS', sans-serif;">Aa Trebuchet MS</option>
-                  <option value="Georgia" style="font-family: Georgia, serif;">Aa Georgia</option>
-                  <option value="Times New Roman" style="font-family: 'Times New Roman', serif;">Aa Times New Roman</option>
+                <label for="fontType">Font Source</label>
+                <select id="fontType" required>
+                  <option value="system">System Font</option>
+                  <option value="google">Google Font</option>
+                  <option value="custom">Custom Uploaded Font</option>
                 </select>
               </div>
+            </div>
+
+            <div class="gw-form-row">
+              <div class="gw-form-group">
+                <label for="fontName">Font Family</label>
+                <select id="fontName" required></select>
+              </div>
+              <div class="gw-form-group gw-font-upload-group" id="fontUploadGroup" hidden>
+                <label for="fontFile">Upload Custom Font</label>
+                <div class="gw-file-input">
+                  <input type="file" id="fontFile" accept=".woff2,.woff,.ttf,.otf">
+                  <span class="gw-file-label" id="fontFileLabel">Choose .woff2, .woff, .ttf, or .otf</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="gw-font-preview" id="fontPreviewCard">
+              <span class="gw-font-preview-label">Live Font Preview</span>
+              <p class="gw-font-preview-sample" id="fontPreviewSample">FanHub lets every community feel like its own brand.</p>
             </div>
           </form>
         </div>
@@ -509,25 +530,52 @@ export default function GenerateWebsite() {
   };
 
   const syncColorInputs = () => {
-    const colorBindings = [
-      ['#primaryColor', '#primaryColorPicker', '#primaryColorPreview', formData.primaryColor],
-      ['#secondaryColor', '#secondaryColorPicker', '#secondaryColorPreview', formData.secondaryColor],
-      ['#accentColor', '#accentColorPicker', '#accentColorPreview', formData.accentColor],
-    ];
-
-    colorBindings.forEach(([textSelector, pickerSelector, previewSelector, value]) => {
-      const textInput = section.querySelector(textSelector);
-      const picker = section.querySelector(pickerSelector);
-      const preview = section.querySelector(previewSelector);
-      if (textInput) textInput.value = value;
-      if (picker) picker.value = value;
-      if (preview) preview.style.background = value;
-    });
-
     const paletteInput = section.querySelector('#paletteInput');
     if (paletteInput) {
       paletteInput.value = JSON.stringify(formData.palette || []);
     }
+  };
+
+  const applyPreviewFont = () => {
+    const preview = section.querySelector('#fontPreviewSample');
+    if (!preview) return;
+
+    applyFontConfig({
+      type: formData.fontType,
+      name: formData.fontName,
+      url: formData.fontUrl || '',
+    }, { root: preview });
+    preview.style.fontFamily = `var(--theme-font-family)`;
+  };
+
+  const renderFontOptions = () => {
+    const fontNameSelect = section.querySelector('#fontName');
+    const fontUploadGroup = section.querySelector('#fontUploadGroup');
+    const fontFileLabel = section.querySelector('#fontFileLabel');
+    if (!fontNameSelect) return;
+
+    const options = formData.fontType === 'google' ? googleFonts : systemFonts;
+    if (formData.fontType === 'custom') {
+      const customName = formData.fontName || 'Custom Brand Font';
+      fontNameSelect.innerHTML = `<option value="${customName}">${customName}</option>`;
+      fontNameSelect.value = customName;
+      fontNameSelect.disabled = false;
+      if (fontUploadGroup) fontUploadGroup.hidden = false;
+      if (fontFileLabel) {
+        fontFileLabel.textContent = formData.customFontFile?.name || 'Choose .woff2, .woff, .ttf, or .otf';
+      }
+    } else {
+      fontNameSelect.innerHTML = options.map((font) => `
+        <option value="${font}" ${formData.fontName === font ? 'selected' : ''}>${font}</option>
+      `).join('');
+      if (!options.includes(formData.fontName)) {
+        formData.fontName = options[0];
+        formData.fontStyle = options[0];
+      }
+      if (fontUploadGroup) fontUploadGroup.hidden = true;
+    }
+
+    applyPreviewFont();
   };
 
   const applyPaletteToForm = (palette) => {
@@ -786,57 +834,50 @@ export default function GenerateWebsite() {
       formData.description = e.target.value;
     });
 
-    section.querySelector('#primaryColor')?.addEventListener('input', (e) => {
-      formData.primaryColor = e.target.value.trim();
-      const preview = section.querySelector('#primaryColorPreview');
-      if (preview) preview.style.background = formData.primaryColor || '#3b82f6';
-      const picker = section.querySelector('#primaryColorPicker');
-      if (picker && /^#([A-Fa-f0-9]{6})$/.test(formData.primaryColor)) picker.value = formData.primaryColor;
-    });
-    section.querySelector('#primaryColorPicker')?.addEventListener('input', (e) => {
-      formData.primaryColor = e.target.value;
-      const text = section.querySelector('#primaryColor');
-      if (text) text.value = formData.primaryColor;
-      const preview = section.querySelector('#primaryColorPreview');
-      if (preview) preview.style.background = formData.primaryColor;
-    });
-
-    section.querySelector('#secondaryColor')?.addEventListener('input', (e) => {
-      formData.secondaryColor = e.target.value.trim();
-      const preview = section.querySelector('#secondaryColorPreview');
-      if (preview) preview.style.background = formData.secondaryColor || '#ffffff';
-      const picker = section.querySelector('#secondaryColorPicker');
-      if (picker && /^#([A-Fa-f0-9]{6})$/.test(formData.secondaryColor)) picker.value = formData.secondaryColor;
-    });
-    section.querySelector('#secondaryColorPicker')?.addEventListener('input', (e) => {
-      formData.secondaryColor = e.target.value;
-      const text = section.querySelector('#secondaryColor');
-      if (text) text.value = formData.secondaryColor;
-      const preview = section.querySelector('#secondaryColorPreview');
-      if (preview) preview.style.background = formData.secondaryColor;
-    });
-
-    section.querySelector('#accentColor')?.addEventListener('input', (e) => {
-      formData.accentColor = e.target.value.trim();
-      const preview = section.querySelector('#accentColorPreview');
-      if (preview) preview.style.background = formData.accentColor || '#333333';
-      const picker = section.querySelector('#accentColorPicker');
-      if (picker && /^#([A-Fa-f0-9]{6})$/.test(formData.accentColor)) picker.value = formData.accentColor;
-    });
-    section.querySelector('#accentColorPicker')?.addEventListener('input', (e) => {
-      formData.accentColor = e.target.value;
-      const text = section.querySelector('#accentColor');
-      if (text) text.value = formData.accentColor;
-      const preview = section.querySelector('#accentColorPreview');
-      if (preview) preview.style.background = formData.accentColor;
-    });
-
     section.querySelector('#buttonStyle')?.addEventListener('change', (e) => {
       formData.buttonStyle = e.target.value;
     });
 
-    section.querySelector('#fontStyle')?.addEventListener('change', (e) => {
+    section.querySelector('#fontType')?.addEventListener('change', (e) => {
+      formData.fontType = e.target.value;
+      formData.fontName = e.target.value === 'google' ? googleFonts[0] : systemFonts[0];
+      formData.fontStyle = formData.fontName;
+      if (formData.fontType !== 'custom') {
+        formData.fontUrl = '';
+        formData.customFontFile = null;
+      }
+      renderFontOptions();
+    });
+
+    section.querySelector('#fontName')?.addEventListener('change', (e) => {
+      formData.fontName = e.target.value;
       formData.fontStyle = e.target.value;
+      applyPreviewFont();
+    });
+
+    section.querySelector('#fontFile')?.addEventListener('change', (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      const validExtensions = ['.woff2', '.woff', '.ttf', '.otf'];
+      const lowerName = file.name.toLowerCase();
+      if (!validExtensions.some((ext) => lowerName.endsWith(ext))) {
+        alert('Custom font must be .woff2, .woff, .ttf, or .otf');
+        e.target.value = '';
+        return;
+      }
+
+      formData.customFontFile = file;
+      formData.fontType = 'custom';
+      formData.fontName = file.name.replace(/\.[^.]+$/, '') || 'Custom Brand Font';
+      formData.fontStyle = formData.fontName;
+      if (customFontObjectUrl) {
+        URL.revokeObjectURL(customFontObjectUrl);
+      }
+      customFontObjectUrl = URL.createObjectURL(file);
+      formData.fontUrl = customFontObjectUrl;
+      renderFontOptions();
+      applyPreviewFont();
     });
 
     section.querySelector('#editPaletteBtn')?.addEventListener('click', () => {
@@ -941,6 +982,7 @@ export default function GenerateWebsite() {
   fetchTemplates();
   applyPaletteToForm(defaultPalettes[0].colors);
   renderPalettes();
+  renderFontOptions();
   renderMembers();
   setupFormListeners();
   setupGenerateButton();

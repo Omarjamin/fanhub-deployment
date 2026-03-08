@@ -1,5 +1,6 @@
 import { getEcommerceTemplatePage, getTemplatePage } from "./template-registry.js";
 import { getSessionToken, setActiveSiteSlug } from "./site-context.js";
+import { applyFontConfig } from "./theme/font-loader.js";
 
 const DEFAULT_API_V1 = "https://fanhub-deployment-production.up.railway.app/v1";
 const DEFAULT_API_KEY = "thread";
@@ -189,6 +190,14 @@ export function assignColorRoles(palette) {
 }
 
 function getThemeSource(data) {
+  if (typeof data?.theme === "string") {
+    try {
+      const parsed = JSON.parse(data.theme);
+      if (parsed && typeof parsed === "object") {
+        return parsed;
+      }
+    } catch (_) {}
+  }
   if (data?.theme && typeof data.theme === "object") {
     return data.theme;
   }
@@ -255,6 +264,52 @@ function normalizeThemeData(data) {
       source?.fontStyle ??
       data?.font_style ??
       data?.fontStyle,
+    font:
+      (source?.font && typeof source.font === "object" ? source.font : null) ||
+      (typeof source?.font === "string"
+        ? (() => {
+            try {
+              const parsed = JSON.parse(source.font);
+              return parsed && typeof parsed === "object" ? parsed : null;
+            } catch (_) {
+              return null;
+            }
+          })()
+        : null) ||
+      (typeof data?.font === "string"
+        ? (() => {
+            try {
+              const parsed = JSON.parse(data.font);
+              return parsed && typeof parsed === "object" ? parsed : null;
+            } catch (_) {
+              return null;
+            }
+          })()
+        : data?.font && typeof data.font === "object" ? data.font : null) ||
+      {
+        type:
+          source?.font_type ??
+          source?.fontType ??
+          data?.font_type ??
+          data?.fontType ??
+          "system",
+        name:
+          source?.font_name ??
+          source?.fontName ??
+          data?.font_name ??
+          data?.fontName ??
+          source?.font_style ??
+          source?.fontStyle ??
+          data?.font_style ??
+          data?.fontStyle ??
+          "Arial",
+        url:
+          source?.font_url ??
+          source?.fontUrl ??
+          data?.font_url ??
+          data?.fontUrl ??
+          "",
+      },
     customFontUrl:
       source?.custom_font_url ??
       source?.customFontUrl ??
@@ -275,33 +330,6 @@ function normalizeThemeData(data) {
       data?.fontFamily,
     palette: parsePaletteSource(palette),
   };
-}
-
-export function applyCustomFont(fontFilePath, fontFamilyName) {
-  const src = String(fontFilePath || "").trim();
-  const family = String(fontFamilyName || "").trim();
-
-  if (!src || !family || typeof document === "undefined") {
-    return;
-  }
-
-  const styleId = `theme-font-${family.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
-
-  if (!document.getElementById(styleId)) {
-    const style = document.createElement("style");
-    style.id = styleId;
-    style.textContent = `
-      @font-face {
-        font-family: '${family}';
-        src: url('${src}');
-        font-weight: normal;
-        font-style: normal;
-      }
-    `;
-    document.head.appendChild(style);
-  }
-
-  document.documentElement.style.setProperty("--theme-font-family", `'${family}'`);
 }
 
 export function applyThemeColors(data) {
@@ -353,12 +381,27 @@ export function applyThemeColors(data) {
     cursive: "\"Brush Script MT\", \"Comic Sans MS\", cursive",
     monospace: "\"Courier New\", Courier, monospace",
   };
-  const fontStyleRaw = String(theme.fontStyle || "Arial").trim();
+  const fontStyleRaw = String(theme.fontStyle || theme?.font?.name || "Arial").trim();
   const fontStyle = fontStyleRaw.toLowerCase();
   root.style.setProperty("--theme-font-family", fontMap[fontStyle] || fontStyleRaw || fontMap.arial);
 
-  if (theme.customFontUrl && theme.customFontFamily) {
-    applyCustomFont(theme.customFontUrl, theme.customFontFamily);
+  const fontConfig = theme.font || null;
+  if (fontConfig?.type === "custom" && (fontConfig?.url || theme.customFontUrl)) {
+    applyFontConfig({
+      type: "custom",
+      name: fontConfig?.name || theme.customFontFamily || "CustomFont",
+      url: fontConfig?.url || theme.customFontUrl,
+    });
+  } else if (fontConfig?.type === "google") {
+    applyFontConfig({
+      type: "google",
+      name: fontConfig?.name || fontStyleRaw,
+    });
+  } else {
+    applyFontConfig({
+      type: "system",
+      name: fontConfig?.name || fontStyleRaw,
+    });
   }
 
   applyButtonStyle(theme.buttonStyle, root);

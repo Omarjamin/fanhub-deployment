@@ -179,6 +179,35 @@
   color: #6b7280;
 }
 
+.gw-font-upload-group[hidden] {
+  display: none;
+}
+
+.gw-font-preview {
+  margin-top: 16px;
+  padding: 18px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #fafafa 0%, #f3f4f6 100%);
+}
+
+.gw-font-preview-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #6b7280;
+  margin-bottom: 8px;
+}
+
+.gw-font-preview-sample {
+  margin: 0;
+  font-size: 22px;
+  line-height: 1.3;
+  color: #111827;
+}
+
 /* Templates Grid */
 .gw-templates-grid {
   display: grid;

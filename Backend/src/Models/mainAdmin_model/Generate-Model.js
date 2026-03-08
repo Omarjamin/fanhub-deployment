@@ -198,6 +198,7 @@ class GenerateModel {
   async buildSiteSelectQuery({ whereClause = '', limitOne = false } = {}) {
     const siteCols = await this.getSiteColumns();
     const hasSettingsTable = await this.hasTable('sites_setting');
+    const settingsCols = hasSettingsTable ? await this.getTableColumns('sites_setting') : new Set();
 
     const pickSite = (column, fallbackSql = `NULL AS ${column}`) => (
       siteCols.has(column) ? `s.${column}` : fallbackSql
@@ -221,14 +222,19 @@ class GenerateModel {
 
     const settingFields = hasSettingsTable
       ? [
-          'ss.primary_color',
-          'ss.secondary_color',
-          'ss.accent_color',
-          'ss.button_style',
-          'ss.font_style',
-          'ss.nav_position',
-          'ss.logo',
-          'ss.banner',
+          settingsCols.has('primary_color') ? 'ss.primary_color' : 'NULL AS primary_color',
+          settingsCols.has('secondary_color') ? 'ss.secondary_color' : 'NULL AS secondary_color',
+          settingsCols.has('accent_color') ? 'ss.accent_color' : 'NULL AS accent_color',
+          settingsCols.has('button_style') ? 'ss.button_style' : 'NULL AS button_style',
+          settingsCols.has('font_style') ? 'ss.font_style' : 'NULL AS font_style',
+          settingsCols.has('font_type') ? 'NULLIF(ss.font_type, "") AS font_type' : 'NULL AS font_type',
+          settingsCols.has('font_name') ? 'NULLIF(ss.font_name, "") AS font_name' : 'NULL AS font_name',
+          settingsCols.has('font_url') ? 'NULLIF(ss.font_url, "") AS font_url' : 'NULL AS font_url',
+          settingsCols.has('palette') ? 'ss.palette' : 'NULL AS palette',
+          settingsCols.has('theme') ? 'ss.theme' : 'NULL AS theme',
+          settingsCols.has('nav_position') ? 'ss.nav_position' : 'NULL AS nav_position',
+          settingsCols.has('logo') ? 'ss.logo' : 'NULL AS logo',
+          settingsCols.has('banner') ? 'ss.banner' : 'NULL AS banner',
         ]
       : [
           'NULL AS primary_color',
@@ -236,6 +242,11 @@ class GenerateModel {
           'NULL AS accent_color',
           'NULL AS button_style',
           'NULL AS font_style',
+          'NULL AS font_type',
+          'NULL AS font_name',
+          'NULL AS font_url',
+          'NULL AS palette',
+          'NULL AS theme',
           'NULL AS nav_position',
           'NULL AS logo',
           'NULL AS banner',
@@ -272,6 +283,11 @@ class GenerateModel {
     template,
     templateName,
     templateKey,
+    fontType,
+    fontName,
+    fontUrl,
+    theme,
+    palette,
     primaryColor,
     secondaryColor,
     accentColor,
@@ -298,6 +314,11 @@ class GenerateModel {
       .replace(/[_\s]+/g, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
+    const normalizedFontType = String(fontType || '').trim().toLowerCase();
+    const normalizedFontName = String(fontName || '').trim();
+    const normalizedFontUrl = String(fontUrl || '').trim();
+    const normalizedTheme = typeof theme === 'string' ? theme : JSON.stringify(theme || {});
+    const normalizedPalette = typeof palette === 'string' ? palette : JSON.stringify(palette || []);
 
     if (!normalizedSiteName) throw new Error('site_name is required');
     if (!normalizedDomain) throw new Error('domain is required');
@@ -389,6 +410,11 @@ class GenerateModel {
       addSettingValue('accent_color', accentColor);
       addSettingValue('button_style', buttonStyle);
       addSettingValue('font_style', fontStyle);
+      addSettingValue('font_type', normalizedFontType);
+      addSettingValue('font_name', normalizedFontName);
+      addSettingValue('font_url', normalizedFontUrl);
+      addSettingValue('palette', normalizedPalette);
+      addSettingValue('theme', normalizedTheme);
       addSettingValue('logo', logo);
       addSettingValue('banner', banner);
 
