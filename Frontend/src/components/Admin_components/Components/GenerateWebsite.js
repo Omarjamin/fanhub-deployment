@@ -565,7 +565,10 @@ export default function GenerateWebsite() {
           <h2 class="gw-section-title">Live Preview</h2>
           <div class="gw-admin-live-preview" id="typographyPreview">
             <div class="gw-admin-preview-header">
-              <span class="gw-admin-preview-eyebrow">Template preview</span>
+              <div class="gw-admin-preview-brand">
+                <span class="gw-admin-preview-eyebrow">Template preview</span>
+                <span class="gw-admin-preview-chip">Colors + Typography</span>
+              </div>
               <button type="button" class="gw-admin-preview-cta">Join Community</button>
             </div>
             <h1 class="gw-admin-preview-heading">Fan websites should feel unmistakably theirs.</h1>
@@ -573,6 +576,14 @@ export default function GenerateWebsite() {
               Preview how your heading font, body font, base size, line height, and letter spacing will read
               together across the generated website before you publish it.
             </p>
+            <div class="gw-admin-preview-palette">
+              <span class="gw-admin-preview-palette-label">Palette</span>
+              <div class="gw-admin-preview-swatches">
+                ${(formData.palette || defaultPalettes[0].colors).map((color, index) => `
+                  <span class="gw-admin-preview-swatch" data-preview-swatch="${index}" style="background:${normalizeHex(color)}" title="${normalizeHex(color)}"></span>
+                `).join('')}
+              </div>
+            </div>
             <div class="gw-admin-preview-grid">
               <article class="gw-admin-preview-card">
                 <h3>Heading Preview</h3>
@@ -582,6 +593,43 @@ export default function GenerateWebsite() {
                 <h3>Body Preview</h3>
                 <p id="bodyPreviewMeta">Inter</p>
               </article>
+            </div>
+            <div class="gw-admin-preview-showcase">
+              <aside class="gw-admin-preview-sidebar">
+                <div class="gw-admin-preview-sidebar-item active">Home</div>
+                <div class="gw-admin-preview-sidebar-item">Members</div>
+                <div class="gw-admin-preview-sidebar-item">Events</div>
+                <div class="gw-admin-preview-sidebar-item">Shop</div>
+              </aside>
+              <div class="gw-admin-preview-main">
+                <div class="gw-admin-preview-hero-card">
+                  <span class="gw-admin-preview-badge">Featured Update</span>
+                  <h2 class="gw-admin-preview-section-title">Colors now react live across cards, badges, and buttons.</h2>
+                  <p class="gw-admin-preview-copy">
+                    This mock section shows how your selected palette affects surfaces, borders, call-to-action buttons,
+                    and supporting content blocks in the generated site.
+                  </p>
+                  <div class="gw-admin-preview-actions">
+                    <button type="button" class="gw-admin-preview-primary-btn">Primary Action</button>
+                    <button type="button" class="gw-admin-preview-secondary-btn">Secondary</button>
+                  </div>
+                </div>
+                <div class="gw-admin-preview-content-grid">
+                  <article class="gw-admin-preview-panel">
+                    <span class="gw-admin-preview-mini-label">Announcement</span>
+                    <h3>New comeback schedule posted</h3>
+                    <p>Surface colors, border contrast, and body text all follow the selected palette.</p>
+                  </article>
+                  <article class="gw-admin-preview-panel">
+                    <span class="gw-admin-preview-mini-label">Community Stats</span>
+                    <div class="gw-admin-preview-stats">
+                      <div><strong>18.4K</strong><span>Fans</span></div>
+                      <div><strong>124</strong><span>Posts</span></div>
+                      <div><strong>32</strong><span>Events</span></div>
+                    </div>
+                  </article>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -743,9 +791,22 @@ export default function GenerateWebsite() {
 
     const typographyPayload = getTypographyPayload();
     applyTypographyConfig(typographyPayload, { root: preview });
-    preview.style.background = `linear-gradient(135deg, ${formData.secondaryColor} 0%, ${formData.palette?.[4] || '#f8fafc'} 100%)`;
+    const palette = Array.isArray(formData.palette) ? formData.palette : [];
+    const previewSurface = formData.secondaryColor || '#ffffff';
+    const previewCanvas = palette[4] || '#f8fafc';
+    const previewBorder = palette[1] || '#dbe2ea';
+    const previewMuted = palette[2] || '#64748b';
+
+    preview.style.background = `linear-gradient(135deg, ${previewSurface} 0%, ${previewCanvas} 100%)`;
     preview.style.color = formData.primaryColor;
     preview.style.setProperty('--preview-accent', formData.accentColor);
+    preview.style.setProperty('--preview-primary', formData.primaryColor);
+    preview.style.setProperty('--preview-secondary', formData.secondaryColor);
+    preview.style.setProperty('--preview-surface', previewSurface);
+    preview.style.setProperty('--preview-canvas', previewCanvas);
+    preview.style.setProperty('--preview-border', previewBorder);
+    preview.style.setProperty('--preview-muted', previewMuted);
+    preview.style.setProperty('--preview-text-on-accent', getContrastColor(formData.accentColor || '#111827'));
 
     const headingMeta = section.querySelector('#headingPreviewMeta');
     const bodyMeta = section.querySelector('#bodyPreviewMeta');
