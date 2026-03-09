@@ -27,18 +27,42 @@ export default function GenerateWebsite() {
     { family: 'Courier New', category: 'monospace', preview: "'Courier New', Courier, monospace" },
   ];
   const fallbackGoogleFonts = [
-    { family: 'Inter', category: 'sans-serif' },
-    { family: 'Poppins', category: 'sans-serif' },
-    { family: 'Montserrat', category: 'sans-serif' },
-    { family: 'Playfair Display', category: 'serif' },
-    { family: 'Oswald', category: 'display' },
-    { family: 'Lora', category: 'serif' },
+    { family: 'Inter', category: 'sans-serif', tags: [] },
+    { family: 'Poppins', category: 'sans-serif', tags: [] },
+    { family: 'Montserrat', category: 'sans-serif', tags: [] },
+    { family: 'Playfair Display', category: 'serif', tags: [] },
+    { family: 'Oswald', category: 'display', tags: [] },
+    { family: 'Lora', category: 'serif', tags: [] },
   ];
   const typographyRoles = ['heading', 'body'];
   const typographyLabels = {
     heading: 'Heading Font',
     body: 'Body Font',
   };
+  const googleFontTagCategoryMap = {
+    expressive: 'Feeling',
+    mood: 'Feeling',
+    personality: 'Feeling',
+    sans: 'Appearance',
+    serif: 'Appearance',
+    display: 'Appearance',
+    monospace: 'Appearance',
+    handwriting: 'Appearance',
+    script: 'Appearance',
+    blackletter: 'Appearance',
+    decorative: 'Appearance',
+    text: 'Technology',
+    ui: 'Technology',
+    code: 'Technology',
+    coding: 'Technology',
+    screen: 'Technology',
+    variable: 'Technology',
+    technology: 'Technology',
+    seasonal: 'Seasonal',
+    holiday: 'Seasonal',
+    festive: 'Seasonal',
+  };
+  const googleFontFilterGroups = ['Feeling', 'Appearance', 'Technology', 'Seasonal'];
 
   let templates = [];
   let selectedPaletteId = defaultPalettes[0].id;
@@ -118,6 +142,55 @@ export default function GenerateWebsite() {
 
     return `'${family}', sans-serif`;
   };
+  const parseGoogleFontTags = (tags) => (Array.isArray(tags) ? tags : [])
+    .map((tag) => {
+      const rawName = String(tag?.name || '').trim();
+      const segments = rawName.split('/').filter(Boolean);
+      if (!segments.length) return null;
+
+      const root = String(segments[0] || '').trim();
+      const leaf = String(segments[segments.length - 1] || '').trim();
+      const group = googleFontTagCategoryMap[root.toLowerCase()] || null;
+      if (!group || !leaf) return null;
+
+      return {
+        category: group,
+        value: leaf,
+        path: rawName,
+        weight: Number(tag?.weight || 0),
+      };
+    })
+    .filter(Boolean);
+  const getGoogleFontTagFilters = () => {
+    const groups = googleFontFilterGroups.reduce((acc, group) => {
+      acc[group] = [];
+      return acc;
+    }, {});
+
+    googleFonts.forEach((font) => {
+      (font.tags || []).forEach((tag) => {
+        if (!groups[tag.category]) return;
+        const existing = groups[tag.category].find((item) => item.value === tag.value);
+        if (existing) {
+          existing.weight = Math.max(existing.weight, tag.weight || 0);
+          existing.count += 1;
+          return;
+        }
+        groups[tag.category].push({
+          value: tag.value,
+          weight: tag.weight || 0,
+          count: 1,
+        });
+      });
+    });
+
+    googleFontFilterGroups.forEach((group) => {
+      groups[group] = groups[group]
+        .sort((a, b) => (b.weight - a.weight) || a.value.localeCompare(b.value));
+    });
+
+    return groups;
+  };
 
   const getTypographyPayload = () => ({
     heading: { ...(formData.typography?.heading ||   {}) },
@@ -152,7 +225,7 @@ export default function GenerateWebsite() {
 
     try {
       const response = await fetch(
-        `https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${apiKey}`,
+        `https://www.googleapis.com/webfonts/v1/webfonts?capability=FAMILY_TAGS&sort=popularity&key=${apiKey}`,
       );
       if (!response.ok) throw new Error(`Google Fonts request failed (${response.status})`);
       const data = await response.json();
@@ -160,6 +233,7 @@ export default function GenerateWebsite() {
       googleFonts = items.map((font) => ({
         family: font.family,
         category: font.category || 'sans-serif',
+        tags: parseGoogleFontTags(font.tags),
       }));
     } catch (error) {
       console.error('Failed to fetch Google Fonts:', error);
@@ -194,8 +268,8 @@ export default function GenerateWebsite() {
   let members = [];
   let isSubmitting = false;
   let typographyFilters = {
-    heading: { search: '', category: 'all' },
-    body: { search: '', category: 'all' },
+    heading: { search: '', category: 'all', tags: {} },
+    body: { search: '', category: 'all', tags: {} },
   };
   const assignPaletteRoles = (palette) => {
     const normalized = (Array.isArray(palette) ? palette : [])
@@ -224,16 +298,21 @@ export default function GenerateWebsite() {
     };
   };
   const getFilteredFontOptions = (role) => {
-    const filters = typographyFilters[role] || { search: '', category: 'all' };
+    const filters = typographyFilters[role] || { search: '', category: 'all', tags: {} };
     const search = String(filters.search || '').trim().toLowerCase();
     const category = String(filters.category || 'all').trim().toLowerCase();
+    const selectedTags = filters.tags || {};
     const options = getFontOptionsForRole(role);
     return options.filter((font) => {
       const family = String(font.family || '').toLowerCase();
       const fontCategory = String(font.category || 'other').toLowerCase();
       const matchesSearch = !search || family.includes(search);
       const matchesCategory = category === 'all' || fontCategory === category;
-      return matchesSearch && matchesCategory;
+      const matchesTags = Object.entries(selectedTags).every(([group, value]) => {
+        if (!value || value === 'all') return true;
+        return (font.tags || []).some((tag) => tag.category === group && tag.value === value);
+      });
+      return matchesSearch && matchesCategory && matchesTags;
     });
   };
   let formData = {
@@ -409,8 +488,8 @@ export default function GenerateWebsite() {
     paletteDraft = [...defaultPalettes[0].colors];
     members = [];
     typographyFilters = {
-      heading: { search: '', category: 'all' },
-      body: { search: '', category: 'all' },
+      heading: { search: '', category: 'all', tags: {} },
+      body: { search: '', category: 'all', tags: {} },
     };
     formData = {
       siteName: '',
@@ -569,6 +648,7 @@ export default function GenerateWebsite() {
               <span class="gw-admin-preview-eyebrow">Template preview</span>
               <button type="button" class="gw-admin-preview-cta">Join Community</button>
             </div>
+            <div class="gw-admin-preview-palette" id="combinedPalettePreview"></div>
             <h1 class="gw-admin-preview-heading">Fan websites should feel unmistakably theirs.</h1>
             <p class="gw-admin-preview-body">
               Preview how your heading font, body font, base size, line height, and letter spacing will read
@@ -582,6 +662,10 @@ export default function GenerateWebsite() {
               <article class="gw-admin-preview-card">
                 <h3>Body Preview</h3>
                 <p id="bodyPreviewMeta">Inter</p>
+              </article>
+              <article class="gw-admin-preview-card">
+                <h3>Palette Preview</h3>
+                <p id="palettePreviewMeta">5 live colors ready for your site</p>
               </article>
             </div>
           </div>
@@ -673,6 +757,10 @@ export default function GenerateWebsite() {
     if (!preview) return;
 
     const typographyPayload = getTypographyPayload();
+    const palettePreview = section.querySelector('#combinedPalettePreview');
+    const palettePreviewMeta = section.querySelector('#palettePreviewMeta');
+    const safePalette = (formData.palette || defaultPalettes[0].colors).slice(0, 5);
+
     applyTypographyConfig(typographyPayload, { root: preview });
     preview.style.background = `linear-gradient(135deg, ${formData.secondaryColor} 0%, ${formData.palette?.[4] || '#f8fafc'} 100%)`;
     preview.style.color = formData.primaryColor;
@@ -688,6 +776,17 @@ export default function GenerateWebsite() {
       bodyMeta.textContent = `${typographyPayload.body?.name || 'Body'} • ${typographyPayload.line_height} line height`;
       bodyMeta.style.fontFamily = typographyPayload.body?.name ? `'${typographyPayload.body.name}', sans-serif` : 'inherit';
     }
+    if (palettePreview) {
+      palettePreview.innerHTML = safePalette.map((color, index) => `
+        <div class="gw-admin-preview-palette-swatch" style="background:${normalizeHex(color)};color:${getContrastColor(color)};">
+          <span>${index === 0 ? 'Primary' : index === 1 ? 'Accent' : index === 2 ? 'Support' : index === 3 ? 'Depth' : 'Surface'}</span>
+          <strong>${normalizeHex(color)}</strong>
+        </div>
+      `).join('');
+    }
+    if (palettePreviewMeta) {
+      palettePreviewMeta.textContent = safePalette.map((color) => normalizeHex(color)).join(' • ');
+    }
   };
 
   const updateTypographyRole = (role, patch) => {
@@ -702,6 +801,22 @@ export default function GenerateWebsite() {
     renderTypographyControls();
     applyTypographyPreview();
   };
+  const rerenderTypographyControlsWithFocus = (role, control, selectionStart = null, selectionEnd = null) => {
+    renderTypographyControls();
+
+    if (!role || !control) return;
+    const target = section.querySelector(`[data-role="${role}"][data-typo-control="${control}"]`);
+    if (!target) return;
+
+    target.focus();
+    if (
+      typeof selectionStart === 'number' &&
+      typeof selectionEnd === 'number' &&
+      typeof target.setSelectionRange === 'function'
+    ) {
+      target.setSelectionRange(selectionStart, selectionEnd);
+    }
+  };
 
   const renderTypographyControls = () => {
     const container = section.querySelector('#typographyControls');
@@ -710,6 +825,8 @@ export default function GenerateWebsite() {
     container.innerHTML = typographyRoles.map((role) => {
       const font = formData.typography?.[role] || {};
       const filteredOptions = getFilteredFontOptions(role);
+      const tagFilters = getGoogleFontTagFilters();
+      const activeTagFilters = typographyFilters[role]?.tags || {};
       const sourceLabel = font.type === 'google'
         ? 'Google Fonts'
         : font.type === 'custom'
@@ -750,6 +867,36 @@ export default function GenerateWebsite() {
             </div>
           </div>
           <div class="gw-form-row">
+            ${font.type === 'google' ? `
+              <div class="gw-form-group" style="min-width:220px;max-width:260px;">
+                <label>Tag Filters</label>
+                <div class="gw-google-font-tag-sidebar">
+                  ${googleFontFilterGroups.map((group) => {
+                    const options = tagFilters[group] || [];
+                    if (!options.length) return '';
+                    const selectedValue = activeTagFilters[group] || 'all';
+                    return `
+                      <div class="gw-google-font-tag-group">
+                        <strong>${group}</strong>
+                        <div class="gw-google-font-tag-options">
+                          <button type="button" class="gw-tag-filter-btn ${selectedValue === 'all' ? 'active' : ''}" data-role="${role}" data-typo-control="tag-filter" data-tag-group="${group}" data-tag-value="all">All</button>
+                          ${options.map((option) => `
+                            <button
+                              type="button"
+                              class="gw-tag-filter-btn ${selectedValue === option.value ? 'active' : ''}"
+                              data-role="${role}"
+                              data-typo-control="tag-filter"
+                              data-tag-group="${group}"
+                              data-tag-value="${option.value}"
+                            >${option.value}</button>
+                          `).join('')}
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+            ` : ''}
             <div class="gw-form-group">
               <label for="${role}FontName">Font Family & Appearance</label>
               <select id="${role}FontName" data-role="${role}" data-typo-control="name">
@@ -1051,11 +1198,13 @@ export default function GenerateWebsite() {
       if (!control || !role) return;
 
       if (control === 'search') {
+        const selectionStart = e.target.selectionStart;
+        const selectionEnd = e.target.selectionEnd;
         typographyFilters[role] = {
           ...(typographyFilters[role] || {}),
           search: e.target.value,
         };
-        renderTypographyControls();
+        rerenderTypographyControlsWithFocus(role, 'search', selectionStart, selectionEnd);
       }
     });
 
@@ -1086,7 +1235,7 @@ export default function GenerateWebsite() {
           ...(typographyFilters[role] || {}),
           category: e.target.value,
         };
-        renderTypographyControls();
+        rerenderTypographyControlsWithFocus(role, 'category');
         return;
       }
 
@@ -1128,6 +1277,24 @@ export default function GenerateWebsite() {
     });
 
     section.querySelector('#typographyControls')?.addEventListener('click', (e) => {
+      const tagButton = e.target.closest('[data-typo-control="tag-filter"]');
+      if (tagButton) {
+        const role = tagButton.dataset.role;
+        const group = tagButton.dataset.tagGroup;
+        const value = tagButton.dataset.tagValue || 'all';
+        if (!role || !group) return;
+
+        typographyFilters[role] = {
+          ...(typographyFilters[role] || {}),
+          tags: {
+            ...((typographyFilters[role] || {}).tags || {}),
+            [group]: value,
+          },
+        };
+        rerenderTypographyControlsWithFocus(role, 'search');
+        return;
+      }
+
       const button = e.target.closest('[data-typo-control="appearance"]');
       if (!button) return;
 
