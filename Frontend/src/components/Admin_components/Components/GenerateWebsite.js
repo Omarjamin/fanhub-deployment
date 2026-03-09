@@ -776,11 +776,18 @@ export default function GenerateWebsite() {
     const palettePreviewMeta = section.querySelector('#palettePreviewMeta');
     const safePalette = (formData.palette || defaultPalettes[0].colors).slice(0, 5);
     const [primary, accent, support, depth, surface] = safePalette;
+    const border = normalizeHex(support);
+    const primaryText = getContrastColor(surface) === '#000000' ? depth : '#ffffff';
 
     applyTypographyConfig(typographyPayload, { root: preview });
     preview.style.background = `linear-gradient(135deg, ${formData.secondaryColor} 0%, ${formData.palette?.[4] || '#f8fafc'} 100%)`;
-    preview.style.color = formData.primaryColor;
+    preview.style.color = primaryText;
     preview.style.setProperty('--preview-accent', formData.accentColor);
+    preview.style.setProperty('--preview-primary', normalizeHex(depth));
+    preview.style.setProperty('--preview-surface', normalizeHex(surface));
+    preview.style.setProperty('--preview-border', border);
+    preview.style.setProperty('--preview-muted', normalizeHex(primary));
+    preview.style.setProperty('--preview-text-on-accent', getContrastColor(formData.accentColor));
 
     const headingMeta = section.querySelector('#headingPreviewMeta');
     const bodyMeta = section.querySelector('#bodyPreviewMeta');
@@ -794,34 +801,44 @@ export default function GenerateWebsite() {
     }
     if (palettePreview) {
       palettePreview.innerHTML = `
-        <div class="gw-admin-layout-preview" style="border:1px solid ${normalizeHex(support)};background:${normalizeHex(surface)};">
-          <div class="gw-admin-layout-preview-topbar" style="background:${normalizeHex(depth)};color:${getContrastColor(depth)};">
-            <span>Community Header</span>
-            <button type="button" style="background:${normalizeHex(primary)};color:${getContrastColor(primary)};border:none;padding:6px 12px;border-radius:999px;">Follow</button>
-          </div>
-          <div class="gw-admin-layout-preview-hero" style="background:linear-gradient(135deg, ${normalizeHex(primary)} 0%, ${normalizeHex(accent)} 100%);color:${getContrastColor(primary)};">
-            <strong>Hero / Banner Area</strong>
-            <span>Primary + accent colors drive the first impression.</span>
-          </div>
-          <div class="gw-admin-layout-preview-content">
-            <article class="gw-admin-layout-block" style="background:${normalizeHex(surface)};border:1px solid ${normalizeHex(support)};">
-              <h4 style="color:${normalizeHex(depth)};">Content Card</h4>
-              <p style="color:${normalizeHex(depth)};">Body text and surfaces stay readable while still using your palette.</p>
-            </article>
-            <article class="gw-admin-layout-block" style="background:${normalizeHex(support)};color:${getContrastColor(support)};">
-              <h4>Highlight Section</h4>
-              <p>Support colors can carry secondary modules and featured content.</p>
-            </article>
-            <article class="gw-admin-layout-actions" style="background:${normalizeHex(surface)};border:1px dashed ${normalizeHex(accent)};">
-              <button type="button" style="background:${normalizeHex(accent)};color:${getContrastColor(accent)};border:none;padding:8px 14px;border-radius:12px;">Primary CTA</button>
-              <button type="button" style="background:${normalizeHex(depth)};color:${getContrastColor(depth)};border:none;padding:8px 14px;border-radius:12px;">Secondary CTA</button>
-            </article>
+        <div class="gw-admin-preview-showcase">
+          <aside class="gw-admin-preview-sidebar">
+            <div class="gw-admin-preview-sidebar-item active" style="background:${normalizeHex(primary)};color:${getContrastColor(primary)};">Hero</div>
+            <div class="gw-admin-preview-sidebar-item">News Feed</div>
+            <div class="gw-admin-preview-sidebar-item">Members</div>
+            <div class="gw-admin-preview-sidebar-item">Media Vault</div>
+          </aside>
+          <div class="gw-admin-preview-main">
+            <section class="gw-admin-preview-hero-card" style="background:linear-gradient(135deg, ${normalizeHex(primary)} 0%, ${normalizeHex(accent)} 100%);color:${getContrastColor(primary)};border-color:${border};">
+              <span class="gw-admin-preview-badge">Live Theme Layout</span>
+              <h3 class="gw-admin-preview-section-title" style="color:${getContrastColor(primary)};">Your palette now drives the whole interface.</h3>
+              <p class="gw-admin-preview-copy" style="color:${getContrastColor(primary)};">Headers, buttons, panels, and reading surfaces update together so the system feels cohesive.</p>
+              <div class="gw-admin-preview-actions">
+                <button type="button" class="gw-admin-preview-primary-btn" style="background:${normalizeHex(depth)};color:${getContrastColor(depth)};">Primary Action</button>
+                <button type="button" class="gw-admin-preview-secondary-btn" style="border-color:${getContrastColor(primary)};color:${getContrastColor(primary)};">Secondary Action</button>
+              </div>
+            </section>
+            <div class="gw-admin-preview-content-grid">
+              <article class="gw-admin-preview-panel">
+                <h3>Content Surface</h3>
+                <p>Cards and reading areas stay clean while still borrowing from the selected palette.</p>
+                <div class="gw-admin-preview-stats">
+                  <div><strong>${normalizeHex(primary)}</strong><span>Primary</span></div>
+                  <div><strong>${normalizeHex(accent)}</strong><span>Accent</span></div>
+                  <div><strong>${normalizeHex(surface)}</strong><span>Surface</span></div>
+                </div>
+              </article>
+              <article class="gw-admin-preview-panel" style="background:${normalizeHex(support)};color:${getContrastColor(support)};border-color:${border};">
+                <h3 style="color:${getContrastColor(support)};">Feature Block</h3>
+                <p style="color:${getContrastColor(support)};">Support colors can highlight merch, events, featured posts, or fan campaigns.</p>
+              </article>
+            </div>
           </div>
         </div>
       `;
     }
     if (palettePreviewMeta) {
-      palettePreviewMeta.textContent = 'Layout colors update live across header, hero, cards, and actions';
+      palettePreviewMeta.textContent = 'Theme colors now preview as a full layout system, not just isolated swatches';
     }
   };
 
