@@ -870,6 +870,30 @@ export default function GenerateWebsite() {
       target.setSelectionRange(selectionStart, selectionEnd);
     }
   };
+  const syncTypographySelectionWithFilters = (role) => {
+    const currentFont = formData.typography?.[role] || {};
+    const filteredOptions = getFilteredFontOptions(role);
+
+    if (!filteredOptions.length) {
+      renderTypographyControls();
+      applyTypographyPreview();
+      return;
+    }
+
+    const currentStillVisible = filteredOptions.some((option) => option.family === currentFont.name);
+    if (currentStillVisible) {
+      renderTypographyControls();
+      applyTypographyPreview();
+      return;
+    }
+
+    const nextOption = filteredOptions[0];
+    updateTypographyRole(role, {
+      name: nextOption.family,
+      category: nextOption.category || currentFont.category || 'sans-serif',
+      url: currentFont.type === 'custom' ? (currentFont.url || '') : '',
+    });
+  };
 
   const renderTypographyControls = () => {
     const container = section.querySelector('#typographyControls');
@@ -970,6 +994,11 @@ export default function GenerateWebsite() {
                   ? filteredOptions.map((option) => `<option value="${option.family}" ${option.family === font.name ? 'selected' : ''}>${option.family} (${option.category})</option>`).join('')
                   : `<option value="${font.name || ''}">${font.name || 'No fonts found'}</option>`}
               </select>
+              ${filteredOptions.length === 0 ? `
+                <p class="gw-font-empty-state">
+                  No fonts match the selected filters. Remove or change a filter to see available fonts.
+                </p>
+              ` : ''}
             </div>
             <div class="gw-form-group gw-admin-font-upload-group ${font.type === 'custom' ? '' : 'is-hidden'}">
               <label for="${role}FontFile">Upload Custom Font</label>
@@ -1270,6 +1299,7 @@ export default function GenerateWebsite() {
           ...(typographyFilters[role] || {}),
           search: e.target.value,
         };
+        syncTypographySelectionWithFilters(role);
         rerenderTypographyControlsWithFocus(role, 'search', selectionStart, selectionEnd);
       }
     });
@@ -1301,6 +1331,7 @@ export default function GenerateWebsite() {
           ...(typographyFilters[role] || {}),
           category: e.target.value,
         };
+        syncTypographySelectionWithFilters(role);
         rerenderTypographyControlsWithFocus(role, 'category');
         return;
       }
@@ -1357,6 +1388,7 @@ export default function GenerateWebsite() {
             [group]: value,
           },
         };
+        syncTypographySelectionWithFilters(role);
         rerenderTypographyControlsWithFocus(role, 'search');
         return;
       }
