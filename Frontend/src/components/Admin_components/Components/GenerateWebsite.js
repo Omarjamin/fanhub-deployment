@@ -309,8 +309,8 @@ export default function GenerateWebsite() {
     body: { search: '', category: 'all', tags: {} },
   };
   let typographyFilterPanels = {
-    heading: Object.fromEntries(googleFontFilterGroups.map((group) => [group, true])),
-    body: Object.fromEntries(googleFontFilterGroups.map((group) => [group, true])),
+    heading: Object.fromEntries(googleFontFilterGroups.map((group) => [group, false])),
+    body: Object.fromEntries(googleFontFilterGroups.map((group) => [group, false])),
   };
   const assignPaletteRoles = (palette) => {
     const normalized = (Array.isArray(palette) ? palette : [])
@@ -547,8 +547,8 @@ export default function GenerateWebsite() {
       body: { search: '', category: 'all', tags: {} },
     };
     typographyFilterPanels = {
-      heading: Object.fromEntries(googleFontFilterGroups.map((group) => [group, true])),
-      body: Object.fromEntries(googleFontFilterGroups.map((group) => [group, true])),
+      heading: Object.fromEntries(googleFontFilterGroups.map((group) => [group, false])),
+      body: Object.fromEntries(googleFontFilterGroups.map((group) => [group, false])),
     };
     formData = {
       siteName: '',
