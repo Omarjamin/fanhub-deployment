@@ -72,7 +72,42 @@ export default function GenerateWebsite() {
     return (r * 299 + g * 587 + b * 114) / 1000;
   };
   const getContrastColor = (hex) => getBrightness(hex) > 150 ? '#000000' : '#ffffff';
-  // ...existing code...
+  const normalizeTypographyValue = (field, value) => {
+    const raw = String(value || '').trim();
+    if (!raw) {
+      if (field === 'fontSizeBase') return '16px';
+      if (field === 'lineHeight') return '1.6';
+      if (field === 'letterSpacing') return '0.02em';
+      return '';
+    }
+
+    if (field === 'fontSizeBase') {
+      return /^\d+(\.\d+)?(px|rem|em|%)$/i.test(raw) ? raw : '16px';
+    }
+
+    if (field === 'lineHeight') {
+      return /^\d+(\.\d+)?$/.test(raw) || /^\d+(\.\d+)?(px|rem|em|%)$/i.test(raw) ? raw : '1.6';
+    }
+
+    if (field === 'letterSpacing') {
+      return /^-?\d+(\.\d+)?(px|rem|em|%)$/i.test(raw) ? raw : '0.02em';
+    }
+
+    return raw;
+  };
+  const getFontOptionsForRole = (role) => {
+    const fontType = formData?.typography?.[role]?.type || 'google';
+    if (fontType === 'system') return systemFonts;
+    if (fontType === 'custom') {
+      const customFont = formData?.typography?.[role];
+      return customFont?.name ? [{
+        family: customFont.name,
+        category: customFont.category || 'custom',
+        preview: customFont.name,
+      }] : [];
+    }
+    return googleFonts;
+  };
 
   const getTypographyPayload = () => ({
     heading: { ...(formData.typography?.heading ||   {}) },
