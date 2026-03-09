@@ -108,6 +108,16 @@ export default function GenerateWebsite() {
     }
     return googleFonts;
   };
+  const getPreviewFontFamily = (font) => {
+    const family = String(font?.name || '').trim();
+    if (!family) return 'inherit';
+
+    if (font?.type === 'system' || font?.type === 'google' || font?.type === 'custom') {
+      return `'${family}', sans-serif`;
+    }
+
+    return `'${family}', sans-serif`;
+  };
 
   const getTypographyPayload = () => ({
     heading: { ...(formData.typography?.heading ||   {}) },
@@ -612,76 +622,6 @@ export default function GenerateWebsite() {
         </div>
       </div>
     `;
-
-  // Add file input listeners after rendering
-  setTimeout(() => {
-    // Logo
-    const logoInput = section.querySelector('#logo');
-    if (logoInput) {
-      logoInput.style.display = 'block';
-      logoInput.style.position = 'relative';
-      logoInput.style.zIndex = '1000';
-      logoInput.addEventListener('click', (e) => {
-        alert('Logo input clicked');
-        logoInput.focus();
-      });
-      logoInput.addEventListener('focus', () => {
-        console.log('Logo input focused');
-      });
-      logoInput.addEventListener('change', (e) => {
-        console.log('Logo input changed', e.target.files);
-        if (e.target.files && e.target.files[0]) {
-          const maxSize = 5 * 1024 * 1024; // 5MB
-          if (e.target.files[0].size > maxSize) {
-            alert('Logo file must be less than 5MB');
-            e.target.value = '';
-            return;
-          }
-          formData.logo = e.target.files[0];
-          updateFileInput(e.target);
-          console.log('Logo file set:', formData.logo);
-        }
-      });
-    }
-    // Banner link
-    const bannerLinkInput = section.querySelector('#bannerLink');
-    if (bannerLinkInput) {
-      bannerLinkInput.addEventListener('input', (e) => {
-        formData.bannerLink = e.target.value.trim();
-      });
-    }
-    // Member images
-    section.querySelectorAll('.gw-member-image').forEach((input, idx) => {
-      input.style.display = 'block';
-      input.style.position = 'relative';
-      input.style.zIndex = '1000';
-      input.addEventListener('click', (e) => {
-        alert('Member image input clicked');
-        input.focus();
-      });
-      input.addEventListener('focus', () => {
-        console.log('Member image input focused');
-      });
-      input.addEventListener('change', (e) => {
-        console.log('Member image input changed', e.target.files);
-        if (e.target.files && e.target.files[0]) {
-          const maxSize = 2 * 1024 * 1024; // 2MB
-          if (e.target.files[0].size > maxSize) {
-            alert('Member image must be less than 2MB');
-            e.target.value = '';
-            return;
-          }
-          // Use FileReader for preview
-          const reader = new FileReader();
-          reader.onload = (event) => {
-            members[idx].image = event.target.result;
-            console.log('Member image set:', members[idx].image);
-          };
-          reader.readAsDataURL(e.target.files[0]);
-        }
-      });
-    });
-  }, 0);
 
   const renderTemplates = () => {
     const container = section.querySelector('#templatesContainer');
