@@ -690,17 +690,31 @@
   font-family: var(--theme-font-body);
   font-size: 13px;
   font-weight: 700;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .gw-section .gw-admin-preview-primary-btn {
-  background: var(--preview-accent);
-  color: var(--preview-text-on-accent, #ffffff);
+  background: var(--preview-button, var(--preview-accent));
+  color: var(--preview-button-text, var(--preview-text-on-accent, #ffffff));
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.14);
+}
+
+.gw-section .gw-admin-preview-primary-btn:hover {
+  background: var(--preview-button-hover, var(--preview-accent));
+  color: var(--preview-button-hover-text, var(--preview-text-on-accent, #ffffff));
+  transform: translateY(-1px);
 }
 
 .gw-section .gw-admin-preview-secondary-btn {
-  background: transparent;
-  color: var(--preview-primary);
-  border: 1px solid var(--preview-border, #dbe2ea);
+  background: var(--preview-secondary-button, transparent);
+  color: var(--preview-secondary-button-text, var(--preview-primary));
+  border: 1px solid var(--preview-secondary-button, var(--preview-border, #dbe2ea));
+}
+
+.gw-section .gw-admin-preview-secondary-btn:hover {
+  background: var(--preview-button-hover, var(--preview-accent));
+  color: var(--preview-button-hover-text, var(--preview-text-on-accent, #ffffff));
+  border-color: var(--preview-button-hover, var(--preview-accent));
 }
 
 .gw-section .gw-admin-preview-content-grid {

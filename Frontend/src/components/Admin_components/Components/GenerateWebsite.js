@@ -833,7 +833,7 @@ export default function GenerateWebsite() {
     const cardColor = normalizeHex(support);
     const textColor = normalizeHex(depth);
     const buttonColor = normalizeHex(primary);
-    const hoverColor = normalizeHex(accent);
+    const hoverColor = shiftHexColor(buttonColor, getBrightness(buttonColor) > 150 ? -24 : 24);
     const secondaryButtonColor = normalizeHex(accent);
 
     applyTypographyConfig(typographyPayload, { root: preview });
@@ -845,6 +845,12 @@ export default function GenerateWebsite() {
     preview.style.setProperty('--preview-border', border);
     preview.style.setProperty('--preview-muted', buttonColor);
     preview.style.setProperty('--preview-text-on-accent', getContrastColor(formData.accentColor));
+    preview.style.setProperty('--preview-button', buttonColor);
+    preview.style.setProperty('--preview-button-text', getContrastColor(buttonColor));
+    preview.style.setProperty('--preview-button-hover', hoverColor);
+    preview.style.setProperty('--preview-button-hover-text', getContrastColor(hoverColor));
+    preview.style.setProperty('--preview-secondary-button', secondaryButtonColor);
+    preview.style.setProperty('--preview-secondary-button-text', getContrastColor(secondaryButtonColor));
 
     const headingMeta = section.querySelector('#headingPreviewMeta');
     const bodyMeta = section.querySelector('#bodyPreviewMeta');
@@ -871,8 +877,8 @@ export default function GenerateWebsite() {
               <h3 class="gw-admin-preview-section-title" style="color:${getContrastColor(buttonColor)};">Your palette now drives the whole interface.</h3>
               <p class="gw-admin-preview-copy" style="color:${getContrastColor(buttonColor)};">Buttons, hover states, cards, text, and page background all reflect the current palette in real time.</p>
               <div class="gw-admin-preview-actions">
-                <button type="button" class="gw-admin-preview-primary-btn" style="background:${buttonColor};color:${getContrastColor(buttonColor)};">Primary Action</button>
-                <button type="button" class="gw-admin-preview-secondary-btn" style="background:${secondaryButtonColor};border-color:${secondaryButtonColor};color:${getContrastColor(secondaryButtonColor)};">Hover Sample</button>
+                <button type="button" class="gw-admin-preview-primary-btn">Primary Action</button>
+                <button type="button" class="gw-admin-preview-secondary-btn">Hover Sample</button>
               </div>
             </section>
             <div class="gw-admin-preview-content-grid">
