@@ -1,3 +1,45 @@
+  // Utility: Assign palette roles (primary, accent, etc.)
+  const assignPaletteRoles = (palette) => {
+    const normalized = (Array.isArray(palette) ? palette : [])
+      .map((color) => normalizeHex(color))
+      .filter(Boolean);
+    if (!normalized.length) {
+      return {
+        primary: '#3b82f6',
+        accent: '#333333',
+        secondary: '#ffffff',
+        background: '#ffffff',
+        text: '#000000',
+      };
+    }
+    const byBrightness = [...normalized].sort((a, b) => getBrightness(b) - getBrightness(a));
+    const background = byBrightness[0];
+    const primary = normalized.find((color) => color !== background) || normalized[0];
+    const accent = normalized.find((color) => color !== primary && color !== background) || primary;
+    const secondary = byBrightness[1] || background;
+    return {
+      primary,
+      accent,
+      secondary,
+      background,
+      text: getContrastColor(background),
+    };
+  };
+
+  // Utility: Filter font options by search/category
+  const getFilteredFontOptions = (role) => {
+    const filters = typographyFilters[role] || { search: '', category: 'all' };
+    const search = String(filters.search || '').trim().toLowerCase();
+    const category = String(filters.category || 'all').trim().toLowerCase();
+    const options = getFontOptionsForRole(role);
+    return options.filter((font) => {
+      const family = String(font.family || '').toLowerCase();
+      const fontCategory = String(font.category || 'other').toLowerCase();
+      const matchesSearch = !search || family.includes(search);
+      const matchesCategory = category === 'all' || fontCategory === category;
+      return matchesSearch && matchesCategory;
+    });
+  };
 // Move file input listeners inside GenerateWebsite function
 import api from '../../../services/bini_services/api.js';
 import { getAdminHeaders } from './admin-sites.js';
