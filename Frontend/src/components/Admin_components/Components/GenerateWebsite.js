@@ -46,6 +46,7 @@ export default function GenerateWebsite() {
     sans: 'Appearance',
     serif: 'Appearance',
     display: 'Appearance',
+    calligraphy: 'Appearance',
     monospace: 'Appearance',
     handwriting: 'Appearance',
     script: 'Appearance',
@@ -297,6 +298,21 @@ export default function GenerateWebsite() {
       text: getContrastColor(background),
     };
   };
+  const matchesFontCategoryFilter = (font, category) => {
+    if (category === 'all') return true;
+
+    const fontCategory = String(font.category || 'other').toLowerCase();
+    if (fontCategory === category) return true;
+
+    if (category === 'calligraphy') {
+      return (font.tags || []).some((tag) => {
+        const value = String(tag.value || '').toLowerCase();
+        return value.includes('calligraphy') || value.includes('script') || value.includes('handwriting');
+      });
+    }
+
+    return false;
+  };
   const getFilteredFontOptions = (role) => {
     const filters = typographyFilters[role] || { search: '', category: 'all', tags: {} };
     const search = String(filters.search || '').trim().toLowerCase();
@@ -305,9 +321,8 @@ export default function GenerateWebsite() {
     const options = getFontOptionsForRole(role);
     return options.filter((font) => {
       const family = String(font.family || '').toLowerCase();
-      const fontCategory = String(font.category || 'other').toLowerCase();
       const matchesSearch = !search || family.includes(search);
-      const matchesCategory = category === 'all' || fontCategory === category;
+      const matchesCategory = matchesFontCategoryFilter(font, category);
       const matchesTags = Object.entries(selectedTags).every(([group, value]) => {
         if (!value || value === 'all') return true;
         return (font.tags || []).some((tag) => tag.category === group && tag.value === value);
@@ -760,6 +775,7 @@ export default function GenerateWebsite() {
     const palettePreview = section.querySelector('#combinedPalettePreview');
     const palettePreviewMeta = section.querySelector('#palettePreviewMeta');
     const safePalette = (formData.palette || defaultPalettes[0].colors).slice(0, 5);
+    const [primary, accent, support, depth, surface] = safePalette;
 
     applyTypographyConfig(typographyPayload, { root: preview });
     preview.style.background = `linear-gradient(135deg, ${formData.secondaryColor} 0%, ${formData.palette?.[4] || '#f8fafc'} 100%)`;
@@ -777,15 +793,35 @@ export default function GenerateWebsite() {
       bodyMeta.style.fontFamily = typographyPayload.body?.name ? `'${typographyPayload.body.name}', sans-serif` : 'inherit';
     }
     if (palettePreview) {
-      palettePreview.innerHTML = safePalette.map((color, index) => `
-        <div class="gw-admin-preview-palette-swatch" style="background:${normalizeHex(color)};color:${getContrastColor(color)};">
-          <span>${index === 0 ? 'Primary' : index === 1 ? 'Accent' : index === 2 ? 'Support' : index === 3 ? 'Depth' : 'Surface'}</span>
-          <strong>${normalizeHex(color)}</strong>
+      palettePreview.innerHTML = `
+        <div class="gw-admin-layout-preview" style="border:1px solid ${normalizeHex(support)};background:${normalizeHex(surface)};">
+          <div class="gw-admin-layout-preview-topbar" style="background:${normalizeHex(depth)};color:${getContrastColor(depth)};">
+            <span>Community Header</span>
+            <button type="button" style="background:${normalizeHex(primary)};color:${getContrastColor(primary)};border:none;padding:6px 12px;border-radius:999px;">Follow</button>
+          </div>
+          <div class="gw-admin-layout-preview-hero" style="background:linear-gradient(135deg, ${normalizeHex(primary)} 0%, ${normalizeHex(accent)} 100%);color:${getContrastColor(primary)};">
+            <strong>Hero / Banner Area</strong>
+            <span>Primary + accent colors drive the first impression.</span>
+          </div>
+          <div class="gw-admin-layout-preview-content">
+            <article class="gw-admin-layout-block" style="background:${normalizeHex(surface)};border:1px solid ${normalizeHex(support)};">
+              <h4 style="color:${normalizeHex(depth)};">Content Card</h4>
+              <p style="color:${normalizeHex(depth)};">Body text and surfaces stay readable while still using your palette.</p>
+            </article>
+            <article class="gw-admin-layout-block" style="background:${normalizeHex(support)};color:${getContrastColor(support)};">
+              <h4>Highlight Section</h4>
+              <p>Support colors can carry secondary modules and featured content.</p>
+            </article>
+            <article class="gw-admin-layout-actions" style="background:${normalizeHex(surface)};border:1px dashed ${normalizeHex(accent)};">
+              <button type="button" style="background:${normalizeHex(accent)};color:${getContrastColor(accent)};border:none;padding:8px 14px;border-radius:12px;">Primary CTA</button>
+              <button type="button" style="background:${normalizeHex(depth)};color:${getContrastColor(depth)};border:none;padding:8px 14px;border-radius:12px;">Secondary CTA</button>
+            </article>
+          </div>
         </div>
-      `).join('');
+      `;
     }
     if (palettePreviewMeta) {
-      palettePreviewMeta.textContent = safePalette.map((color) => normalizeHex(color)).join(' • ');
+      palettePreviewMeta.textContent = 'Layout colors update live across header, hero, cards, and actions';
     }
   };
 
@@ -827,6 +863,10 @@ export default function GenerateWebsite() {
       const filteredOptions = getFilteredFontOptions(role);
       const tagFilters = getGoogleFontTagFilters();
       const activeTagFilters = typographyFilters[role]?.tags || {};
+      const activeTagPills = Object.entries(activeTagFilters)
+        .filter(([, value]) => value && value !== 'all')
+        .map(([group, value]) => `<span class="gw-active-filter-pill">${group}: ${value}</span>`)
+        .join('');
       const sourceLabel = font.type === 'google'
         ? 'Google Fonts'
         : font.type === 'custom'
@@ -852,24 +892,31 @@ export default function GenerateWebsite() {
               </select>
             </div>
             <div class="gw-form-group">
-              <label for="${role}FontSearch">Font Search</label>
-              <input type="text" id="${role}FontSearch" data-role="${role}" data-typo-control="search" value="${typographyFilters[role]?.search || ''}" placeholder="Search fonts">
-            </div>
-            <div class="gw-form-group">
               <label for="${role}FontCategory">Category</label>
               <select id="${role}FontCategory" data-role="${role}" data-typo-control="category">
                 <option value="all" ${(typographyFilters[role]?.category || 'all') === 'all' ? 'selected' : ''}>All Categories</option>
                 <option value="sans-serif" ${typographyFilters[role]?.category === 'sans-serif' ? 'selected' : ''}>Sans Serif</option>
                 <option value="serif" ${typographyFilters[role]?.category === 'serif' ? 'selected' : ''}>Serif</option>
                 <option value="display" ${typographyFilters[role]?.category === 'display' ? 'selected' : ''}>Display</option>
+                <option value="calligraphy" ${typographyFilters[role]?.category === 'calligraphy' ? 'selected' : ''}>Calligraphy</option>
                 <option value="monospace" ${typographyFilters[role]?.category === 'monospace' ? 'selected' : ''}>Monospace</option>
               </select>
             </div>
+            <div class="gw-form-group">
+              <label for="${role}FontSearch">Search Available Fonts</label>
+              <input type="text" id="${role}FontSearch" data-role="${role}" data-typo-control="search" value="${typographyFilters[role]?.search || ''}" placeholder="Type to narrow matching fonts">
+            </div>
           </div>
-          <div class="gw-form-row">
-            ${font.type === 'google' ? `
-              <div class="gw-form-group" style="min-width:220px;max-width:260px;">
-                <label>Tag Filters</label>
+          ${font.type === 'google' ? `
+            <div class="gw-admin-filter-summary">
+              <span>${filteredOptions.length} fonts available after filters</span>
+              ${activeTagPills || '<span class="gw-active-filter-pill">No tag filters selected</span>'}
+            </div>
+          ` : ''}
+          ${font.type === 'google' ? `
+            <div class="gw-form-row">
+              <div class="gw-form-group" style="width:100%;">
+                <label>Google Fonts Filters</label>
                 <div class="gw-google-font-tag-sidebar">
                   ${googleFontFilterGroups.map((group) => {
                     const options = tagFilters[group] || [];
@@ -896,9 +943,11 @@ export default function GenerateWebsite() {
                   }).join('')}
                 </div>
               </div>
-            ` : ''}
+            </div>
+          ` : ''}
+          <div class="gw-form-row">
             <div class="gw-form-group">
-              <label for="${role}FontName">Font Family & Appearance</label>
+              <label for="${role}FontName">Available Fonts</label>
               <select id="${role}FontName" data-role="${role}" data-typo-control="name">
                 ${filteredOptions.length > 0
                   ? filteredOptions.map((option) => `<option value="${option.family}" ${option.family === font.name ? 'selected' : ''}>${option.family} (${option.category})</option>`).join('')
