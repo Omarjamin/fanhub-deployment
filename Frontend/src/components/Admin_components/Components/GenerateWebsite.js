@@ -716,25 +716,6 @@ export default function GenerateWebsite() {
               <button type="button" class="gw-admin-preview-cta">Join Community</button>
             </div>
             <div class="gw-admin-preview-palette" id="combinedPalettePreview"></div>
-            <h1 class="gw-admin-preview-heading">Fan websites should feel unmistakably theirs.</h1>
-            <p class="gw-admin-preview-body">
-              Preview how your heading font, body font, base size, line height, and letter spacing will read
-              together across the generated website before you publish it.
-            </p>
-            <div class="gw-admin-preview-grid">
-              <article class="gw-admin-preview-card">
-                <h3>Heading Preview</h3>
-                <p id="headingPreviewMeta">Poppins</p>
-              </article>
-              <article class="gw-admin-preview-card">
-                <h3>Body Preview</h3>
-                <p id="bodyPreviewMeta">Inter</p>
-              </article>
-              <article class="gw-admin-preview-card">
-                <h3>Palette Preview</h3>
-                <p id="palettePreviewMeta">5 live colors ready for your site</p>
-              </article>
-            </div>
           </div>
         </div>
 
@@ -825,7 +806,6 @@ export default function GenerateWebsite() {
 
     const typographyPayload = getTypographyPayload();
     const palettePreview = section.querySelector('#combinedPalettePreview');
-    const palettePreviewMeta = section.querySelector('#palettePreviewMeta');
     const safePalette = (formData.palette || defaultPalettes[0].colors).slice(0, 5);
     const [primary, accent, support, depth, surface] = safePalette;
     const border = normalizeHex(support);
@@ -852,16 +832,6 @@ export default function GenerateWebsite() {
     preview.style.setProperty('--preview-secondary-button', secondaryButtonColor);
     preview.style.setProperty('--preview-secondary-button-text', getContrastColor(secondaryButtonColor));
 
-    const headingMeta = section.querySelector('#headingPreviewMeta');
-    const bodyMeta = section.querySelector('#bodyPreviewMeta');
-    if (headingMeta) {
-      headingMeta.textContent = `${typographyPayload.heading?.name || 'Heading'} • ${typographyPayload.font_size_base}`;
-      headingMeta.style.fontFamily = typographyPayload.heading?.name ? `'${typographyPayload.heading.name}', sans-serif` : 'inherit';
-    }
-    if (bodyMeta) {
-      bodyMeta.textContent = `${typographyPayload.body?.name || 'Body'} • ${typographyPayload.line_height} line height`;
-      bodyMeta.style.fontFamily = typographyPayload.body?.name ? `'${typographyPayload.body.name}', sans-serif` : 'inherit';
-    }
     if (palettePreview) {
       palettePreview.innerHTML = `
         <div class="gw-admin-preview-showcase">
@@ -891,12 +861,40 @@ export default function GenerateWebsite() {
                 <p style="color:${getContrastColor(cardColor)};">Card surfaces and feature areas use the support color so hierarchy is visible immediately.</p>
               </article>
             </div>
+            <div class="gw-admin-preview-meta-grid">
+              <article class="gw-admin-preview-meta-card">
+                <span class="gw-admin-preview-type-label">Heading</span>
+                <strong id="headingPreviewMeta">Poppins • 16px</strong>
+                <p>This headline shows the voice of the generated homepage.</p>
+              </article>
+              <article class="gw-admin-preview-meta-card">
+                <span class="gw-admin-preview-type-label">Body</span>
+                <strong id="bodyPreviewMeta">Inter • 1.6 line height</strong>
+                <p>Readable content settings carry through cards, posts, and long-form sections.</p>
+              </article>
+              <article class="gw-admin-preview-meta-card">
+                <span class="gw-admin-preview-type-label">Theme</span>
+                <strong id="palettePreviewMeta">Live palette system</strong>
+                <p>Background, cards, nav, and actions all update from the selected palette.</p>
+              </article>
+            </div>
           </div>
         </div>
       `;
     }
+    const headingMeta = section.querySelector('#headingPreviewMeta');
+    const bodyMeta = section.querySelector('#bodyPreviewMeta');
+    const palettePreviewMeta = section.querySelector('#palettePreviewMeta');
+    if (headingMeta) {
+      headingMeta.textContent = `${typographyPayload.heading?.name || 'Heading'} • ${typographyPayload.font_size_base}`;
+      headingMeta.style.fontFamily = typographyPayload.heading?.name ? `'${typographyPayload.heading.name}', sans-serif` : 'inherit';
+    }
+    if (bodyMeta) {
+      bodyMeta.textContent = `${typographyPayload.body?.name || 'Body'} • ${typographyPayload.line_height} line height`;
+      bodyMeta.style.fontFamily = typographyPayload.body?.name ? `'${typographyPayload.body.name}', sans-serif` : 'inherit';
+    }
     if (palettePreviewMeta) {
-      palettePreviewMeta.textContent = 'Theme colors now preview as a full layout system, not just isolated swatches';
+      palettePreviewMeta.textContent = `${buttonColor} • ${secondaryButtonColor} • ${backgroundColor}`;
     }
   };
 
