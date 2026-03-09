@@ -139,7 +139,11 @@ class GenerateModel {
     return Number(rows?.[0]?.id || 0) || null;
   }
 
-  async getTableColumns(tableName) {
+  async getTableColumns(tableName, { refresh = false } = {}) {
+    if (refresh) {
+      this.tableColumnsCache.delete(tableName);
+    }
+
     if (this.tableColumnsCache.has(tableName)) {
       return this.tableColumnsCache.get(tableName);
     }
@@ -412,7 +416,7 @@ class GenerateModel {
     const [siteResult] = await this.db.query(siteQuery, insertParams);
     const siteId = siteResult.insertId;
 
-    const settingsCols = await this.getTableColumns('sites_setting');
+    const settingsCols = await this.getTableColumns('sites_setting', { refresh: true });
     if (settingsCols.size > 0) {
       const settingColumns = [];
       const settingValues = [];
@@ -782,7 +786,7 @@ class GenerateModel {
     try {
       if (!this.db) await this.connectAdmin();
       const siteCols = await this.getSiteColumns();
-      const settingsCols = await this.getTableColumns('sites_setting');
+      const settingsCols = await this.getTableColumns('sites_setting', { refresh: true });
       const memberCols = await this.getTableColumns('site_members');
 
       const updates = [];
