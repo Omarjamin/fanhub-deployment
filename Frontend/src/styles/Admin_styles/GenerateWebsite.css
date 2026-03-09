@@ -268,6 +268,25 @@
   gap: 8px;
 }
 
+.gw-section .gw-google-font-tag-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.gw-section .gw-google-font-tag-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 12px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
 .gw-section .gw-google-font-tag-group strong {
   font-size: 12px;
   font-weight: 700;
@@ -276,10 +295,31 @@
   letter-spacing: 0.08em;
 }
 
+.gw-section .gw-clear-filter-btn {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #475569;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.gw-section .gw-clear-filter-btn:hover {
+  border-color: #64748b;
+  color: #0f172a;
+}
+
 .gw-section .gw-google-font-tag-options {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.gw-section .gw-google-font-tag-options.is-collapsed {
+  display: none;
 }
 
 .gw-section .gw-tag-filter-btn {

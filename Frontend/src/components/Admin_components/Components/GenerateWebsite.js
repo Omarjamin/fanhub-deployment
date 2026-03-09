@@ -43,15 +43,22 @@ export default function GenerateWebsite() {
     expressive: 'Feeling',
     mood: 'Feeling',
     personality: 'Feeling',
-    sans: 'Appearance',
-    serif: 'Appearance',
     display: 'Appearance',
-    calligraphy: 'Appearance',
-    monospace: 'Appearance',
-    handwriting: 'Appearance',
-    script: 'Appearance',
-    blackletter: 'Appearance',
     decorative: 'Appearance',
+    blackletter: 'Appearance',
+    pixel: 'Appearance',
+    stencil: 'Appearance',
+    distressed: 'Appearance',
+    marker: 'Appearance',
+    art: 'Appearance',
+    inline: 'Appearance',
+    blob: 'Appearance',
+    wood: 'Appearance',
+    medieval: 'Appearance',
+    shaded: 'Appearance',
+    serif: 'Serif',
+    sans: 'Sans Serif',
+    monospace: 'Technology',
     text: 'Technology',
     ui: 'Technology',
     code: 'Technology',
@@ -59,11 +66,14 @@ export default function GenerateWebsite() {
     screen: 'Technology',
     variable: 'Technology',
     technology: 'Technology',
+    script: 'Calligraphy',
+    handwriting: 'Calligraphy',
+    calligraphy: 'Calligraphy',
     seasonal: 'Seasonal',
     holiday: 'Seasonal',
     festive: 'Seasonal',
   };
-  const googleFontFilterGroups = ['Feeling', 'Appearance', 'Technology', 'Seasonal'];
+  const googleFontFilterGroups = ['Feeling', 'Appearance', 'Calligraphy', 'Serif', 'Sans Serif', 'Technology', 'Seasonal'];
 
   let templates = [];
   let selectedPaletteId = defaultPalettes[0].id;
@@ -151,7 +161,15 @@ export default function GenerateWebsite() {
 
       const root = String(segments[0] || '').trim();
       const leaf = String(segments[segments.length - 1] || '').trim();
-      const group = googleFontTagCategoryMap[root.toLowerCase()] || null;
+      const normalizedRoot = root.toLowerCase();
+      let group = googleFontTagCategoryMap[normalizedRoot] || null;
+
+      if (!group) {
+        const normalizedLeaf = leaf.toLowerCase();
+        if (normalizedLeaf.includes('handwritten') || normalizedLeaf.includes('handwriting') || normalizedLeaf.includes('informal') || normalizedLeaf.includes('formal') || normalizedLeaf.includes('upright')) {
+          group = 'Calligraphy';
+        }
+      }
       if (!group || !leaf) return null;
 
       return {
@@ -191,6 +209,24 @@ export default function GenerateWebsite() {
     });
 
     return groups;
+  };
+  const clearTypographyFilters = (role, group = null) => {
+    const currentFilters = typographyFilters[role] || { search: '', category: 'all', tags: {} };
+    if (!group) {
+      typographyFilters[role] = {
+        ...currentFilters,
+        tags: {},
+      };
+      return;
+    }
+
+    typographyFilters[role] = {
+      ...currentFilters,
+      tags: {
+        ...(currentFilters.tags || {}),
+        [group]: 'all',
+      },
+    };
   };
 
   const getTypographyPayload = () => ({
@@ -271,6 +307,10 @@ export default function GenerateWebsite() {
   let typographyFilters = {
     heading: { search: '', category: 'all', tags: {} },
     body: { search: '', category: 'all', tags: {} },
+  };
+  let typographyFilterPanels = {
+    heading: Object.fromEntries(googleFontFilterGroups.map((group) => [group, true])),
+    body: Object.fromEntries(googleFontFilterGroups.map((group) => [group, true])),
   };
   const assignPaletteRoles = (palette) => {
     const normalized = (Array.isArray(palette) ? palette : [])
@@ -505,6 +545,10 @@ export default function GenerateWebsite() {
     typographyFilters = {
       heading: { search: '', category: 'all', tags: {} },
       body: { search: '', category: 'all', tags: {} },
+    };
+    typographyFilterPanels = {
+      heading: Object.fromEntries(googleFontFilterGroups.map((group) => [group, true])),
+      body: Object.fromEntries(googleFontFilterGroups.map((group) => [group, true])),
     };
     formData = {
       siteName: '',
@@ -904,6 +948,7 @@ export default function GenerateWebsite() {
       const filteredOptions = getFilteredFontOptions(role);
       const tagFilters = getGoogleFontTagFilters();
       const activeTagFilters = typographyFilters[role]?.tags || {};
+      const panelState = typographyFilterPanels[role] || {};
       const activeTagPills = Object.entries(activeTagFilters)
         .filter(([, value]) => value && value !== 'all')
         .map(([group, value]) => `<span class="gw-active-filter-pill">${group}: ${value}</span>`)
@@ -952,6 +997,7 @@ export default function GenerateWebsite() {
             <div class="gw-admin-filter-summary">
               <span>${filteredOptions.length} fonts available after filters</span>
               ${activeTagPills || '<span class="gw-active-filter-pill">No tag filters selected</span>'}
+              <button type="button" class="gw-clear-filter-btn" data-role="${role}" data-typo-control="clear-all-filters">Clear Filters</button>
             </div>
           ` : ''}
           ${font.type === 'google' ? `
@@ -963,10 +1009,17 @@ export default function GenerateWebsite() {
                     const options = tagFilters[group] || [];
                     if (!options.length) return '';
                     const selectedValue = activeTagFilters[group] || 'all';
+                    const isOpen = panelState[group] !== false;
                     return `
                       <div class="gw-google-font-tag-group">
-                        <strong>${group}</strong>
-                        <div class="gw-google-font-tag-options">
+                        <div class="gw-google-font-tag-group-header">
+                          <button type="button" class="gw-google-font-tag-toggle" data-role="${role}" data-typo-control="toggle-tag-group" data-tag-group="${group}">
+                            <strong>${group}</strong>
+                            <span>${isOpen ? '−' : '+'}</span>
+                          </button>
+                          <button type="button" class="gw-clear-filter-btn" data-role="${role}" data-typo-control="clear-tag-filter" data-tag-group="${group}">Clear</button>
+                        </div>
+                        <div class="gw-google-font-tag-options ${isOpen ? '' : 'is-collapsed'}">
                           <button type="button" class="gw-tag-filter-btn ${selectedValue === 'all' ? 'active' : ''}" data-role="${role}" data-typo-control="tag-filter" data-tag-group="${group}" data-tag-value="all">All</button>
                           ${options.map((option) => `
                             <button
@@ -1389,7 +1442,44 @@ export default function GenerateWebsite() {
           },
         };
         syncTypographySelectionWithFilters(role);
-        rerenderTypographyControlsWithFocus(role, 'search');
+        renderTypographyControls();
+        applyTypographyPreview();
+        return;
+      }
+
+      const clearAllButton = e.target.closest('[data-typo-control="clear-all-filters"]');
+      if (clearAllButton) {
+        const role = clearAllButton.dataset.role;
+        if (!role) return;
+        clearTypographyFilters(role);
+        syncTypographySelectionWithFilters(role);
+        renderTypographyControls();
+        applyTypographyPreview();
+        return;
+      }
+
+      const clearGroupButton = e.target.closest('[data-typo-control="clear-tag-filter"]');
+      if (clearGroupButton) {
+        const role = clearGroupButton.dataset.role;
+        const group = clearGroupButton.dataset.tagGroup;
+        if (!role || !group) return;
+        clearTypographyFilters(role, group);
+        syncTypographySelectionWithFilters(role);
+        renderTypographyControls();
+        applyTypographyPreview();
+        return;
+      }
+
+      const toggleGroupButton = e.target.closest('[data-typo-control="toggle-tag-group"]');
+      if (toggleGroupButton) {
+        const role = toggleGroupButton.dataset.role;
+        const group = toggleGroupButton.dataset.tagGroup;
+        if (!role || !group) return;
+        typographyFilterPanels[role] = {
+          ...(typographyFilterPanels[role] || {}),
+          [group]: !((typographyFilterPanels[role] || {})[group] !== false),
+        };
+        renderTypographyControls();
         return;
       }
 
