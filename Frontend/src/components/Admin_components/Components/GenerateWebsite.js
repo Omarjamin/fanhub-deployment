@@ -879,11 +879,6 @@ export default function GenerateWebsite() {
               <article class="gw-admin-preview-panel" style="background:${backgroundColor};border-color:${border};">
                 <h3>Content Surface</h3>
                 <p>Cards and reading areas stay clean while still borrowing from the selected palette.</p>
-                <div class="gw-admin-preview-stats">
-                  <div style="background:${buttonColor};color:${getContrastColor(buttonColor)};"><strong>Nav</strong><span>${buttonColor}</span></div>
-                  <div style="background:${hoverColor};color:${getContrastColor(hoverColor)};"><strong>Hover</strong><span>${hoverColor}</span></div>
-                  <div style="background:${backgroundColor};color:${textColor};"><strong>BG</strong><span>${backgroundColor}</span></div>
-                </div>
               </article>
               <article class="gw-admin-preview-panel" style="background:${cardColor};color:${getContrastColor(cardColor)};border-color:${border};">
                 <h3 style="color:${getContrastColor(cardColor)};">Feature Block</h3>
