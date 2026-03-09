@@ -1,45 +1,84 @@
-﻿.admin-layout {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-  background-color: #f5f7fa;
+.admin-shell-root {
+  background: #eef2f7;
+  color: #111827;
+  overflow-x: hidden;
+  min-height: 100dvh;
 }
 
-.content-wrapper {
-  display: flex;
-  flex: 1;
-  margin-top: 60px;
+.admin-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    "sidebar header"
+    "sidebar main";
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.92), rgba(238, 242, 247, 0.98)),
+    #eef2f7;
 }
 
-.content-section {
+.admin-shell__header {
+  grid-area: header;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  min-width: 0;
+  background: transparent;
+}
+
+.admin-shell__sidebar {
+  grid-area: sidebar;
+  min-height: 100dvh;
+  position: sticky;
+  top: 0;
+  align-self: start;
+  z-index: 15;
+}
+
+.admin-shell__main {
+  grid-area: main;
+  min-width: 0;
   width: 100%;
-
-}
-
-
-.main-content {
-  flex: 1;
-  padding: 20px;
-  margin-left: 250px;
-  transition: margin-left 0.3s ease;
-  background-color: #f5f7fa;
-  min-height: calc(100vh - 60px);
+  max-width: 100%;
+  padding: 24px;
+  overflow-x: hidden;
   overflow-y: auto;
+  box-sizing: border-box;
 }
 
-@media (width <= 992px) {
-  .main-content {
-    margin-left: 0;
-    padding: 15px;
-  }
-  
-  .content-wrapper.collapsed .main-content {
-    margin-left: 70px;
-  }
+.admin-shell__main > * {
+  width: min(100%, 1280px);
+  margin: 0 auto;
 }
 
-@media (width <= 768px) {
-  .main-content {
-    padding: 10px;
+.admin-shell__footer {
+  display: none;
+}
+
+.admin-shell a:hover,
+.admin-shell button:hover,
+.admin-shell .btn:hover,
+.admin-shell .nav-link:hover {
+  color: inherit;
+}
+
+@media (max-width: 1024px) {
+  .admin-shell {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr;
+    grid-template-areas:
+      "header"
+      "sidebar"
+      "main";
+  }
+
+  .admin-shell__sidebar {
+    position: static;
+    min-height: auto;
+  }
+
+  .admin-shell__main {
+    padding: 16px;
   }
 }

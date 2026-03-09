@@ -1,22 +1,23 @@
+import '../../styles/Admin_styles/Layout.css';
 import Header from '../../components/Admin_components/Components/Header.js';
 import Sidebar from '../../components/Admin_components/Components/Sidebar.js';
 
 
 export default function AdminDashboard(root) {
+  root.classList.add('admin-shell-root');
   root.innerHTML = `
-    <div id="container">
-      <header id="head"></header>
-      <nav id="navigation"></nav>
-      <main id="main"></main>
-      <footer id="footer"></footer>
-      
+    <div class="admin-shell">
+      <header class="admin-shell__header"></header>
+      <nav class="admin-shell__sidebar"></nav>
+      <main class="admin-shell__main"></main>
+      <footer class="admin-shell__footer"></footer>
     </div>
   `;
 
-  const header = root.querySelector('#head');
-  const navigation = root.querySelector('#navigation');
-  const main = root.querySelector('#main');
-  const footer = root.querySelector('#footer');
+  const header = root.querySelector('.admin-shell__header');
+  const navigation = root.querySelector('.admin-shell__sidebar');
+  const main = root.querySelector('.admin-shell__main');
+  const footer = root.querySelector('.admin-shell__footer');
 
   Header(header);
   Sidebar(navigation);
