@@ -107,6 +107,14 @@ export default function GenerateWebsite() {
     return (r * 299 + g * 587 + b * 114) / 1000;
   };
   const getContrastColor = (hex) => getBrightness(hex) > 150 ? '#000000' : '#ffffff';
+  const shiftHexColor = (hex, amount = 0) => {
+    const safeHex = normalizeHex(hex).replace('#', '');
+    const clamp = (value) => Math.max(0, Math.min(255, value));
+    const r = clamp(parseInt(safeHex.substring(0, 2), 16) + amount);
+    const g = clamp(parseInt(safeHex.substring(2, 4), 16) + amount);
+    const b = clamp(parseInt(safeHex.substring(4, 6), 16) + amount);
+    return `#${[r, g, b].map((value) => value.toString(16).padStart(2, '0')).join('')}`;
+  };
   const normalizeTypographyValue = (field, value) => {
     const raw = String(value || '').trim();
     if (!raw) {
@@ -821,16 +829,21 @@ export default function GenerateWebsite() {
     const safePalette = (formData.palette || defaultPalettes[0].colors).slice(0, 5);
     const [primary, accent, support, depth, surface] = safePalette;
     const border = normalizeHex(support);
-    const primaryText = getContrastColor(surface) === '#000000' ? depth : '#ffffff';
+    const backgroundColor = normalizeHex(surface);
+    const cardColor = normalizeHex(support);
+    const textColor = normalizeHex(depth);
+    const buttonColor = normalizeHex(primary);
+    const hoverColor = shiftHexColor(buttonColor, getBrightness(buttonColor) > 150 ? -28 : 28);
+    const secondaryButtonColor = normalizeHex(accent);
 
     applyTypographyConfig(typographyPayload, { root: preview });
-    preview.style.background = `linear-gradient(135deg, ${formData.secondaryColor} 0%, ${formData.palette?.[4] || '#f8fafc'} 100%)`;
-    preview.style.color = primaryText;
+    preview.style.background = `linear-gradient(180deg, ${backgroundColor} 0%, ${shiftHexColor(backgroundColor, -10)} 100%)`;
+    preview.style.color = textColor;
     preview.style.setProperty('--preview-accent', formData.accentColor);
-    preview.style.setProperty('--preview-primary', normalizeHex(depth));
-    preview.style.setProperty('--preview-surface', normalizeHex(surface));
+    preview.style.setProperty('--preview-primary', textColor);
+    preview.style.setProperty('--preview-surface', backgroundColor);
     preview.style.setProperty('--preview-border', border);
-    preview.style.setProperty('--preview-muted', normalizeHex(primary));
+    preview.style.setProperty('--preview-muted', buttonColor);
     preview.style.setProperty('--preview-text-on-accent', getContrastColor(formData.accentColor));
 
     const headingMeta = section.querySelector('#headingPreviewMeta');
@@ -847,57 +860,57 @@ export default function GenerateWebsite() {
       palettePreview.innerHTML = `
         <div class="gw-admin-preview-showcase">
           <aside class="gw-admin-preview-sidebar">
-            <div class="gw-admin-preview-sidebar-item active" style="background:${normalizeHex(primary)};color:${getContrastColor(primary)};">Hero</div>
+            <div class="gw-admin-preview-sidebar-item active" style="background:${buttonColor};color:${getContrastColor(buttonColor)};">Hero</div>
             <div class="gw-admin-preview-sidebar-item">News Feed</div>
             <div class="gw-admin-preview-sidebar-item">Members</div>
             <div class="gw-admin-preview-sidebar-item">Media Vault</div>
           </aside>
           <div class="gw-admin-preview-main">
-            <section class="gw-admin-preview-hero-card" style="background:linear-gradient(135deg, ${normalizeHex(primary)} 0%, ${normalizeHex(accent)} 100%);color:${getContrastColor(primary)};border-color:${border};">
+            <section class="gw-admin-preview-hero-card" style="background:linear-gradient(135deg, ${buttonColor} 0%, ${secondaryButtonColor} 100%);color:${getContrastColor(buttonColor)};border-color:${border};">
               <span class="gw-admin-preview-badge">Live Theme Layout</span>
-              <h3 class="gw-admin-preview-section-title" style="color:${getContrastColor(primary)};">Your palette now drives the whole interface.</h3>
-              <p class="gw-admin-preview-copy" style="color:${getContrastColor(primary)};">Headers, buttons, panels, and reading surfaces update together so the system feels cohesive.</p>
+              <h3 class="gw-admin-preview-section-title" style="color:${getContrastColor(buttonColor)};">Your palette now drives the whole interface.</h3>
+              <p class="gw-admin-preview-copy" style="color:${getContrastColor(buttonColor)};">Buttons, hover states, cards, text, and page background all reflect the current palette in real time.</p>
               <div class="gw-admin-preview-actions">
-                <button type="button" class="gw-admin-preview-primary-btn" style="background:${normalizeHex(depth)};color:${getContrastColor(depth)};">Primary Action</button>
-                <button type="button" class="gw-admin-preview-secondary-btn" style="border-color:${getContrastColor(primary)};color:${getContrastColor(primary)};">Secondary Action</button>
+                <button type="button" class="gw-admin-preview-primary-btn" style="background:${buttonColor};color:${getContrastColor(buttonColor)};">Primary Action</button>
+                <button type="button" class="gw-admin-preview-secondary-btn" style="background:${secondaryButtonColor};border-color:${secondaryButtonColor};color:${getContrastColor(secondaryButtonColor)};">Secondary Action</button>
               </div>
             </section>
             <div class="gw-admin-preview-content-grid">
-              <article class="gw-admin-preview-panel">
+              <article class="gw-admin-preview-panel" style="background:${backgroundColor};border-color:${border};">
                 <h3>Content Surface</h3>
                 <p>Cards and reading areas stay clean while still borrowing from the selected palette.</p>
                 <div class="gw-admin-preview-stats">
-                  <div><strong>${normalizeHex(primary)}</strong><span>Primary</span></div>
-                  <div><strong>${normalizeHex(accent)}</strong><span>Accent</span></div>
-                  <div><strong>${normalizeHex(surface)}</strong><span>Surface</span></div>
+                  <div><strong>${buttonColor}</strong><span>Primary Button</span></div>
+                  <div><strong>${hoverColor}</strong><span>Hover</span></div>
+                  <div><strong>${backgroundColor}</strong><span>Page BG</span></div>
                 </div>
               </article>
-              <article class="gw-admin-preview-panel" style="background:${normalizeHex(support)};color:${getContrastColor(support)};border-color:${border};">
-                <h3 style="color:${getContrastColor(support)};">Feature Block</h3>
-                <p style="color:${getContrastColor(support)};">Support colors can highlight merch, events, featured posts, or fan campaigns.</p>
+              <article class="gw-admin-preview-panel" style="background:${cardColor};color:${getContrastColor(cardColor)};border-color:${border};">
+                <h3 style="color:${getContrastColor(cardColor)};">Feature Block</h3>
+                <p style="color:${getContrastColor(cardColor)};">Card surfaces and feature areas use the support color so hierarchy is visible immediately.</p>
               </article>
             </div>
             <div class="gw-admin-preview-spec-grid">
-              <article class="gw-admin-preview-spec-card" style="background:${normalizeHex(surface)};border-color:${border};">
+              <article class="gw-admin-preview-spec-card" style="background:${backgroundColor};border-color:${border};">
                 <span>Button</span>
-                <button type="button" class="gw-admin-preview-spec-btn" style="background:${normalizeHex(primary)};color:${getContrastColor(primary)};">Primary Button</button>
+                <button type="button" class="gw-admin-preview-spec-btn" style="background:${buttonColor};color:${getContrastColor(buttonColor)};">Primary Button</button>
               </article>
-              <article class="gw-admin-preview-spec-card" style="background:${normalizeHex(surface)};border-color:${border};">
+              <article class="gw-admin-preview-spec-card" style="background:${backgroundColor};border-color:${border};">
                 <span>Hover State</span>
-                <button type="button" class="gw-admin-preview-spec-btn" style="background:${normalizeHex(accent)};color:${getContrastColor(accent)};">Hover Preview</button>
+                <button type="button" class="gw-admin-preview-spec-btn" style="background:${hoverColor};color:${getContrastColor(hoverColor)};">Button on Hover</button>
               </article>
-              <article class="gw-admin-preview-spec-card" style="background:${normalizeHex(surface)};border-color:${border};">
+              <article class="gw-admin-preview-spec-card" style="background:${backgroundColor};border-color:${border};">
                 <span>Text</span>
-                <strong style="color:${normalizeHex(depth)};">Readable heading and body text</strong>
-                <small style="color:${normalizeHex(depth)};">Uses the darkest palette tone for clarity.</small>
+                <strong style="color:${textColor};">Readable heading and body text</strong>
+                <small style="color:${textColor};">The text role stays readable over the selected page background.</small>
               </article>
-              <article class="gw-admin-preview-spec-card" style="background:${normalizeHex(surface)};border-color:${border};">
+              <article class="gw-admin-preview-spec-card" style="background:${backgroundColor};border-color:${border};">
                 <span>Background</span>
-                <div class="gw-admin-preview-spec-fill" style="background:linear-gradient(135deg, ${normalizeHex(surface)} 0%, ${normalizeHex(primary)} 100%);"></div>
+                <div class="gw-admin-preview-spec-fill" style="background:${backgroundColor};border-color:${border};"></div>
               </article>
-              <article class="gw-admin-preview-spec-card" style="background:${normalizeHex(surface)};border-color:${border};">
+              <article class="gw-admin-preview-spec-card" style="background:${backgroundColor};border-color:${border};">
                 <span>Card Surface</span>
-                <div class="gw-admin-preview-spec-surface" style="background:${normalizeHex(support)};color:${getContrastColor(support)};">Card module</div>
+                <div class="gw-admin-preview-spec-surface" style="background:${cardColor};color:${getContrastColor(cardColor)};">Card module</div>
               </article>
             </div>
           </div>
