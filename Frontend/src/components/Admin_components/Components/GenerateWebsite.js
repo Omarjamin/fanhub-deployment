@@ -151,6 +151,12 @@ export default function GenerateWebsite() {
     });
   };
 
+  const getAppearanceSample = (role) => (
+    role === 'heading'
+      ? 'Aa The FanHub Stage'
+      : 'Aa Clean readable body copy'
+  );
+
   const getTypographyPayload = () => ({
     heading: { ...(formData.typography?.heading || {}) },
     body: { ...(formData.typography?.body || {}) },
@@ -822,6 +828,33 @@ export default function GenerateWebsite() {
               </label>
             </div>
           </div>
+          <div class="gw-font-appearance">
+            <div class="gw-font-appearance-header">
+              <span>Font Appearance</span>
+              <small>Choose by look, not only by name.</small>
+            </div>
+            <div class="gw-font-appearance-list">
+              ${filteredOptions.length > 0
+                ? filteredOptions.slice(0, 12).map((option) => `
+                  <button
+                    type="button"
+                    class="gw-font-appearance-item ${option.family === font.name ? 'active' : ''}"
+                    data-role="${role}"
+                    data-typo-control="appearance"
+                    data-font-family="${option.family}"
+                    data-font-category="${option.category || 'sans-serif'}"
+                    style="font-family:${font.type === 'system' ? (option.preview || `'${option.family}', sans-serif`) : `'${option.family}', sans-serif`}"
+                  >
+                    <span class="gw-font-appearance-aa">Aa</span>
+                    <span class="gw-font-appearance-meta">
+                      <strong>${option.family}</strong>
+                      <span>${getAppearanceSample(role)}</span>
+                    </span>
+                  </button>
+                `).join('')
+                : `<p class="gw-empty-state">No fonts match the current search/filter.</p>`}
+            </div>
+          </div>
           <div class="gw-font-preview-card">
             <span class="gw-font-preview-label">${role === 'heading' ? 'Heading Preview' : 'Body Preview'}</span>
             <p class="gw-font-preview-sample" style="font-family:${getPreviewFontFamily(font)}">
@@ -1177,6 +1210,21 @@ export default function GenerateWebsite() {
           category: 'custom',
         });
       }
+    });
+
+    section.querySelector('#typographyControls')?.addEventListener('click', (e) => {
+      const button = e.target.closest('[data-typo-control="appearance"]');
+      if (!button) return;
+
+      const role = button.dataset.role;
+      const family = button.dataset.fontFamily;
+      const category = button.dataset.fontCategory || 'sans-serif';
+      if (!role || !family) return;
+
+      updateTypographyRole(role, {
+        name: family,
+        category,
+      });
     });
 
     section.querySelector('#fontSizeBase')?.addEventListener('input', (e) => {
