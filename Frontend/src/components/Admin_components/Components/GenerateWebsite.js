@@ -544,7 +544,7 @@ export default function GenerateWebsite() {
         <div class="gw-section-wrapper">
           <h2 class="gw-section-title">Typography Settings</h2>
           <p class="gw-subtitle">Set separate heading and body fonts, then tune the reading rhythm for the generated site.</p>
-          <div class="gw-typography-controls" id="typographyControls"></div>
+          <div class="gw-admin-typography-controls" id="typographyControls"></div>
           <div class="gw-form-row gw-typography-metrics">
             <div class="gw-form-group">
               <label for="fontSizeBase">Base Font Size</label>
@@ -563,22 +563,22 @@ export default function GenerateWebsite() {
 
         <div class="gw-section-wrapper">
           <h2 class="gw-section-title">Live Preview</h2>
-          <div class="gw-live-preview" id="typographyPreview">
-            <div class="gw-preview-header">
-              <span class="gw-preview-eyebrow">Template preview</span>
-              <button type="button" class="gw-preview-cta">Join Community</button>
+          <div class="gw-admin-live-preview" id="typographyPreview">
+            <div class="gw-admin-preview-header">
+              <span class="gw-admin-preview-eyebrow">Template preview</span>
+              <button type="button" class="gw-admin-preview-cta">Join Community</button>
             </div>
-            <h1 class="gw-preview-heading">Fan websites should feel unmistakably theirs.</h1>
-            <p class="gw-preview-body">
+            <h1 class="gw-admin-preview-heading">Fan websites should feel unmistakably theirs.</h1>
+            <p class="gw-admin-preview-body">
               Preview how your heading font, body font, base size, line height, and letter spacing will read
               together across the generated website before you publish it.
             </p>
-            <div class="gw-preview-grid">
-              <article class="gw-preview-card">
+            <div class="gw-admin-preview-grid">
+              <article class="gw-admin-preview-card">
                 <h3>Heading Preview</h3>
                 <p id="headingPreviewMeta">Poppins</p>
               </article>
-              <article class="gw-preview-card">
+              <article class="gw-admin-preview-card">
                 <h3>Body Preview</h3>
                 <p id="bodyPreviewMeta">Inter</p>
               </article>
@@ -780,8 +780,8 @@ export default function GenerateWebsite() {
           : 'System font';
 
       return `
-        <div class="gw-typography-card" data-role="${role}">
-          <div class="gw-typography-card-header">
+        <div class="gw-admin-typography-card" data-role="${role}">
+          <div class="gw-admin-typography-card-header">
             <div>
               <h3>${typographyLabels[role]}</h3>
               <p>${sourceLabel}</p>
@@ -820,7 +820,7 @@ export default function GenerateWebsite() {
                   : `<option value="${font.name || ''}">${font.name || 'No fonts found'}</option>`}
               </select>
             </div>
-            <div class="gw-form-group gw-font-upload-group ${font.type === 'custom' ? '' : 'is-hidden'}">
+            <div class="gw-form-group gw-admin-font-upload-group ${font.type === 'custom' ? '' : 'is-hidden'}">
               <label for="${role}FontFile">Upload Custom Font</label>
               <label class="gw-file-input">
                 <input type="file" id="${role}FontFile" data-role="${role}" data-typo-control="file" accept=".woff2,.woff,.ttf,.otf">
@@ -828,25 +828,25 @@ export default function GenerateWebsite() {
               </label>
             </div>
           </div>
-          <div class="gw-font-appearance">
-            <div class="gw-font-appearance-header">
+          <div class="gw-admin-font-appearance">
+            <div class="gw-admin-font-appearance-header">
               <span>Font Appearance</span>
               <small>Choose by look, not only by name.</small>
             </div>
-            <div class="gw-font-appearance-list">
+            <div class="gw-admin-font-appearance-list">
               ${filteredOptions.length > 0
                 ? filteredOptions.slice(0, 12).map((option) => `
                   <button
                     type="button"
-                    class="gw-font-appearance-item ${option.family === font.name ? 'active' : ''}"
+                    class="gw-admin-font-appearance-item ${option.family === font.name ? 'active' : ''}"
                     data-role="${role}"
                     data-typo-control="appearance"
                     data-font-family="${option.family}"
                     data-font-category="${option.category || 'sans-serif'}"
                     style="font-family:${font.type === 'system' ? (option.preview || `'${option.family}', sans-serif`) : `'${option.family}', sans-serif`}"
                   >
-                    <span class="gw-font-appearance-aa">Aa</span>
-                    <span class="gw-font-appearance-meta">
+                    <span class="gw-admin-font-appearance-aa">Aa</span>
+                    <span class="gw-admin-font-appearance-meta">
                       <strong>${option.family}</strong>
                       <span>${getAppearanceSample(role)}</span>
                     </span>
@@ -855,7 +855,7 @@ export default function GenerateWebsite() {
                 : `<p class="gw-empty-state">No fonts match the current search/filter.</p>`}
             </div>
           </div>
-          <div class="gw-font-preview-card">
+          <div class="gw-admin-font-preview-card">
             <span class="gw-font-preview-label">${role === 'heading' ? 'Heading Preview' : 'Body Preview'}</span>
             <p class="gw-font-preview-sample" style="font-family:${getPreviewFontFamily(font)}">
               ${role === 'heading'
