@@ -704,7 +704,7 @@ export default function GenerateWebsite() {
           <h2 class="gw-section-title">Live Preview</h2>
           <div class="gw-admin-live-preview" id="typographyPreview">
             <div class="gw-admin-preview-header">
-              <span class="gw-admin-preview-eyebrow">Template preview</span>
+              <span class="gw-admin-preview-eyebrow">Sample Site Preview</span>
               <button type="button" class="gw-admin-preview-cta">Join Community</button>
             </div>
             <div class="gw-admin-preview-palette" id="combinedPalettePreview"></div>
@@ -875,6 +875,29 @@ export default function GenerateWebsite() {
               <article class="gw-admin-preview-panel" style="background:${normalizeHex(support)};color:${getContrastColor(support)};border-color:${border};">
                 <h3 style="color:${getContrastColor(support)};">Feature Block</h3>
                 <p style="color:${getContrastColor(support)};">Support colors can highlight merch, events, featured posts, or fan campaigns.</p>
+              </article>
+            </div>
+            <div class="gw-admin-preview-spec-grid">
+              <article class="gw-admin-preview-spec-card" style="background:${normalizeHex(surface)};border-color:${border};">
+                <span>Button</span>
+                <button type="button" class="gw-admin-preview-spec-btn" style="background:${normalizeHex(primary)};color:${getContrastColor(primary)};">Primary Button</button>
+              </article>
+              <article class="gw-admin-preview-spec-card" style="background:${normalizeHex(surface)};border-color:${border};">
+                <span>Hover State</span>
+                <button type="button" class="gw-admin-preview-spec-btn" style="background:${normalizeHex(accent)};color:${getContrastColor(accent)};">Hover Preview</button>
+              </article>
+              <article class="gw-admin-preview-spec-card" style="background:${normalizeHex(surface)};border-color:${border};">
+                <span>Text</span>
+                <strong style="color:${normalizeHex(depth)};">Readable heading and body text</strong>
+                <small style="color:${normalizeHex(depth)};">Uses the darkest palette tone for clarity.</small>
+              </article>
+              <article class="gw-admin-preview-spec-card" style="background:${normalizeHex(surface)};border-color:${border};">
+                <span>Background</span>
+                <div class="gw-admin-preview-spec-fill" style="background:linear-gradient(135deg, ${normalizeHex(surface)} 0%, ${normalizeHex(primary)} 100%);"></div>
+              </article>
+              <article class="gw-admin-preview-spec-card" style="background:${normalizeHex(surface)};border-color:${border};">
+                <span>Card Surface</span>
+                <div class="gw-admin-preview-spec-surface" style="background:${normalizeHex(support)};color:${getContrastColor(support)};">Card module</div>
               </article>
             </div>
           </div>
