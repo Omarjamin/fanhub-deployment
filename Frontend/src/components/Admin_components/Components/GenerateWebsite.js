@@ -71,94 +71,10 @@ export default function GenerateWebsite() {
     return (r * 299 + g * 587 + b * 114) / 1000;
   };
   const getContrastColor = (hex) => getBrightness(hex) > 150 ? '#000000' : '#ffffff';
-  const assignPaletteRoles = (palette) => {
-    const normalized = (Array.isArray(palette) ? palette : [])
-      .map((color) => normalizeHex(color))
-      .filter(Boolean);
-
-    if (!normalized.length) {
-      return {
-        primary: '#3b82f6',
-        accent: '#333333',
-        secondary: '#ffffff',
-        background: '#ffffff',
-        text: '#000000',
-      };
-    }
-
-    const byBrightness = [...normalized].sort((a, b) => getBrightness(b) - getBrightness(a));
-    const background = byBrightness[0];
-    const primary = normalized.find((color) => color !== background) || normalized[0];
-    const accent = normalized.find((color) => color !== primary && color !== background) || primary;
-    const secondary = byBrightness[1] || background;
-
-    return {
-      primary,
-      accent,
-      secondary,
-      background,
-      text: getContrastColor(background),
-      };
-  };
-
-  const toCssUnit = (value, unit = 'px') => {
-    const raw = String(value ?? '').trim();
-    if (!raw) return '';
-    if (/^-?\d+(\.\d+)?(px|rem|em|%)$/i.test(raw)) return raw;
-    if (/^-?\d+(\.\d+)?$/.test(raw)) return `${raw}${unit}`;
-    return raw;
-  };
-
-  const normalizeTypographyValue = (key, value) => {
-    if (key === 'fontSizeBase') return toCssUnit(value || '16', 'px') || '16px';
-    if (key === 'letterSpacing') return toCssUnit(value || '0.02', 'em') || '0.02em';
-    return String(value || '').trim() || (key === 'lineHeight' ? '1.6' : '');
-  };
-
-  const getSystemFontOption = (family) =>
-    systemFonts.find((font) => font.family === family) || systemFonts[0];
-
-  const getPreviewFontFamily = (font = {}) => {
-    if (font.type === 'system') {
-      return getSystemFontOption(font.name).preview || `'${font.name || 'Arial'}', sans-serif`;
-    }
-    return `'${font.name || 'Arial'}', sans-serif`;
-  };
-
-  const getFontOptionsForRole = (role) => {
-    const fontType = formData.typography?.[role]?.type || 'system';
-    if (fontType === 'google') return googleFonts;
-    if (fontType === 'system') return systemFonts;
-    const customFont = formData.typography?.[role];
-    return customFont?.name ? [{
-      family: customFont.name,
-      category: customFont.category || 'custom',
-      preview: `'${customFont.name}', sans-serif`,
-    }] : [];
-  };
-
-  const getFilteredFontOptions = (role) => {
-    const filters = typographyFilters[role] || { search: '', category: 'all' };
-    const search = String(filters.search || '').trim().toLowerCase();
-    const category = String(filters.category || 'all').trim().toLowerCase();
-
-    return getFontOptionsForRole(role).filter((font) => {
-      const family = String(font.family || '').toLowerCase();
-      const fontCategory = String(font.category || 'other').toLowerCase();
-      const matchesSearch = !search || family.includes(search);
-      const matchesCategory = category === 'all' || fontCategory === category;
-      return matchesSearch && matchesCategory;
-    });
-  };
-
-  const getAppearanceSample = (role) => (
-    role === 'heading'
-      ? 'Aa The FanHub Stage'
-      : 'Aa Clean readable body copy'
-  );
+  // ...existing code...
 
   const getTypographyPayload = () => ({
-    heading: { ...(formData.typography?.heading || {}) },
+    heading: { ...(formData.typography?.heading ||   {}) },
     body: { ...(formData.typography?.body || {}) },
     font_heading: { ...(formData.typography?.heading || {}) },
     font_body: { ...(formData.typography?.body || {}) },
@@ -565,10 +481,7 @@ export default function GenerateWebsite() {
           <h2 class="gw-section-title">Live Preview</h2>
           <div class="gw-admin-live-preview" id="typographyPreview">
             <div class="gw-admin-preview-header">
-              <div class="gw-admin-preview-brand">
-                <span class="gw-admin-preview-eyebrow">Template preview</span>
-                <span class="gw-admin-preview-chip">Colors + Typography</span>
-              </div>
+              <span class="gw-admin-preview-eyebrow">Template preview</span>
               <button type="button" class="gw-admin-preview-cta">Join Community</button>
             </div>
             <h1 class="gw-admin-preview-heading">Fan websites should feel unmistakably theirs.</h1>
@@ -576,14 +489,6 @@ export default function GenerateWebsite() {
               Preview how your heading font, body font, base size, line height, and letter spacing will read
               together across the generated website before you publish it.
             </p>
-            <div class="gw-admin-preview-palette">
-              <span class="gw-admin-preview-palette-label">Palette</span>
-              <div class="gw-admin-preview-swatches">
-                ${(formData.palette || defaultPalettes[0].colors).map((color, index) => `
-                  <span class="gw-admin-preview-swatch" data-preview-swatch="${index}" style="background:${normalizeHex(color)}" title="${normalizeHex(color)}"></span>
-                `).join('')}
-              </div>
-            </div>
             <div class="gw-admin-preview-grid">
               <article class="gw-admin-preview-card">
                 <h3>Heading Preview</h3>
@@ -593,43 +498,6 @@ export default function GenerateWebsite() {
                 <h3>Body Preview</h3>
                 <p id="bodyPreviewMeta">Inter</p>
               </article>
-            </div>
-            <div class="gw-admin-preview-showcase">
-              <aside class="gw-admin-preview-sidebar">
-                <div class="gw-admin-preview-sidebar-item active">Home</div>
-                <div class="gw-admin-preview-sidebar-item">Members</div>
-                <div class="gw-admin-preview-sidebar-item">Events</div>
-                <div class="gw-admin-preview-sidebar-item">Shop</div>
-              </aside>
-              <div class="gw-admin-preview-main">
-                <div class="gw-admin-preview-hero-card">
-                  <span class="gw-admin-preview-badge">Featured Update</span>
-                  <h2 class="gw-admin-preview-section-title">Colors now react live across cards, badges, and buttons.</h2>
-                  <p class="gw-admin-preview-copy">
-                    This mock section shows how your selected palette affects surfaces, borders, call-to-action buttons,
-                    and supporting content blocks in the generated site.
-                  </p>
-                  <div class="gw-admin-preview-actions">
-                    <button type="button" class="gw-admin-preview-primary-btn">Primary Action</button>
-                    <button type="button" class="gw-admin-preview-secondary-btn">Secondary</button>
-                  </div>
-                </div>
-                <div class="gw-admin-preview-content-grid">
-                  <article class="gw-admin-preview-panel">
-                    <span class="gw-admin-preview-mini-label">Announcement</span>
-                    <h3>New comeback schedule posted</h3>
-                    <p>Surface colors, border contrast, and body text all follow the selected palette.</p>
-                  </article>
-                  <article class="gw-admin-preview-panel">
-                    <span class="gw-admin-preview-mini-label">Community Stats</span>
-                    <div class="gw-admin-preview-stats">
-                      <div><strong>18.4K</strong><span>Fans</span></div>
-                      <div><strong>124</strong><span>Posts</span></div>
-                      <div><strong>32</strong><span>Events</span></div>
-                    </div>
-                  </article>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -791,27 +659,20 @@ export default function GenerateWebsite() {
 
     const typographyPayload = getTypographyPayload();
     applyTypographyConfig(typographyPayload, { root: preview });
-    const palette = Array.isArray(formData.palette) ? formData.palette : [];
-    const previewSurface = formData.secondaryColor || '#ffffff';
-    const previewCanvas = palette[4] || '#f8fafc';
-    const previewBorder = palette[1] || '#dbe2ea';
-    const previewMuted = palette[2] || '#64748b';
-
-    preview.style.background = `linear-gradient(135deg, ${previewSurface} 0%, ${previewCanvas} 100%)`;
+    preview.style.background = `linear-gradient(135deg, ${formData.secondaryColor} 0%, ${formData.palette?.[4] || '#f8fafc'} 100%)`;
     preview.style.color = formData.primaryColor;
     preview.style.setProperty('--preview-accent', formData.accentColor);
-    preview.style.setProperty('--preview-primary', formData.primaryColor);
-    preview.style.setProperty('--preview-secondary', formData.secondaryColor);
-    preview.style.setProperty('--preview-surface', previewSurface);
-    preview.style.setProperty('--preview-canvas', previewCanvas);
-    preview.style.setProperty('--preview-border', previewBorder);
-    preview.style.setProperty('--preview-muted', previewMuted);
-    preview.style.setProperty('--preview-text-on-accent', getContrastColor(formData.accentColor || '#111827'));
 
     const headingMeta = section.querySelector('#headingPreviewMeta');
     const bodyMeta = section.querySelector('#bodyPreviewMeta');
-    if (headingMeta) headingMeta.textContent = `${typographyPayload.heading?.name || 'Heading'} • ${typographyPayload.font_size_base}`;
-    if (bodyMeta) bodyMeta.textContent = `${typographyPayload.body?.name || 'Body'} • ${typographyPayload.line_height} line height`;
+    if (headingMeta) {
+      headingMeta.textContent = `${typographyPayload.heading?.name || 'Heading'} • ${typographyPayload.font_size_base}`;
+      headingMeta.style.fontFamily = typographyPayload.heading?.name ? `'${typographyPayload.heading.name}', sans-serif` : 'inherit';
+    }
+    if (bodyMeta) {
+      bodyMeta.textContent = `${typographyPayload.body?.name || 'Body'} • ${typographyPayload.line_height} line height`;
+      bodyMeta.style.fontFamily = typographyPayload.body?.name ? `'${typographyPayload.body.name}', sans-serif` : 'inherit';
+    }
   };
 
   const updateTypographyRole = (role, patch) => {
@@ -990,6 +851,8 @@ export default function GenerateWebsite() {
         const index = Number(e.target.dataset.index);
         paletteDraft[index] = normalizeHex(e.target.value);
         renderPaletteModal();
+        applyPaletteToForm(paletteDraft);
+        applyTypographyPreview();
       });
     });
 
@@ -1001,6 +864,8 @@ export default function GenerateWebsite() {
         if (picker) picker.value = normalizeHex(paletteDraft[index]);
         const previewBars = section.querySelectorAll('#paletteModalPreview span');
         if (previewBars[index]) previewBars[index].style.background = normalizeHex(paletteDraft[index]);
+        applyPaletteToForm(paletteDraft);
+        applyTypographyPreview();
       });
     });
   };
