@@ -95,6 +95,12 @@ class GenerateController {
         fontType,
         fontName,
         fontUrl,
+        typography,
+        font_heading,
+        font_body,
+        font_size_base,
+        line_height,
+        letter_spacing,
         theme,
         palette,
         subdomain,
@@ -140,14 +146,25 @@ class GenerateController {
       let logoUrl = null;
       let bannerUrl = bannerLink || null;
       let resolvedFontUrl = fontUrl || null;
+      let resolvedHeadingFontUrl = null;
+      let resolvedBodyFontUrl = null;
       const cloudinaryReady = this.isCloudinaryConfigured();
       let parsedMembers = [];
+      let parsedTypography = {};
 
       if (members) {
         try {
           parsedMembers = JSON.parse(members);
         } catch {
           parsedMembers = [];
+        }
+      }
+
+      if (typography) {
+        try {
+          parsedTypography = typeof typography === 'string' ? JSON.parse(typography) : typography;
+        } catch {
+          parsedTypography = {};
         }
       }
 
@@ -186,7 +203,115 @@ class GenerateController {
             );
           }
         }
+        if (req.files.headingFontFile) {
+          if (!cloudinaryReady) {
+            console.warn('[GenerateController] Cloudinary not configured. Skipping heading font upload.');
+          } else {
+            const fontFile = req.files.headingFontFile;
+            resolvedHeadingFontUrl = await this.uploadToCloudinary(
+              fontFile.tempFilePath || fontFile.path,
+              'websites/fonts',
+              { resource_type: 'auto' }
+            );
+          }
+        }
+        if (req.files.bodyFontFile) {
+          if (!cloudinaryReady) {
+            console.warn('[GenerateController] Cloudinary not configured. Skipping body font upload.');
+          } else {
+            const fontFile = req.files.bodyFontFile;
+            resolvedBodyFontUrl = await this.uploadToCloudinary(
+              fontFile.tempFilePath || fontFile.path,
+              'websites/fonts',
+              { resource_type: 'auto' }
+            );
+          }
+        }
       }
+
+      if (resolvedFontUrl && !resolvedBodyFontUrl) {
+        resolvedBodyFontUrl = resolvedFontUrl;
+      }
+
+      const normalizedTypography = {
+        heading: {
+          ...(parsedTypography?.heading && typeof parsedTypography.heading === 'object' ? parsedTypography.heading : {}),
+          ...(parsedTypography?.font_heading && typeof parsedTypography.font_heading === 'object' ? parsedTypography.font_heading : {}),
+          name:
+            parsedTypography?.heading?.name ||
+            parsedTypography?.font_heading?.name ||
+            parsedTypography?.font_heading ||
+            font_heading ||
+            fontName ||
+            'Arial',
+          type:
+            parsedTypography?.heading?.type ||
+            parsedTypography?.font_heading?.type ||
+            parsedTypography?.headingType ||
+            fontType ||
+            'system',
+          url:
+            resolvedHeadingFontUrl ||
+            parsedTypography?.heading?.url ||
+            parsedTypography?.font_heading?.url ||
+            '',
+        },
+        body: {
+          ...(parsedTypography?.body && typeof parsedTypography.body === 'object' ? parsedTypography.body : {}),
+          ...(parsedTypography?.font_body && typeof parsedTypography.font_body === 'object' ? parsedTypography.font_body : {}),
+          name:
+            parsedTypography?.body?.name ||
+            parsedTypography?.font_body?.name ||
+            parsedTypography?.font_body ||
+            font_body ||
+            fontName ||
+            'Arial',
+          type:
+            parsedTypography?.body?.type ||
+            parsedTypography?.font_body?.type ||
+            parsedTypography?.bodyType ||
+            fontType ||
+            'system',
+          url:
+            resolvedBodyFontUrl ||
+            parsedTypography?.body?.url ||
+            parsedTypography?.font_body?.url ||
+            resolvedFontUrl ||
+            '',
+        },
+        fontSizeBase:
+          parsedTypography?.fontSizeBase ||
+          parsedTypography?.font_size_base ||
+          font_size_base ||
+          '16px',
+        lineHeight:
+          parsedTypography?.lineHeight ||
+          parsedTypography?.line_height ||
+          line_height ||
+          '1.6',
+        letterSpacing:
+          parsedTypography?.letterSpacing ||
+          parsedTypography?.letter_spacing ||
+          letter_spacing ||
+          '0.02em',
+      };
+
+      const parsedTheme = (() => {
+        try {
+          return typeof theme === 'string' ? JSON.parse(theme) : (theme || {});
+        } catch {
+          return {};
+        }
+      })();
+      const resolvedTheme = {
+        ...(parsedTheme && typeof parsedTheme === 'object' ? parsedTheme : {}),
+        typography: normalizedTypography,
+        font: {
+          type: normalizedTypography?.body?.type || fontType || 'system',
+          name: normalizedTypography?.body?.name || fontName || 'Arial',
+          url: normalizedTypography?.body?.url || resolvedFontUrl || '',
+        },
+      };
 
       const normalizedMembers = await this.uploadMemberImages(
         parsedMembers,
@@ -207,10 +332,11 @@ class GenerateController {
         template,
         templateName,
         templateKey,
-        fontType,
-        fontName,
-        fontUrl: resolvedFontUrl,
-        theme,
+        fontType: normalizedTypography?.body?.type || fontType,
+        fontName: normalizedTypography?.body?.name || fontName,
+        fontUrl: normalizedTypography?.body?.url || resolvedFontUrl,
+        typography: normalizedTypography,
+        theme: resolvedTheme,
         palette,
         primaryColor,
         communityType: normalizedCommunityType,

@@ -18,10 +18,15 @@ function getCustomStyleId(name) {
   return `theme-custom-font-${sanitizeFontName(name).toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
 }
 
+function buildFontFamilyValue(name, fallback = "sans-serif") {
+  return `'${sanitizeFontName(name)}', ${fallback}`;
+}
+
 export function applyFontConfig(font, options = {}) {
   if (typeof document === "undefined" || !font) return;
 
   const root = options.root || document.documentElement;
+  const cssVariable = options.cssVariable || "--theme-font-family";
   const fallback = options.fallback || "sans-serif";
   const type = String(font?.type || "system").trim().toLowerCase();
   const name = sanitizeFontName(font?.name, "Arial");
@@ -38,7 +43,7 @@ export function applyFontConfig(font, options = {}) {
       document.head.appendChild(link);
     }
     link.href = href;
-    root.style.setProperty("--theme-font-family", `'${name}', ${fallback}`);
+    root.style.setProperty(cssVariable, buildFontFamilyValue(name, fallback));
     return;
   }
 
@@ -59,9 +64,54 @@ export function applyFontConfig(font, options = {}) {
         font-display: swap;
       }
     `;
-    root.style.setProperty("--theme-font-family", `'${name}', ${fallback}`);
+    root.style.setProperty(cssVariable, buildFontFamilyValue(name, fallback));
     return;
   }
 
-  root.style.setProperty("--theme-font-family", `'${name}', ${fallback}`);
+  root.style.setProperty(cssVariable, buildFontFamilyValue(name, fallback));
+}
+
+export function applyTypographyConfig(typography = {}, options = {}) {
+  if (typeof document === "undefined") return;
+
+  const root = options.root || document.documentElement;
+  const headingFallback = options.headingFallback || "sans-serif";
+  const bodyFallback = options.bodyFallback || "sans-serif";
+
+  const heading = typography?.heading || typography?.font_heading || {
+    type: "system",
+    name: "Arial",
+  };
+  const body = typography?.body || typography?.font_body || heading || {
+    type: "system",
+    name: "Arial",
+  };
+
+  applyFontConfig(heading, {
+    root,
+    cssVariable: "--theme-font-heading",
+    fallback: headingFallback,
+  });
+  applyFontConfig(body, {
+    root,
+    cssVariable: "--theme-font-body",
+    fallback: bodyFallback,
+  });
+
+  root.style.setProperty(
+    "--theme-font-family",
+    root.style.getPropertyValue("--theme-font-body") || buildFontFamilyValue(body?.name || "Arial", bodyFallback),
+  );
+  root.style.setProperty(
+    "--theme-font-size-base",
+    String(typography?.fontSizeBase || typography?.font_size_base || "16px").trim() || "16px",
+  );
+  root.style.setProperty(
+    "--theme-line-height",
+    String(typography?.lineHeight || typography?.line_height || "1.6").trim() || "1.6",
+  );
+  root.style.setProperty(
+    "--theme-letter-spacing",
+    String(typography?.letterSpacing || typography?.letter_spacing || "0.02em").trim() || "0.02em",
+  );
 }

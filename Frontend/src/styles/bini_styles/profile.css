@@ -180,7 +180,7 @@
 
 .nav-tab, .profile-nav-item {
   background-color: #f8f9fa !important; 
-  font-family: 'Paytone One', sans-serif; 
+  font-family: var(--theme-font-heading, var(--theme-font-body, Arial, sans-serif)); 
   font-weight: bold; 
   font-size: 1rem !important; 
   border: none; 

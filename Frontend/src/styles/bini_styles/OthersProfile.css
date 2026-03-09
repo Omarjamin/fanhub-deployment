@@ -3,7 +3,7 @@
   max-width: 600px;
   margin: 0 auto;
   padding: 20px;
-  font-family: Arial, sans-serif;
+  font-family: var(--theme-font-body, Arial, sans-serif);
   background-color: #ffffff !important;
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);

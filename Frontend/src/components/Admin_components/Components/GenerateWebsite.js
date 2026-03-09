@@ -1,7 +1,7 @@
 // Move file input listeners inside GenerateWebsite function
 import api from '../../../services/bini_services/api.js';
 import { getAdminHeaders } from './admin-sites.js';
-import { applyFontConfig } from '../../../lib/theme/font-loader.js';
+import { applyTypographyConfig } from '../../../lib/theme/font-loader.js';
 
 export default function GenerateWebsite() {
   const section = document.createElement('section');
@@ -15,24 +15,42 @@ export default function GenerateWebsite() {
     { id: 'night', name: 'Night Neon', colors: ['#00f5d4', '#00bbf9', '#9b5de5', '#240046', '#f8f9fa'] },
   ];
   const systemFonts = [
-    'Arial',
-    'Calibri',
-    'Segoe UI',
-    'Century Gothic',
-    'Verdana',
-    'Helvetica',
-    'Tahoma',
-    'Trebuchet MS',
-    'Georgia',
-    'Times New Roman',
+    { family: 'Arial', category: 'sans-serif', preview: "Arial, Helvetica, sans-serif" },
+    { family: 'Calibri', category: 'sans-serif', preview: "Calibri, Arial, sans-serif" },
+    { family: 'Segoe UI', category: 'sans-serif', preview: "'Segoe UI', Arial, sans-serif" },
+    { family: 'Helvetica', category: 'sans-serif', preview: "Helvetica, Arial, sans-serif" },
+    { family: 'Verdana', category: 'sans-serif', preview: "Verdana, Geneva, sans-serif" },
+    { family: 'Trebuchet MS', category: 'sans-serif', preview: "'Trebuchet MS', sans-serif" },
+    { family: 'Georgia', category: 'serif', preview: "Georgia, 'Times New Roman', serif" },
+    { family: 'Times New Roman', category: 'serif', preview: "'Times New Roman', Times, serif" },
+    { family: 'Garamond', category: 'serif', preview: "Garamond, Georgia, serif" },
+    { family: 'Courier New', category: 'monospace', preview: "'Courier New', Courier, monospace" },
   ];
-  const googleFonts = ['Inter', 'Poppins', 'Montserrat', 'Nunito', 'Oswald'];
+  const fallbackGoogleFonts = [
+    { family: 'Inter', category: 'sans-serif' },
+    { family: 'Poppins', category: 'sans-serif' },
+    { family: 'Montserrat', category: 'sans-serif' },
+    { family: 'Playfair Display', category: 'serif' },
+    { family: 'Oswald', category: 'display' },
+    { family: 'Lora', category: 'serif' },
+  ];
+  const typographyRoles = ['heading', 'body'];
+  const typographyLabels = {
+    heading: 'Heading Font',
+    body: 'Body Font',
+  };
 
   let templates = [];
   let selectedPaletteId = defaultPalettes[0].id;
   let paletteDraft = [...defaultPalettes[0].colors];
   let paletteEditorTargetId = defaultPalettes[0].id;
   let customFontObjectUrl = '';
+  const uploadedFontObjectUrls = {
+    heading: '',
+    body: '',
+  };
+  let googleFonts = [...fallbackGoogleFonts];
+  let googleFontsLoaded = false;
   const toTemplateKey = (value) => String(value || '')
     .trim()
     .toLowerCase()
@@ -80,7 +98,108 @@ export default function GenerateWebsite() {
       secondary,
       background,
       text: getContrastColor(background),
-    };
+      };
+  };
+
+  const toCssUnit = (value, unit = 'px') => {
+    const raw = String(value ?? '').trim();
+    if (!raw) return '';
+    if (/^-?\d+(\.\d+)?(px|rem|em|%)$/i.test(raw)) return raw;
+    if (/^-?\d+(\.\d+)?$/.test(raw)) return `${raw}${unit}`;
+    return raw;
+  };
+
+  const normalizeTypographyValue = (key, value) => {
+    if (key === 'fontSizeBase') return toCssUnit(value || '16', 'px') || '16px';
+    if (key === 'letterSpacing') return toCssUnit(value || '0.02', 'em') || '0.02em';
+    return String(value || '').trim() || (key === 'lineHeight' ? '1.6' : '');
+  };
+
+  const getSystemFontOption = (family) =>
+    systemFonts.find((font) => font.family === family) || systemFonts[0];
+
+  const getPreviewFontFamily = (font = {}) => {
+    if (font.type === 'system') {
+      return getSystemFontOption(font.name).preview || `'${font.name || 'Arial'}', sans-serif`;
+    }
+    return `'${font.name || 'Arial'}', sans-serif`;
+  };
+
+  const getFontOptionsForRole = (role) => {
+    const fontType = formData.typography?.[role]?.type || 'system';
+    if (fontType === 'google') return googleFonts;
+    if (fontType === 'system') return systemFonts;
+    const customFont = formData.typography?.[role];
+    return customFont?.name ? [{
+      family: customFont.name,
+      category: customFont.category || 'custom',
+      preview: `'${customFont.name}', sans-serif`,
+    }] : [];
+  };
+
+  const getFilteredFontOptions = (role) => {
+    const filters = typographyFilters[role] || { search: '', category: 'all' };
+    const search = String(filters.search || '').trim().toLowerCase();
+    const category = String(filters.category || 'all').trim().toLowerCase();
+
+    return getFontOptionsForRole(role).filter((font) => {
+      const family = String(font.family || '').toLowerCase();
+      const fontCategory = String(font.category || 'other').toLowerCase();
+      const matchesSearch = !search || family.includes(search);
+      const matchesCategory = category === 'all' || fontCategory === category;
+      return matchesSearch && matchesCategory;
+    });
+  };
+
+  const getTypographyPayload = () => ({
+    heading: { ...(formData.typography?.heading || {}) },
+    body: { ...(formData.typography?.body || {}) },
+    font_heading: { ...(formData.typography?.heading || {}) },
+    font_body: { ...(formData.typography?.body || {}) },
+    fontSizeBase: normalizeTypographyValue('fontSizeBase', formData.typography?.fontSizeBase),
+    lineHeight: normalizeTypographyValue('lineHeight', formData.typography?.lineHeight),
+    letterSpacing: normalizeTypographyValue('letterSpacing', formData.typography?.letterSpacing),
+    font_size_base: normalizeTypographyValue('fontSizeBase', formData.typography?.fontSizeBase),
+    line_height: normalizeTypographyValue('lineHeight', formData.typography?.lineHeight),
+    letter_spacing: normalizeTypographyValue('letterSpacing', formData.typography?.letterSpacing),
+  });
+
+  const syncLegacyFontFields = () => {
+    const bodyFont = formData.typography?.body || {};
+    formData.fontType = bodyFont.type || 'system';
+    formData.fontName = bodyFont.name || 'Arial';
+    formData.fontStyle = bodyFont.name || 'Arial';
+    formData.fontUrl = bodyFont.url || '';
+    formData.customFontFile = bodyFont.type === 'custom' ? (bodyFont.file || null) : null;
+  };
+
+  const fetchGoogleFonts = async () => {
+    if (googleFontsLoaded) return googleFonts;
+
+    const apiKey = String(import.meta.env.VITE_GOOGLE_FONTS_API_KEY || '').trim();
+    if (!apiKey) {
+      googleFontsLoaded = true;
+      return googleFonts;
+    }
+
+    try {
+      const response = await fetch(
+        `https://www.googleapis.com/webfonts/v1/webfonts?sort=popularity&key=${apiKey}`,
+      );
+      if (!response.ok) throw new Error(`Google Fonts request failed (${response.status})`);
+      const data = await response.json();
+      const items = Array.isArray(data?.items) ? data.items : [];
+      googleFonts = items.map((font) => ({
+        family: font.family,
+        category: font.category || 'sans-serif',
+      }));
+    } catch (error) {
+      console.error('Failed to fetch Google Fonts:', error);
+    } finally {
+      googleFontsLoaded = true;
+    }
+
+    return googleFonts;
   };
 
   // Fetch available templates from backend
@@ -106,6 +225,10 @@ export default function GenerateWebsite() {
   let selectedTemplate = null;
   let members = [];
   let isSubmitting = false;
+  let typographyFilters = {
+    heading: { search: '', category: 'all' },
+    body: { search: '', category: 'all' },
+  };
   let formData = {
     siteName: '',
     domain: '',
@@ -116,9 +239,26 @@ export default function GenerateWebsite() {
     secondaryColor: '#ffffff',
     accentColor: '#333333',
     buttonStyle: 'rounded',
-    fontStyle: 'Arial',
-    fontType: 'system',
-    fontName: 'Arial',
+    typography: {
+      heading: {
+        type: 'google',
+        name: 'Poppins',
+        url: '',
+        category: 'sans-serif',
+      },
+      body: {
+        type: 'google',
+        name: 'Inter',
+        url: '',
+        category: 'sans-serif',
+      },
+      fontSizeBase: '16px',
+      lineHeight: '1.6',
+      letterSpacing: '0.02em',
+    },
+    fontStyle: 'Inter',
+    fontType: 'google',
+    fontName: 'Inter',
     fontUrl: '',
     customFontFile: null,
     logo: null,
@@ -170,10 +310,18 @@ export default function GenerateWebsite() {
       submitData.append('secondaryColor', formData.secondaryColor);
       submitData.append('accentColor', formData.accentColor);
       submitData.append('buttonStyle', formData.buttonStyle);
-      submitData.append('fontStyle', formData.fontStyle);
-      submitData.append('fontType', formData.fontType);
-      submitData.append('fontName', formData.fontName);
-      submitData.append('fontUrl', formData.fontUrl || '');
+      const typographyPayload = getTypographyPayload();
+      const bodyFont = typographyPayload.body || {};
+      submitData.append('fontStyle', bodyFont.name || formData.fontStyle);
+      submitData.append('fontType', bodyFont.type || formData.fontType);
+      submitData.append('fontName', bodyFont.name || formData.fontName);
+      submitData.append('fontUrl', bodyFont.url || formData.fontUrl || '');
+      submitData.append('font_heading', typographyPayload.heading?.name || '');
+      submitData.append('font_body', typographyPayload.body?.name || '');
+      submitData.append('font_size_base', typographyPayload.font_size_base);
+      submitData.append('line_height', typographyPayload.line_height);
+      submitData.append('letter_spacing', typographyPayload.letter_spacing);
+      submitData.append('typography', JSON.stringify(typographyPayload));
       submitData.append('bannerLink', formData.bannerLink);
       submitData.append('theme', JSON.stringify({
         palette: formData.palette || [],
@@ -181,15 +329,18 @@ export default function GenerateWebsite() {
         secondaryColor: formData.secondaryColor,
         accentColor: formData.accentColor,
         buttonStyle: formData.buttonStyle,
-        fontStyle: formData.fontStyle,
+        fontStyle: bodyFont.name || formData.fontStyle,
         font: {
-          type: formData.fontType,
-          name: formData.fontName,
-          url: formData.fontUrl || '',
+          type: bodyFont.type || formData.fontType,
+          name: bodyFont.name || formData.fontName,
+          url: bodyFont.url || formData.fontUrl || '',
         },
+        typography: typographyPayload,
       }));
       
       if (formData.logo) submitData.append('logo', formData.logo);
+      if (formData.typography?.heading?.file) submitData.append('headingFontFile', formData.typography.heading.file);
+      if (formData.typography?.body?.file) submitData.append('bodyFontFile', formData.typography.body.file);
       if (formData.customFontFile) submitData.append('fontFile', formData.customFontFile);
       
       // Add members data as JSON
@@ -240,10 +391,20 @@ export default function GenerateWebsite() {
       URL.revokeObjectURL(customFontObjectUrl);
       customFontObjectUrl = '';
     }
+    typographyRoles.forEach((role) => {
+      if (uploadedFontObjectUrls[role]) {
+        URL.revokeObjectURL(uploadedFontObjectUrls[role]);
+        uploadedFontObjectUrls[role] = '';
+      }
+    });
     selectedTemplate = null;
     selectedPaletteId = defaultPalettes[0].id;
     paletteDraft = [...defaultPalettes[0].colors];
     members = [];
+    typographyFilters = {
+      heading: { search: '', category: 'all' },
+      body: { search: '', category: 'all' },
+    };
     formData = {
       siteName: '',
       domain: '',
@@ -254,15 +415,33 @@ export default function GenerateWebsite() {
       secondaryColor: '#ffffff',
       accentColor: '#333333',
       buttonStyle: 'rounded',
-      fontStyle: 'Arial',
-      fontType: 'system',
-      fontName: 'Arial',
+      typography: {
+        heading: {
+          type: 'google',
+          name: 'Poppins',
+          url: '',
+          category: 'sans-serif',
+        },
+        body: {
+          type: 'google',
+          name: 'Inter',
+          url: '',
+          category: 'sans-serif',
+        },
+        fontSizeBase: '16px',
+        lineHeight: '1.6',
+        letterSpacing: '0.02em',
+      },
+      fontStyle: 'Inter',
+      fontType: 'google',
+      fontName: 'Inter',
       fontUrl: '',
       customFontFile: null,
       logo: null,
       bannerLink: '',
       members: []
     };
+    syncLegacyFontFields();
   };
 
   section.innerHTML = `
@@ -352,37 +531,53 @@ export default function GenerateWebsite() {
                   <option value="flat">Flat</option>
                 </select>
               </div>
-           
-
-              <div class="gw-form-group">
-                <label for="fontType">Font Source</label>
-                <select id="fontType" required>
-                  <option value="system">System Font</option>
-                  <option value="google">Google Font</option>
-                  <option value="custom">Custom Uploaded Font</option>
-                </select>
-              </div>
-            </div>
-
-            <div class="gw-form-row">
-              <div class="gw-form-group">
-                <label for="fontName">Font Family</label>
-                <select id="fontName" required></select>
-              </div>
-              <div class="gw-form-group gw-font-upload-group" id="fontUploadGroup" hidden>
-                <label for="fontFile">Upload Custom Font</label>
-                <div class="gw-file-input">
-                  <input type="file" id="fontFile" accept=".woff2,.woff,.ttf,.otf">
-                  <span class="gw-file-label" id="fontFileLabel">Choose .woff2, .woff, .ttf, or .otf</span>
-                </div>
-              </div>
-            </div>
-
-            <div class="gw-font-preview" id="fontPreviewCard">
-              <span class="gw-font-preview-label">Live Font Preview</span>
-              <p class="gw-font-preview-sample" id="fontPreviewSample">FanHub lets every community feel like its own brand.</p>
             </div>
           </form>
+        </div>
+
+        <div class="gw-section-wrapper">
+          <h2 class="gw-section-title">Typography Settings</h2>
+          <p class="gw-subtitle">Set separate heading and body fonts, then tune the reading rhythm for the generated site.</p>
+          <div class="gw-typography-controls" id="typographyControls"></div>
+          <div class="gw-form-row gw-typography-metrics">
+            <div class="gw-form-group">
+              <label for="fontSizeBase">Base Font Size</label>
+              <input type="text" id="fontSizeBase" value="16px" placeholder="16px">
+            </div>
+            <div class="gw-form-group">
+              <label for="lineHeight">Line Height</label>
+              <input type="text" id="lineHeight" value="1.6" placeholder="1.6">
+            </div>
+            <div class="gw-form-group">
+              <label for="letterSpacing">Letter Spacing</label>
+              <input type="text" id="letterSpacing" value="0.02em" placeholder="0.02em">
+            </div>
+          </div>
+        </div>
+
+        <div class="gw-section-wrapper">
+          <h2 class="gw-section-title">Live Preview</h2>
+          <div class="gw-live-preview" id="typographyPreview">
+            <div class="gw-preview-header">
+              <span class="gw-preview-eyebrow">Template preview</span>
+              <button type="button" class="gw-preview-cta">Join Community</button>
+            </div>
+            <h1 class="gw-preview-heading">Fan websites should feel unmistakably theirs.</h1>
+            <p class="gw-preview-body">
+              Preview how your heading font, body font, base size, line height, and letter spacing will read
+              together across the generated website before you publish it.
+            </p>
+            <div class="gw-preview-grid">
+              <article class="gw-preview-card">
+                <h3>Heading Preview</h3>
+                <p id="headingPreviewMeta">Poppins</p>
+              </article>
+              <article class="gw-preview-card">
+                <h3>Body Preview</h3>
+                <p id="bodyPreviewMeta">Inter</p>
+              </article>
+            </div>
+          </div>
         </div>
 
         <!-- Members Section -->
@@ -536,46 +731,108 @@ export default function GenerateWebsite() {
     }
   };
 
-  const applyPreviewFont = () => {
-    const preview = section.querySelector('#fontPreviewSample');
+  const applyTypographyPreview = () => {
+    const preview = section.querySelector('#typographyPreview');
     if (!preview) return;
 
-    applyFontConfig({
-      type: formData.fontType,
-      name: formData.fontName,
-      url: formData.fontUrl || '',
-    }, { root: preview });
-    preview.style.fontFamily = `var(--theme-font-family)`;
+    const typographyPayload = getTypographyPayload();
+    applyTypographyConfig(typographyPayload, { root: preview });
+    preview.style.background = `linear-gradient(135deg, ${formData.secondaryColor} 0%, ${formData.palette?.[4] || '#f8fafc'} 100%)`;
+    preview.style.color = formData.primaryColor;
+    preview.style.setProperty('--preview-accent', formData.accentColor);
+
+    const headingMeta = section.querySelector('#headingPreviewMeta');
+    const bodyMeta = section.querySelector('#bodyPreviewMeta');
+    if (headingMeta) headingMeta.textContent = `${typographyPayload.heading?.name || 'Heading'} • ${typographyPayload.font_size_base}`;
+    if (bodyMeta) bodyMeta.textContent = `${typographyPayload.body?.name || 'Body'} • ${typographyPayload.line_height} line height`;
   };
 
-  const renderFontOptions = () => {
-    const fontNameSelect = section.querySelector('#fontName');
-    const fontUploadGroup = section.querySelector('#fontUploadGroup');
-    const fontFileLabel = section.querySelector('#fontFileLabel');
-    if (!fontNameSelect) return;
+  const updateTypographyRole = (role, patch) => {
+    formData.typography = {
+      ...(formData.typography || {}),
+      [role]: {
+        ...(formData.typography?.[role] || {}),
+        ...patch,
+      },
+    };
+    syncLegacyFontFields();
+    renderTypographyControls();
+    applyTypographyPreview();
+  };
 
-    const options = formData.fontType === 'google' ? googleFonts : systemFonts;
-    if (formData.fontType === 'custom') {
-      const customName = formData.fontName || 'Custom Brand Font';
-      fontNameSelect.innerHTML = `<option value="${customName}">${customName}</option>`;
-      fontNameSelect.value = customName;
-      fontNameSelect.disabled = false;
-      if (fontUploadGroup) fontUploadGroup.hidden = false;
-      if (fontFileLabel) {
-        fontFileLabel.textContent = formData.customFontFile?.name || 'Choose .woff2, .woff, .ttf, or .otf';
-      }
-    } else {
-      fontNameSelect.innerHTML = options.map((font) => `
-        <option value="${font}" ${formData.fontName === font ? 'selected' : ''}>${font}</option>
-      `).join('');
-      if (!options.includes(formData.fontName)) {
-        formData.fontName = options[0];
-        formData.fontStyle = options[0];
-      }
-      if (fontUploadGroup) fontUploadGroup.hidden = true;
-    }
+  const renderTypographyControls = () => {
+    const container = section.querySelector('#typographyControls');
+    if (!container) return;
 
-    applyPreviewFont();
+    container.innerHTML = typographyRoles.map((role) => {
+      const font = formData.typography?.[role] || {};
+      const filteredOptions = getFilteredFontOptions(role);
+      const sourceLabel = font.type === 'google'
+        ? 'Google Fonts'
+        : font.type === 'custom'
+          ? 'Uploaded font'
+          : 'System font';
+
+      return `
+        <div class="gw-typography-card" data-role="${role}">
+          <div class="gw-typography-card-header">
+            <div>
+              <h3>${typographyLabels[role]}</h3>
+              <p>${sourceLabel}</p>
+            </div>
+          </div>
+          <div class="gw-form-row">
+            <div class="gw-form-group">
+              <label for="${role}FontType">Font Source</label>
+              <select id="${role}FontType" data-role="${role}" data-typo-control="type">
+                <option value="system" ${font.type === 'system' ? 'selected' : ''}>System Font</option>
+                <option value="google" ${font.type === 'google' ? 'selected' : ''}>Google Font</option>
+                <option value="custom" ${font.type === 'custom' ? 'selected' : ''}>Uploaded Custom Font</option>
+              </select>
+            </div>
+            <div class="gw-form-group">
+              <label for="${role}FontSearch">Font Search</label>
+              <input type="text" id="${role}FontSearch" data-role="${role}" data-typo-control="search" value="${typographyFilters[role]?.search || ''}" placeholder="Search fonts">
+            </div>
+            <div class="gw-form-group">
+              <label for="${role}FontCategory">Category</label>
+              <select id="${role}FontCategory" data-role="${role}" data-typo-control="category">
+                <option value="all" ${(typographyFilters[role]?.category || 'all') === 'all' ? 'selected' : ''}>All Categories</option>
+                <option value="sans-serif" ${typographyFilters[role]?.category === 'sans-serif' ? 'selected' : ''}>Sans Serif</option>
+                <option value="serif" ${typographyFilters[role]?.category === 'serif' ? 'selected' : ''}>Serif</option>
+                <option value="display" ${typographyFilters[role]?.category === 'display' ? 'selected' : ''}>Display</option>
+                <option value="monospace" ${typographyFilters[role]?.category === 'monospace' ? 'selected' : ''}>Monospace</option>
+              </select>
+            </div>
+          </div>
+          <div class="gw-form-row">
+            <div class="gw-form-group">
+              <label for="${role}FontName">Font Family</label>
+              <select id="${role}FontName" data-role="${role}" data-typo-control="name">
+                ${filteredOptions.length > 0
+                  ? filteredOptions.map((option) => `<option value="${option.family}" ${option.family === font.name ? 'selected' : ''}>${option.family}</option>`).join('')
+                  : `<option value="${font.name || ''}">${font.name || 'No fonts found'}</option>`}
+              </select>
+            </div>
+            <div class="gw-form-group gw-font-upload-group ${font.type === 'custom' ? '' : 'is-hidden'}">
+              <label for="${role}FontFile">Upload Custom Font</label>
+              <label class="gw-file-input">
+                <input type="file" id="${role}FontFile" data-role="${role}" data-typo-control="file" accept=".woff2,.woff,.ttf,.otf">
+                <span class="gw-file-label">${font.file?.name || 'Choose .woff2, .woff, .ttf, or .otf'}</span>
+              </label>
+            </div>
+          </div>
+          <div class="gw-font-preview-card">
+            <span class="gw-font-preview-label">${role === 'heading' ? 'Heading Preview' : 'Body Preview'}</span>
+            <p class="gw-font-preview-sample" style="font-family:${getPreviewFontFamily(font)}">
+              ${role === 'heading'
+                ? 'This headline sets the tone for the entire fan website.'
+                : 'Readable body copy keeps announcements, posts, and pages comfortable on every template.'}
+            </p>
+          </div>
+        </div>
+      `;
+    }).join('');
   };
 
   const applyPaletteToForm = (palette) => {
@@ -593,6 +850,7 @@ export default function GenerateWebsite() {
     formData.secondaryColor = roles.background;
     formData.accentColor = roles.accent;
     syncColorInputs();
+    applyTypographyPreview();
   };
 
   const renderPalettePreviewBars = (palette) => (palette || [])
@@ -836,48 +1094,104 @@ export default function GenerateWebsite() {
 
     section.querySelector('#buttonStyle')?.addEventListener('change', (e) => {
       formData.buttonStyle = e.target.value;
+      applyTypographyPreview();
     });
 
-    section.querySelector('#fontType')?.addEventListener('change', (e) => {
-      formData.fontType = e.target.value;
-      formData.fontName = e.target.value === 'google' ? googleFonts[0] : systemFonts[0];
-      formData.fontStyle = formData.fontName;
-      if (formData.fontType !== 'custom') {
-        formData.fontUrl = '';
-        formData.customFontFile = null;
+    section.querySelector('#typographyControls')?.addEventListener('input', (e) => {
+      const control = e.target?.dataset?.typoControl;
+      const role = e.target?.dataset?.role;
+      if (!control || !role) return;
+
+      if (control === 'search') {
+        typographyFilters[role] = {
+          ...(typographyFilters[role] || {}),
+          search: e.target.value,
+        };
+        renderTypographyControls();
       }
-      renderFontOptions();
     });
 
-    section.querySelector('#fontName')?.addEventListener('change', (e) => {
-      formData.fontName = e.target.value;
-      formData.fontStyle = e.target.value;
-      applyPreviewFont();
-    });
+    section.querySelector('#typographyControls')?.addEventListener('change', async (e) => {
+      const control = e.target?.dataset?.typoControl;
+      const role = e.target?.dataset?.role;
+      if (!control || !role) return;
 
-    section.querySelector('#fontFile')?.addEventListener('change', (e) => {
-      const file = e.target.files?.[0];
-      if (!file) return;
-
-      const validExtensions = ['.woff2', '.woff', '.ttf', '.otf'];
-      const lowerName = file.name.toLowerCase();
-      if (!validExtensions.some((ext) => lowerName.endsWith(ext))) {
-        alert('Custom font must be .woff2, .woff, .ttf, or .otf');
-        e.target.value = '';
+      if (control === 'type') {
+        const nextType = e.target.value;
+        if (nextType === 'google') {
+          await fetchGoogleFonts();
+        }
+        const nextOptions = nextType === 'google' ? googleFonts : systemFonts;
+        const nextOption = nextOptions[0] || { family: 'Arial', category: 'sans-serif' };
+        updateTypographyRole(role, {
+          type: nextType,
+          name: nextType === 'custom' ? (formData.typography?.[role]?.name || `${typographyLabels[role]} Custom`) : nextOption.family,
+          category: nextOption.category || 'custom',
+          url: nextType === 'custom' ? (formData.typography?.[role]?.url || '') : '',
+          file: nextType === 'custom' ? (formData.typography?.[role]?.file || null) : null,
+        });
         return;
       }
 
-      formData.customFontFile = file;
-      formData.fontType = 'custom';
-      formData.fontName = file.name.replace(/\.[^.]+$/, '') || 'Custom Brand Font';
-      formData.fontStyle = formData.fontName;
-      if (customFontObjectUrl) {
-        URL.revokeObjectURL(customFontObjectUrl);
+      if (control === 'category') {
+        typographyFilters[role] = {
+          ...(typographyFilters[role] || {}),
+          category: e.target.value,
+        };
+        renderTypographyControls();
+        return;
       }
-      customFontObjectUrl = URL.createObjectURL(file);
-      formData.fontUrl = customFontObjectUrl;
-      renderFontOptions();
-      applyPreviewFont();
+
+      if (control === 'name') {
+        const selectedOption = getFontOptionsForRole(role).find((font) => font.family === e.target.value);
+        updateTypographyRole(role, {
+          name: e.target.value,
+          category: selectedOption?.category || formData.typography?.[role]?.category || 'sans-serif',
+          url: formData.typography?.[role]?.type === 'custom' ? (formData.typography?.[role]?.url || '') : '',
+        });
+        return;
+      }
+
+      if (control === 'file') {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const validExtensions = ['.woff2', '.woff', '.ttf', '.otf'];
+        const lowerName = file.name.toLowerCase();
+        if (!validExtensions.some((ext) => lowerName.endsWith(ext))) {
+          alert('Custom font must be .woff2, .woff, .ttf, or .otf');
+          e.target.value = '';
+          return;
+        }
+
+        if (uploadedFontObjectUrls[role]) {
+          URL.revokeObjectURL(uploadedFontObjectUrls[role]);
+        }
+        uploadedFontObjectUrls[role] = URL.createObjectURL(file);
+
+        updateTypographyRole(role, {
+          type: 'custom',
+          file,
+          name: file.name.replace(/\.[^.]+$/, '') || `${typographyLabels[role]} Custom`,
+          url: uploadedFontObjectUrls[role],
+          category: 'custom',
+        });
+      }
+    });
+
+    section.querySelector('#fontSizeBase')?.addEventListener('input', (e) => {
+      formData.typography.fontSizeBase = e.target.value;
+      applyTypographyPreview();
+    });
+
+    section.querySelector('#lineHeight')?.addEventListener('input', (e) => {
+      formData.typography.lineHeight = e.target.value;
+      applyTypographyPreview();
+    });
+
+    section.querySelector('#letterSpacing')?.addEventListener('input', (e) => {
+      formData.typography.letterSpacing = e.target.value;
+      applyTypographyPreview();
     });
 
     section.querySelector('#editPaletteBtn')?.addEventListener('click', () => {
@@ -980,14 +1294,20 @@ export default function GenerateWebsite() {
   renderTemplates();
   // load templates from backend
   fetchTemplates();
+  fetchGoogleFonts().then(() => {
+    renderTypographyControls();
+    applyTypographyPreview();
+  });
   applyPaletteToForm(defaultPalettes[0].colors);
   renderPalettes();
-  renderFontOptions();
+  renderTypographyControls();
   renderMembers();
   setupFormListeners();
   setupGenerateButton();
   setupBackButton();
   setupPaletteModal();
+  syncLegacyFontFields();
+  applyTypographyPreview();
 
   return section;
 }

@@ -1,7 +1,7 @@
 /* Search page specific styles */
 
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  font-family: var(--theme-font-body, var(--theme-font-family, 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif));
   background: linear-gradient(to bottom, #ADD8E6, #FFB6C1);
   min-height: 100vh;
   margin: 0;
@@ -15,7 +15,7 @@ body {
 }
 
 .search-header {
-  font-family: var(--theme-font-family, Arial, sans-serif);
+  font-family: var(--theme-font-heading, var(--theme-font-body, Arial, sans-serif));
  
   font-weight: bold;
   font-size: clamp(1.6rem, 4vw, 2.2rem);

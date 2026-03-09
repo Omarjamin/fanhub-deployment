@@ -31,7 +31,7 @@ export default async function ProfileInfo(root, data = {}) {
         <img src="${DEFAULT_PROFILE_IMAGE}" alt="Profile Picture" class="profile-picture1" id="profilePicture" onerror="this.src='${DEFAULT_PROFILE_IMAGE}';">
         <div class="profile-details">
         
-          <h2 id="fullname" style="font-family: 'Paytone One', sans-serif;">Loading...</h2>
+          <h2 id="fullname">Loading...</h2>
           <button id="editProfileBtn" class="btn-editbutton">Edit Profile</button>
         </div>
       </div>

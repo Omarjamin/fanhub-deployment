@@ -230,7 +230,13 @@ class GenerateModel {
           settingsCols.has('font_type') ? 'NULLIF(ss.font_type, "") AS font_type' : 'NULL AS font_type',
           settingsCols.has('font_name') ? 'NULLIF(ss.font_name, "") AS font_name' : 'NULL AS font_name',
           settingsCols.has('font_url') ? 'NULLIF(ss.font_url, "") AS font_url' : 'NULL AS font_url',
+          settingsCols.has('font_heading') ? 'NULLIF(ss.font_heading, "") AS font_heading' : 'NULL AS font_heading',
+          settingsCols.has('font_body') ? 'NULLIF(ss.font_body, "") AS font_body' : 'NULL AS font_body',
+          settingsCols.has('font_size_base') ? 'NULLIF(ss.font_size_base, "") AS font_size_base' : 'NULL AS font_size_base',
+          settingsCols.has('line_height') ? 'NULLIF(ss.line_height, "") AS line_height' : 'NULL AS line_height',
+          settingsCols.has('letter_spacing') ? 'NULLIF(ss.letter_spacing, "") AS letter_spacing' : 'NULL AS letter_spacing',
           settingsCols.has('palette') ? 'ss.palette' : 'NULL AS palette',
+          settingsCols.has('typography') ? 'ss.typography' : 'NULL AS typography',
           settingsCols.has('theme') ? 'ss.theme' : 'NULL AS theme',
           settingsCols.has('nav_position') ? 'ss.nav_position' : 'NULL AS nav_position',
           settingsCols.has('logo') ? 'ss.logo' : 'NULL AS logo',
@@ -245,7 +251,13 @@ class GenerateModel {
           'NULL AS font_type',
           'NULL AS font_name',
           'NULL AS font_url',
+          'NULL AS font_heading',
+          'NULL AS font_body',
+          'NULL AS font_size_base',
+          'NULL AS line_height',
+          'NULL AS letter_spacing',
           'NULL AS palette',
+          'NULL AS typography',
           'NULL AS theme',
           'NULL AS nav_position',
           'NULL AS logo',
@@ -286,6 +298,7 @@ class GenerateModel {
     fontType,
     fontName,
     fontUrl,
+    typography,
     theme,
     palette,
     primaryColor,
@@ -317,8 +330,16 @@ class GenerateModel {
     const normalizedFontType = String(fontType || '').trim().toLowerCase();
     const normalizedFontName = String(fontName || '').trim();
     const normalizedFontUrl = String(fontUrl || '').trim();
+    const normalizedTypography = typeof typography === 'string' ? typography : JSON.stringify(typography || {});
     const normalizedTheme = typeof theme === 'string' ? theme : JSON.stringify(theme || {});
     const normalizedPalette = typeof palette === 'string' ? palette : JSON.stringify(palette || []);
+    let parsedTypography = {};
+
+    try {
+      parsedTypography = JSON.parse(normalizedTypography || '{}');
+    } catch (_) {
+      parsedTypography = {};
+    }
 
     if (!normalizedSiteName) throw new Error('site_name is required');
     if (!normalizedDomain) throw new Error('domain is required');
@@ -413,7 +434,13 @@ class GenerateModel {
       addSettingValue('font_type', normalizedFontType);
       addSettingValue('font_name', normalizedFontName);
       addSettingValue('font_url', normalizedFontUrl);
+      addSettingValue('font_heading', String(parsedTypography?.heading?.name || parsedTypography?.font_heading?.name || parsedTypography?.font_heading || '').trim());
+      addSettingValue('font_body', String(parsedTypography?.body?.name || parsedTypography?.font_body?.name || parsedTypography?.font_body || normalizedFontName).trim());
+      addSettingValue('font_size_base', String(parsedTypography?.fontSizeBase || parsedTypography?.font_size_base || '').trim());
+      addSettingValue('line_height', String(parsedTypography?.lineHeight || parsedTypography?.line_height || '').trim());
+      addSettingValue('letter_spacing', String(parsedTypography?.letterSpacing || parsedTypography?.letter_spacing || '').trim());
       addSettingValue('palette', normalizedPalette);
+      addSettingValue('typography', normalizedTypography);
       addSettingValue('theme', normalizedTheme);
       addSettingValue('logo', logo);
       addSettingValue('banner', banner);

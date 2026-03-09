@@ -3,7 +3,7 @@
   max-width: 950px;
   margin: 40px auto;
   padding: 24px;
-  font-family: 'Poppins', 'Arial', sans-serif;
+  font-family: var(--theme-font-body, var(--theme-font-family, 'Arial', sans-serif));
   background: #FFF0F5; /* light pinkish background */
   border-radius: 16px;
   box-shadow: 0 6px 16px rgba(0,0,0,0.08);

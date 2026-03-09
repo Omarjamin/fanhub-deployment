@@ -1,6 +1,6 @@
 import { getEcommerceTemplatePage, getTemplatePage } from "./template-registry.js";
 import { getSessionToken, setActiveSiteSlug } from "./site-context.js";
-import { applyFontConfig } from "./theme/font-loader.js";
+import { applyTypographyConfig } from "./theme/font-loader.js";
 
 const DEFAULT_API_V1 = "https://fanhub-deployment-production.up.railway.app/v1";
 const DEFAULT_API_KEY = "thread";
@@ -217,6 +217,137 @@ function normalizeThemeData(data) {
     data?.colors;
 
   const assignedRoles = assignColorRoles(palette);
+  const fontConfig =
+    (source?.font && typeof source.font === "object" ? source.font : null) ||
+    (typeof source?.font === "string"
+      ? (() => {
+          try {
+            const parsed = JSON.parse(source.font);
+            return parsed && typeof parsed === "object" ? parsed : null;
+          } catch (_) {
+            return null;
+          }
+        })()
+      : null) ||
+    (typeof data?.font === "string"
+      ? (() => {
+          try {
+            const parsed = JSON.parse(data.font);
+            return parsed && typeof parsed === "object" ? parsed : null;
+          } catch (_) {
+            return null;
+          }
+        })()
+      : data?.font && typeof data.font === "object" ? data.font : null) ||
+    {
+      type:
+        source?.font_type ??
+        source?.fontType ??
+        data?.font_type ??
+        data?.fontType ??
+        "system",
+      name:
+        source?.font_name ??
+        source?.fontName ??
+        data?.font_name ??
+        data?.fontName ??
+        source?.font_style ??
+        source?.fontStyle ??
+        data?.font_style ??
+        data?.fontStyle ??
+        "Arial",
+      url:
+        source?.font_url ??
+        source?.fontUrl ??
+        data?.font_url ??
+        data?.fontUrl ??
+        "",
+    };
+  const typographySource =
+    (source?.typography && typeof source.typography === "object" ? source.typography : null) ||
+    (typeof source?.typography === "string"
+      ? (() => {
+          try {
+            const parsed = JSON.parse(source.typography);
+            return parsed && typeof parsed === "object" ? parsed : null;
+          } catch (_) {
+            return null;
+          }
+        })()
+      : null) ||
+    (typeof data?.typography === "string"
+      ? (() => {
+          try {
+            const parsed = JSON.parse(data.typography);
+            return parsed && typeof parsed === "object" ? parsed : null;
+          } catch (_) {
+            return null;
+          }
+        })()
+      : data?.typography && typeof data.typography === "object" ? data.typography : null) ||
+    {};
+
+  const headingFont = typographySource?.heading || typographySource?.font_heading || {
+    type:
+      typographySource?.heading_type ??
+      typographySource?.headingType ??
+      source?.heading_font_type ??
+      source?.headingFontType ??
+      data?.heading_font_type ??
+      data?.headingFontType ??
+      fontConfig?.type ??
+      "system",
+    name:
+      typographySource?.heading_name ??
+      typographySource?.headingName ??
+      source?.font_heading ??
+      source?.heading_font ??
+      source?.headingFont ??
+      data?.font_heading ??
+      data?.heading_font ??
+      data?.headingFont ??
+      fontConfig?.name ??
+      "Arial",
+    url:
+      typographySource?.heading_url ??
+      typographySource?.headingUrl ??
+      source?.heading_font_url ??
+      source?.headingFontUrl ??
+      data?.heading_font_url ??
+      data?.headingFontUrl ??
+      "",
+  };
+  const bodyFont = typographySource?.body || typographySource?.font_body || {
+    type:
+      typographySource?.body_type ??
+      typographySource?.bodyType ??
+      source?.body_font_type ??
+      source?.bodyFontType ??
+      data?.body_font_type ??
+      data?.bodyFontType ??
+      fontConfig?.type ??
+      "system",
+    name:
+      typographySource?.body_name ??
+      typographySource?.bodyName ??
+      source?.font_body ??
+      source?.body_font ??
+      source?.bodyFont ??
+      data?.font_body ??
+      data?.body_font ??
+      data?.bodyFont ??
+      fontConfig?.name ??
+      "Arial",
+    url:
+      typographySource?.body_url ??
+      typographySource?.bodyUrl ??
+      source?.body_font_url ??
+      source?.bodyFontUrl ??
+      data?.body_font_url ??
+      data?.bodyFontUrl ??
+      fontConfig?.url ??
+      "",
+  };
 
   return {
     primary: normalizeHex(
@@ -264,52 +395,61 @@ function normalizeThemeData(data) {
       source?.fontStyle ??
       data?.font_style ??
       data?.fontStyle,
-    font:
-      (source?.font && typeof source.font === "object" ? source.font : null) ||
-      (typeof source?.font === "string"
-        ? (() => {
-            try {
-              const parsed = JSON.parse(source.font);
-              return parsed && typeof parsed === "object" ? parsed : null;
-            } catch (_) {
-              return null;
-            }
-          })()
-        : null) ||
-      (typeof data?.font === "string"
-        ? (() => {
-            try {
-              const parsed = JSON.parse(data.font);
-              return parsed && typeof parsed === "object" ? parsed : null;
-            } catch (_) {
-              return null;
-            }
-          })()
-        : data?.font && typeof data.font === "object" ? data.font : null) ||
-      {
-        type:
-          source?.font_type ??
-          source?.fontType ??
-          data?.font_type ??
-          data?.fontType ??
-          "system",
-        name:
-          source?.font_name ??
-          source?.fontName ??
-          data?.font_name ??
-          data?.fontName ??
-          source?.font_style ??
-          source?.fontStyle ??
-          data?.font_style ??
-          data?.fontStyle ??
-          "Arial",
-        url:
-          source?.font_url ??
-          source?.fontUrl ??
-          data?.font_url ??
-          data?.fontUrl ??
-          "",
-      },
+    font: fontConfig,
+    typography: {
+      heading: headingFont,
+      body: bodyFont,
+      font_heading: headingFont,
+      font_body: bodyFont,
+      fontSizeBase:
+        typographySource?.fontSizeBase ??
+        typographySource?.font_size_base ??
+        source?.font_size_base ??
+        source?.fontSizeBase ??
+        data?.font_size_base ??
+        data?.fontSizeBase ??
+        "16px",
+      lineHeight:
+        typographySource?.lineHeight ??
+        typographySource?.line_height ??
+        source?.line_height ??
+        source?.lineHeight ??
+        data?.line_height ??
+        data?.lineHeight ??
+        "1.6",
+      letterSpacing:
+        typographySource?.letterSpacing ??
+        typographySource?.letter_spacing ??
+        source?.letter_spacing ??
+        source?.letterSpacing ??
+        data?.letter_spacing ??
+        data?.letterSpacing ??
+        "0.02em",
+      font_size_base:
+        typographySource?.fontSizeBase ??
+        typographySource?.font_size_base ??
+        source?.font_size_base ??
+        source?.fontSizeBase ??
+        data?.font_size_base ??
+        data?.fontSizeBase ??
+        "16px",
+      line_height:
+        typographySource?.lineHeight ??
+        typographySource?.line_height ??
+        source?.line_height ??
+        source?.lineHeight ??
+        data?.line_height ??
+        data?.lineHeight ??
+        "1.6",
+      letter_spacing:
+        typographySource?.letterSpacing ??
+        typographySource?.letter_spacing ??
+        source?.letter_spacing ??
+        source?.letterSpacing ??
+        data?.letter_spacing ??
+        data?.letterSpacing ??
+        "0.02em",
+    },
     customFontUrl:
       source?.custom_font_url ??
       source?.customFontUrl ??
@@ -364,45 +504,45 @@ export function applyThemeColors(data) {
   root.style.setProperty("--hover-background", adjustLightness(accent, -8));
   root.style.setProperty("--hover-text-color", getContrastColor(adjustLightness(accent, -8)));
   root.style.setProperty("--secondary-background", background);
-
-  const fontMap = {
-    arial: "Arial, Helvetica, sans-serif",
-    calibri: "Calibri, Arial, sans-serif",
-    "segoe ui": "\"Segoe UI\", Arial, sans-serif",
-    "century gothic": "\"Century Gothic\", sans-serif",
-    verdana: "Verdana, Geneva, sans-serif",
-    helvetica: "Helvetica, Arial, sans-serif",
-    tahoma: "Tahoma, Geneva, sans-serif",
-    "trebuchet ms": "\"Trebuchet MS\", sans-serif",
-    georgia: "Georgia, \"Times New Roman\", serif",
-    "times new roman": "\"Times New Roman\", Times, serif",
-    "sans-serif": "Arial, Helvetica, sans-serif",
-    serif: "Georgia, \"Times New Roman\", serif",
-    cursive: "\"Brush Script MT\", \"Comic Sans MS\", cursive",
-    monospace: "\"Courier New\", Courier, monospace",
-  };
-  const fontStyleRaw = String(theme.fontStyle || theme?.font?.name || "Arial").trim();
-  const fontStyle = fontStyleRaw.toLowerCase();
-  root.style.setProperty("--theme-font-family", fontMap[fontStyle] || fontStyleRaw || fontMap.arial);
-
-  const fontConfig = theme.font || null;
-  if (fontConfig?.type === "custom" && (fontConfig?.url || theme.customFontUrl)) {
-    applyFontConfig({
-      type: "custom",
-      name: fontConfig?.name || theme.customFontFamily || "CustomFont",
-      url: fontConfig?.url || theme.customFontUrl,
-    });
-  } else if (fontConfig?.type === "google") {
-    applyFontConfig({
-      type: "google",
-      name: fontConfig?.name || fontStyleRaw,
-    });
-  } else {
-    applyFontConfig({
-      type: "system",
-      name: fontConfig?.name || fontStyleRaw,
-    });
-  }
+  applyTypographyConfig({
+    ...(theme.typography || {}),
+    heading: {
+      ...(theme.typography?.heading || {}),
+      url:
+        theme.typography?.heading?.url ||
+        theme.customFontUrl ||
+        theme.font?.url ||
+        "",
+      name:
+        theme.typography?.heading?.name ||
+        theme.customFontFamily ||
+        theme.fontStyle ||
+        theme.font?.name ||
+        "Arial",
+      type:
+        theme.typography?.heading?.type ||
+        theme.font?.type ||
+        "system",
+    },
+    body: {
+      ...(theme.typography?.body || {}),
+      url:
+        theme.typography?.body?.url ||
+        theme.customFontUrl ||
+        theme.font?.url ||
+        "",
+      name:
+        theme.typography?.body?.name ||
+        theme.customFontFamily ||
+        theme.fontStyle ||
+        theme.font?.name ||
+        "Arial",
+      type:
+        theme.typography?.body?.type ||
+        theme.font?.type ||
+        "system",
+    },
+  }, { root });
 
   applyButtonStyle(theme.buttonStyle, root);
 }
