@@ -12,7 +12,7 @@ body {
 
 .admin-header {
   background: white;
-  padding: 10px 30px;
+  padding: 12px 18px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -26,14 +26,15 @@ body {
 }
 
 .header-left h1 {
-  font-size: 2rem;
+  font-size: 1.6rem;
   color: var(--dark);
+  line-height: 1.1;
 }
 
 .header-right {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 14px;
   margin-right: 0;
 }
 

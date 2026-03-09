@@ -6,7 +6,7 @@
 }
 
 .admin-shell {
-  --admin-sidebar-width: 188px;
+  --admin-sidebar-width: 220px;
   min-height: 100dvh;
   display: grid;
   grid-template-columns: var(--admin-sidebar-width) minmax(0, 1fr);
@@ -26,6 +26,7 @@
   z-index: 20;
   min-width: 0;
   background: transparent;
+  padding: 0 24px;
 }
 
 .admin-shell__sidebar {
@@ -61,10 +62,11 @@
   position: sticky;
   top: 0;
   left: auto;
-  width: auto;
-  margin-left: 0;
-  padding: 14px 20px;
+  width: min(100%, 1280px);
+  margin: 0 auto;
+  padding: 14px 18px;
   box-sizing: border-box;
+  border-radius: 0 0 16px 16px;
 }
 
 .admin-shell .admin-sidebar {
@@ -121,5 +123,9 @@
 
   .admin-shell__main {
     padding: 16px;
+  }
+
+  .admin-shell__header {
+    padding: 0 16px;
   }
 }
