@@ -701,6 +701,7 @@ export default function GenerateWebsite() {
           ? 'Uploaded font'
           : 'System font';
 
+      // Unified font family + appearance selection
       return `
         <div class="gw-admin-typography-card" data-role="${role}">
           <div class="gw-admin-typography-card-header">
@@ -735,10 +736,10 @@ export default function GenerateWebsite() {
           </div>
           <div class="gw-form-row">
             <div class="gw-form-group">
-              <label for="${role}FontName">Font Family</label>
+              <label for="${role}FontName">Font Family & Appearance</label>
               <select id="${role}FontName" data-role="${role}" data-typo-control="name">
                 ${filteredOptions.length > 0
-                  ? filteredOptions.map((option) => `<option value="${option.family}" ${option.family === font.name ? 'selected' : ''}>${option.family}</option>`).join('')
+                  ? filteredOptions.map((option) => `<option value="${option.family}" ${option.family === font.name ? 'selected' : ''}>${option.family} (${option.category})</option>`).join('')
                   : `<option value="${font.name || ''}">${font.name || 'No fonts found'}</option>`}
               </select>
             </div>
@@ -748,33 +749,6 @@ export default function GenerateWebsite() {
                 <input type="file" id="${role}FontFile" data-role="${role}" data-typo-control="file" accept=".woff2,.woff,.ttf,.otf">
                 <span class="gw-file-label">${font.file?.name || 'Choose .woff2, .woff, .ttf, or .otf'}</span>
               </label>
-            </div>
-          </div>
-          <div class="gw-admin-font-appearance">
-            <div class="gw-admin-font-appearance-header">
-              <span>Font Appearance</span>
-              <small>Choose by look, not only by name.</small>
-            </div>
-            <div class="gw-admin-font-appearance-list">
-              ${filteredOptions.length > 0
-                ? filteredOptions.slice(0, 12).map((option) => `
-                  <button
-                    type="button"
-                    class="gw-admin-font-appearance-item ${option.family === font.name ? 'active' : ''}"
-                    data-role="${role}"
-                    data-typo-control="appearance"
-                    data-font-family="${option.family}"
-                    data-font-category="${option.category || 'sans-serif'}"
-                    style="font-family:${font.type === 'system' ? (option.preview || `'${option.family}', sans-serif`) : `'${option.family}', sans-serif`}"
-                  >
-                    <span class="gw-admin-font-appearance-aa">Aa</span>
-                    <span class="gw-admin-font-appearance-meta">
-                      <strong>${option.family}</strong>
-                      <span>${getAppearanceSample(role)}</span>
-                    </span>
-                  </button>
-                `).join('')
-                : `<p class="gw-empty-state">No fonts match the current search/filter.</p>`}
             </div>
           </div>
           <div class="gw-admin-font-preview-card">
