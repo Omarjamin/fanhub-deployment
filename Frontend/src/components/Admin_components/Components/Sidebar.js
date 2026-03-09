@@ -1,7 +1,7 @@
 ﻿import '../../../styles/Admin_styles/Sidebar.css';
 
 export default function Sidebar(root) {
-  root.className = 'admin-sidebar';
+  root.classList.add('admin-sidebar');
 
   root.innerHTML = `
     <div class="sidebar-header">

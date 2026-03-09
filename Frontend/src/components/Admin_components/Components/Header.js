@@ -181,7 +181,7 @@ function renderNotifItems(items) {
 }
 
 export default function Header(root) {
-  root.className = "admin-header";
+  root.classList.add("admin-header");
   root.innerHTML = `
     <div class="header-left">
       <h1 id="pageTitle">Admin Panel</h1>
