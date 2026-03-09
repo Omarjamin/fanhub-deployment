@@ -105,6 +105,11 @@ export default function GenerateWebsite() {
     if (/^([A-Fa-f0-9]{6})$/.test(raw)) return `#${raw}`;
     return fallback;
   };
+
+  let typographyFilters = {
+    heading: { search: '', category: 'all' },
+    body: { search: '', category: 'all' },
+  };
   const getBrightness = (hex) => {
     const safeHex = normalizeHex(hex).replace('#', '');
     const r = parseInt(safeHex.substring(0, 2), 16);
