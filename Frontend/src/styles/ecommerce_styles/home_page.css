@@ -1,3 +1,19 @@
+.fh-template-root:has(.ec-lead-image) #container,
+body:has(.ec-lead-image) #container {
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: none !important;
+}
+
+.fh-template-root:has(.ec-lead-image) #main,
+body:has(.ec-lead-image) #main,
+.fh-template-root:has(.ec-lead-image) main,
+body:has(.ec-lead-image) main {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+}
+
 .navbar.ec-hero-nav {
   background: transparent;
   box-shadow: none;

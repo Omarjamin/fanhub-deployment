@@ -106,6 +106,14 @@ function getCachedSitePayload(siteSlug = '') {
     return null;
 }
 
+function normalizeMembersFromPayload(payload = {}) {
+    return Array.isArray(payload?.members)
+        ? payload.members
+            .map((member) => normalizeMember(member))
+            .filter((member) => member.name || member.primaryValue || member.secondaryValue || member.photo)
+        : [];
+}
+
 function renderAbout(root, groupInfo, membersData) {
     root.querySelectorAll('#about').forEach((node) => node.remove());
 
@@ -233,11 +241,7 @@ export default function About(root, data = {}) {
             payload = cachedPayload;
         }
         let groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
-        let membersData = Array.isArray(payload?.members)
-            ? payload.members
-                .map((member) => normalizeMember(member))
-                .filter((member) => member.name || member.primaryValue || member.secondaryValue || member.photo)
-            : [];
+        let membersData = normalizeMembersFromPayload(payload);
 
         const hasUsefulGroupInfo =
             Boolean(String(payload?.site_name || payload?.community_name || payload?.name || '').trim()) ||
@@ -256,11 +260,7 @@ export default function About(root, data = {}) {
                     const res = await api.get(`/generate/generated-websites/type/${encodeURIComponent(candidate)}`);
                     payload = res?.data?.data || {};
 
-                    const fetchedMembers = Array.isArray(payload?.members)
-                        ? payload.members
-                            .map((member) => normalizeMember(member))
-                            .filter((member) => member.name || member.primaryValue || member.secondaryValue || member.photo)
-                        : [];
+                    const fetchedMembers = normalizeMembersFromPayload(payload);
 
                     groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
 
@@ -270,6 +270,38 @@ export default function About(root, data = {}) {
                     }
                 } catch (_) {}
             }
+        }
+
+        if (!membersData.length && siteSlug) {
+            const slugVariants = new Set([
+                siteSlug,
+                siteSlug.replace(/-website$/i, ''),
+                siteSlug.endsWith('-website') ? siteSlug : `${siteSlug}-website`,
+            ].filter(Boolean));
+
+            try {
+                const res = await api.get('/generate/generated-websites');
+                const rows = Array.isArray(res?.data?.data)
+                    ? res.data.data
+                    : Array.isArray(res?.data?.websites)
+                        ? res.data.websites
+                        : [];
+
+                const matched = rows.find((row) => {
+                    const domain = String(row?.domain || '').trim().toLowerCase();
+                    const communityType = String(row?.community_type || '').trim().toLowerCase();
+                    const siteName = String(row?.site_name || '').trim().toLowerCase();
+                    return slugVariants.has(domain) || slugVariants.has(communityType) || slugVariants.has(siteName);
+                });
+
+                if (matched) {
+                    const fetchedMembers = normalizeMembersFromPayload(matched);
+                    if (fetchedMembers.length) {
+                        membersData = fetchedMembers;
+                    }
+                    groupInfo = buildGroupInfo(matched, fallbackGroupInfo);
+                }
+            } catch (_) {}
         }
 
         renderAbout(root, groupInfo, membersData);
