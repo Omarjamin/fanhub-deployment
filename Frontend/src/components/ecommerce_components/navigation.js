@@ -47,15 +47,20 @@ export default function Navigation(root, data = {}) {
     data?.image_url ||
     '/BINI_logo.svg.png'
   ).trim();
+  const isHeroHomepage = pathParts[0] === 'fanhub' && pathParts.length === 2;
 
-  root.innerHTML = `
-  <header class="navbar">
-    <div id="menuToggle" class="menu-toggle">&#9776;</div>
-    <a href="${homePath}" class="logo">
-      <img src="${logoSrc}" alt="Logo" class="logo-img" onerror="this.src='/BINI_logo.svg.png'">
-    </a>
-    <nav id="navMenu">
-      <button class="nav-close-btn" aria-label="Close navigation">&#10005;</button>
+  const heroNavLinks = `
+      <a href="${homePath}" class="nav-link active">Home</a>
+      <a href="#about" class="nav-link">About</a>
+      <a href="#home" class="nav-link">Videos</a>
+      <a href="#music" class="nav-link">Music</a>
+      <a href="#events" class="nav-link">Events</a>
+      <a href="#announcements" class="nav-link">Announcements</a>
+      <a href="${shopPath}" class="nav-link">Shop</a>
+      <a href="${communityPlatformPath}" class="nav-link">Community</a>
+  `;
+
+  const defaultNavLinks = `
       <a href="${homePath}" class="nav-link active">Home</a>
       <a href="#about" class="nav-link">About</a>
       <a href="#music" class="nav-link">Music</a>
@@ -63,8 +68,9 @@ export default function Navigation(root, data = {}) {
       <a href="#announcements" class="nav-link">Announcement</a>
       <a href="${shopPath}" class="nav-link">Shop</a>
       <a href="${communityPlatformPath}" class="nav-link">Community</a>
-    </nav>
-    <div class="nav-right">
+  `;
+
+  const heroRightContent = `
       <a href="${orderHistoryPath}" class="nav-icon nav-auth-only" data-auth-feature="order-history">&#128220;</a>
       <a href="${cartPath}" class="nav-icon nav-auth-only" data-auth-feature="cart">&#128722;</a>
       <a href="${signinPath}" id="signinLink" class="nav-icon">&#128100;</a>
@@ -75,6 +81,33 @@ export default function Navigation(root, data = {}) {
           <line x1="21" y1="12" x2="9" y2="12"></line>
         </svg>
       </a>
+  `;
+
+  const defaultRightContent = `
+      <a href="${orderHistoryPath}" class="nav-icon nav-auth-only" data-auth-feature="order-history">&#128220;</a>
+      <a href="${cartPath}" class="nav-icon nav-auth-only" data-auth-feature="cart">&#128722;</a>
+      <a href="${signinPath}" id="signinLink" class="nav-icon">&#128100;</a>
+      <a href="#" id="logoutBtn" class="nav-icon" style="display:none" title="Logout">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+          <polyline points="16,17 21,12 16,7"></polyline>
+          <line x1="21" y1="12" x2="9" y2="12"></line>
+        </svg>
+      </a>
+  `;
+
+  root.innerHTML = `
+  <header class="navbar">
+    <button id="menuToggle" class="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">&#9776;</button>
+    <a href="${homePath}" class="logo">
+      <img src="${logoSrc}" alt="Logo" class="logo-img" onerror="this.src='/BINI_logo.svg.png'">
+    </a>
+    <nav id="navMenu" role="navigation" aria-label="Main navigation">
+      <button class="nav-close-btn" aria-label="Close navigation menu">&#10005;</button>
+      ${isHeroHomepage ? heroNavLinks : defaultNavLinks}
+    </nav>
+    <div class="nav-right" role="navigation" aria-label="User actions">
+      ${isHeroHomepage ? heroRightContent : defaultRightContent}
     </div>
   </header>
   `;
@@ -85,17 +118,41 @@ export default function Navigation(root, data = {}) {
   const navMenu = root.querySelector('#navMenu');
   const navLinks = navMenu ? Array.from(navMenu.querySelectorAll('a')) : [];
   const navCloseBtn = root.querySelector('.nav-close-btn');
+  const navBar = root.querySelector('.navbar');
+  const syncHeroNavState = () => {
+    if (!navBar) return;
+    if (!isHeroHomepage) {
+      document.body.classList.remove('ec-hero-nav-home');
+      document.body.classList.remove('ec-hero-nav-scrolled');
+      navBar.classList.remove('ec-hero-nav');
+      navBar.classList.remove('scrolled');
+      return;
+    }
+    document.body.classList.add('ec-hero-nav-home');
+    const isScrolled = window.scrollY > 8;
+    navBar.classList.add('ec-hero-nav');
+    navBar.classList.toggle('scrolled', isScrolled);
+    document.body.classList.toggle('ec-hero-nav-scrolled', isScrolled);
+  };
+
+  syncHeroNavState();
+  window.addEventListener('resize', syncHeroNavState);
 
   menuToggle?.addEventListener('click', () => {
     if (!navMenu) return;
+    const isActive = navMenu.classList.contains('active');
     navMenu.classList.toggle('active');
     menuToggle.textContent = navMenu.classList.contains('active') ? '\u2715' : '\u2630';
+    menuToggle.setAttribute('aria-expanded', !isActive);
   });
 
   navCloseBtn?.addEventListener('click', () => {
     if (!navMenu) return;
     navMenu.classList.remove('active');
-    if (menuToggle) menuToggle.textContent = '\u2630';
+    if (menuToggle) {
+      menuToggle.textContent = '\u2630';
+      menuToggle.setAttribute('aria-expanded', 'false');
+    }
   });
 
   navLinks.forEach((link) => {
@@ -137,7 +194,10 @@ export default function Navigation(root, data = {}) {
         navLinks.forEach((l) => l.classList.remove('active'));
         link.classList.add('active');
         navMenu?.classList.remove('active');
-        if (menuToggle) menuToggle.textContent = '\u2630';
+        if (menuToggle) {
+          menuToggle.textContent = '\u2630';
+          menuToggle.setAttribute('aria-expanded', 'false');
+        }
         return;
       }
 
@@ -229,23 +289,37 @@ export default function Navigation(root, data = {}) {
     );
   });
 
-  window.addEventListener('scroll', () => {
-    let current = '';
-    const sections = document.querySelectorAll('section[id], section[class]');
+  // Throttled scroll handler for better performance
+  let scrollTimeout;
+  const throttledScrollHandler = () => {
+    if (scrollTimeout) {
+      return;
+    }
+    
+    scrollTimeout = setTimeout(() => {
+      syncHeroNavState();
 
-    sections.forEach((section) => {
-      const sectionTop = section.offsetTop;
-      if (pageYOffset >= sectionTop - 180) {
-        current = section.getAttribute('id') || section.className.split(' ')[0];
-      }
-    });
+      let current = '';
+      const sections = document.querySelectorAll('section[id], section[class]');
 
-    navLinks.forEach((link) => {
-      link.classList.remove('active');
-      const href = link.getAttribute('href') || '';
-      if (href.startsWith('#') && href.slice(1) === current) {
-        link.classList.add('active');
-      }
-    });
-  });
+      sections.forEach((section) => {
+        const sectionTop = section.offsetTop;
+        if (pageYOffset >= sectionTop - 180) {
+          current = section.getAttribute('id') || section.className.split(' ')[0];
+        }
+      });
+
+      navLinks.forEach((link) => {
+        link.classList.remove('active');
+        const href = link.getAttribute('href') || '';
+        if (href.startsWith('#') && href.slice(1) === current) {
+          link.classList.add('active');
+        }
+      });
+      
+      scrollTimeout = null;
+    }, 16); // ~60fps
+  };
+
+  window.addEventListener('scroll', throttledScrollHandler, { passive: true });
 }

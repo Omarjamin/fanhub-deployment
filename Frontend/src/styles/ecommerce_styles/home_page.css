@@ -1,3 +1,21 @@
+.navbar.ec-hero-nav {
+  background: transparent;
+  box-shadow: none;
+}
+
+.navbar.ec-hero-nav nav a,
+.navbar.ec-hero-nav .nav-right a,
+.navbar.ec-hero-nav .menu-toggle {
+  background: transparent;
+  border-color: transparent;
+}
+
+.navbar.ec-hero-nav.scrolled {
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 clamp(2px, 0.5vw, 4px) clamp(4px, 1vw, 6px) rgba(0, 0, 0, 0.1);
+}
+
 .navbar {
   position: fixed;
   top: 0;

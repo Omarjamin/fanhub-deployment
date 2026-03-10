@@ -89,6 +89,11 @@ export default function Discography(root, data = {}) {
           </svg>
         </button>
       </div>
+      <div class="discography-details" aria-live="polite">
+        <h3 class="discography-active-title"></h3>
+        <p class="discography-active-meta"></p>
+        <a class="discography-cta" href="#" target="_blank" rel="noopener noreferrer">More Music</a>
+      </div>
     </section>
     `,
   );
@@ -99,14 +104,20 @@ export default function Discography(root, data = {}) {
   const nextBtn = section?.querySelector(".carousel-btn.next");
   const prevBtn = section?.querySelector(".carousel-btn.prev");
   const carousel = section?.querySelector(".album-carousel");
+  const detailTitle = section?.querySelector(".discography-active-title");
+  const detailMeta = section?.querySelector(".discography-active-meta");
+  const detailCta = section?.querySelector(".discography-cta");
 
-  if (!section || !container || !nextBtn || !prevBtn || !carousel) {
+  if (!section || !container || !nextBtn || !prevBtn || !carousel || !detailTitle || !detailMeta || !detailCta) {
     console.error("Discography mount failed", {
       section: Boolean(section),
       container: Boolean(container),
       nextBtn: Boolean(nextBtn),
       prevBtn: Boolean(prevBtn),
       carousel: Boolean(carousel),
+      detailTitle: Boolean(detailTitle),
+      detailMeta: Boolean(detailMeta),
+      detailCta: Boolean(detailCta),
     });
     return;
   }
@@ -114,6 +125,7 @@ export default function Discography(root, data = {}) {
   let currentAlbum = 0;
   let albumInterval = null;
   let albums = [];
+  let albumData = [];
 
   function resolveUI() {
     const liveSection =
@@ -126,6 +138,32 @@ export default function Discography(root, data = {}) {
     return { liveSection, liveContainer, livePrevBtn, liveNextBtn };
   }
 
+  function updateDetails() {
+    const active = albumData[currentAlbum];
+    if (!active) {
+      detailTitle.textContent = "";
+      detailMeta.textContent = "";
+      detailCta.style.display = "none";
+      detailCta.removeAttribute("href");
+      return;
+    }
+
+    detailTitle.textContent = active.title;
+    detailMeta.textContent = `${active.description} • ${active.year} • ${active.count_songs} Songs`;
+
+    if (active.album_link) {
+      detailCta.style.display = "inline-flex";
+      detailCta.href = active.album_link;
+      detailCta.removeAttribute("aria-disabled");
+      detailCta.tabIndex = 0;
+    } else {
+      detailCta.style.display = "inline-flex";
+      detailCta.href = "#music";
+      detailCta.setAttribute("aria-disabled", "true");
+      detailCta.tabIndex = -1;
+    }
+  }
+
   function renderMessage(title, msg) {
     const { liveContainer, livePrevBtn, liveNextBtn } = resolveUI();
     if (!liveContainer || !livePrevBtn || !liveNextBtn) return;
@@ -135,10 +173,12 @@ export default function Discography(root, data = {}) {
       <div class="album-card active" style="opacity:1;z-index:3;transform:translate(-50%, -50%) translateX(0) scale(1);pointer-events:auto;">
         <div>
           <h3>${title}</h3>
-          <p>${msg}</p>
         </div>
       </div>
     `;
+    detailTitle.textContent = title;
+    detailMeta.textContent = msg;
+    detailCta.style.display = "none";
     albums = Array.from(liveContainer.querySelectorAll(".album-card"));
   }
 
@@ -160,12 +200,12 @@ export default function Discography(root, data = {}) {
         album.classList.add("active");
         album.style.pointerEvents = "auto";
       } else if (index === nextIndex) {
-        album.style.transform = "translate(-50%, -50%) translateX(120%) scale(0.85)";
-        album.style.opacity = "0.6";
+        album.style.transform = "translate(-50%, -50%) translateX(84%) scale(0.76)";
+        album.style.opacity = "0.58";
         album.style.zIndex = "2";
       } else if (index === prevIndex) {
-        album.style.transform = "translate(-50%, -50%) translateX(-120%) scale(0.85)";
-        album.style.opacity = "0.6";
+        album.style.transform = "translate(-50%, -50%) translateX(-84%) scale(0.76)";
+        album.style.opacity = "0.58";
         album.style.zIndex = "2";
       } else {
         album.style.transform = "translate(-50%, -50%) translateX(0) scale(0.7)";
@@ -181,6 +221,7 @@ export default function Discography(root, data = {}) {
     if (!albums.length) return;
     currentAlbum = (n + albums.length) % albums.length;
     updateAlbumPositions();
+    updateDetails();
   }
 
   function nextAlbum() {
@@ -226,8 +267,6 @@ export default function Discography(root, data = {}) {
               : `<div class="album-link-disabled">`
           }
             <img src="${album.cover_image}" alt="${album.title}">
-            <h3>${album.title}</h3>
-            <p>${album.description} - ${album.year} - ${album.count_songs} Songs</p>
           ${
             album.album_link
               ? `</a>`
@@ -238,6 +277,7 @@ export default function Discography(root, data = {}) {
       )
       .join("");
 
+    albumData = list;
     albums = Array.from(liveContainer.querySelectorAll(".album-card"));
     showAlbum(0);
     startAutoCarousel();
