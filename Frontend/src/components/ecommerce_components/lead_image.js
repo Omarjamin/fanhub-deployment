@@ -36,34 +36,47 @@ function normalizeSocials(payload = {}) {
 }
 
 function renderSection(root, leadImage, socials, siteLabel) {
-  root.querySelectorAll('.ec-lead-image').forEach((node) => node.remove());
-  if (!leadImage && socials.length === 0) return;
+  const existing = root.querySelector('.ec-lead-image');
+  if (!leadImage && socials.length === 0) {
+    existing?.remove();
+    return;
+  }
 
-  root.insertAdjacentHTML(
-    'beforeend',
-    `
-      <section class="ec-lead-image" aria-label="${siteLabel} lead image section">
-        ${leadImage ? `
-          <img
-            class="ec-lead-image__img"
-            src="${leadImage}"
-            alt="${siteLabel} lead visual"
-            loading="eager"
-            decoding="async"
-          />
-        ` : ''}
-        ${socials.length ? `
-          <div class="ec-lead-image__socials" aria-label="${siteLabel} social links">
-            ${socials.map((item) => `
-              <a href="${item.href}" target="_blank" rel="noopener noreferrer" class="ec-lead-image__social" data-platform="${item.key}" aria-label="${siteLabel} ${item.label}">
-                <img src="${SOCIAL_ICONS[item.key]}" alt="${item.label}">
-              </a>
-            `).join('')}
-          </div>
-        ` : ''}
-      </section>
-    `,
-  );
+  const markup = `
+    ${leadImage ? `
+      <img
+        class="ec-lead-image__img"
+        src="${leadImage}"
+        alt="${siteLabel} lead visual"
+        loading="eager"
+        decoding="async"
+      />
+    ` : ''}
+    ${socials.length ? `
+      <div class="ec-lead-image__socials" aria-label="${siteLabel} social links">
+        ${socials.map((item) => `
+          <a href="${item.href}" target="_blank" rel="noopener noreferrer" class="ec-lead-image__social" data-platform="${item.key}" aria-label="${siteLabel} ${item.label}">
+            <img src="${SOCIAL_ICONS[item.key]}" alt="${item.label}">
+          </a>
+        `).join('')}
+      </div>
+    ` : ''}
+  `;
+
+  if (existing) {
+    existing.setAttribute('aria-label', `${siteLabel} lead image section`);
+    existing.innerHTML = markup;
+    if (root.firstElementChild !== existing) {
+      root.insertBefore(existing, root.firstElementChild);
+    }
+    return;
+  }
+
+  const section = document.createElement('section');
+  section.className = 'ec-lead-image';
+  section.setAttribute('aria-label', `${siteLabel} lead image section`);
+  section.innerHTML = markup;
+  root.insertBefore(section, root.firstElementChild);
 }
 
 export default function LeadImage(root, data = {}) {

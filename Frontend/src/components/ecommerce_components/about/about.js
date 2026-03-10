@@ -87,6 +87,25 @@ function buildGroupInfo(payload = {}, fallbackGroupInfo) {
     };
 }
 
+function getCachedSitePayload(siteSlug = '') {
+    const candidates = [
+        `site_data:${siteSlug}`,
+        'active_site_data',
+    ];
+
+    for (const key of candidates) {
+        try {
+            const raw = sessionStorage.getItem(key) || localStorage.getItem(key) || '';
+            const parsed = raw ? JSON.parse(raw) : null;
+            if (parsed && typeof parsed === 'object') {
+                return parsed;
+            }
+        } catch (_) {}
+    }
+
+    return null;
+}
+
 function renderAbout(root, groupInfo, membersData) {
     root.querySelectorAll('#about').forEach((node) => node.remove());
 
@@ -209,6 +228,10 @@ export default function About(root, data = {}) {
 
     (async () => {
         let payload = data && typeof data === 'object' ? data : {};
+        const cachedPayload = getCachedSitePayload(siteSlug);
+        if ((!Array.isArray(payload?.members) || !payload.members.length) && cachedPayload) {
+            payload = cachedPayload;
+        }
         let groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
         let membersData = Array.isArray(payload?.members)
             ? payload.members
@@ -222,22 +245,31 @@ export default function About(root, data = {}) {
             Boolean(String(payload?.group_photo || payload?.banner || payload?.logo || '').trim());
 
         if ((!membersData.length || !hasUsefulGroupInfo) && siteSlug) {
-            try {
-                const res = await api.get(`/generate/generated-websites/type/${encodeURIComponent(siteSlug)}`);
-                payload = res?.data?.data || {};
+            const slugVariants = Array.from(new Set([
+                siteSlug,
+                siteSlug.replace(/-website$/i, ''),
+                siteSlug.endsWith('-website') ? siteSlug : `${siteSlug}-website`,
+            ].filter(Boolean)));
 
-                const fetchedMembers = Array.isArray(payload?.members)
-                    ? payload.members
-                        .map((member) => normalizeMember(member))
-                        .filter((member) => member.name || member.primaryValue || member.secondaryValue || member.photo)
-                    : [];
+            for (const candidate of slugVariants) {
+                try {
+                    const res = await api.get(`/generate/generated-websites/type/${encodeURIComponent(candidate)}`);
+                    payload = res?.data?.data || {};
 
-                if (fetchedMembers.length) {
-                    membersData = fetchedMembers;
-                }
+                    const fetchedMembers = Array.isArray(payload?.members)
+                        ? payload.members
+                            .map((member) => normalizeMember(member))
+                            .filter((member) => member.name || member.primaryValue || member.secondaryValue || member.photo)
+                        : [];
 
-                groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
-            } catch (_) {}
+                    groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
+
+                    if (fetchedMembers.length || String(payload?.site_name || payload?.description || payload?.short_bio || '').trim()) {
+                        membersData = fetchedMembers;
+                        break;
+                    }
+                } catch (_) {}
+            }
         }
 
         renderAbout(root, groupInfo, membersData);
