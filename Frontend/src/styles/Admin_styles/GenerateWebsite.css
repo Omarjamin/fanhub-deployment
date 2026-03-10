@@ -1057,6 +1057,21 @@
   background: #555;
 }
 
+.gw-section .gw-group-photo-panel {
+  margin: 0 0 16px 0;
+  padding: 14px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fafafa;
+}
+
+.gw-section .gw-field-hint {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #777;
+}
+
 .gw-section .gw-members-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));

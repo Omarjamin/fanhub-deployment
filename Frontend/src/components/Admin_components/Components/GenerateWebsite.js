@@ -654,13 +654,6 @@ export default function GenerateWebsite() {
                   <span class="gw-file-label">Choose file or drag here</span>
                 </div>
               </div>
-              <div class="gw-form-group">
-                <label for="groupPhoto">Group Photo</label>
-                <div class="gw-file-input">
-                  <input type="file" id="groupPhoto" accept="image/*">
-                  <span class="gw-file-label">Choose group photo</span>
-                </div>
-              </div>
             </div>
 
             <div class="gw-form-row">
@@ -737,6 +730,16 @@ export default function GenerateWebsite() {
           <div class="gw-section-header">
             <h2 class="gw-section-title">Team Members</h2>
             <button class="gw-btn-add-member" id="addMemberBtn" type="button">+ Add Member</button>
+          </div>
+          <div class="gw-group-photo-panel">
+            <div class="gw-form-group">
+              <label for="groupPhoto">Group Photo</label>
+              <div class="gw-file-input">
+                <input type="file" id="groupPhoto" accept="image/*">
+                <span class="gw-file-label">Choose group photo</span>
+              </div>
+              <small class="gw-field-hint">This stays mapped to the site-level group photo.</small>
+            </div>
           </div>
           <div class="gw-members-list" id="membersList"></div>
         </div>
