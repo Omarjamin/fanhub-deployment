@@ -34,8 +34,9 @@ The group has established themselves as a major force in Southeast Asian pop mus
 
         // fallback if no members found
         if (!membersData.length) {
+            alert('Failed to load member data. Displaying default information.');
             membersData = [
-                { name: "AIAH", fullName: "Maraiah Queen Arceta", birthdate: "January 27, 2001", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010180_m4oshc.jpg" },
+                { name: "AAIAH", fullName: "Maraiah Queen Arceta", birthdate: "January 27, 2001", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010180_m4oshc.jpg" },
                 { name: "COLET", fullName: "Ma. Nicolette Vergara", birthdate: "September 14, 2001", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759408350/1000010181_km87z1.jpg" },
                 { name: "GWEN", fullName: "Gweneth L. Apuli", birthdate: "June 19, 2003", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010183_wlbruk.jpg" },
                 { name: "MALOI", fullName: "Mary Loi Yves Ricalde", birthdate: "May 27, 2002", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010182_fv8nxb.jpg" },
