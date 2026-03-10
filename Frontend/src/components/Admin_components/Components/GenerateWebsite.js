@@ -411,6 +411,7 @@ export default function GenerateWebsite() {
     fontUrl: '',
     customFontFile: null,
     logo: null,
+    groupPhoto: null,
     bannerLink: '',
     members: []
   };
@@ -488,6 +489,7 @@ export default function GenerateWebsite() {
       }));
       
       if (formData.logo) submitData.append('logo', formData.logo);
+      if (formData.groupPhoto) submitData.append('groupPhoto', formData.groupPhoto);
       if (formData.typography?.heading?.file) submitData.append('headingFontFile', formData.typography.heading.file);
       if (formData.typography?.body?.file) submitData.append('bodyFontFile', formData.typography.body.file);
       if (formData.customFontFile) submitData.append('fontFile', formData.customFontFile);
@@ -591,6 +593,7 @@ export default function GenerateWebsite() {
       fontUrl: '',
       customFontFile: null,
       logo: null,
+      groupPhoto: null,
       bannerLink: '',
       members: []
     };
@@ -651,6 +654,16 @@ export default function GenerateWebsite() {
                   <span class="gw-file-label">Choose file or drag here</span>
                 </div>
               </div>
+              <div class="gw-form-group">
+                <label for="groupPhoto">Group Photo</label>
+                <div class="gw-file-input">
+                  <input type="file" id="groupPhoto" accept="image/*">
+                  <span class="gw-file-label">Choose group photo</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="gw-form-row">
               <div class="gw-form-group">
                 <label for="bannerLink">YouTube Banner Link</label>
                 <input type="url" id="bannerLink" placeholder="https://www.youtube.com/watch?v=...">
@@ -1537,6 +1550,19 @@ export default function GenerateWebsite() {
           return;
         }
         formData.logo = e.target.files[0];
+        updateFileInput(e.target);
+      }
+    });
+
+    section.querySelector('#groupPhoto')?.addEventListener('change', (e) => {
+      if (e.target.files[0]) {
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (e.target.files[0].size > maxSize) {
+          alert('Group photo file must be less than 5MB');
+          e.target.value = '';
+          return;
+        }
+        formData.groupPhoto = e.target.files[0];
         updateFileInput(e.target);
       }
     });

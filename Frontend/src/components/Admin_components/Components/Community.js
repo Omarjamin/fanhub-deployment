@@ -62,6 +62,14 @@ export default function Community() {
             <textarea id="siteDescription" rows="3"></textarea>
           </div>
           <div class="form-group">
+            <label>Group Photo URL</label>
+            <input type="url" id="groupPhoto" placeholder="https://...">
+            <div class="cm-group-photo-preview-wrap">
+              <img id="groupPhotoPreview" class="cm-group-photo-preview" alt="Group photo preview" style="display:none;">
+              <p id="groupPhotoPreviewEmpty" class="cm-group-photo-empty">No group photo set.</p>
+            </div>
+          </div>
+          <div class="form-group">
             <label>Primary Color</label>
             <input type="text" id="primaryColor" placeholder="#3b82f6">
           </div>
@@ -133,6 +141,7 @@ export default function Community() {
         status: String(row.status || 'active').trim().toLowerCase(),
         short_bio: String(row.short_bio || '').trim(),
         description: String(row.description || '').trim(),
+        group_photo: String(row.group_photo || '').trim(),
         primary_color: String(row.primary_color || '').trim(),
         secondary_color: String(row.secondary_color || '').trim(),
         accent_color: String(row.accent_color || '').trim(),
@@ -264,6 +273,24 @@ export default function Community() {
     renderSites();
   }
 
+  function updateGroupPhotoPreview(value) {
+    const preview = section.querySelector('#groupPhotoPreview');
+    const empty = section.querySelector('#groupPhotoPreviewEmpty');
+    const imageUrl = String(value || '').trim();
+    if (!preview || !empty) return;
+
+    if (imageUrl) {
+      preview.src = imageUrl;
+      preview.style.display = 'block';
+      empty.style.display = 'none';
+      return;
+    }
+
+    preview.removeAttribute('src');
+    preview.style.display = 'none';
+    empty.style.display = 'block';
+  }
+
   function openEditModal(siteId) {
     const site = allSites.find((s) => s.id === Number(siteId));
     if (!site) return;
@@ -273,6 +300,8 @@ export default function Community() {
     section.querySelector('#status').value = site.status;
     section.querySelector('#shortBio').value = site.short_bio || '';
     section.querySelector('#siteDescription').value = site.description || '';
+    section.querySelector('#groupPhoto').value = site.group_photo || '';
+    updateGroupPhotoPreview(site.group_photo || '');
     section.querySelector('#primaryColor').value = site.primary_color || '';
     section.querySelector('#secondaryColor').value = site.secondary_color || '';
     section.querySelector('#accentColor').value = site.accent_color || '';
@@ -306,6 +335,7 @@ export default function Community() {
     const status = String(section.querySelector('#status').value || '').trim().toLowerCase();
     const short_bio = String(section.querySelector('#shortBio').value || '').trim();
     const description = String(section.querySelector('#siteDescription').value || '').trim();
+    const group_photo = String(section.querySelector('#groupPhoto').value || '').trim();
     const primary_color = String(section.querySelector('#primaryColor').value || '').trim();
     const secondary_color = String(section.querySelector('#secondaryColor').value || '').trim();
     const accent_color = String(section.querySelector('#accentColor').value || '').trim();
@@ -332,6 +362,7 @@ export default function Community() {
         status,
         short_bio,
         description,
+        group_photo,
         primary_color,
         secondary_color,
         accent_color,
@@ -365,6 +396,9 @@ export default function Community() {
 
   function setupEventListeners() {
     section.querySelector('#siteStatusFilter')?.addEventListener('change', applyFilters);
+    section.querySelector('#groupPhoto')?.addEventListener('input', (e) => {
+      updateGroupPhotoPreview(e.target.value);
+    });
 
     section.querySelector('#addSiteBtn')?.addEventListener('click', () => {
       window.location.href = `${window.location.origin}/subadmin/generate-website`;

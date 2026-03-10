@@ -199,12 +199,33 @@ class GenerateModel {
     );
   }
 
+  async ensureSitesSettingGroupPhotoColumn() {
+    if (!this.db) await this.connectAdmin();
+    const hasSettings = await this.hasTable('sites_setting');
+    if (!hasSettings) return;
+
+    const [rows] = await this.db.query('SHOW COLUMNS FROM sites_setting');
+    const cols = new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+    if (cols.has('group_photo')) return;
+
+    try {
+      if (cols.has('banner')) {
+        await this.db.query('ALTER TABLE sites_setting ADD COLUMN group_photo TEXT NULL AFTER banner');
+      } else {
+        await this.db.query('ALTER TABLE sites_setting ADD COLUMN group_photo TEXT NULL');
+      }
+    } catch (_) {}
+
+    this.tableColumnsCache.delete('sites_setting');
+  }
+
   async buildSiteSelectQuery({
     whereClause = '',
     limitOne = false,
     excludedSettingColumns = new Set(),
   } = {}) {
     const siteCols = await this.getSiteColumns();
+    await this.ensureSitesSettingGroupPhotoColumn();
     const hasSettingsTable = await this.hasTable('sites_setting');
     const settingsCols = hasSettingsTable ? await this.getTableColumns('sites_setting') : new Set();
 
@@ -255,6 +276,7 @@ class GenerateModel {
           pickSetting('nav_position'),
           pickSetting('logo'),
           pickSetting('banner'),
+          pickSetting('group_photo'),
         ]
       : [
           'NULL AS primary_color',
@@ -276,6 +298,7 @@ class GenerateModel {
           'NULL AS nav_position',
           'NULL AS logo',
           'NULL AS banner',
+          'NULL AS group_photo',
         ];
 
     const joinClause = hasSettingsTable
@@ -354,10 +377,12 @@ class GenerateModel {
     fontStyle,
     logo,
     banner,
+    group_photo,
     members,
   }) {
     if (!this.db) await this.connectAdmin();
     const siteCols = await this.getSiteColumns();
+    await this.ensureSitesSettingGroupPhotoColumn();
 
     const normalizedSiteName = String(siteName || '').trim();
     const normalizedCommunityType = String(communityType || '').trim() || 'general';
@@ -490,6 +515,7 @@ class GenerateModel {
       addSettingValue('theme', normalizedTheme);
       addSettingValue('logo', logo);
       addSettingValue('banner', banner);
+      addSettingValue('group_photo', group_photo);
 
       if (settingsCols.has('created_at')) {
         settingColumns.push('created_at');
@@ -821,12 +847,14 @@ class GenerateModel {
       nav_position,
       logo,
       banner,
+      group_photo,
       members,
     }
   ) {
     try {
       if (!this.db) await this.connectAdmin();
       const siteCols = await this.getSiteColumns();
+      await this.ensureSitesSettingGroupPhotoColumn();
       const settingsCols = await this.getTableColumns('sites_setting', { refresh: true });
       const memberCols = await this.getTableColumns('site_members');
 
@@ -912,6 +940,7 @@ class GenerateModel {
         nav_position,
         logo,
         banner,
+        group_photo,
       };
       const settingsKeys = Object.keys(settingsInput).filter((key) => settingsInput[key] !== undefined);
       if (settingsCols.size > 0 && settingsKeys.length > 0) {

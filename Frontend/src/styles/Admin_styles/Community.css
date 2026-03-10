@@ -383,6 +383,26 @@
   font-size: 0.8rem;
 }
 
+.cm-group-photo-preview-wrap {
+  margin-top: 0.75rem;
+}
+
+.cm-group-photo-preview {
+  width: 100%;
+  max-width: 220px;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  display: block;
+}
+
+.cm-group-photo-empty {
+  margin: 0;
+  color: #666;
+  font-size: 0.85rem;
+}
+
 .form-group {
   margin-bottom: 1.5rem;
 }

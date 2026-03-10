@@ -83,6 +83,7 @@ function buildGroupInfo(payload = {}, fallbackGroupInfo) {
     const shortBio = String(payload?.short_bio || payload?.shortBio || '').trim();
     const description = String(payload?.description || payload?.about || '').trim();
     const photo = String(
+        payload?.group_photo ||
         payload?.banner ||
         payload?.image_cover ||
         payload?.cover_photo ||

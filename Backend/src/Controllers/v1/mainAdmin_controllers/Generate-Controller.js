@@ -110,6 +110,8 @@ class GenerateController {
         buttonStyle,
         fontStyle,
         bannerLink,
+        groupPhoto,
+        group_photo,
         members // array of objects {name, role, description, image}
       } = req.body;
 
@@ -145,6 +147,7 @@ class GenerateController {
       // Handle file uploads
       let logoUrl = null;
       let bannerUrl = bannerLink || null;
+      let groupPhotoUrl = String(groupPhoto || group_photo || '').trim() || null;
       let resolvedFontUrl = fontUrl || null;
       let resolvedHeadingFontUrl = null;
       let resolvedBodyFontUrl = null;
@@ -187,6 +190,17 @@ class GenerateController {
             const bannerFile = req.files.banner;
             bannerUrl = await this.uploadToCloudinary(
               bannerFile.tempFilePath || bannerFile.path,
+              'websites'
+            );
+          }
+        }
+        if (req.files.groupPhoto) {
+          if (!cloudinaryReady) {
+            console.warn('[GenerateController] Cloudinary not configured. Skipping group photo upload.');
+          } else {
+            const groupPhotoFile = req.files.groupPhoto;
+            groupPhotoUrl = await this.uploadToCloudinary(
+              groupPhotoFile.tempFilePath || groupPhotoFile.path,
               'websites'
             );
           }
@@ -347,6 +361,7 @@ class GenerateController {
         fontStyle,
         logo: logoUrl,
         banner: bannerUrl,
+        group_photo: groupPhotoUrl,
         members: normalizedMembers
       });
 
@@ -527,6 +542,7 @@ class GenerateController {
         nav_position,
         logo,
         banner,
+        group_photo,
         members,
       } = req.body || {};
       const updated = await this.model.updateGeneratedWebsite(Number(id), {
@@ -543,6 +559,7 @@ class GenerateController {
         nav_position,
         logo,
         banner,
+        group_photo,
         members
       });
 

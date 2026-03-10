@@ -289,6 +289,7 @@ export async function fetchAdminSites() {
         nav_position: row?.nav_position ?? '',
         logo: row?.logo ?? '',
         banner: row?.banner ?? '',
+        group_photo: row?.group_photo ?? '',
         members: Array.isArray(row?.members) ? row.members : [],
       };
     })

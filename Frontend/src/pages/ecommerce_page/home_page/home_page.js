@@ -17,7 +17,8 @@ import '../../../styles/ecommerce_styles/announcement.css';
 
 export default function HOMEPAGE(data = {}) {
   const { navigation, main, footer} = Layouts(this.root);
-  Navigation(navigation, data); 
+  Navigation(navigation, data);
+  About(main, data);
   Banner(main, data);
   About(main, data);
   Discography(main, data);
