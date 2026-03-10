@@ -1,7 +1,9 @@
 .ec-lead-image {
   position: relative;
-  width: 100%;
-  margin-left: 0;
+  width: 100vw;
+  max-width: none;
+  left: 50%;
+  margin-left: -50vw;
   min-height: 100dvh;
   height: 100dvh;
   padding-bottom: 0 !important;
@@ -61,6 +63,7 @@
 @media (max-width: 768px) {
   .ec-lead-image,
   .ec-lead-image__img {
+    width: 100vw;
     min-height: 88dvh;
     height: 88dvh;
   }

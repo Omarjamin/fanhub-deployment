@@ -557,7 +557,16 @@ export async function fetchSiteBySlug(siteSlug) {
     const cached = sessionStorage.getItem(`site_data:${slug}`);
     if (cached) {
       const parsed = JSON.parse(cached);
-      if (parsed && typeof parsed === "object") {
+      const cachedMembers = Array.isArray(parsed?.members) ? parsed.members : null;
+      const shouldUseCachedPayload =
+        parsed &&
+        typeof parsed === "object" &&
+        (
+          cachedMembers === null ||
+          cachedMembers.length > 0
+        );
+
+      if (shouldUseCachedPayload) {
         parsed.theme = {
           ...(parsed.theme && typeof parsed.theme === "object" ? parsed.theme : {}),
           ...normalizeThemeData(parsed),
