@@ -157,66 +157,7 @@ The group has established themselves as a major force in Southeast Asian pop mus
 
         updateCarousel(root);
     })();
-}
-
-    const allItems = [groupInfo, ...membersData];
-    const totalImages = allItems.length;
-
-    root.insertAdjacentHTML('beforeend', `
-    <section id="about" class="about-section">
-        <div class="about-container">
-            <div class="about-column about-image-column">
-                <div class="carousel-container">
-                    <div class="image-stack">
-                        <img src="${allItems[2].photo}" alt="BINI Member 3" class="carousel-image back-2">
-                        <img src="${allItems[1].photo}" alt="BINI Member 2" class="carousel-image back-1">
-                        <img src="${allItems[0].photo}" alt="BINI Group" class="carousel-image main">
-                    </div>
-                    <div class="carousel-controls">
-                        <button class="carousel-arrow" type="button" data-carousel-action="previous" aria-label="Previous image">&#8249;</button>
-                        <div class="pagination-indicator">1 / ${totalImages}</div>
-                        <button class="carousel-arrow" type="button" data-carousel-action="next" aria-label="Next image">&#8250;</button>
-                    </div>
-                </div>
-            </div>
-            <div class="about-column about-text-column">
-                <div class="info-container">
-                    <div class="group-info" id="groupInfo">
-                        <h2 class="about-title">${groupInfo.title}</h2>
-                        <div class="about-content">
-                            ${groupInfo.description.split('\n\n').map((para) => `<p class="about-description">${para}</p>`).join('')}
-                        </div>
-                    </div>
-                    <div class="member-info-container" id="memberInfo" style="display: none;">
-                        <div class="member-title">
-                            <span class="bini-label">BINI</span>
-                            <span class="member-name-display" id="memberNameDisplay">${membersData[0].name}</span>
-                        </div>
-                        <div class="member-details">
-                            <div class="detail-row">
-                                <span class="detail-label">Full Name</span>
-                                <span class="detail-value" id="memberFullName">${membersData[0].fullName}</span>
-                            </div>
-                            <div class="detail-row">
-                                <span class="detail-label">Date of Birth</span>
-                                <span class="detail-value" id="memberBirthdate">${membersData[0].birthdate}</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="about-column about-members-column">
-                <div class="members-list">
-                    <button class="member-name active" type="button" data-index="1">ALL</button>
-                    ${membersData.map((member, index) => `
-                        <button class="member-name" type="button" data-index="${index + 2}">${member.name}</button>
-                    `).join('')}
-                </div>
-            </div>
-        </div>
-    </section>
-
-    `);
+// End of About function
 
     //about
 
