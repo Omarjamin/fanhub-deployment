@@ -69,17 +69,23 @@ function renderSection(root, leadImage, socials, siteLabel) {
 export default function LeadImage(root, data = {}) {
   const siteSlug = resolveSiteSlug(data);
   const siteLabel = String(siteSlug || data?.site_name || 'Community').trim().toUpperCase();
+  const initialLeadImage = String(data?.lead_image || '').trim();
+  const initialSocials = normalizeSocials(data);
+
+  renderSection(root, initialLeadImage, initialSocials, siteLabel);
 
   (async () => {
     try {
       if (!siteSlug) return;
       const res = await api.get(`/generate/generated-websites/type/${encodeURIComponent(siteSlug)}`);
       const payload = res?.data?.data || {};
-      const leadImage = String(payload?.lead_image || '').trim();
+      const leadImage = String(payload?.lead_image || initialLeadImage).trim();
       const socials = normalizeSocials(payload);
-      renderSection(root, leadImage, socials, siteLabel);
-    } catch (_) {
-      renderSection(root, '', [], siteLabel);
+      const resolvedSocials = socials.length ? socials : initialSocials;
+      renderSection(root, leadImage, resolvedSocials, siteLabel);
+    } catch (error) {
+      console.error('Lead image fetch failed:', error?.response?.data || error?.message || error);
+      renderSection(root, initialLeadImage, initialSocials, siteLabel);
     }
   })();
 }
