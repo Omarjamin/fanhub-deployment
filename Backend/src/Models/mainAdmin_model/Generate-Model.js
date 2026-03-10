@@ -786,21 +786,39 @@ class GenerateModel {
     try {
       if (!this.db) await this.connectAdmin();
       const siteCols = await this.getSiteColumns();
-      const lookupColumn = siteCols.has('community_type') ? 'community_type' : 'domain';
+      const normalizedInput = String(communityType || '').trim().toLowerCase();
+      const lookupVariants = Array.from(new Set([
+        normalizedInput,
+        normalizedInput.replace(/-website$/, ''),
+        normalizedInput ? `${normalizedInput.replace(/-website$/, '')}-website` : '',
+      ].filter(Boolean)));
+      const whereParts = [];
+      const params = [];
+
+      if (siteCols.has('community_type')) {
+        whereParts.push(...lookupVariants.map(() => 'LOWER(TRIM(s.community_type)) = ?'));
+        params.push(...lookupVariants);
+      }
+      if (siteCols.has('domain')) {
+        whereParts.push(...lookupVariants.map(() => 'LOWER(TRIM(s.domain)) = ?'));
+        params.push(...lookupVariants);
+      }
+
+      if (whereParts.length === 0) return null;
       const sites = await this.runSiteSelectQuery({
-        whereClause: `LOWER(TRIM(s.${lookupColumn})) = LOWER(TRIM(?))`,
+        whereClause: `(${whereParts.join(' OR ')})`,
         limitOne: true,
-        params: [communityType],
+        params,
       });
       let site = Array.isArray(sites) && sites.length > 0 ? sites[0] : null;
 
       if (!site) {
-        const key = String(communityType || '').trim().toLowerCase();
+        const keys = new Set(lookupVariants);
         const communityRows = await this.getCommunityTableSelections();
         const matchedCommunity = communityRows.find((row) => {
           const domain = String(row?.domain || '').trim().toLowerCase();
           const siteName = String(row?.site_name || '').trim().toLowerCase();
-          return domain === key || siteName === key;
+          return keys.has(domain) || keys.has(siteName);
         });
 
         if (!matchedCommunity) return null;

@@ -3,6 +3,7 @@ import { getRuntimeApiV1 } from '../../../lib/runtime-api.js';
 
 const BASE_V1 = getRuntimeApiV1();
 const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
+const PAGE_SIZE = 7;
 
 function resolveSiteSlug(data = {}) {
   const fromData = String(
@@ -41,24 +42,84 @@ function buildThreadLink(siteSlug, threadId) {
   return `/fanhub/community-platform/${encodeURIComponent(slug)}/thread/${id}`;
 }
 
-function renderAnnouncement(section, payload = {}) {
-  const title = String(payload?.title || 'No pinned thread yet').trim();
-  const venue = String(payload?.venue || '').trim();
-  const date = String(payload?.date || '').trim();
-  const threadLink = String(payload?.threadLink || '#').trim();
-  const hasThread = threadLink !== '#';
+function formatAnnouncementDate(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return 'No date';
+  const date = new Date(raw);
+  if (Number.isNaN(date.getTime())) return raw;
+  return new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    day: 'numeric',
+  }).format(date);
+}
+
+function normalizeThreads(siteSlug, threads = []) {
+  return threads.map((thread, index) => ({
+    id: Number(thread?.id) || index + 1,
+    title: String(thread?.title || 'Announcement').trim(),
+    dateLabel: formatAnnouncementDate(thread?.date || thread?.created_at),
+    sortTime: new Date(thread?.date || thread?.created_at || 0).getTime() || 0,
+    isPinned: Boolean(thread?.is_pinned ?? thread?.isPinned),
+    threadLink: buildThreadLink(siteSlug, thread?.id),
+  }));
+}
+
+function sortThreads(threads = []) {
+  return [...threads].sort((a, b) => {
+    const pinDiff = Number(b.isPinned) - Number(a.isPinned);
+    if (pinDiff !== 0) return pinDiff;
+    return b.sortTime - a.sortTime;
+  });
+}
+
+function renderAnnouncementList(section, items, currentPage) {
+  const totalPages = Math.max(1, Math.ceil(items.length / PAGE_SIZE));
+  const safePage = Math.min(Math.max(currentPage, 0), totalPages - 1);
+  const start = safePage * PAGE_SIZE;
+  const pageItems = items.slice(start, start + PAGE_SIZE);
 
   section.innerHTML = `
-    <h2 class="ec-announcement-title">Announcements</h2>
-    <div class="ec-announcement-card">
-      <p class="ec-announcement-headline"><strong>${title}</strong></p>
-      ${venue ? `<p class="ec-announcement-meta">Venue: ${venue}</p>` : ''}
-      ${date ? `<p class="ec-announcement-meta">Date: ${date}</p>` : ''}
-      <div class="ec-announcement-action">
-        <a href="${threadLink}" class="ec-announcement-btn" ${hasThread ? 'data-link' : 'aria-disabled="true"'}>${hasThread ? 'See details' : 'No thread yet'}</a>
+    <div class="ec-announcement-shell">
+      <h2 class="ec-announcement-title">Announcements</h2>
+      <div class="ec-announcement-list">
+        ${
+          pageItems.length
+            ? pageItems
+                .map(
+                  (item) => `
+            <article class="ec-announcement-row">
+              <div class="ec-announcement-date">${item.dateLabel}</div>
+              <h3 class="ec-announcement-item-title">${item.title}</h3>
+              <div class="ec-announcement-link-wrap">
+                <a href="${item.threadLink}" class="ec-announcement-link">See Details</a>
+              </div>
+            </article>
+          `,
+                )
+                .join('')
+            : `
+          <article class="ec-announcement-row ec-announcement-row-empty">
+            <div class="ec-announcement-date">No date</div>
+            <h3 class="ec-announcement-item-title">No announcements yet</h3>
+            <div class="ec-announcement-link-wrap"></div>
+          </article>
+        `
+        }
+      </div>
+      <div class="ec-announcement-pagination">
+        <button type="button" class="ec-announcement-page-btn" data-page-dir="-1" aria-label="Previous page"${safePage === 0 ? ' disabled' : ''}>&lsaquo;</button>
+        <span class="ec-announcement-page-label">Page ${safePage + 1} of ${totalPages}</span>
+        <button type="button" class="ec-announcement-page-btn" data-page-dir="1" aria-label="Next page"${safePage >= totalPages - 1 ? ' disabled' : ''}>&rsaquo;</button>
       </div>
     </div>
   `;
+
+  section.querySelectorAll('.ec-announcement-page-btn').forEach((button) => {
+    button.addEventListener('click', () => {
+      const delta = Number(button.getAttribute('data-page-dir') || 0);
+      renderAnnouncementList(section, items, safePage + delta);
+    });
+  });
 }
 
 async function fetchThreads(siteSlug) {
@@ -90,51 +151,16 @@ export default function announcement(root, data = {}) {
   section.className = 'ec-announcement';
   root.appendChild(section);
 
-  renderAnnouncement(section, {
-    title: 'Loading announcement...',
-    venue: '',
-    date: '',
-    threadLink: '#',
-  });
+  renderAnnouncementList(section, [], 0);
 
   const siteSlug = resolveSiteSlug(data);
   if (!siteSlug) {
-    renderAnnouncement(section, {
-      title: 'No site selected for announcements',
-      venue: '',
-      date: '',
-      threadLink: '#',
-    });
+    renderAnnouncementList(section, [], 0);
     return;
   }
 
   fetchThreads(siteSlug).then((threads) => {
-    const sorted = [...threads].sort((a, b) => {
-      const pinA = Number(Boolean(a?.is_pinned ?? a?.isPinned));
-      const pinB = Number(Boolean(b?.is_pinned ?? b?.isPinned));
-      if (pinA !== pinB) return pinB - pinA;
-      const aTime = new Date(a?.created_at || 0).getTime() || 0;
-      const bTime = new Date(b?.created_at || 0).getTime() || 0;
-      return bTime - aTime;
-    });
-    const pinned = sorted.find((thread) => Boolean(thread?.is_pinned ?? thread?.isPinned));
-    const selected = pinned || sorted[0] || null;
-
-    if (!selected) {
-      renderAnnouncement(section, {
-        title: 'No pinned thread yet',
-        venue: 'Create and pin a thread from admin to show it here.',
-        date: '',
-        threadLink: '#',
-      });
-      return;
-    }
-
-    renderAnnouncement(section, {
-      title: selected.title || 'Announcement',
-      venue: selected.venue || '',
-      date: selected.date || '',
-      threadLink: buildThreadLink(siteSlug, selected.id),
-    });
+    const items = sortThreads(normalizeThreads(siteSlug, threads));
+    renderAnnouncementList(section, items, 0);
   });
 }

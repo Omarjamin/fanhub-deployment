@@ -20,18 +20,19 @@ function resolveSiteSlug(data = {}) {
         return getActiveSiteSlug(fromStorage) || fromStorage;
     }
 
-    return getActiveSiteSlug() || 'bini';
+    return getActiveSiteSlug() || '';
 }
 
-function getDefaultGroupInfo(siteSlug = 'bini') {
-    const label = String(siteSlug || 'bini').trim().toUpperCase();
+function getDefaultGroupInfo(siteSlug = '') {
+    const normalizedSlug = String(siteSlug || '').trim();
+    const label = normalizedSlug ? normalizedSlug.toUpperCase() : 'COMMUNITY';
 
     return {
         title: `About ${label}`,
         description: `Welcome to the ${label} community page.
 
 This section highlights the group and its members. Member details and images are loaded based on the active community type so each generated site shows its own content.`,
-        photo: 'https://res.cloudinary.com/dy5u1ccgi/image/upload/v1772978023/bnipics_wn5e6f.jpg',
+        photo: '',
     };
 }
 

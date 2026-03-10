@@ -17,26 +17,35 @@ function renderEvents(section, events) {
   const safeEvents = Array.isArray(events) ? events : [];
   if (!safeEvents.length) {
     list.innerHTML = `
-      <div class="card event-empty-card">
+      <div class="event-empty-card">
         <h3>No events yet</h3>
         <p>Event posters for this site are not set yet.</p>
       </div>
     `;
     return;
   }
-  list.innerHTML = safeEvents
-    .map((event, index) => {
-      const title = String(event?.title || `Event ${index + 1}`);
-      const href = normalizeUrl(event?.href || 'https://www.ticketnet.com.ph/');
-      const image = String(event?.image || '');
-      return `
-        <a class="card event-link-card" href="${href}" target="_blank" rel="noopener noreferrer">
-          <img src="${image}" alt="${title}">
-          <h3>${title}</h3>
-        </a>
-      `;
-    })
-    .join('');
+  const featured = safeEvents[0];
+  const title = String(featured?.title || 'Featured Event');
+  const href = normalizeUrl(featured?.href || 'https://www.ticketnet.com.ph/');
+  const image = String(featured?.image || '');
+
+  list.innerHTML = `
+    <div class="event-feature">
+      <div class="event-copy">
+        <h3 class="event-feature-title">Catch the latest BINI event and stay in the loop.</h3>
+        <p class="event-feature-text">
+          Don’t miss updates, posters, and ticket information for <strong>${title}</strong>.
+          Tap below to view the featured event and see more details.
+        </p>
+      </div>
+      <a class="event-feature-card" href="${href}" target="_blank" rel="noopener noreferrer" aria-label="Open ${title}">
+        <img src="${image}" alt="${title}">
+      </a>
+      <div class="event-action">
+        <a class="event-feature-link" href="${href}" target="_blank" rel="noopener noreferrer">See more</a>
+      </div>
+    </div>
+  `;
 }
 
 function resolveEventSiteSlug(data = {}) {
@@ -89,7 +98,7 @@ export default function event_section(root, data = {}) {
   const list = section.querySelector('.event-list');
   if (list) {
     list.innerHTML = `
-      <div class="card event-empty-card">
+      <div class="event-empty-card">
         <h3>Loading events...</h3>
         <p>Please wait while events are loading.</p>
       </div>
