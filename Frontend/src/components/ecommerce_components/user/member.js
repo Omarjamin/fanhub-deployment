@@ -60,7 +60,7 @@ export default function Member(root, data = {}) {
     : defaultMembers;
 
   root.innerHTML += `
-      <h4 class="section-title">Meet the Members</h4>
+      <h4 class="section-title">About Natin</h4>
       <section class="members-grid">
         ${members
           .map(
