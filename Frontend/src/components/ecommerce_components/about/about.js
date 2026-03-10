@@ -1,4 +1,8 @@
-export default function About(root, data) {
+
+import api from '../../../lib/api.js';
+import { getActiveSiteSlug } from '../../../lib/site-context.js';
+
+export default async function About(root, data) {
     const groupInfo = {
         title: "About",
         description: `The group consists of Aiah, Colet, Maloi, Gwen, Stacey, Mikha, Jhoanna, and Sheena. Known for their synchronized choreography, polished vocals, and vibrant concepts, BINI blends K-pop-inspired training systems with distinctly Filipino language and cultural elements. Their breakout tracks such as "Pantropiko" and "Salamin, Salamin" significantly expanded their audience both locally and internationally.
@@ -7,56 +11,38 @@ The group has established themselves as a major force in Southeast Asian pop mus
         photo: "https://res.cloudinary.com/dy5u1ccgi/image/upload/v1772978023/bnipics_wn5e6f.jpg"
     };
 
-    const membersData = [
-        {
-            name: "AIAH",
-            fullName: "Maraiah Queen Arceta",
-            birthdate: "January 27, 2001",
-            photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010180_m4oshc.jpg"
-        },
-        {
-            name: "COLET",
-            fullName: "Ma. Nicolette Vergara",
-            birthdate: "September 14, 2001",
-            photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759408350/1000010181_km87z1.jpg"
-        },
-        {
-            name: "GWEN",
-            fullName: "Gweneth L. Apuli",
-            birthdate: "June 19, 2003",
-            photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010183_wlbruk.jpg"
-        },
-        {
-            name: "MALOI",
-            fullName: "Mary Loi Yves Ricalde",
-            birthdate: "May 27, 2002",
-            photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010182_fv8nxb.jpg"
-        },
-        {
-            name: "JHOANNA",
-            fullName: "Jhoanna Christine Robles",
-            birthdate: "January 26, 2004",
-            photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407990/1000010186_ppfcpb.jpg"
-        },
-        {
-            name: "MIKHA",
-            fullName: "Mikhaela Janna Lim",
-            birthdate: "November 8, 2003",
-            photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407989/1000010185_cdbpgv.jpg"
-        },
-        {
-            name: "SHEENA",
-            fullName: "Sheena Mae Catacutan",
-            birthdate: "May 9, 2004",
-            photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010187_er3rop.jpg"
-        },
-        {
-            name: "STACEY",
-            fullName: "Stacey Aubrey",
-            birthdate: "July 13, 2003",
-            photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407989/1000010184_fnzqes.jpg"
+    // Get the current community slug (e.g. 'bini')
+    const communitySlug = getActiveSiteSlug() || 'bini';
+    let membersData = [];
+    try {
+        const res = await api.get(`/generate/generated-websites/type/${communitySlug}`);
+        if (res?.data?.data?.members && Array.isArray(res.data.data.members)) {
+            // Map DB fields to frontend fields
+            membersData = res.data.data.members.map(m => ({
+                name: m.name,
+                fullName: m.fullname || m.full_name || m.name,
+                birthdate: m.birthdate || '',
+                photo: m.image_profile || m.photo || '',
+            }));
         }
-    ];
+    } catch (err) {
+        // fallback: empty or static data if needed
+        membersData = [];
+    }
+
+    // fallback if no members found
+    if (!membersData.length) {
+        membersData = [
+            { name: "AIAH", fullName: "Maraiah Queen Arceta", birthdate: "January 27, 2001", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010180_m4oshc.jpg" },
+            { name: "COLET", fullName: "Ma. Nicolette Vergara", birthdate: "September 14, 2001", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759408350/1000010181_km87z1.jpg" },
+            { name: "GWEN", fullName: "Gweneth L. Apuli", birthdate: "June 19, 2003", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010183_wlbruk.jpg" },
+            { name: "MALOI", fullName: "Mary Loi Yves Ricalde", birthdate: "May 27, 2002", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010182_fv8nxb.jpg" },
+            { name: "JHOANNA", fullName: "Jhoanna Christine Robles", birthdate: "January 26, 2004", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407990/1000010186_ppfcpb.jpg" },
+            { name: "MIKHA", fullName: "Mikhaela Janna Lim", birthdate: "November 8, 2003", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407989/1000010185_cdbpgv.jpg" },
+            { name: "SHEENA", fullName: "Sheena Mae Catacutan", birthdate: "May 9, 2004", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010187_er3rop.jpg" },
+            { name: "STACEY", fullName: "Stacey Aubrey", birthdate: "July 13, 2003", photo: "https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407989/1000010184_fnzqes.jpg" }
+        ];
+    }
 
     const allItems = [groupInfo, ...membersData];
     const totalImages = allItems.length;
