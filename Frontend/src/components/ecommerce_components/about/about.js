@@ -114,7 +114,10 @@ The group has established themselves as a major force in Southeast Asian pop mus
             </div>
         </div>
     </section>
+
     `);
+
+    //about
 
     root.__aboutState = {
         currentImage: 1,
