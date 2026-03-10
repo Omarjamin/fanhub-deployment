@@ -412,6 +412,13 @@ export default function GenerateWebsite() {
     customFontFile: null,
     logo: null,
     groupPhoto: null,
+    leadImage: '',
+    instagramUrl: '',
+    facebookUrl: '',
+    tiktokUrl: '',
+    spotifyUrl: '',
+    xUrl: '',
+    youtubeUrl: '',
     bannerLink: '',
     members: []
   };
@@ -473,6 +480,13 @@ export default function GenerateWebsite() {
       submitData.append('letter_spacing', typographyPayload.letter_spacing);
       submitData.append('typography', JSON.stringify(typographyPayload));
       submitData.append('bannerLink', formData.bannerLink);
+      submitData.append('lead_image', formData.leadImage);
+      submitData.append('instagram_url', formData.instagramUrl);
+      submitData.append('facebook_url', formData.facebookUrl);
+      submitData.append('tiktok_url', formData.tiktokUrl);
+      submitData.append('spotify_url', formData.spotifyUrl);
+      submitData.append('x_url', formData.xUrl);
+      submitData.append('youtube_url', formData.youtubeUrl);
       submitData.append('theme', JSON.stringify({
         palette: formData.palette || [],
         primaryColor: formData.primaryColor,
@@ -594,6 +608,13 @@ export default function GenerateWebsite() {
       customFontFile: null,
       logo: null,
       groupPhoto: null,
+      leadImage: '',
+      instagramUrl: '',
+      facebookUrl: '',
+      tiktokUrl: '',
+      spotifyUrl: '',
+      xUrl: '',
+      youtubeUrl: '',
       bannerLink: '',
       members: []
     };
@@ -660,6 +681,40 @@ export default function GenerateWebsite() {
               <div class="gw-form-group">
                 <label for="bannerLink">YouTube Banner Link</label>
                 <input type="url" id="bannerLink" placeholder="https://www.youtube.com/watch?v=...">
+              </div>
+            </div>
+
+            <div class="gw-form-row">
+              <div class="gw-form-group">
+                <label for="leadImage">Lead Image URL</label>
+                <input type="url" id="leadImage" placeholder="https://...">
+              </div>
+            </div>
+
+            <div class="gw-form-row gw-social-grid">
+              <div class="gw-form-group">
+                <label for="instagramUrl">Instagram URL</label>
+                <input type="url" id="instagramUrl" placeholder="https://www.instagram.com/...">
+              </div>
+              <div class="gw-form-group">
+                <label for="facebookUrl">Facebook URL</label>
+                <input type="url" id="facebookUrl" placeholder="https://www.facebook.com/...">
+              </div>
+              <div class="gw-form-group">
+                <label for="tiktokUrl">TikTok URL</label>
+                <input type="url" id="tiktokUrl" placeholder="https://www.tiktok.com/@...">
+              </div>
+              <div class="gw-form-group">
+                <label for="spotifyUrl">Spotify URL</label>
+                <input type="url" id="spotifyUrl" placeholder="https://open.spotify.com/...">
+              </div>
+              <div class="gw-form-group">
+                <label for="xUrl">X URL</label>
+                <input type="url" id="xUrl" placeholder="https://x.com/...">
+              </div>
+              <div class="gw-form-group">
+                <label for="youtubeUrl">YouTube URL</label>
+                <input type="url" id="youtubeUrl" placeholder="https://www.youtube.com/...">
               </div>
             </div>
           </form>
@@ -1572,6 +1627,34 @@ export default function GenerateWebsite() {
 
     section.querySelector('#bannerLink')?.addEventListener('input', (e) => {
       formData.bannerLink = e.target.value.trim();
+    });
+
+    section.querySelector('#leadImage')?.addEventListener('input', (e) => {
+      formData.leadImage = e.target.value.trim();
+    });
+
+    section.querySelector('#instagramUrl')?.addEventListener('input', (e) => {
+      formData.instagramUrl = e.target.value.trim();
+    });
+
+    section.querySelector('#facebookUrl')?.addEventListener('input', (e) => {
+      formData.facebookUrl = e.target.value.trim();
+    });
+
+    section.querySelector('#tiktokUrl')?.addEventListener('input', (e) => {
+      formData.tiktokUrl = e.target.value.trim();
+    });
+
+    section.querySelector('#spotifyUrl')?.addEventListener('input', (e) => {
+      formData.spotifyUrl = e.target.value.trim();
+    });
+
+    section.querySelector('#xUrl')?.addEventListener('input', (e) => {
+      formData.xUrl = e.target.value.trim();
+    });
+
+    section.querySelector('#youtubeUrl')?.addEventListener('input', (e) => {
+      formData.youtubeUrl = e.target.value.trim();
     });
 
     section.querySelector('#addMemberBtn')?.addEventListener('click', () => {

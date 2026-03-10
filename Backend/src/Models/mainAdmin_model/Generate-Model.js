@@ -219,6 +219,33 @@ class GenerateModel {
     this.tableColumnsCache.delete('sites_setting');
   }
 
+  async ensureSitesSettingLeadMediaColumns() {
+    if (!this.db) await this.connectAdmin();
+    const hasSettings = await this.hasTable('sites_setting');
+    if (!hasSettings) return;
+
+    const [rows] = await this.db.query('SHOW COLUMNS FROM sites_setting');
+    const cols = new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+    const desiredColumns = [
+      'lead_image',
+      'instagram_url',
+      'facebook_url',
+      'tiktok_url',
+      'spotify_url',
+      'x_url',
+      'youtube_url',
+    ];
+
+    for (const column of desiredColumns) {
+      if (cols.has(column)) continue;
+      try {
+        await this.db.query(`ALTER TABLE sites_setting ADD COLUMN ${column} TEXT NULL`);
+      } catch (_) {}
+    }
+
+    this.tableColumnsCache.delete('sites_setting');
+  }
+
   async buildSiteSelectQuery({
     whereClause = '',
     limitOne = false,
@@ -226,6 +253,7 @@ class GenerateModel {
   } = {}) {
     const siteCols = await this.getSiteColumns();
     await this.ensureSitesSettingGroupPhotoColumn();
+    await this.ensureSitesSettingLeadMediaColumns();
     const hasSettingsTable = await this.hasTable('sites_setting');
     const settingsCols = hasSettingsTable ? await this.getTableColumns('sites_setting') : new Set();
 
@@ -277,6 +305,13 @@ class GenerateModel {
           pickSetting('logo'),
           pickSetting('banner'),
           pickSetting('group_photo'),
+          pickSetting('lead_image'),
+          pickSetting('instagram_url'),
+          pickSetting('facebook_url'),
+          pickSetting('tiktok_url'),
+          pickSetting('spotify_url'),
+          pickSetting('x_url'),
+          pickSetting('youtube_url'),
         ]
       : [
           'NULL AS primary_color',
@@ -299,6 +334,13 @@ class GenerateModel {
           'NULL AS logo',
           'NULL AS banner',
           'NULL AS group_photo',
+          'NULL AS lead_image',
+          'NULL AS instagram_url',
+          'NULL AS facebook_url',
+          'NULL AS tiktok_url',
+          'NULL AS spotify_url',
+          'NULL AS x_url',
+          'NULL AS youtube_url',
         ];
 
     const joinClause = hasSettingsTable
@@ -378,11 +420,19 @@ class GenerateModel {
     logo,
     banner,
     group_photo,
+    lead_image,
+    instagram_url,
+    facebook_url,
+    tiktok_url,
+    spotify_url,
+    x_url,
+    youtube_url,
     members,
   }) {
     if (!this.db) await this.connectAdmin();
     const siteCols = await this.getSiteColumns();
     await this.ensureSitesSettingGroupPhotoColumn();
+    await this.ensureSitesSettingLeadMediaColumns();
 
     const normalizedSiteName = String(siteName || '').trim();
     const normalizedCommunityType = String(communityType || '').trim() || 'general';
@@ -516,6 +566,13 @@ class GenerateModel {
       addSettingValue('logo', logo);
       addSettingValue('banner', banner);
       addSettingValue('group_photo', group_photo);
+      addSettingValue('lead_image', lead_image);
+      addSettingValue('instagram_url', instagram_url);
+      addSettingValue('facebook_url', facebook_url);
+      addSettingValue('tiktok_url', tiktok_url);
+      addSettingValue('spotify_url', spotify_url);
+      addSettingValue('x_url', x_url);
+      addSettingValue('youtube_url', youtube_url);
 
       if (settingsCols.has('created_at')) {
         settingColumns.push('created_at');
@@ -866,6 +923,13 @@ class GenerateModel {
       logo,
       banner,
       group_photo,
+      lead_image,
+      instagram_url,
+      facebook_url,
+      tiktok_url,
+      spotify_url,
+      x_url,
+      youtube_url,
       members,
     }
   ) {
@@ -873,6 +937,7 @@ class GenerateModel {
       if (!this.db) await this.connectAdmin();
       const siteCols = await this.getSiteColumns();
       await this.ensureSitesSettingGroupPhotoColumn();
+      await this.ensureSitesSettingLeadMediaColumns();
       const settingsCols = await this.getTableColumns('sites_setting', { refresh: true });
       const memberCols = await this.getTableColumns('site_members');
 
@@ -959,6 +1024,13 @@ class GenerateModel {
         logo,
         banner,
         group_photo,
+        lead_image,
+        instagram_url,
+        facebook_url,
+        tiktok_url,
+        spotify_url,
+        x_url,
+        youtube_url,
       };
       const settingsKeys = Object.keys(settingsInput).filter((key) => settingsInput[key] !== undefined);
       if (settingsCols.size > 0 && settingsKeys.length > 0) {

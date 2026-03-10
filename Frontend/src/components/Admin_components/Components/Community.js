@@ -70,6 +70,36 @@ export default function Community() {
             </div>
           </div>
           <div class="form-group">
+            <label>Lead Image URL</label>
+            <input type="url" id="leadImage" placeholder="https://...">
+          </div>
+          <div class="cm-social-grid">
+            <div class="form-group">
+              <label>Instagram URL</label>
+              <input type="url" id="instagramUrl" placeholder="https://www.instagram.com/...">
+            </div>
+            <div class="form-group">
+              <label>Facebook URL</label>
+              <input type="url" id="facebookUrl" placeholder="https://www.facebook.com/...">
+            </div>
+            <div class="form-group">
+              <label>TikTok URL</label>
+              <input type="url" id="tiktokUrl" placeholder="https://www.tiktok.com/@...">
+            </div>
+            <div class="form-group">
+              <label>Spotify URL</label>
+              <input type="url" id="spotifyUrl" placeholder="https://open.spotify.com/...">
+            </div>
+            <div class="form-group">
+              <label>X URL</label>
+              <input type="url" id="xUrl" placeholder="https://x.com/...">
+            </div>
+            <div class="form-group">
+              <label>YouTube URL</label>
+              <input type="url" id="youtubeUrl" placeholder="https://www.youtube.com/...">
+            </div>
+          </div>
+          <div class="form-group">
             <label>Primary Color</label>
             <input type="text" id="primaryColor" placeholder="#3b82f6">
           </div>
@@ -142,6 +172,13 @@ export default function Community() {
         short_bio: String(row.short_bio || '').trim(),
         description: String(row.description || '').trim(),
         group_photo: String(row.group_photo || '').trim(),
+        lead_image: String(row.lead_image || '').trim(),
+        instagram_url: String(row.instagram_url || '').trim(),
+        facebook_url: String(row.facebook_url || '').trim(),
+        tiktok_url: String(row.tiktok_url || '').trim(),
+        spotify_url: String(row.spotify_url || '').trim(),
+        x_url: String(row.x_url || '').trim(),
+        youtube_url: String(row.youtube_url || '').trim(),
         primary_color: String(row.primary_color || '').trim(),
         secondary_color: String(row.secondary_color || '').trim(),
         accent_color: String(row.accent_color || '').trim(),
@@ -302,6 +339,13 @@ export default function Community() {
     section.querySelector('#siteDescription').value = site.description || '';
     section.querySelector('#groupPhoto').value = site.group_photo || '';
     updateGroupPhotoPreview(site.group_photo || '');
+    section.querySelector('#leadImage').value = site.lead_image || '';
+    section.querySelector('#instagramUrl').value = site.instagram_url || '';
+    section.querySelector('#facebookUrl').value = site.facebook_url || '';
+    section.querySelector('#tiktokUrl').value = site.tiktok_url || '';
+    section.querySelector('#spotifyUrl').value = site.spotify_url || '';
+    section.querySelector('#xUrl').value = site.x_url || '';
+    section.querySelector('#youtubeUrl').value = site.youtube_url || '';
     section.querySelector('#primaryColor').value = site.primary_color || '';
     section.querySelector('#secondaryColor').value = site.secondary_color || '';
     section.querySelector('#accentColor').value = site.accent_color || '';
@@ -336,6 +380,13 @@ export default function Community() {
     const short_bio = String(section.querySelector('#shortBio').value || '').trim();
     const description = String(section.querySelector('#siteDescription').value || '').trim();
     const group_photo = String(section.querySelector('#groupPhoto').value || '').trim();
+    const lead_image = String(section.querySelector('#leadImage').value || '').trim();
+    const instagram_url = String(section.querySelector('#instagramUrl').value || '').trim();
+    const facebook_url = String(section.querySelector('#facebookUrl').value || '').trim();
+    const tiktok_url = String(section.querySelector('#tiktokUrl').value || '').trim();
+    const spotify_url = String(section.querySelector('#spotifyUrl').value || '').trim();
+    const x_url = String(section.querySelector('#xUrl').value || '').trim();
+    const youtube_url = String(section.querySelector('#youtubeUrl').value || '').trim();
     const primary_color = String(section.querySelector('#primaryColor').value || '').trim();
     const secondary_color = String(section.querySelector('#secondaryColor').value || '').trim();
     const accent_color = String(section.querySelector('#accentColor').value || '').trim();
@@ -363,6 +414,13 @@ export default function Community() {
         short_bio,
         description,
         group_photo,
+        lead_image,
+        instagram_url,
+        facebook_url,
+        tiktok_url,
+        spotify_url,
+        x_url,
+        youtube_url,
         primary_color,
         secondary_color,
         accent_color,

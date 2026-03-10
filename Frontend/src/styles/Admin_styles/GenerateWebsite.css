@@ -1072,6 +1072,12 @@
   color: #777;
 }
 
+.gw-section .gw-social-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 12px;
+}
+
 .gw-section .gw-members-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -1383,6 +1389,10 @@
 
   .gw-section .gw-members-list {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .gw-section .gw-social-grid {
+    grid-template-columns: 1fr;
   }
 
   .gw-section .gw-modal-content {

@@ -112,6 +112,13 @@ class GenerateController {
         bannerLink,
         groupPhoto,
         group_photo,
+        lead_image,
+        instagram_url,
+        facebook_url,
+        tiktok_url,
+        spotify_url,
+        x_url,
+        youtube_url,
         members // array of objects {name, role, description, image}
       } = req.body;
 
@@ -362,6 +369,13 @@ class GenerateController {
         logo: logoUrl,
         banner: bannerUrl,
         group_photo: groupPhotoUrl,
+        lead_image,
+        instagram_url,
+        facebook_url,
+        tiktok_url,
+        spotify_url,
+        x_url,
+        youtube_url,
         members: normalizedMembers
       });
 
@@ -543,6 +557,13 @@ class GenerateController {
         logo,
         banner,
         group_photo,
+        lead_image,
+        instagram_url,
+        facebook_url,
+        tiktok_url,
+        spotify_url,
+        x_url,
+        youtube_url,
         members,
       } = req.body || {};
       const updated = await this.model.updateGeneratedWebsite(Number(id), {
@@ -560,6 +581,13 @@ class GenerateController {
         logo,
         banner,
         group_photo,
+        lead_image,
+        instagram_url,
+        facebook_url,
+        tiktok_url,
+        spotify_url,
+        x_url,
+        youtube_url,
         members
       });
 

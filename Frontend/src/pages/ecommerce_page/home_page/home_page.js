@@ -1,4 +1,5 @@
 import Navigation from '../../../components/ecommerce_components/navigation.js';
+import LeadImage from '../../../components/ecommerce_components/lead_image.js';
 import Banner from '../../../components/ecommerce_components/banner/banner.js';
 import About from '../../../components/ecommerce_components/about/about.js';
 import Discography from '../../../components/ecommerce_components/discography/discography.js';
@@ -9,6 +10,7 @@ import Layouts from '../../../layouts/ecommerce_layout/default-home.js';
 
 import '../../../styles/ecommerce_styles/home_page.css';
 import '../../../styles/ecommerce_styles/global.css';
+import '../../../styles/ecommerce_styles/lead_image.css';
 import '../../../styles/ecommerce_styles/banner.css';
 import '../../../styles/ecommerce_styles/about.css';
 import '../../../styles/ecommerce_styles/event.css'
@@ -18,6 +20,7 @@ import '../../../styles/ecommerce_styles/announcement.css';
 export default function HOMEPAGE(data = {}) {
   const { navigation, main, footer} = Layouts(this.root);
   Navigation(navigation, data);
+  LeadImage(main, data);
   About(main, data);
   Banner(main, data);
   About(main, data);
@@ -26,4 +29,3 @@ export default function HOMEPAGE(data = {}) {
   announcement(main, data);
   Footer(footer, data);  
 };
-
