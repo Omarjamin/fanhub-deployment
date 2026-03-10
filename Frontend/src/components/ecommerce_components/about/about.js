@@ -35,19 +35,6 @@ This section highlights the group and its members. Member details and images are
     };
 }
 
-function getFallbackMembers() {
-    return [
-        { name: 'AAIAH', primaryLabel: 'Full Name', primaryValue: 'Maraiah Queen Arceta', secondaryLabel: 'Date of Birth', secondaryValue: 'January 27, 2001', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010180_m4oshc.jpg' },
-        { name: 'COLET', primaryLabel: 'Full Name', primaryValue: 'Ma. Nicolette Vergara', secondaryLabel: 'Date of Birth', secondaryValue: 'September 14, 2001', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759408350/1000010181_km87z1.jpg' },
-        { name: 'GWEN', primaryLabel: 'Full Name', primaryValue: 'Gweneth L. Apuli', secondaryLabel: 'Date of Birth', secondaryValue: 'June 19, 2003', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010183_wlbruk.jpg' },
-        { name: 'MALOI', primaryLabel: 'Full Name', primaryValue: 'Mary Loi Yves Ricalde', secondaryLabel: 'Date of Birth', secondaryValue: 'May 27, 2002', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010182_fv8nxb.jpg' },
-        { name: 'JHOANNA', primaryLabel: 'Full Name', primaryValue: 'Jhoanna Christine Robles', secondaryLabel: 'Date of Birth', secondaryValue: 'January 26, 2004', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407990/1000010186_ppfcpb.jpg' },
-        { name: 'MIKHA', primaryLabel: 'Full Name', primaryValue: 'Mikhaela Janna Lim', secondaryLabel: 'Date of Birth', secondaryValue: 'November 8, 2003', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407989/1000010185_cdbpgv.jpg' },
-        { name: 'SHEENA', primaryLabel: 'Full Name', primaryValue: 'Sheena Mae Catacutan', secondaryLabel: 'Date of Birth', secondaryValue: 'May 9, 2004', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010187_er3rop.jpg' },
-        { name: 'STACEY', primaryLabel: 'Full Name', primaryValue: 'Stacey Aubrey', secondaryLabel: 'Date of Birth', secondaryValue: 'July 13, 2003', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407989/1000010184_fnzqes.jpg' },
-    ];
-}
-
 function normalizeMember(member = {}) {
     const primaryValue = String(
         member?.fullname ||
@@ -104,6 +91,10 @@ function renderAbout(root, groupInfo, membersData) {
 
     const allItems = [groupInfo, ...membersData];
     const totalImages = allItems.length;
+    const memberHeaderLabel = String(groupInfo.title || '')
+        .replace(/^About\s+/i, '')
+        .trim()
+        .toUpperCase() || 'MEMBER';
 
     root.insertAdjacentHTML('beforeend', `
         <section id="about" class="about-section">
@@ -132,7 +123,7 @@ function renderAbout(root, groupInfo, membersData) {
                         </div>
                         <div class="member-info-container" id="memberInfo" style="display: none;">
                             <div class="member-title">
-                                <span class="bini-label">BINI</span>
+                                <span class="bini-label">${memberHeaderLabel}</span>
                                 <span class="member-name-display" id="memberNameDisplay">${membersData[0]?.name || ''}</span>
                             </div>
                             <div class="member-details">
@@ -154,6 +145,7 @@ function renderAbout(root, groupInfo, membersData) {
                         ${membersData.map((member, index) => `
                             <button class="member-name" type="button" data-index="${index + 2}">${member.name}</button>
                         `).join('')}
+                        ${membersData.length === 0 ? '<p class="about-description">No members available for this community yet.</p>' : ''}
                     </div>
                 </div>
             </div>
@@ -231,10 +223,6 @@ export default function About(root, data = {}) {
             groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
         } catch (_) {
             membersData = [];
-        }
-
-        if (!membersData.length) {
-            membersData = getFallbackMembers();
         }
 
         renderAbout(root, groupInfo, membersData);
