@@ -7,7 +7,7 @@ import '../../../styles/bini_styles/profile.css';
 
 
 export default function Profile(data = {}) {
-  const { header, navigation, main, footer } = Layout(this.root);
+  const { header, navigation, main, footer } = Layout(this.root, data);
 
   ProfileHeader(header, data);
   ProfileInfo(main, data);

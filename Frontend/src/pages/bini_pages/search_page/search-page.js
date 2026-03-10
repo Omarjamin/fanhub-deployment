@@ -6,7 +6,7 @@ import Search_ from '../../../components/bini_components/search/search_.js';
 import '../../../styles/bini_styles/search.css';
 
 export default function Search(data = {}) {
-  const { header, navigation, main } = Layout(this.root);
+  const { header, navigation, main } = Layout(this.root, data);
 
   SearchHeader(header);
   Navigation(navigation, data); 

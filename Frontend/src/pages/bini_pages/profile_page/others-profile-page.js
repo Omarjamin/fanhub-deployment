@@ -4,7 +4,7 @@ import ProfileInfo from '../../../components/bini_components/profile/others-prof
 import Layout from '../../../layouts/bini_layout/default.js';
 
 export default function OthersProfilePage(data = {}) {
-  const { header, navigation, main } = Layout(this.root);
+  const { header, navigation, main } = Layout(this.root, data);
 
   ProfileHeader(header, data);
   Navigation(navigation, data);

@@ -1,6 +1,28 @@
 import '../../styles/bini_styles/community-footer.css';
 
-export default function Layout(root) {
+function resolveTemplateKey(data = {}) {
+  const rawValue = String(
+    data?.siteData?.template_key ||
+    data?.siteData?.templateKey ||
+    data?.siteData?.template ||
+    data?.siteData?.template_name ||
+    data?.template_key ||
+    data?.templateKey ||
+    data?.template ||
+    data?.template_name ||
+    'bini'
+  )
+    .trim()
+    .toLowerCase()
+    .replace(/[_\s]+/g, '-');
+
+  if (!rawValue) return 'bini';
+  if (rawValue.includes('modern')) return 'modern';
+  if (rawValue.includes('minimal')) return 'minimal';
+  return 'bini';
+}
+
+export default function Layout(root, data = {}) {
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
   const slugFromPath = pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]
     ? pathParts[2]
@@ -22,6 +44,10 @@ export default function Layout(root) {
     if (fromData) siteLabel = fromData;
   } catch (_) {}
 
+  const templateKey = resolveTemplateKey(data);
+  root.classList.add('fh-template-root', `fh-template-root--${templateKey}`);
+  root.dataset.templateKey = templateKey;
+
   const communityHomePath = siteSlug ? `/fanhub/community-platform/${encodeURIComponent(siteSlug)}` : '/bini';
   const communitySearchPath = siteSlug ? `${communityHomePath}/search` : '/bini/search';
   const communityNotifPath = siteSlug ? `${communityHomePath}/notifications` : '/bini/notifications';
@@ -30,7 +56,7 @@ export default function Layout(root) {
   const aboutPath = siteSlug ? `/fanhub/${encodeURIComponent(siteSlug)}#about` : '/#about';
 
   root.innerHTML = `
-      <div id="container">
+      <div id="container" class="fh-template-shell fh-template--${templateKey}" data-template-key="${templateKey}">
         <header id="head"></header>
         <navigation id="navigation"></navigation>
         <main id="main"></main>

@@ -199,13 +199,23 @@ class GenerateModel {
     );
   }
 
-  async buildSiteSelectQuery({ whereClause = '', limitOne = false } = {}) {
+  async buildSiteSelectQuery({
+    whereClause = '',
+    limitOne = false,
+    excludedSettingColumns = new Set(),
+  } = {}) {
     const siteCols = await this.getSiteColumns();
     const hasSettingsTable = await this.hasTable('sites_setting');
     const settingsCols = hasSettingsTable ? await this.getTableColumns('sites_setting') : new Set();
 
     const pickSite = (column, fallbackSql = `NULL AS ${column}`) => (
       siteCols.has(column) ? `s.${column}` : fallbackSql
+    );
+    const hasSettingColumn = (column) => (
+      hasSettingsTable && settingsCols.has(column) && !excludedSettingColumns.has(column)
+    );
+    const pickSetting = (column, sql = `ss.${column}`, fallbackSql = `NULL AS ${column}`) => (
+      hasSettingColumn(column) ? sql : fallbackSql
     );
 
     const siteFields = [
@@ -226,25 +236,25 @@ class GenerateModel {
 
     const settingFields = hasSettingsTable
       ? [
-          settingsCols.has('primary_color') ? 'ss.primary_color' : 'NULL AS primary_color',
-          settingsCols.has('secondary_color') ? 'ss.secondary_color' : 'NULL AS secondary_color',
-          settingsCols.has('accent_color') ? 'ss.accent_color' : 'NULL AS accent_color',
-          settingsCols.has('button_style') ? 'ss.button_style' : 'NULL AS button_style',
-          settingsCols.has('font_style') ? 'ss.font_style' : 'NULL AS font_style',
-          settingsCols.has('font_type') ? 'NULLIF(ss.font_type, "") AS font_type' : 'NULL AS font_type',
-          settingsCols.has('font_name') ? 'NULLIF(ss.font_name, "") AS font_name' : 'NULL AS font_name',
-          settingsCols.has('font_url') ? 'NULLIF(ss.font_url, "") AS font_url' : 'NULL AS font_url',
-          settingsCols.has('font_heading') ? 'NULLIF(ss.font_heading, "") AS font_heading' : 'NULL AS font_heading',
-          settingsCols.has('font_body') ? 'NULLIF(ss.font_body, "") AS font_body' : 'NULL AS font_body',
-          settingsCols.has('font_size_base') ? 'NULLIF(ss.font_size_base, "") AS font_size_base' : 'NULL AS font_size_base',
-          settingsCols.has('line_height') ? 'NULLIF(ss.line_height, "") AS line_height' : 'NULL AS line_height',
-          settingsCols.has('letter_spacing') ? 'NULLIF(ss.letter_spacing, "") AS letter_spacing' : 'NULL AS letter_spacing',
-          settingsCols.has('palette') ? 'ss.palette' : 'NULL AS palette',
-          settingsCols.has('typography') ? 'ss.typography' : 'NULL AS typography',
-          settingsCols.has('theme') ? 'ss.theme' : 'NULL AS theme',
-          settingsCols.has('nav_position') ? 'ss.nav_position' : 'NULL AS nav_position',
-          settingsCols.has('logo') ? 'ss.logo' : 'NULL AS logo',
-          settingsCols.has('banner') ? 'ss.banner' : 'NULL AS banner',
+          pickSetting('primary_color'),
+          pickSetting('secondary_color'),
+          pickSetting('accent_color'),
+          pickSetting('button_style'),
+          pickSetting('font_style'),
+          pickSetting('font_type', 'NULLIF(ss.font_type, "") AS font_type'),
+          pickSetting('font_name', 'NULLIF(ss.font_name, "") AS font_name'),
+          pickSetting('font_url', 'NULLIF(ss.font_url, "") AS font_url'),
+          pickSetting('font_heading', 'NULLIF(ss.font_heading, "") AS font_heading'),
+          pickSetting('font_body', 'NULLIF(ss.font_body, "") AS font_body'),
+          pickSetting('font_size_base', 'NULLIF(ss.font_size_base, "") AS font_size_base'),
+          pickSetting('line_height', 'NULLIF(ss.line_height, "") AS line_height'),
+          pickSetting('letter_spacing', 'NULLIF(ss.letter_spacing, "") AS letter_spacing'),
+          pickSetting('palette'),
+          pickSetting('typography'),
+          pickSetting('theme'),
+          pickSetting('nav_position'),
+          pickSetting('logo'),
+          pickSetting('banner'),
         ]
       : [
           'NULL AS primary_color',
@@ -283,6 +293,38 @@ class GenerateModel {
       ORDER BY ${orderByClause}
       ${limitOne ? 'LIMIT 1' : ''}
     `;
+  }
+
+  getMissingSettingsColumn(err) {
+    const message = String(err?.message || '');
+    const match = message.match(/Unknown column 'ss\.([A-Za-z0-9_]+)' in 'field list'/i);
+    return match?.[1] || null;
+  }
+
+  async runSiteSelectQuery({ whereClause = '', limitOne = false, params = [] } = {}) {
+    const excludedSettingColumns = new Set();
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const siteQuery = await this.buildSiteSelectQuery({
+          whereClause,
+          limitOne,
+          excludedSettingColumns,
+        });
+        const [sites] = await this.db.query(siteQuery, params);
+        return sites;
+      } catch (err) {
+        const missingColumn = this.getMissingSettingsColumn(err);
+        if (!missingColumn || excludedSettingColumns.has(missingColumn)) {
+          throw err;
+        }
+
+        this.tableColumnsCache.delete('sites_setting');
+        excludedSettingColumns.add(missingColumn);
+      }
+    }
+
+    return [];
   }
 
   async generateWebsite({
@@ -519,8 +561,7 @@ class GenerateModel {
   async getGeneratedWebsites() {
     try {
       if (!this.db) await this.connectAdmin();
-      const sitesQuery = await this.buildSiteSelectQuery();
-      const [sites] = await this.db.query(sitesQuery);
+      const sites = await this.runSiteSelectQuery();
 
       const sitesWithMembers = await Promise.all(
         sites.map(async (site) => {
@@ -699,11 +740,11 @@ class GenerateModel {
   async getWebsiteById(siteId) {
     try {
       if (!this.db) await this.connectAdmin();
-      const siteQuery = await this.buildSiteSelectQuery({
+      const sites = await this.runSiteSelectQuery({
         whereClause: 's.site_id = ?',
         limitOne: true,
+        params: [siteId],
       });
-      const [sites] = await this.db.query(siteQuery, [siteId]);
       if (!sites || sites.length === 0) return null;
       const site = sites[0];
 
@@ -720,11 +761,11 @@ class GenerateModel {
       if (!this.db) await this.connectAdmin();
       const siteCols = await this.getSiteColumns();
       const lookupColumn = siteCols.has('community_type') ? 'community_type' : 'domain';
-      const siteQuery = await this.buildSiteSelectQuery({
+      const sites = await this.runSiteSelectQuery({
         whereClause: `LOWER(TRIM(s.${lookupColumn})) = LOWER(TRIM(?))`,
         limitOne: true,
+        params: [communityType],
       });
-      const [sites] = await this.db.query(siteQuery, [communityType]);
       let site = Array.isArray(sites) && sites.length > 0 ? sites[0] : null;
 
       if (!site) {

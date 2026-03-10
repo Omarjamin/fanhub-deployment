@@ -8,7 +8,7 @@ export default function registerEcommerceRoutes(app, deps) {
     PageNotFound,
     renderEcommerceTemplatePage,
   } = deps;
-
+  
   app.add("/signup", SIGNUP);
   app.add("/shop", SHOP);
   app.add("/checkout", Checkout);

@@ -7,7 +7,7 @@ import '../../../styles/bini_styles/notifications.css';
 
 
 export default function Notifications(data = {}) {
-  const { header, navigation, main, footer } = Layout(this.root);
+  const { header, navigation, main, footer } = Layout(this.root, data);
 
   NotifHeader(header, data);
   loadNotifications(main, data);

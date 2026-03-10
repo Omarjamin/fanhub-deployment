@@ -75,3 +75,79 @@
     padding-right: 12px;
   }
 }
+
+/* Template skin hooks for generated community sites */
+.fh-template-shell {
+  position: relative;
+  background:
+    radial-gradient(circle at top right, color-mix(in srgb, var(--accent-color, #ff1493) 14%, transparent) 0%, transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--secondary-background, #ffffff) 94%, var(--primary-color, #000000) 6%) 0%, var(--secondary-background, #ffffff) 100%);
+}
+
+.fh-template-shell #main,
+.fh-template-shell #footer {
+  position: relative;
+  z-index: 1;
+}
+
+.fh-template--bini {
+  --template-surface: color-mix(in srgb, var(--secondary-color, #ffffff) 92%, var(--primary-color, #000000) 8%);
+  --template-border: color-mix(in srgb, var(--primary-color, #000000) 20%, transparent);
+  --template-shadow: 0 18px 40px rgba(15, 23, 42, 0.12);
+}
+
+.fh-template--modern {
+  --bini-left-nav-width: 168px;
+  --bini-card-radius: 24px;
+  --template-surface: color-mix(in srgb, var(--secondary-color, #ffffff) 84%, var(--accent-color, #ff1493) 16%);
+  --template-border: color-mix(in srgb, var(--accent-color, #ff1493) 38%, transparent);
+  --template-shadow: 0 24px 54px rgba(15, 23, 42, 0.16);
+  background:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--primary-color, #000000) 18%, transparent) 0%, transparent 30%),
+    radial-gradient(circle at bottom right, color-mix(in srgb, var(--accent-color, #ff1493) 16%, transparent) 0%, transparent 24%),
+    linear-gradient(180deg, color-mix(in srgb, var(--secondary-background, #ffffff) 88%, var(--primary-color, #000000) 12%) 0%, var(--secondary-background, #ffffff) 100%);
+}
+
+.fh-template--modern :where(.homepage-container, .search-page, .search-container, .profile-container, .notifications-page, .thread-topic-container) {
+  width: min(100%, calc(var(--bini-content-max) + 48px));
+  margin-inline: auto;
+  padding: clamp(16px, 2vw, 28px);
+  border: 1px solid var(--template-border);
+  border-radius: var(--bini-card-radius);
+  background: color-mix(in srgb, var(--template-surface) 86%, rgba(255, 255, 255, 0.72) 14%);
+  box-shadow: var(--template-shadow);
+  backdrop-filter: blur(14px);
+}
+
+.fh-template--minimal {
+  --bini-left-nav-width: 140px;
+  --bini-content-max: 1100px;
+  --bini-card-radius: 12px;
+  --template-surface: color-mix(in srgb, var(--secondary-color, #ffffff) 96%, var(--primary-color, #000000) 4%);
+  --template-border: color-mix(in srgb, var(--primary-color, #000000) 12%, transparent);
+  --template-shadow: none;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--secondary-background, #ffffff) 98%, var(--primary-color, #000000) 2%) 0%, var(--secondary-background, #ffffff) 100%);
+}
+
+.fh-template--minimal :where(.homepage-container, .search-page, .search-container, .profile-container, .notifications-page, .thread-topic-container) {
+  width: min(100%, var(--bini-content-max));
+  margin-inline: auto;
+  border-radius: var(--bini-card-radius);
+  border: 1px solid var(--template-border);
+  background: var(--template-surface);
+  box-shadow: var(--template-shadow);
+}
+
+.fh-template--minimal :where(.post-card, .thread-item, .event-item, .search-live-preview, .suggested-follow-list, .profile-card, .notifications-container) {
+  border-radius: 10px;
+  box-shadow: none;
+}
+
+@media (max-width: 768px) {
+  .fh-template--modern :where(.homepage-container, .search-page, .search-container, .profile-container, .notifications-page, .thread-topic-container),
+  .fh-template--minimal :where(.homepage-container, .search-page, .search-container, .profile-container, .notifications-page, .thread-topic-container) {
+    width: 100%;
+    padding: 12px;
+  }
+}

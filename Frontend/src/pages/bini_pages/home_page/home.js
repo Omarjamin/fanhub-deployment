@@ -6,11 +6,10 @@ import Layout from '../../../layouts/bini_layout/default.js';
 import '../../../styles/bini_styles/home.css';
 
 export default function Home(data = {}) {
-  const { header, navigation, main } = Layout(this.root);
+  const { header, navigation, main } = Layout(this.root, data);
 
   Header(header, data);
   Navigation(navigation, data); 
   HomePage(main, data);
   
 };
-
