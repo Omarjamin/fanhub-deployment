@@ -27,7 +27,7 @@ function getDefaultGroupInfo(siteSlug = 'bini') {
     const label = String(siteSlug || 'bini').trim().toUpperCase();
 
     return {
-        title: 'About',
+        title: `About ${label}`,
         description: `Welcome to the ${label} community page.
 
 This section highlights the group and its members. Member details and images are loaded based on the active community type so each generated site shows its own content.`,
@@ -36,17 +36,66 @@ This section highlights the group and its members. Member details and images are
 }
 
 function getFallbackMembers() {
-    alert('Failed to load member data. Displaying fallback members.');
     return [
-        { name: 'AAIAH', fullName: 'Maraiah Queen Arceta', birthdate: 'January 27, 2001', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010180_m4oshc.jpg' },
-        { name: 'COLET', fullName: 'Ma. Nicolette Vergara', birthdate: 'September 14, 2001', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759408350/1000010181_km87z1.jpg' },
-        { name: 'GWEN', fullName: 'Gweneth L. Apuli', birthdate: 'June 19, 2003', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010183_wlbruk.jpg' },
-        { name: 'MALOI', fullName: 'Mary Loi Yves Ricalde', birthdate: 'May 27, 2002', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010182_fv8nxb.jpg' },
-        { name: 'JHOANNA', fullName: 'Jhoanna Christine Robles', birthdate: 'January 26, 2004', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407990/1000010186_ppfcpb.jpg' },
-        { name: 'MIKHA', fullName: 'Mikhaela Janna Lim', birthdate: 'November 8, 2003', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407989/1000010185_cdbpgv.jpg' },
-        { name: 'SHEENA', fullName: 'Sheena Mae Catacutan', birthdate: 'May 9, 2004', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010187_er3rop.jpg' },
-        { name: 'STACEY', fullName: 'Stacey Aubrey', birthdate: 'July 13, 2003', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407989/1000010184_fnzqes.jpg' },
+        { name: 'AAIAH', primaryLabel: 'Full Name', primaryValue: 'Maraiah Queen Arceta', secondaryLabel: 'Date of Birth', secondaryValue: 'January 27, 2001', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010180_m4oshc.jpg' },
+        { name: 'COLET', primaryLabel: 'Full Name', primaryValue: 'Ma. Nicolette Vergara', secondaryLabel: 'Date of Birth', secondaryValue: 'September 14, 2001', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759408350/1000010181_km87z1.jpg' },
+        { name: 'GWEN', primaryLabel: 'Full Name', primaryValue: 'Gweneth L. Apuli', secondaryLabel: 'Date of Birth', secondaryValue: 'June 19, 2003', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010183_wlbruk.jpg' },
+        { name: 'MALOI', primaryLabel: 'Full Name', primaryValue: 'Mary Loi Yves Ricalde', secondaryLabel: 'Date of Birth', secondaryValue: 'May 27, 2002', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010182_fv8nxb.jpg' },
+        { name: 'JHOANNA', primaryLabel: 'Full Name', primaryValue: 'Jhoanna Christine Robles', secondaryLabel: 'Date of Birth', secondaryValue: 'January 26, 2004', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407990/1000010186_ppfcpb.jpg' },
+        { name: 'MIKHA', primaryLabel: 'Full Name', primaryValue: 'Mikhaela Janna Lim', secondaryLabel: 'Date of Birth', secondaryValue: 'November 8, 2003', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407989/1000010185_cdbpgv.jpg' },
+        { name: 'SHEENA', primaryLabel: 'Full Name', primaryValue: 'Sheena Mae Catacutan', secondaryLabel: 'Date of Birth', secondaryValue: 'May 9, 2004', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010187_er3rop.jpg' },
+        { name: 'STACEY', primaryLabel: 'Full Name', primaryValue: 'Stacey Aubrey', secondaryLabel: 'Date of Birth', secondaryValue: 'July 13, 2003', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407989/1000010184_fnzqes.jpg' },
     ];
+}
+
+function normalizeMember(member = {}) {
+    const primaryValue = String(
+        member?.fullname ||
+        member?.full_name ||
+        member?.fullName ||
+        member?.role ||
+        member?.name ||
+        ''
+    ).trim();
+    const secondaryValue = String(
+        member?.birthdate ||
+        member?.description ||
+        ''
+    ).trim();
+
+    return {
+        name: String(member?.name || member?.stage_name || '').trim(),
+        primaryLabel: member?.role ? 'Role' : 'Full Name',
+        primaryValue,
+        secondaryLabel: member?.description ? 'Description' : 'Date of Birth',
+        secondaryValue,
+        photo: String(member?.image_profile || member?.photo || member?.image || '').trim(),
+    };
+}
+
+function buildGroupInfo(payload = {}, fallbackGroupInfo) {
+    const siteName = String(
+        payload?.site_name ||
+        payload?.community_name ||
+        payload?.name ||
+        ''
+    ).trim();
+    const shortBio = String(payload?.short_bio || payload?.shortBio || '').trim();
+    const description = String(payload?.description || payload?.about || '').trim();
+    const photo = String(
+        payload?.banner ||
+        payload?.image_cover ||
+        payload?.cover_photo ||
+        payload?.logo ||
+        payload?.image_profile ||
+        fallbackGroupInfo.photo
+    ).trim();
+
+    return {
+        title: siteName ? `About ${siteName}` : fallbackGroupInfo.title,
+        description: description || shortBio || fallbackGroupInfo.description,
+        photo: photo || fallbackGroupInfo.photo,
+    };
 }
 
 function renderAbout(root, groupInfo, membersData) {
@@ -87,12 +136,12 @@ function renderAbout(root, groupInfo, membersData) {
                             </div>
                             <div class="member-details">
                                 <div class="detail-row">
-                                    <span class="detail-label">Full Name</span>
-                                    <span class="detail-value" id="memberFullName">${membersData[0]?.fullName || ''}</span>
+                                    <span class="detail-label" id="memberPrimaryLabel">${membersData[0]?.primaryLabel || 'Full Name'}</span>
+                                    <span class="detail-value" id="memberPrimaryValue">${membersData[0]?.primaryValue || ''}</span>
                                 </div>
                                 <div class="detail-row">
-                                    <span class="detail-label">Date of Birth</span>
-                                    <span class="detail-value" id="memberBirthdate">${membersData[0]?.birthdate || ''}</span>
+                                    <span class="detail-label" id="memberSecondaryLabel">${membersData[0]?.secondaryLabel || 'Date of Birth'}</span>
+                                    <span class="detail-value" id="memberSecondaryValue">${membersData[0]?.secondaryValue || ''}</span>
                                 </div>
                             </div>
                         </div>
@@ -162,7 +211,6 @@ function renderAbout(root, groupInfo, membersData) {
 
 export default function About(root, data = {}) {
     const siteSlug = resolveSiteSlug(data);
-    const fallbackMembers = getFallbackMembers();
     const fallbackGroupInfo = getDefaultGroupInfo(siteSlug);
 
     (async () => {
@@ -174,25 +222,18 @@ export default function About(root, data = {}) {
             const payload = res?.data?.data || {};
 
             membersData = Array.isArray(payload?.members)
-                ? payload.members.map((member) => ({
-                    name: member?.name || member?.stage_name || '',
-                    fullName: member?.fullname || member?.full_name || member?.name || '',
-                    birthdate: member?.birthdate || '',
-                    photo: member?.image_profile || member?.photo || '',
-                })).filter((member) => member.name || member.fullName || member.photo)
+                ? payload.members
+                    .map((member) => normalizeMember(member))
+                    .filter((member) => member.name || member.primaryValue || member.secondaryValue || member.photo)
                 : [];
 
-            groupInfo = {
-                title: payload?.community_name ? `About ${payload.community_name}` : fallbackGroupInfo.title,
-                description: payload?.description || payload?.about || fallbackGroupInfo.description,
-                photo: payload?.image_cover || payload?.cover_photo || payload?.image_profile || fallbackGroupInfo.photo,
-            };
+            groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
         } catch (_) {
             membersData = [];
         }
 
         if (!membersData.length) {
-            membersData = fallbackMembers;
+            membersData = getFallbackMembers();
         }
 
         renderAbout(root, groupInfo, membersData);
@@ -212,8 +253,10 @@ function updateCarousel(root) {
     const groupInfoDiv = section.querySelector('#groupInfo');
     const memberInfoDiv = section.querySelector('#memberInfo');
     const nameDisplay = section.querySelector('#memberNameDisplay');
-    const fullNameDisplay = section.querySelector('#memberFullName');
-    const birthdateDisplay = section.querySelector('#memberBirthdate');
+    const primaryLabelDisplay = section.querySelector('#memberPrimaryLabel');
+    const primaryValueDisplay = section.querySelector('#memberPrimaryValue');
+    const secondaryLabelDisplay = section.querySelector('#memberSecondaryLabel');
+    const secondaryValueDisplay = section.querySelector('#memberSecondaryValue');
     const memberNames = section.querySelectorAll('.member-name');
 
     if (indicator) {
@@ -247,8 +290,10 @@ function updateCarousel(root) {
         const currentMember = membersData[currentImage - 2];
         if (currentMember) {
             if (nameDisplay) nameDisplay.textContent = currentMember.name;
-            if (fullNameDisplay) fullNameDisplay.textContent = currentMember.fullName;
-            if (birthdateDisplay) birthdateDisplay.textContent = currentMember.birthdate;
+            if (primaryLabelDisplay) primaryLabelDisplay.textContent = currentMember.primaryLabel || 'Full Name';
+            if (primaryValueDisplay) primaryValueDisplay.textContent = currentMember.primaryValue || '';
+            if (secondaryLabelDisplay) secondaryLabelDisplay.textContent = currentMember.secondaryLabel || 'Date of Birth';
+            if (secondaryValueDisplay) secondaryValueDisplay.textContent = currentMember.secondaryValue || '';
         }
     }
 
