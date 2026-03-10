@@ -208,22 +208,36 @@ export default function About(root, data = {}) {
     const fallbackGroupInfo = getDefaultGroupInfo(siteSlug);
 
     (async () => {
-        let groupInfo = fallbackGroupInfo;
-        let membersData = [];
+        let payload = data && typeof data === 'object' ? data : {};
+        let groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
+        let membersData = Array.isArray(payload?.members)
+            ? payload.members
+                .map((member) => normalizeMember(member))
+                .filter((member) => member.name || member.primaryValue || member.secondaryValue || member.photo)
+            : [];
 
-        try {
-            const res = await api.get(`/generate/generated-websites/type/${encodeURIComponent(siteSlug)}`);
-            const payload = res?.data?.data || {};
+        const hasUsefulGroupInfo =
+            Boolean(String(payload?.site_name || payload?.community_name || payload?.name || '').trim()) ||
+            Boolean(String(payload?.description || payload?.about || payload?.short_bio || payload?.shortBio || '').trim()) ||
+            Boolean(String(payload?.group_photo || payload?.banner || payload?.logo || '').trim());
 
-            membersData = Array.isArray(payload?.members)
-                ? payload.members
-                    .map((member) => normalizeMember(member))
-                    .filter((member) => member.name || member.primaryValue || member.secondaryValue || member.photo)
-                : [];
+        if ((!membersData.length || !hasUsefulGroupInfo) && siteSlug) {
+            try {
+                const res = await api.get(`/generate/generated-websites/type/${encodeURIComponent(siteSlug)}`);
+                payload = res?.data?.data || {};
 
-            groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
-        } catch (_) {
-            membersData = [];
+                const fetchedMembers = Array.isArray(payload?.members)
+                    ? payload.members
+                        .map((member) => normalizeMember(member))
+                        .filter((member) => member.name || member.primaryValue || member.secondaryValue || member.photo)
+                    : [];
+
+                if (fetchedMembers.length) {
+                    membersData = fetchedMembers;
+                }
+
+                groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
+            } catch (_) {}
         }
 
         renderAbout(root, groupInfo, membersData);
