@@ -36,6 +36,7 @@ This section highlights the group and its members. Member details and images are
 }
 
 function getFallbackMembers() {
+    alert('Failed to load member data. Displaying fallback members.');
     return [
         { name: 'AAIAH', fullName: 'Maraiah Queen Arceta', birthdate: 'January 27, 2001', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759407988/1000010180_m4oshc.jpg' },
         { name: 'COLET', fullName: 'Ma. Nicolette Vergara', birthdate: 'September 14, 2001', photo: 'https://res.cloudinary.com/dfuglnaz2/image/upload/v1759408350/1000010181_km87z1.jpg' },
