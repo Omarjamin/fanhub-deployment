@@ -1,12 +1,21 @@
 import api from '../../../lib/api.js';
 import { getActiveSiteSlug } from '../../../lib/site-context.js';
 
+function getPayloadSource(data = {}) {
+    if (data?.siteData && typeof data.siteData === 'object') {
+        return data.siteData;
+    }
+
+    return data && typeof data === 'object' ? data : {};
+}
+
 function resolveSiteSlug(data = {}) {
+    const payload = getPayloadSource(data);
     const fromData = String(
         data?.siteSlug ||
-        data?.site_slug ||
-        data?.domain ||
-        data?.community_type ||
+        payload?.site_slug ||
+        payload?.domain ||
+        payload?.community_type ||
         ''
     ).trim().toLowerCase();
     if (fromData) return getActiveSiteSlug(fromData) || fromData;
@@ -235,7 +244,7 @@ export default function About(root, data = {}) {
     const fallbackGroupInfo = getDefaultGroupInfo(siteSlug);
 
     (async () => {
-        let payload = data && typeof data === 'object' ? data : {};
+        let payload = getPayloadSource(data);
         const cachedPayload = getCachedSitePayload(siteSlug);
         if ((!Array.isArray(payload?.members) || !payload.members.length) && cachedPayload) {
             payload = cachedPayload;
