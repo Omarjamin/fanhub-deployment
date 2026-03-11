@@ -8,6 +8,10 @@ type SiteProfile = {
   description: string;
 };
 
+function stripHtml(value: string) {
+  return String(value || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 const AboutSection = () => {
   const [profile, setProfile] = useState<SiteProfile>({
     siteName: "BINI",
@@ -26,7 +30,11 @@ const AboutSection = () => {
       try {
         const data = await fetchSiteProfile();
         if (!isMounted) return;
-        setProfile(data);
+        setProfile({
+          siteName: data.siteName || "Community",
+          shortBio: stripHtml(data.shortBio || ""),
+          description: stripHtml(data.description || ""),
+        });
       } catch (err: unknown) {
         if (!isMounted) return;
         const message =

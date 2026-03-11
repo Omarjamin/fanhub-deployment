@@ -2,6 +2,7 @@
 import { Send, Mail, ShieldCheck } from "lucide-react";
 import { fetchSiteProfile } from "@/lib/ecommerceApi";
 import { toast } from "@/hooks/use-toast";
+import { getModernSiteSlug } from "@/lib/modern-react/context";
 
 const DEFAULT_API_V1 = "https://fanhub-deployment-production.up.railway.app/v1";
 
@@ -10,6 +11,9 @@ function resolveApiV1(): string {
 }
 
 function resolveSiteSlug(): string {
+  const fromContext = String(getModernSiteSlug() || "").trim().toLowerCase();
+  if (fromContext) return fromContext;
+
   const fromEnv = String(import.meta.env.VITE_SITE_SLUG || "").trim().toLowerCase();
   if (fromEnv) return fromEnv;
 
