@@ -481,7 +481,9 @@ export default function GenerateWebsite() {
       submitData.append('letter_spacing', typographyPayload.letter_spacing);
       submitData.append('typography', JSON.stringify(typographyPayload));
       submitData.append('bannerLink', formData.bannerLink);
-      submitData.append('lead_image', formData.leadImage);
+      if (formData.leadImage) {
+        submitData.append('lead_image', formData.leadImage);
+      }
       submitData.append('instagram_url', formData.instagramUrl);
       submitData.append('facebook_url', formData.facebookUrl);
       submitData.append('tiktok_url', formData.tiktokUrl);
@@ -691,12 +693,11 @@ export default function GenerateWebsite() {
 
             <div class="gw-form-row">
               <div class="gw-form-group">
-                <label for="leadImage">Lead Image URL</label>
+                <label for="leadImageFile">Lead Image</label>
                 <small class="gw-field-hint">Purpose: used as the homepage lead/hero image behind the top section.</small>
-                <input type="url" id="leadImage" placeholder="https://...">
-                <div class="gw-upload-inline gw-upload-inline-secondary">
+                <div class="gw-upload-inline">
                   <input type="file" id="leadImageFile" accept="image/*">
-                  <button type="button" class="gw-file-action-btn" id="leadImageBrowseBtn">Upload Lead Image</button>
+                  <button type="button" class="gw-file-action-btn" id="leadImageBrowseBtn">Choose Lead Image</button>
                   <span class="gw-upload-file-name" id="leadImageFileLabel">No file selected</span>
                 </div>
               </div>
@@ -1680,10 +1681,6 @@ export default function GenerateWebsite() {
 
     section.querySelector('#bannerLink')?.addEventListener('input', (e) => {
       formData.bannerLink = e.target.value.trim();
-    });
-
-    section.querySelector('#leadImage')?.addEventListener('input', (e) => {
-      formData.leadImage = e.target.value.trim();
     });
 
     section.querySelector('#instagramUrl')?.addEventListener('input', (e) => {
