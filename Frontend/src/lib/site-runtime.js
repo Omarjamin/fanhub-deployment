@@ -268,6 +268,43 @@ function parsePaletteSource(source) {
   return [];
 }
 
+function chooseOnColor(background) {
+  const dark = "#111111";
+  const light = "#FFFFFF";
+  return getContrastRatio(dark, background) >= getContrastRatio(light, background) ? dark : light;
+}
+
+function ensureAccessibleBackground(background, foreground, minContrast = 4.5) {
+  let current = normalizeHex(background);
+  const text = normalizeHex(foreground);
+  if (!current || !text) return current || background || "#000000";
+
+  if (getContrastRatio(text, current) >= minContrast) {
+    return current;
+  }
+
+  const shouldDarken = text === "#FFFFFF";
+  for (let step = 1; step <= 12; step += 1) {
+    const candidate = adjustLightness(current, shouldDarken ? -(step * 3) : (step * 3));
+    if (getContrastRatio(text, candidate) >= minContrast) {
+      return candidate;
+    }
+  }
+
+  return current;
+}
+
+function buildValidatedPair(role, background, foreground) {
+  const contrastRatio = Number(getContrastRatio(foreground, background).toFixed(2));
+  return {
+    role,
+    background,
+    foreground,
+    contrastRatio,
+    passesAA: contrastRatio >= 4.5,
+  };
+}
+
 export function assignColorRoles(palette) {
   const normalizedPalette = parsePaletteSource(palette)
     .map((color) => normalizeHex(color))
@@ -280,18 +317,48 @@ export function assignColorRoles(palette) {
   const primary = normalizedPalette[0];
   const secondary = normalizedPalette[1] || primary;
   const accent = normalizedPalette[2] || primary;
-  const background = normalizedPalette[3] || secondary || primary;
-  const textSeed = normalizedPalette[4] || null;
-  const text = textSeed
-    ? pickReadableColor(background, textSeed, [primary, accent, getContrastColor(background)])
-    : getContrastColor(background);
+  const background = "#F8F9FB";
+  const surface = "#FFFFFF";
+  const textPrimary = "#1F2937";
+  const textSecondary = "#6B7280";
+  const border = "#D1D5DB";
+
+  const validatedPrimary = ensureAccessibleBackground(primary, chooseOnColor(primary));
+  const validatedSecondary = ensureAccessibleBackground(secondary, chooseOnColor(secondary));
+  const validatedAccent = ensureAccessibleBackground(accent, chooseOnColor(accent));
+
+  const onPrimary = chooseOnColor(validatedPrimary);
+  const onSecondary = chooseOnColor(validatedSecondary);
+  const onAccent = chooseOnColor(validatedAccent);
+  const onSurface = chooseOnColor(surface);
+  const onBackground = chooseOnColor(background);
 
   return {
-    primary,
-    accent,
-    background,
-    secondary,
-    text,
+    semanticColors: {
+      background,
+      surface,
+      textPrimary,
+      textSecondary,
+      border,
+      primary,
+      secondary,
+      accent,
+    },
+    onColors: {
+      onPrimary,
+      onSecondary,
+      onAccent,
+      onSurface,
+      onBackground,
+    },
+    validatedPairs: [
+      buildValidatedPair("Hero heading", background, onBackground),
+      buildValidatedPair("Card title", surface, textPrimary),
+      buildValidatedPair("Card text", surface, textSecondary),
+      buildValidatedPair("Button Primary", validatedPrimary, onPrimary),
+      buildValidatedPair("Button Secondary", surface, textPrimary),
+      buildValidatedPair("Accent UI", validatedAccent, onAccent),
+    ],
   };
 }
 
@@ -322,7 +389,9 @@ function normalizeThemeData(data) {
     data?.color_palette ??
     data?.colors;
 
-  const assignedRoles = assignColorRoles(palette);
+  const colorSystem = assignColorRoles(palette);
+  const semanticColors = colorSystem?.semanticColors || {};
+  const onColors = colorSystem?.onColors || {};
   const fontConfig =
     (source?.font && typeof source.font === "object" ? source.font : null) ||
     (typeof source?.font === "string"
@@ -461,36 +530,59 @@ function normalizeThemeData(data) {
       source?.primaryColor ??
       data?.primary_color ??
       data?.primaryColor ??
-      assignedRoles.primary
+      semanticColors.primary
     ) || "#3b82f6",
     secondary: normalizeHex(
       source?.secondary_color ??
       source?.secondaryColor ??
       data?.secondary_color ??
       data?.secondaryColor ??
-      assignedRoles.secondary ??
-      assignedRoles.background
+      semanticColors.secondary
     ) || "#ffffff",
     accent: normalizeHex(
       source?.accent_color ??
       source?.accentColor ??
       data?.accent_color ??
       data?.accentColor ??
-      assignedRoles.accent
+      semanticColors.accent
     ),
     background: normalizeHex(
       source?.background_color ??
       source?.backgroundColor ??
       data?.background_color ??
       data?.backgroundColor ??
-      assignedRoles.background
+      semanticColors.background
     ),
     text: normalizeHex(
       source?.text_color ??
       source?.textColor ??
       data?.text_color ??
       data?.textColor
-    ) || assignedRoles.text,
+    ) || semanticColors.textPrimary,
+    surface: normalizeHex(
+      source?.surface_color ??
+      source?.surfaceColor ??
+      data?.surface_color ??
+      data?.surfaceColor ??
+      semanticColors.surface
+    ) || "#FFFFFF",
+    textSecondary: normalizeHex(
+      source?.text_secondary ??
+      source?.textSecondary ??
+      data?.text_secondary ??
+      data?.textSecondary ??
+      semanticColors.textSecondary
+    ) || "#6B7280",
+    borderColor: normalizeHex(
+      source?.border_color ??
+      source?.borderColor ??
+      data?.border_color ??
+      data?.borderColor ??
+      semanticColors.border
+    ) || "#D1D5DB",
+    onColors,
+    semanticColors,
+    validatedPairs: Array.isArray(colorSystem?.validatedPairs) ? colorSystem.validatedPairs : [],
     buttonStyle:
       source?.button_style ??
       source?.buttonStyle ??
@@ -583,44 +675,34 @@ export function applyThemeColors(data) {
 
   const root = document.documentElement;
   const theme = normalizeThemeData(data);
-  const paletteColors = Array.isArray(theme.palette) ? theme.palette : [];
   const primary = theme.primary;
   const secondary = theme.secondary;
   const accent = theme.accent || primary;
-  const background = theme.background || secondary;
-  const text = theme.text || getContrastColor(background);
-  const surface = pickReadableColor(background, secondary, [adjustLightness(background, 4), adjustLightness(background, -4)]);
-  const surfaceTextBase = pickReadableColor(surface, primary, [text, accent, "#111111", "#ffffff"]);
-  const surfaceText = keepPaletteCharacter(surfaceTextBase, surface, [primary, secondary, accent, ...paletteColors]);
-  const mutedTextBase = pickReadableColor(background, adjustLightness(surfaceText, getBrightness(surfaceText) > 150 ? -28 : 28), [surfaceText, primary, text]);
-  const mutedText = keepPaletteCharacter(mutedTextBase, background, [primary, secondary, accent, ...paletteColors]);
-  const buttonBg = pickReadableColor(background, accent, [primary, adjustLightness(accent, -12), adjustLightness(accent, 12)]);
-  const buttonText = pickReadableColor(buttonBg, getContrastColor(buttonBg), [surfaceText, text, "#ffffff", "#000000"]);
-  const buttonHoverBg = pickReadableColor(background, adjustLightness(buttonBg, getBrightness(buttonBg) > 150 ? -12 : 12), [primary, accent]);
-  const buttonHoverText = pickReadableColor(buttonHoverBg, getContrastColor(buttonHoverBg), [buttonText, surfaceText, "#ffffff", "#000000"]);
-  const accentSoft = pickReadableColor(background, adjustLightness(accent, getBrightness(background) > 150 ? -18 : 20), [accent, primary]);
-  const borderColor = pickReadableColor(background, adjustLightness(primary, getBrightness(background) > 150 ? 28 : -28), [primary, accent, surfaceText]);
-  const navSurface = secondary || surface || background;
-  const finalNavHeroText = primary;
-  const finalNavScrolledText = primary;
-  const sectionHeading = keepPaletteCharacter(
-    pickReadableColor(background, primary, [surfaceText, accent, text, "#111111", "#ffffff"]),
-    background,
-    [primary, secondary, accent, ...paletteColors],
+  const background = theme.background || "#F8F9FB";
+  const surface = theme.surface || "#FFFFFF";
+  const text = theme.text || "#1F2937";
+  const textSecondary = theme.textSecondary || "#6B7280";
+  const borderColor = theme.borderColor || "#D1D5DB";
+  const onPrimary = theme.onColors?.onPrimary || chooseOnColor(primary);
+  const onSecondary = theme.onColors?.onSecondary || chooseOnColor(secondary);
+  const onAccent = theme.onColors?.onAccent || chooseOnColor(accent);
+  const onSurface = theme.onColors?.onSurface || chooseOnColor(surface);
+  const onBackground = theme.onColors?.onBackground || chooseOnColor(background);
+  const buttonBg = ensureAccessibleBackground(primary, onPrimary);
+  const buttonText = chooseOnColor(buttonBg);
+  const buttonHoverBg = ensureAccessibleBackground(
+    adjustLightness(buttonBg, getBrightness(buttonBg) > 150 ? -8 : 8),
+    buttonText,
   );
-  const sectionBody = keepPaletteCharacter(
-    pickReadableColor(background, mixHex(sectionHeading, background, 0.2), [surfaceText, text, primary]),
-    background,
-    [primary, secondary, accent, ...paletteColors],
-  );
-  const sectionMuted = keepPaletteCharacter(
-    pickReadableColor(background, mixHex(sectionBody, background, 0.28), [mutedText, sectionBody, text]),
-    background,
-    [primary, secondary, accent, ...paletteColors],
-  );
-  const lightSurface = getBrightness(background) > 150
-    ? deriveSurfaceTone(background, "#ffffff", 0.45)
-    : deriveSurfaceTone(secondary, "#ffffff", 0.72);
+  const buttonHoverText = chooseOnColor(buttonHoverBg);
+  const accentSoft = deriveSurfaceTone(accent, "#FFFFFF", 0.82);
+  const navSurface = surface;
+  const finalNavHeroText = onSurface;
+  const finalNavScrolledText = onSurface;
+  const sectionHeading = text;
+  const sectionBody = textSecondary;
+  const sectionMuted = textSecondary;
+  const lightSurface = surface;
 
   root.style.setProperty("--primary-color", primary);
   root.style.setProperty("--secondary-color", secondary);
@@ -637,15 +719,18 @@ export function applyThemeColors(data) {
   root.style.setProperty("--accent-light", adjustLightness(accent, 15));
   root.style.setProperty("--accent-dark", adjustLightness(accent, -15));
 
-  root.style.setProperty("--text-on-primary", getContrastColor(primary));
-  root.style.setProperty("--text-on-accent", getContrastColor(accent));
+  root.style.setProperty("--text-on-primary", onPrimary);
+  root.style.setProperty("--text-on-secondary", onSecondary);
+  root.style.setProperty("--text-on-accent", onAccent);
+  root.style.setProperty("--text-on-surface", onSurface);
+  root.style.setProperty("--text-on-background", onBackground);
   root.style.setProperty("--border", borderColor);
   root.style.setProperty("--hover-background", buttonHoverBg);
   root.style.setProperty("--hover-text-color", buttonHoverText);
   root.style.setProperty("--secondary-background", background);
   root.style.setProperty("--surface-color", surface);
-  root.style.setProperty("--surface-text-color", surfaceText);
-  root.style.setProperty("--muted-text-color", mutedText);
+  root.style.setProperty("--surface-text-color", text);
+  root.style.setProperty("--muted-text-color", textSecondary);
   root.style.setProperty("--theme-button-bg", buttonBg);
   root.style.setProperty("--theme-button-text", buttonText);
   root.style.setProperty("--theme-button-hover-bg", buttonHoverBg);
@@ -882,3 +967,4 @@ export async function renderEcommerceTemplatePage({ root, siteSlug, page, passMo
   const payload = passMode === "raw" ? siteData : { siteSlug, siteData };
   Page.call({ root }, payload);
 }
+  

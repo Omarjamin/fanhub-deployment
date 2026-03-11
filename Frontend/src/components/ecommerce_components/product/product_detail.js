@@ -41,7 +41,6 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     root.innerHTML = `
       <section class="product-detail">
         <button id="product-back-to-shop" class="product-detail-back-btn" type="button" aria-label="Back to shop">
-          <span class="product-detail-back-arrow" aria-hidden="true"></span>
           <span class="product-detail-back-label">Back to shop</span>
         </button>
         <div class="product-detail-grid">
@@ -49,11 +48,11 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
             <img src="${img}" alt="${product.name || ''}" class="product-detail-img" />
           </div>
           <div class="product-meta">
-            <h2>${product.name || ''}</h2>
-            <p class="product-price">PHP ${product.price || selectedVariant?.price || ''}</p>
-            <p class="product-desc">${product.description || ''}</p>
+            <h1 class="product-title">${product.name || ''}</h1>
+            <p class="product-price">₱${product.price || selectedVariant?.price || ''}.00 PHP</p>
+            <p class="product-shipping-note"><span>Shipping</span> calculated at checkout.</p>
 
-            <h4>Variants</h4>
+            <h4 class="product-option-title">Size</h4>
             <div class="variant-options">
               ${variants
                 .map(
@@ -61,8 +60,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
                 <button class="variant-option ${idx === 0 ? 'active' : ''}" data-variant-id="${
                     v.product_variant_id || v.id || idx
                   }">
-                  ${v.name || v.variant_values || 'Variant'}<br/>
-                  <small>PHP ${v.price || product.price} | Stock: ${v.stock || 0} | ${resolveVariantWeight(v)}g</small>
+                  ${v.name || v.variant_values || 'Variant'}
                 </button>
               `
                 )
@@ -70,14 +68,19 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
             </div>
 
             <div class="cart-controls">
-              <label>Quantity:</label>
-              <input type="number" id="qty-input" value="1" min="1" max="999" class="qty-input" />
+              <label class="product-option-title" for="qty-input">Quantity <span>(1 in cart)</span></label>
+              <div class="qty-stepper">
+                <button type="button" class="qty-step-btn" id="qty-decrease" aria-label="Decrease quantity">−</button>
+                <input type="text" id="qty-input" value="1" inputmode="numeric" pattern="[0-9]*" class="qty-input" />
+                <button type="button" class="qty-step-btn" id="qty-increase" aria-label="Increase quantity">+</button>
+              </div>
             </div>
 
             <div class="button-group">
               <button class="btn-primary" id="add-to-cart-btn">Add to Cart</button>
-              <button class="btn-secondary" id="buy-now-btn">Buy Now</button>
             </div>
+
+            <p class="product-desc">${product.description || ''}</p>
           </div>
         </div>
       </section>
@@ -97,6 +100,26 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
 
     const addBtn = root.querySelector('#add-to-cart-btn');
     const qtyInput = root.querySelector('#qty-input');
+    const decreaseBtn = root.querySelector('#qty-decrease');
+    const increaseBtn = root.querySelector('#qty-increase');
+
+    function clampQty(value) {
+      const digitsOnly = String(value || '').replace(/[^\d]/g, '');
+      const parsed = parseInt(digitsOnly, 10) || 1;
+      return Math.min(999, Math.max(1, parsed));
+    }
+
+    decreaseBtn?.addEventListener('click', () => {
+      qtyInput.value = String(clampQty((parseInt(qtyInput.value, 10) || 1) - 1));
+    });
+
+    increaseBtn?.addEventListener('click', () => {
+      qtyInput.value = String(clampQty((parseInt(qtyInput.value, 10) || 1) + 1));
+    });
+
+    qtyInput?.addEventListener('change', () => {
+      qtyInput.value = String(clampQty(qtyInput.value));
+    });
 
     addBtn?.addEventListener('click', async () => {
       const qty = parseInt(qtyInput.value, 10) || 1;
@@ -117,78 +140,6 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
         const result = await addToCart(variantId, qty);
         if (result.success) {
           showToast(`Added to cart: ${product.name} x${qty}`, 'success');
-        } else {
-          showToast(`Failed to add to cart: ${result.message || 'Unknown error'}`, 'error');
-        }
-      } catch (error) {
-        showToast(`Error adding to cart: ${error.message}`, 'error');
-      }
-    });
-
-    const buyBtn = root.querySelector('#buy-now-btn');
-    buyBtn?.addEventListener('click', async () => {
-      const qty = parseInt(qtyInput.value, 10) || 1;
-      const variant = selectedVariant || variants[0];
-
-      if (!variant) {
-        showToast('Please select a variant', 'error');
-        return;
-      }
-//s
-      // For simplicity, we add to cart first, then redirect to checkout. In a real app, you might want a more seamless "Buy Now" flow.
-      const variantId = variant.product_variant_id || variant.id || variant.variant_id;
-      if (!variantId) {
-        showToast('Invalid variant selected', 'error');
-        return;
-      }
-
-      const availableStock = resolveVariantStock(variant);
-      if (availableStock > 0 && qty > availableStock) {
-        showToast(`Only ${availableStock} item(s) available for this variant`, 'warning');
-        return;
-      }
-
-      try {
-        const result = await addToCart(variantId, qty);
-        if (result.success) {
-          const price = Number(variant.price || product.price || 0);
-          const totalWeightGrams = resolveVariantWeight(variant) * qty;
-          const checkoutItems = [
-            {
-              variant_id: variantId,
-              product_variant_id: variantId,
-              product_id: product.product_id || product.id || null,
-              product_name: product.name || '',
-              variant_name: variant.name || variant.variant_values || 'Variant',
-              image_url:
-                product.img_url ||
-                product.image_url ||
-                product.image ||
-                (Array.isArray(product.images) && product.images[0]) ||
-                '',
-              price,
-              quantity: qty,
-              stock: availableStock,
-              weight_g: resolveVariantWeight(variant),
-            },
-          ];
-
-          sessionStorage.removeItem('selectedCartItems');
-          sessionStorage.setItem('checkoutStep', '1');
-          sessionStorage.setItem('checkoutItems', JSON.stringify(checkoutItems));
-          sessionStorage.setItem(
-            'checkoutSummary',
-            JSON.stringify({
-              subtotal: price * qty,
-              shipping_fee: 0,
-              total: price * qty,
-              total_weight_grams: totalWeightGrams,
-            }),
-          );
-          sessionStorage.setItem('checkoutWeightGrams', String(totalWeightGrams));
-          const checkoutPath = communityType ? `/fanhub/${communityType}/checkout` : '/checkout';
-          history.pushState({ page: 'checkout' }, '', checkoutPath);
-          window.dispatchEvent(new PopStateEvent('popstate'));
         } else {
           showToast(`Failed to add to cart: ${result.message || 'Unknown error'}`, 'error');
         }

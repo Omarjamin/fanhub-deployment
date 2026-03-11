@@ -1,3 +1,4 @@
+
 import { getCart, updateCartItem, removeFromCart } from '../cart/cart.js';
 import '../../../styles/ecommerce_styles/cart.css';
 
@@ -81,8 +82,7 @@ async function loadCartItems(modal) {
             const variantLabel = item.variant_values || item.variant_name || item.size || 'Default';
             const qty = parseInt(item.quantity, 10) || 1;
             const itemWeight = resolveItemWeightGrams(item);
-            const itemTotalWeight = itemWeight * qty;
-
+            const showSubtotal = qty > 1;
             // Handle image URL
             let imageSrc = item.image_url || '/placeholder.png';
             if (imageSrc.startsWith('/') && API_ORIGIN) {
@@ -100,31 +100,30 @@ async function loadCartItems(modal) {
                            ${isSelected ? 'checked' : ''}>
                 </div>
                 <div class="item-info">
-                    <div class="item-main">
-                        <div class="item-media">
-                            <img src="${imageSrc}" alt="${productName}" class="item-image" onerror="this.src='/placeholder.png'">
+                    <div class="item-media">
+                        <img src="${imageSrc}" alt="${productName}" class="item-image" onerror="this.src='/placeholder.png'">
+                    </div>
+                    <div class="item-body">
+                        <div class="item-topline">
+                            <div class="item-details">
+                                <h4 class="item-name">${productName}</h4>
+                                <p class="item-variant"><strong>${variantLabel}</strong></p>
+                                <p class="item-weight">${itemWeight.toLocaleString()}g each</p>
+                            </div>
+                            <div class="item-pricing">
+                                <p class="item-price">PHP ${price.toFixed(2)}</p>
+                                ${showSubtotal ? `<div class="item-subtotal">PHP ${itemTotal.toFixed(2)}</div>` : ''}
+                            </div>
                         </div>
-                        <div class="item-details">
-                            <h4 class="item-name">${productName}</h4>
-                            <p class="item-variant">Size/Variant: <strong>${variantLabel}</strong></p>
-                            <p class="item-weight">Weight: ${itemWeight.toLocaleString()}g each</p>
+                        <div class="item-controls">
+                            <div class="quantity-controls">
+                                <button class="qty-btn minus" data-variant-id="${item.variant_id}">-</button>
+                                <span class="quantity">${qty}</span>
+                                <button class="qty-btn plus" data-variant-id="${item.variant_id}">+</button>
+                            </div>
+                            <button class="remove-btn" data-variant-id="${item.variant_id}">Remove</button>
                         </div>
                     </div>
-                    <div class="item-side">
-                        <p class="item-side-label">Unit</p>
-                        <p class="item-price">PHP ${price.toFixed(2)}</p>
-                        <p class="item-side-label">Qty</p>
-                        <p class="item-side-qty">${qty}</p>
-                    </div>
-                </div>
-                <div class="item-controls">
-                    <div class="quantity-controls">
-                        <button class="qty-btn minus" data-variant-id="${item.variant_id}">-</button>
-                        <span class="quantity">${qty}</span>
-                        <button class="qty-btn plus" data-variant-id="${item.variant_id}">+</button>
-                    </div>
-                    <div class="item-subtotal">Subtotal: PHP ${itemTotal.toFixed(2)}</div>
-                    <button class="remove-btn" data-variant-id="${item.variant_id}">Remove</button>
                 </div>
             `;
 

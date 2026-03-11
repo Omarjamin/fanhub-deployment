@@ -15,7 +15,10 @@
   --theme-line-height: var(--theme-line-height, 1.6);
   --theme-letter-spacing: var(--theme-letter-spacing, 0.02em);
   --text-on-primary: var(--text-on-primary, #ffffff);
+  --text-on-secondary: var(--text-on-secondary, #111111);
   --text-on-accent: var(--text-on-accent, #ffffff);
+  --text-on-surface: var(--text-on-surface, #111111);
+  --text-on-background: var(--text-on-background, #111111);
   --theme-button-bg: var(--theme-button-bg, var(--accent-color));
   --theme-button-text: var(--theme-button-text, var(--text-on-accent));
   --theme-button-hover-bg: var(--theme-button-hover-bg, var(--hover-background));

@@ -1,3 +1,4 @@
+
 import { api } from '../../../services/ecommerce_services/config.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
 import '../../../styles/ecommerce_styles/order_history.css';
@@ -26,7 +27,8 @@ export default function OrderHistory() {
         <div class="order-history-header">
           <div class="header-title">
             <button class="btn-link" id="back-to-shop" onclick="window.location.href='${homePath}'">
-              <span class="back-arrow" aria-hidden="false"></span>
+              <span class="order-history-back-arrow" aria-hidden="true">←</span>
+              <span class="order-history-back-label">Back to home</span>
             </button>
             <h1>Order History</h1>
           </div>

@@ -12,9 +12,11 @@
 }
 
 .header-title {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: center;
+  min-height: 44px;
 }
 
 .header-title h1 {
@@ -22,27 +24,57 @@
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: 0.2px;
+  text-align: center;
 }
 
-.btn-link {
-  width: 36px;
-  height: 36px;
-  border: 1px solid #d1d5db;
-  border-radius: 10px;
-  background: #fff;
+.order-history-container .btn-link {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: auto !important;
+  min-width: 0 !important;
+  min-height: 36px;
+  border: 1px solid #d1d5db !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  color: #111827 !important;
+  box-shadow: none !important;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 0 12px;
+  white-space: nowrap;
+  transition: none !important;
 }
 
-.back-arrow {
-  width: 10px;
-  height: 10px;
-  border-left: 2px solid #374151;
-  border-bottom: 2px solid #374151;
-  transform: rotate(45deg);
-  margin-left: 3px;
+.order-history-container .btn-link:hover,
+.order-history-container .btn-link:focus,
+.order-history-container .btn-link:focus-visible {
+  background: #ffffff !important;
+  color: #111827 !important;
+  border-color: #d1d5db !important;
+  box-shadow: none !important;
+  transform: translateY(-50%) !important;
+  outline: none !important;
+}
+
+.order-history-back-arrow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #111827;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.order-history-back-label {
+  color: #111827;
+  font-size: 0.9rem;
+  line-height: 1;
+  font-weight: 500;
 }
 
 .order-stats {
@@ -101,7 +133,33 @@
   padding: 0 12px;
   font-size: 0.88rem;
   color: #111827;
-  background: #fff;
+  background: #ffffff !important;
+  box-shadow: none !important;
+}
+
+.search-input {
+  color: #111827 !important;
+  border-color: #cbd5e1 !important;
+}
+
+.search-input::placeholder {
+  color: #6b7280;
+  opacity: 1;
+}
+
+.date-range-select,
+.status-select {
+  color: #111827 !important;
+  border-color: #cbd5e1 !important;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  background-color: #ffffff !important;
+  background-image: linear-gradient(45deg, transparent 50%, #111827 50%), linear-gradient(135deg, #111827 50%, transparent 50%);
+  background-position: calc(100% - 18px) calc(50% - 3px), calc(100% - 13px) calc(50% - 3px);
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
 }
 
 .search-input:focus,
@@ -110,6 +168,7 @@
 .date-input:focus {
   outline: 2px solid #dbeafe;
   border-color: #60a5fa;
+  box-shadow: none !important;
 }
 
 .custom-date-range {
@@ -251,7 +310,7 @@
   font-weight: 700;
 }
 
-.btn {
+.order-history-container .btn {
   border: 1px solid #d1d5db;
   background: #fff;
   color: #111827;
@@ -260,24 +319,44 @@
   font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
+  box-shadow: none !important;
 }
 
-.btn:hover {
+.order-history-container .btn:hover {
   background: #f9fafb;
 }
 
-.btn-primary {
-  background: #2563eb;
-  border-color: #2563eb;
-  color: #fff;
+.order-history-container .btn-primary {
+  background: #111111 !important;
+  border-color: #111111 !important;
+  color: #ffffff !important;
 }
 
-.btn-primary:hover {
-  background: #1d4ed8;
+.order-history-container .btn-primary:hover {
+  background: #111111 !important;
+  border-color: #111111 !important;
+  color: #ffffff !important;
 }
 
-.btn-outline {
-  background: #fff;
+.order-history-container .btn-outline {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  color: #111111 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+.order-history-container .btn-outline:hover,
+.order-history-container .btn-outline:focus,
+.order-history-container .btn-outline:focus-visible {
+  background: transparent !important;
+  color: #111111 !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  transform: none !important;
+  outline: none !important;
 }
 
 .btn-sm {
