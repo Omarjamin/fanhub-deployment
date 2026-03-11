@@ -1219,6 +1219,11 @@ class GenerateModel {
   async getTemplateModel() {
     try {
       if (!this.db) await this.connectAdmin();
+      const builtInTemplates = [
+        { template_id: 1, template_name: 'Bini Template', template_key: 'bini' },
+        { template_id: 2, template_name: 'Modern Template', template_key: 'modern' },
+        { template_id: 3, template_name: 'Minimal Template', template_key: 'minimal' },
+      ];
 
       const hasTemplates = await this.hasTable('templates');
       if (hasTemplates) {
@@ -1238,33 +1243,40 @@ class GenerateModel {
           : templateCols.has('name')
             ? 't.name AS template_name'
             : '\'Default Template\' AS template_name';
+        const keyExpr = templateCols.has('template_key')
+          ? 't.template_key AS template_key'
+          : templateCols.has('key')
+            ? 't.key AS template_key'
+            : 'NULL AS template_key';
 
         const simpleQuery = `
-          SELECT ${idExpr}, ${nameExpr}
+          SELECT ${idExpr}, ${nameExpr}, ${keyExpr}
           FROM templates t
           ORDER BY template_name ASC
         `;
         const [templateRows] = await this.db.query(simpleQuery);
         if (Array.isArray(templateRows) && templateRows.length > 0) {
-          return templateRows;
+          const normalizedRows = templateRows.map((row, index) => ({
+            template_id: Number(row?.template_id || index + 100),
+            template_name: String(row?.template_name || `Template ${index + 1}`).trim(),
+            template_key: String(row?.template_key || row?.template_name || `template-${index + 1}`)
+              .trim()
+              .toLowerCase()
+              .replace(/[_\s]+/g, '-'),
+          }));
+
+          const byKey = new Map();
+          [...builtInTemplates, ...normalizedRows].forEach((template) => {
+            const key = String(template?.template_key || '').trim().toLowerCase();
+            if (!key) return;
+            byKey.set(key, template);
+          });
+
+          return Array.from(byKey.values());
         }
       }
 
-      const hasSites = await this.hasTable('sites');
-      if (hasSites) {
-        const [siteRows] = await this.db.query(`
-          SELECT
-            site_id AS template_id,
-            CONCAT(site_name, ' Template') AS template_name
-          FROM sites
-          ORDER BY site_name ASC
-        `);
-        if (Array.isArray(siteRows) && siteRows.length > 0) {
-          return siteRows;
-        }
-      }
-
-      return [{ template_id: 1, template_name: 'Default Template' }];
+      return builtInTemplates;
     } catch (err) {
       console.error('Get site names error:', err);
       throw new Error('Failed to fetch site names');

@@ -298,7 +298,7 @@ export default function GenerateWebsite() {
         const data = res.data?.data || []; 
       // Map backend template shape to what this component expects
         templates = Array.isArray(data) ? data.map((t, idx) => ({
-          id: t._id || t.id || idx + 1,
+          id: t.template_id || t._id || t.id || idx + 1,
           name: t.template_name || `Template ${idx + 1}`,
           key: toTemplateKey(t.template_key || t.template_name || t.name || `template-${idx + 1}`),
         })) : [];
