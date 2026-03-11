@@ -1,11 +1,11 @@
 
 /* Shared sizing tokens */
 :root {
-  --bini-nav-width: clamp(120px, 11vw, 150px);
-  --bini-nav-logo-size: clamp(56px, 5vw, 72px);
-  --bini-nav-icon-size: clamp(26px, 2.3vw, 34px);
-  --bini-nav-gap: clamp(8px, 1.2vh, 14px);
-  --bini-nav-padding-y: clamp(10px, 1.8vh, 18px);
+  --bini-nav-width: clamp(160px, 14vw, 210px);
+  --bini-nav-logo-size: clamp(64px, 5.5vw, 84px);
+  --bini-nav-icon-size: clamp(30px, 2.6vw, 40px);
+  --bini-nav-gap: clamp(10px, 1.4vh, 16px);
+  --bini-nav-padding-y: clamp(12px, 2.1vh, 22px);
   --bini-nav-bg-start: var(--primary-light, #ADD8E6);
   --bini-nav-bg-end: var(--secondary-background, #FFB6C1);
   --bini-nav-text: var(--primary-color, #000000);
@@ -18,7 +18,7 @@
 .whats-new-bar {
   width: 700px;
   max-width: 95%;
-  margin: 1rem auto 2rem 9rem;
+  margin: 1rem auto 2rem calc(var(--bini-left-nav-width, 150px) + 12px);
   background: var(--secondary-background) !important;
   border-radius: 20px;
   padding: 20px;
@@ -790,7 +790,7 @@
 }
 
 /* Threads FAB + Bottom Sheet trigger (replaces pseudo hamburger) */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .whats-new-bar::before {
     content: none !important;
     display: none !important;
@@ -838,11 +838,11 @@
   .threads-sheet-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.36);
+    background: rgba(15, 23, 42, 0.12);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
-    z-index: 2090;
+    z-index: 1000;
     transition: opacity 0.22s ease, visibility 0.22s ease;
   }
 
@@ -851,9 +851,49 @@
     visibility: visible;
     pointer-events: auto;
   }
+
+  /* Hide FAB while threads panel is open */
+  body.threads-sheet-open .threads-fab,
+  body:has(.homepage-right.events-visible) .threads-fab {
+    display: none !important;
+    opacity: 0 !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    transform: scale(0.96) !important;
+  }
 }
 
-@media (min-width: 769px) {
+/* Hide Threads FAB while viewing a thread topic */
+body:has(.thread-topic-container) .threads-fab {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
+
+/* Tablet fix: avoid backdrop stealing clicks from threads panel */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .threads-sheet-backdrop {
+    z-index: 900 !important;
+  }
+
+  body.threads-sheet-open .threads-sheet-backdrop {
+    pointer-events: none !important;
+  }
+}
+
+/* Mobile fix: avoid backdrop blocking thread item clicks */
+@media (max-width: 768px) {
+  .threads-sheet-backdrop {
+    z-index: 900 !important;
+  }
+
+  body.threads-sheet-open .threads-sheet-backdrop {
+    pointer-events: none !important;
+  }
+}
+
+@media (min-width: 1025px) {
   .threads-fab,
   .threads-sheet-backdrop {
     display: none !important;
@@ -961,6 +1001,24 @@
   }
 }
 
+/* Tablet (769-1024px): match 768px layout (full-width composer, no left offset) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .whats-new-bar {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0.625rem auto 0.875rem !important;
+    padding: 10px !important;
+    border-radius: 16px !important;
+    box-sizing: border-box !important;
+  }
+
+  body:has(.homepage-container) #head {
+    margin-left: 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
 @media (max-width: 480px) {
   .whats-new-bar {
     max-width: calc(100vw - 12px) !important;
@@ -983,6 +1041,20 @@
     grid-area: post !important;
     justify-self: end !important;
     min-width: 82px !important;
+  }
+}
+
+/* Extra small phones (<=425px): shrink "What's new?" text */
+@media (max-width: 425px) {
+  .post-textarea {
+    font-size: 12.5px !important;
+    line-height: 1.25 !important;
+    padding: 8px 10px !important;
+    min-height: 40px !important;
+  }
+
+  .post-textarea::placeholder {
+    font-size: 12.5px !important;
   }
 }
 
@@ -1257,9 +1329,26 @@ body:has(.homepage-container) #head .image-icon::before {
 
 @media (min-width: 769px) and (max-width: 1024px) {
   body:has(.homepage-container) #head .whats-new-bar {
-    width: auto !important;
+    width: min(100%, 960px) !important;
     max-width: none !important;
-    margin: 0.75rem calc(var(--bini-tablet-right-panel-width, clamp(248px, 30vw, 300px)) + 12px) 0.875rem 8px !important;
+    margin: 12px auto 18px !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* ===== Final: Tablet/Mobile header aligns flush with feed (no left offset) ===== */
+@media (max-width: 1024px) {
+  body:has(.homepage-container) #head {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 0 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  body:has(.homepage-container) #head .whats-new-bar {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0.625rem 0 0.875rem !important;
     box-sizing: border-box !important;
   }
 }

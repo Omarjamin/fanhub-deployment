@@ -7,7 +7,7 @@
 }
 
 .profile-container {
-  background-color: #D9D9D9;
+  background-color: #ffffff;
   border-radius: 20px;
   padding: 40px;
   box-shadow: 0 20px 60px 0 rgba(235, 76, 187, 0.28), 0 12px 40px rgba(0,0,0,0.18);
@@ -268,6 +268,22 @@
   margin-top: 15px;
 }
 
+/* Align 3-dot menu to the top-right corner of the post card header */
+.post-meta1 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.post-time {
+  margin-left: auto;
+}
+
+.post-menu-container {
+  margin-left: 0.5rem;
+}
+
 .post-action {
   background: #f8f9fa;
   border: none;
@@ -287,6 +303,79 @@
 
 .post-action.liked {
   color: #fff;
+}
+
+/* Post 3-dot menu (profile page) */
+.post-menu-container {
+  position: relative;
+  margin-left: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.post-menu-btn {
+  border: none;
+  background: #f8fafc;
+  color: #475569;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.post-menu-btn:hover {
+  background: #eef2f7;
+  color: #111827;
+}
+
+.post-report-dropdown {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+  z-index: 35;
+  display: none;
+}
+
+.post-report-dropdown.open {
+  display: block;
+}
+
+.report-post-option {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #1f2937;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.report-post-option:hover {
+  background: #f3f4f6;
+}
+
+@media (max-width: 640px) {
+  .post-report-dropdown {
+    right: 0;
+    left: auto;
+    min-width: 200px;
+    max-width: min(78vw, 320px);
+  }
+
+  .post-menu-btn {
+    width: 30px;
+    height: 30px;
+  }
 }
 
 /* Responsive Design */
@@ -380,4 +469,64 @@
     margin: 0;
     font-size: 0.85rem;
   }
+}
+
+/* Edit/Report post modal styles for profile page */
+.search-post-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 20, 30, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 12000;
+  padding: 20px;
+}
+
+.search-post-modal.open {
+  display: flex;
+}
+
+.search-post-modal-dialog {
+  width: min(720px, 94vw);
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.26);
+  border: 1px solid rgba(57, 189, 254, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.search-post-modal-header {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e6edf5;
+  background: #f8fbff;
+}
+
+.search-post-modal-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #223;
+}
+
+.search-post-modal-close {
+  border: none;
+  background: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.search-post-modal-body {
+  padding: 16px;
+  overflow-y: auto;
 }

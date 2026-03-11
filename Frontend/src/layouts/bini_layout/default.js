@@ -1,4 +1,5 @@
 import '../../styles/bini_styles/community-footer.css';
+import '../../styles/bini_styles/layout-template.css';
 
 function resolveTemplateKey(data = {}) {
   const rawValue = String(
@@ -62,29 +63,10 @@ export default function Layout(root, data = {}) {
         <main id="main"></main>
         <footer id="footer">
           <div class="community-footer fh-footer">
-            <div class="community-footer-grid fh-footer-grid">
-              <section>
-                <h4>Pages</h4>
-                <a href="${communityHomePath}">Home</a>
-                <a href="${communitySearchPath}">Search</a>
-                <a href="${communityNotifPath}">Notifications</a>
-              </section>
-              <section>
-                <h4>Shop</h4>
-                <a href="${shopPath}">Shop</a>
-              </section>
-              <section>
-                <h4>Community</h4>
-                <a href="${communityHomePath}">Community Home</a>
-                <a href="${communityProfilePath}">Profile</a>
-              </section>
-              <section>
-                <h4>About</h4>
-                <a href="${aboutPath}">About</a>
-                <p>For educational purposes only.</p>
-              </section>
+            <div class="community-footer-center">
+              <p>For educational purposes only.</p>
+              <p>&copy; 2026 Bini FanHub. Educational Purposes Only.</p>
             </div>
-            <p class="fh-footer-copy">&copy; 2026 ${siteLabel} FanHub. Educational Purposes Only.</p>
           </div>
         </footer>
       </div>

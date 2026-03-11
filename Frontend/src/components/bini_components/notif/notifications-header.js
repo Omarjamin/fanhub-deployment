@@ -1,3 +1,5 @@
+import setupThreadsFab from "../threads-fab.js";
+
 export default function NotifHeader(root) {
   root.innerHTML = `
       <div class="notif-header">
@@ -5,4 +7,6 @@ export default function NotifHeader(root) {
       </div>
   
   `;
+
+  setupThreadsFab();
 }

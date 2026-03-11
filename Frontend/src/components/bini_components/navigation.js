@@ -91,7 +91,7 @@ export default function Navigation(root, data = {}) {
   }
 
   const syncCommunityLayoutClass = () => {
-    const isDesktopSideNav = window.matchMedia("(min-width: 769px)").matches;
+    const isDesktopSideNav = window.matchMedia("(min-width: 1025px)").matches;
     document.body.classList.toggle("has-community-side-nav", isDesktopSideNav);
   };
   syncCommunityLayoutClass();
@@ -114,21 +114,27 @@ export default function Navigation(root, data = {}) {
       <div class="nav-links">
         <a href="${homePath}" id="homecon" class="nav-item">
           <img src="/home-heart.png" alt="Home" class="nav-icon" onerror="this.style.display='none';">
+          <span class="nav-text">Home</span>
         </a>
         <a href="${searchPath}" class="nav-item" id="searchcon">
           <img src="/search-heart.png" alt="Search" class="nav-icon" onerror="this.style.display='none';">
+          <span class="nav-text">Search</span>
         </a>
         <a href="#" class="nav-item" id="newPostNavBtn">
           <img src="/messenger.png" alt="Messages" class="nav-icon" onerror="this.style.display='none';">
+          <span class="nav-text">Messages</span>
         </a>
         <a href="${notificationsPath}" class="nav-item" id="notifcon">
           <img src="/circle-heart.png" alt="Notifications" class="nav-icon" onerror="this.style.display='none';">
+          <span class="nav-text">Notifications</span>
         </a>
         <a href="${profilePath}" class="nav-item" id="profilecon">
           <img src="/circle-user.png" alt="Profile" class="nav-icon" onerror="this.style.display='none';">
+          <span class="nav-text">Profile</span>
         </a>
         <a href="${backPath}" class="nav-item" id="backBtn">
           <img src="/box-arrow-left.svg" alt="Back to Shop" class="nav-icon" onerror="this.style.display='none';">
+          <span class="nav-text">Back</span>
         </a>
       </div>
     </nav>

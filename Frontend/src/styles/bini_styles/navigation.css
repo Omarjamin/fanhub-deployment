@@ -1,6 +1,6 @@
 /* Shared sizing tokens */
 :root {
-  --bini-nav-width: clamp(120px, 11vw, 150px);
+  --bini-nav-width: clamp(240px, 22vw, 320px);
   --bini-nav-logo-size: clamp(56px, 5vw, 72px);
   --bini-nav-icon-size: clamp(26px, 2.3vw, 34px);
   --bini-nav-gap: clamp(8px, 1.2vh, 14px);
@@ -81,8 +81,12 @@
 .bottom-nav-search a {
   margin: 1rem 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
+  justify-content: flex-start;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.45rem 1rem;
   color: var(--bini-nav-text);
   text-decoration: none;
 }
@@ -115,7 +119,7 @@
 .nav-links {
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
   flex: 1;
   justify-content: center;
   gap: var(--bini-nav-gap);
@@ -129,6 +133,16 @@
   height: var(--bini-nav-icon-size);
   object-fit: contain;
   margin: 0;
+}
+
+.nav-text {
+  font-size: 0.92rem;
+  font-weight: 600;
+  color: var(--bini-nav-text);
+  letter-spacing: 0.01em;
+  white-space: normal;
+  line-height: 1.15;
+  word-break: break-word;
 }
 
 .nav-logout {
@@ -172,6 +186,7 @@
   .bottom-nav a,
   .bottom-nav-search a {
     margin: 0.8vh 0;
+    padding: 0.4rem 0.9rem;
   }
   
   .nav-logout {
@@ -180,7 +195,7 @@
 }
 
 /* Tablet Styles (768px and below) */
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   .bottom-nav,
   .bottom-nav-search {
     position: fixed;
@@ -189,13 +204,13 @@
     top: auto;
     width: 100%;
     height: auto;
-    min-height: 60px;
+    min-height: 72px;
     background: linear-gradient(to bottom, var(--bini-nav-bg-start), var(--bini-nav-bg-end));
     display: flex;
     flex-direction: row;
     justify-content: space-around;
     align-items: center;
-    padding: 0.5rem 1rem;
+    padding: 0.75rem 1.25rem;
     z-index: 100;
     box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
   }
@@ -232,6 +247,8 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 0;
+    padding: 0;
   }
   
   .nav-icon {
@@ -242,7 +259,7 @@
   
   /* Add padding to main content to account for bottom nav */
   #main {
-    padding-bottom: 80px;
+    padding-bottom: 96px;
   }
   
   .nav-text {
@@ -287,7 +304,7 @@
 }
 
 /* Keep back/logout item pinned at the bottom on desktop side nav */
-@media (min-width: 769px) {
+@media (min-width: 1025px) {
   .bottom-nav .nav-links,
   .bottom-nav-search .nav-links {
     display: flex;

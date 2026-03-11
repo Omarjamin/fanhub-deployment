@@ -58,7 +58,23 @@
   color: color-mix(in srgb, var(--primary-color, #4b5563) 76%, #ffffff 24%);
 }
 
-@media (min-width: 769px) {
+.community-footer-center {
+  max-width: var(--community-footer-content-max);
+  margin: 0 auto;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--primary-color, #1f2937);
+}
+
+.community-footer-center p {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+@media (min-width: 1025px) {
   body.has-community-side-nav #footer {
     margin-left: var(--community-side-nav-width);
     width: calc(100% - var(--community-side-nav-width));

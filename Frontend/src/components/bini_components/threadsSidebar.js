@@ -1,5 +1,6 @@
 import fetchThreads from "../../services/bini_services/thread/thread-api.js";
 import { formatUserTimestamp } from "../../utils/user-time.js";
+import { getActiveSiteSlug } from "../../lib/site-context.js";
 
 function formatThreadDate(value) {
   return formatUserTimestamp(value) || "No date";
@@ -44,7 +45,20 @@ export async function renderThreadsSidebar() {
         item.addEventListener("click", () => {
           const threadId = item.dataset.threadId;
           if (threadId) {
-            window.history.pushState({}, "", `/bini/thread/${threadId}`);
+            const pathParts = String(window.location.pathname || "")
+              .split("/")
+              .filter(Boolean);
+            const activeSlug = String(getActiveSiteSlug() || "").trim().toLowerCase();
+            const routeSlug =
+              pathParts[0] === "fanhub" &&
+              pathParts[1] === "community-platform" &&
+              pathParts[2]
+                ? pathParts[2]
+                : activeSlug;
+            const targetPath = routeSlug
+              ? `/fanhub/community-platform/${encodeURIComponent(routeSlug)}/thread/${threadId}`
+              : `/bini/thread/${threadId}`;
+            window.history.pushState({}, "", targetPath);
             window.dispatchEvent(new PopStateEvent("popstate"));
           }
         });
