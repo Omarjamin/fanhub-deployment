@@ -856,16 +856,90 @@ class GenerateModel {
 
       const site = await this.getWebsiteByCommunityType(normalizedCommunityType);
       if (!site) {
-        return [];
+        return await this.getWebsiteMembersByLookup(normalizedCommunityType);
       }
 
       if (Array.isArray(site?.members) && site.members.length > 0) {
         return site.members;
       }
 
-      return await this.getResolvedSiteMembersSafe(site);
+      const resolvedMembers = await this.getResolvedSiteMembersSafe(site);
+      if (Array.isArray(resolvedMembers) && resolvedMembers.length > 0) {
+        return resolvedMembers;
+      }
+
+      return await this.getWebsiteMembersByLookup(
+        normalizedCommunityType,
+        Number(site?.site_id || 0) || Number(site?.community_id || 0) || normalizedSiteId,
+      );
     } catch (err) {
       console.warn('Get website members fallback:', err?.message || err);
+      return [];
+    }
+  }
+
+  async getWebsiteMembersByLookup(communityType = '', preferredSiteId = null) {
+    try {
+      const siteCols = await this.getSiteColumns();
+      const lookupVariants = Array.from(new Set([
+        String(communityType || '').trim().toLowerCase(),
+        String(communityType || '').trim().toLowerCase().replace(/-website$/, ''),
+        String(communityType || '').trim()
+          ? `${String(communityType || '').trim().toLowerCase().replace(/-website$/, '')}-website`
+          : '',
+      ].filter(Boolean)));
+
+      const candidateIds = new Set();
+      if (Number(preferredSiteId || 0) > 0) {
+        candidateIds.add(Number(preferredSiteId));
+      }
+
+      const whereParts = [];
+      const params = [];
+      if (siteCols.has('domain')) {
+        whereParts.push(...lookupVariants.map(() => 'LOWER(TRIM(s.domain)) = ?'));
+        params.push(...lookupVariants);
+      }
+      if (siteCols.has('community_type')) {
+        whereParts.push(...lookupVariants.map(() => 'LOWER(TRIM(s.community_type)) = ?'));
+        params.push(...lookupVariants);
+      }
+      if (siteCols.has('site_name')) {
+        whereParts.push(...lookupVariants.map(() => 'LOWER(TRIM(s.site_name)) = ?'));
+        params.push(...lookupVariants);
+      }
+
+      if (whereParts.length > 0) {
+        try {
+          const [rows] = await this.db.query(
+            `
+              SELECT s.site_id, s.community_id, s.domain, s.community_type
+              FROM sites s
+              WHERE ${whereParts.join(' OR ')}
+              ORDER BY s.site_id DESC
+            `,
+            params,
+          );
+
+          (rows || []).forEach((row) => {
+            const siteId = Number(row?.site_id || 0);
+            const communityId = Number(row?.community_id || 0);
+            if (siteId > 0) candidateIds.add(siteId);
+            if (communityId > 0) candidateIds.add(communityId);
+          });
+        } catch (_) {}
+      }
+
+      for (const candidateId of candidateIds) {
+        const members = await this.getSiteMembersSafe(candidateId);
+        if (Array.isArray(members) && members.length > 0) {
+          return members;
+        }
+      }
+
+      return [];
+    } catch (err) {
+      console.warn('Get website members by lookup fallback:', err?.message || err);
       return [];
     }
   }
