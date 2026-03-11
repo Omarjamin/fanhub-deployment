@@ -7,9 +7,10 @@
 .ec-footer {
   margin-top: 20px;
   padding: 20px 14px 16px;
-  border-top: 1px solid rgba(31, 41, 55, 0.12);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(245, 247, 250, 0.98));
-  color: #1f2937;
+  border-top: 1px solid color-mix(in srgb, var(--primary-color, #1f2937) 12%, transparent);
+  background: var(--secondary-background, var(--secondary-color, #ffffff));
+  color: var(--theme-section-text, var(--primary-color, #1f2937));
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
 }
 
 .ec-footer-grid {
@@ -18,7 +19,9 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 20px;
-  align-items: start;
+  align-items: center;
+  justify-items: center;
+  text-align: center;
 }
 
 /* Global ecommerce styles add padding to all <section>; neutralize for footer columns */
@@ -32,24 +35,27 @@
   margin: 0 0 8px;
   font-size: 1.1rem;
   line-height: 1.2;
+  font-family: var(--theme-font-heading, var(--theme-font-body, var(--theme-font-family, Arial, sans-serif)));
+  color: var(--theme-section-heading, var(--surface-text-color, #111111));
 }
 
 .ec-footer-grid a,
 .ec-footer-grid p {
   display: block;
   margin: 0 0 8px;
-  color: #4b5563;
+  color: var(--theme-section-text, color-mix(in srgb, var(--primary-color, #1f2937) 74%, var(--secondary-color, #ffffff)));
   font-size: 0.94rem;
   line-height: 1.5;
   text-decoration: none;
+  text-align: center;
 }
 
 .ec-footer-brand {
-  max-width: 360px;
+  max-width: 560px;
 }
 
 .ec-footer-brand-note strong {
-  color: #111827;
+  color: var(--primary-color, #111827);
   text-transform: capitalize;
 }
 
@@ -62,9 +68,9 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   padding: 18px;
-  border: 1px solid rgba(31, 41, 55, 0.1);
+  border: 1px solid color-mix(in srgb, var(--primary-color, #1f2937) 10%, transparent);
   border-radius: 18px;
-  background: #ffffff;
+  background: var(--secondary-color, #ffffff);
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
 }
 
@@ -81,26 +87,26 @@
 .ec-footer-field label {
   font-size: 0.88rem;
   font-weight: 600;
-  color: #374151;
+  color: color-mix(in srgb, var(--primary-color, #1f2937) 85%, var(--secondary-color, #ffffff));
 }
 
 .ec-footer-field input,
 .ec-footer-field textarea {
   width: 100%;
-  border: 1px solid rgba(148, 163, 184, 0.55);
+  border: 1px solid color-mix(in srgb, var(--primary-color, #94a3b8) 28%, var(--secondary-color, #ffffff));
   border-radius: 12px;
   padding: 12px 14px;
   font: inherit;
-  color: #111827;
-  background: #f8fafc;
+  color: var(--primary-color, #111827);
+  background: color-mix(in srgb, var(--secondary-background, #f8fafc) 88%, var(--secondary-color, #ffffff));
   outline: none;
 }
 
 .ec-footer-field input:focus,
 .ec-footer-field textarea:focus {
-  border-color: #2563eb;
-  background: #ffffff;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+  border-color: var(--accent-color, #2563eb);
+  background: var(--secondary-color, #ffffff);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, #2563eb) 12%, transparent);
 }
 
 .ec-footer-field textarea {
@@ -114,8 +120,8 @@
   border: 0;
   border-radius: 999px;
   padding: 12px 20px;
-  background: #111827;
-  color: #ffffff;
+  background: var(--primary-color, #111827);
+  color: var(--text-on-primary, #ffffff);
   font: inherit;
   font-weight: 600;
   cursor: pointer;
@@ -124,7 +130,7 @@
 
 .ec-footer-submit:hover:not(:disabled) {
   transform: translateY(-1px);
-  background: #1f2937;
+  background: var(--hover-background, var(--accent-color, #1f2937));
 }
 
 .ec-footer-submit:disabled {
@@ -137,7 +143,8 @@
   max-width: 1040px;
   font-size: 0.8rem;
   line-height: 1.4;
-  color: #6b7280;
+  color: var(--theme-section-muted, color-mix(in srgb, var(--primary-color, #1f2937) 55%, var(--secondary-color, #ffffff)));
+  text-align: center;
 }
 
 @media (max-width: 480px) {
@@ -174,7 +181,7 @@
   }
 
   .ec-footer-grid {
-    grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: 18px;
   }
 }
@@ -185,7 +192,7 @@
   }
 
   .ec-footer-grid {
-    grid-template-columns: minmax(280px, 360px) minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: 24px;
   }
 }

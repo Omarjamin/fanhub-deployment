@@ -19,17 +19,40 @@ body:has(.ec-lead-image) main {
   box-shadow: none;
 }
 
+.navbar.ec-hero-nav .logo,
+.navbar.ec-hero-nav nav a,
+.navbar.ec-hero-nav .nav-right a,
+.navbar.ec-hero-nav .menu-toggle {
+  color: #ffffff !important;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.28);
+}
+
 .navbar.ec-hero-nav nav a,
 .navbar.ec-hero-nav .nav-right a,
 .navbar.ec-hero-nav .menu-toggle {
   background: transparent;
   border-color: transparent;
+  box-shadow: none !important;
+}
+
+.navbar.ec-hero-nav nav a::before,
+.navbar.ec-hero-nav .nav-right a::before,
+.navbar.ec-hero-nav .menu-toggle::before {
+  display: none !important;
 }
 
 .navbar.ec-hero-nav.scrolled {
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--theme-nav-bg);
   backdrop-filter: blur(10px);
   box-shadow: 0 clamp(2px, 0.5vw, 4px) clamp(4px, 1vw, 6px) rgba(0, 0, 0, 0.1);
+}
+
+.navbar.ec-hero-nav.scrolled .logo,
+.navbar.ec-hero-nav.scrolled nav a,
+.navbar.ec-hero-nav.scrolled .nav-right a,
+.navbar.ec-hero-nav.scrolled .menu-toggle {
+  color: #ffffff !important;
+  text-shadow: none;
 }
 
 .navbar {
@@ -37,7 +60,7 @@ body:has(.ec-lead-image) main {
   top: 0;
   left: 0;
   width: 100%;
-  background: #ffffff;
+  background: var(--theme-nav-bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -51,8 +74,9 @@ body:has(.ec-lead-image) main {
 .navbar .logo {
   font-size: clamp(1.25rem, 3vw, 1.8rem);
   font-weight: bold;
-  color: #ff70b8;
+  color: var(--theme-nav-text, var(--primary-color, #111111));
   text-decoration: none;
+  font-family: var(--theme-font-heading, var(--theme-font-body, var(--theme-font-family, Arial, sans-serif)));
   display: flex;
   align-items: center;
   gap: clamp(0.5rem, 1.5vw, 0.75rem);
@@ -76,44 +100,48 @@ body:has(.ec-lead-image) main {
 }
 
 .navbar nav a {
-  color: #000000;
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000)));
+  font-family: var(--theme-font-heading, var(--theme-font-body, var(--theme-font-family, Arial, sans-serif)));
   font-weight: 600;
   margin: 0 clamp(0.25rem, 1vw, 0.625rem);
   text-decoration: none;
-  border: none;
-  border-left: none;
-  border-right: none;
-  padding: clamp(0.5rem, 1.5vw, 0.5rem) clamp(0.75rem, 2vw, 0.75rem);
-  border-radius: clamp(6px, 1.5vw, 8px);
-  transition: all 0.3s ease;
+  border: none !important;
+  padding: 0.2rem 0;
+  border-radius: 0;
+  transition: color 0.3s ease, opacity 0.3s ease;
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   font-size: clamp(0.875rem, 2vw, 0.875rem);
   white-space: nowrap;
   box-sizing: border-box;
-  min-height: clamp(32px, 6vw, 36px);
+  min-height: auto;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 .navbar nav a:hover {
-  background: linear-gradient(135deg, #ff70b8, #ff3d8b);
-  color: #ffffff;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(255, 112, 184, 0.3);
+  background: transparent !important;
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
+  transform: none;
+  box-shadow: none !important;
+  opacity: 0.76;
 }
 
 .navbar nav a:hover::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: -100%;
+  top: auto;
+  bottom: -6px;
+  left: 50%;
   width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
-  transition: left 0.5s;
-  left: 100%;
+  height: 2px;
+  background: var(--accent-color, #ff70b8);
+  transform: translateX(-50%);
+  transition: opacity 0.2s ease;
+  opacity: 0.85;
 }
 
 .navbar nav a:focus,
@@ -121,14 +149,12 @@ body:has(.ec-lead-image) main {
 .navbar nav a:active,
 .navbar nav a.active {
   background: transparent;
-  color: #000000;
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
   outline: none;
-  box-shadow: none;
+  box-shadow: none !important;
 }
 
-.navbar:hover {
-  background: #ffffff;
-}
+
 
 #navMenu {
   display: flex;
@@ -149,45 +175,51 @@ body:has(.ec-lead-image) main {
   margin-left: 0;
   font-size: clamp(1rem, 2.5vw, 1.2rem);
   text-decoration: none;
-  color: #000000;
-  padding: clamp(0.5rem, 1.5vw, 0.5rem);
-  border-radius: clamp(6px, 1.5vw, 8px);
-  transition: all 0.3s ease;
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000)));
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
+  padding: 0;
+  border-radius: 0;
+  transition: color 0.3s ease, opacity 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: clamp(36px, 6vw, 40px);
-  min-height: clamp(36px, 6vw, 40px);
+  min-width: auto;
+  min-height: auto;
   box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 112, 184, 0.2);
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
 }
 
 .navbar .nav-right a:hover {
-  background: linear-gradient(135deg, #ff70b8, #ff3d8b);
-  transform: translateY(-2px) scale(1.1);
-  box-shadow: 0 4px 12px rgba(255, 112, 184, 0.3);
+  background: transparent !important;
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
+  transform: none;
+  box-shadow: none !important;
+  opacity: 0.76;
 }
 .navbar .menu-toggle {
   display: none;
   font-size: clamp(1.25rem, 3vw, 1.5rem);
   cursor: pointer;
-  color: #000000;
-  padding: clamp(0.5rem, 1.5vw, 0.5rem);
-  border-radius: clamp(6px, 1.5vw, 8px);
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 112, 184, 0.2);
-  transition: all 0.3s ease;
-  min-width: clamp(36px, 6vw, 40px);
-  min-height: clamp(36px, 6vw, 40px);
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000)));
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
+  padding: 0.25rem;
+  border-radius: 0;
+  background: transparent !important;
+  border: none !important;
+  transition: color 0.3s ease, opacity 0.3s ease;
+  min-width: auto;
+  min-height: auto;
   align-items: center;
   justify-content: center;
 }
 
 .navbar .menu-toggle:hover {
-  background: linear-gradient(135deg, #ff70b8, #ff3d8b);
-  color: #ffffff;
-  transform: scale(1.05);
+  background: transparent !important;
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
+  transform: none;
+  opacity: 0.76;
 }
 
 /* Tablet Responsive */
@@ -198,14 +230,14 @@ body:has(.ec-lead-image) main {
   
   .navbar nav a {
     font-size: clamp(0.8rem, 2vw, 0.875rem);
-    padding: clamp(0.4rem, 1.2vw, 0.5rem) clamp(0.6rem, 1.8vw, 0.75rem);
+    padding: 0.2rem 0;
     margin: 0 clamp(0.2rem, 0.8vw, 0.5rem);
   }
   
   .navbar .nav-right a {
     font-size: clamp(0.9rem, 2.2vw, 1.1rem);
-    min-width: clamp(32px, 5vw, 36px);
-    min-height: clamp(32px, 5vw, 36px);
+    min-width: auto;
+    min-height: auto;
   }
 }
 
@@ -237,7 +269,7 @@ body:has(.ec-lead-image) main {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(255, 255, 255, 0.98);
+    background: color-mix(in srgb, var(--theme-nav-bg, var(--surface-color, #ffffff)) 96%, transparent);
     backdrop-filter: blur(10px);
     flex-direction: column;
     display: none;
@@ -259,15 +291,15 @@ body:has(.ec-lead-image) main {
     right: 20px;
     width: 40px;
     height: 40px;
-    background: rgba(255, 255, 255, 0.9);
-    border: 2px solid rgba(255, 112, 184, 0.3);
+    background: color-mix(in srgb, var(--surface-color, #ffffff) 90%, transparent);
+    border: 2px solid color-mix(in srgb, var(--accent-color, #ff70b8) 30%, transparent);
     border-radius: 50%;
     display: none;
     align-items: center;
     justify-content: center;
     cursor: pointer;
     font-size: 1.5rem;
-    color: #ff70b8;
+    color: var(--theme-nav-text, var(--surface-text-color, #111111));
     transition: all 0.3s ease;
     z-index: 1001;
     backdrop-filter: blur(10px);
@@ -280,10 +312,10 @@ body:has(.ec-lead-image) main {
   }
   
   .nav-close-btn:hover {
-    background: rgba(255, 112, 184, 0.1);
-    border-color: #ff70b8;
+    background: var(--theme-accent-soft, color-mix(in srgb, var(--accent-color, #ff70b8) 18%, #ffffff));
+    border-color: var(--accent-color, #ff70b8);
     transform: scale(1.1);
-    box-shadow: 0 4px 12px rgba(255, 112, 184, 0.3);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--accent-color, #ff70b8) 30%, transparent);
   }
   
   .nav-close-btn:active {
@@ -299,21 +331,22 @@ body:has(.ec-lead-image) main {
     font-size: 1.2rem;
     border-radius: 12px;
     transition: all 0.3s ease;
-    background: rgba(255, 255, 255, 0.8);
-    border: 1px solid rgba(255, 112, 184, 0.2);
+    background: var(--surface-color, #ffffff);
+    color: var(--surface-text-color, var(--primary-color, #111111)) !important;
+    border: 1px solid color-mix(in srgb, var(--accent-color, #ff70b8) 20%, transparent);
   }
   
   #navMenu .nav-link:hover {
-    background: linear-gradient(135deg, #ff70b8, #ff3d8b);
-    color: #ffffff;
+    background: var(--theme-button-hover-bg, var(--hover-background, var(--accent-color)));
+    color: var(--theme-button-hover-text, var(--hover-text-color, #ffffff));
     transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(255, 112, 184, 0.4);
+    box-shadow: 0 8px 25px color-mix(in srgb, var(--accent-color, #ff70b8) 38%, transparent);
   }
   
   #navMenu .nav-link.active {
-    background: linear-gradient(135deg, #ff70b8, #ff3d8b);
-    color: #ffffff;
-    box-shadow: 0 4px 15px rgba(255, 112, 184, 0.3);
+    background: var(--theme-button-bg, var(--accent-color));
+    color: var(--theme-button-text, var(--text-on-accent, #ffffff));
+    box-shadow: 0 4px 15px color-mix(in srgb, var(--accent-color, #ff70b8) 28%, transparent);
   }
   .nav-link.active {
     outline: none;

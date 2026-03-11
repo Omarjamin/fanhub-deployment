@@ -5,7 +5,7 @@
   max-width: none;
   margin: 0 auto;
   padding: 54px 20px 28px;
-  background: #ffffff;
+  background: var(--secondary-background, #ffffff);
 }
 
 .ec-announcement-shell {
@@ -19,7 +19,8 @@
   font-size: clamp(2rem, 4vw, 3rem);
   line-height: 1;
   font-weight: 500;
-  color: #2f4a4e;
+  color: var(--theme-section-heading, #2f4a4e);
+  font-family: var(--theme-font-heading, var(--theme-font-body, Arial, sans-serif));
 }
 
 .ec-announcement-list {
@@ -32,7 +33,7 @@
   align-items: start;
   gap: 20px;
   padding: 18px 0 20px;
-  border-top: 1px solid rgba(111, 145, 151, 0.55);
+  border-top: 1px solid color-mix(in srgb, var(--border, #6f9197) 58%, transparent);
 }
 
 .ec-announcement-row:first-child {
@@ -43,7 +44,8 @@
 .ec-announcement-date {
   font-size: 1rem;
   line-height: 1.4;
-  color: #485558;
+  color: var(--theme-section-text, #485558);
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
 }
 
 .ec-announcement-item-title {
@@ -51,7 +53,8 @@
   font-size: 1rem;
   line-height: 1.45;
   font-weight: 700;
-  color: #485558;
+  color: var(--theme-section-text, #485558);
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
   text-align: left;
   text-wrap: balance;
 }
@@ -63,7 +66,7 @@
 }
 
 .ec-announcement-link {
-  color: #8aa8af;
+  color: color-mix(in srgb, var(--accent-color, #8aa8af) 84%, var(--theme-section-text, #ffffff));
   font-size: 0.84rem;
   line-height: 1.3;
   text-decoration: underline;
@@ -73,7 +76,7 @@
 .ec-announcement-link:hover,
 .ec-announcement-link:focus,
 .ec-announcement-link:focus-visible {
-  color: #6f8e95;
+  color: var(--accent-color, #6f8e95);
 }
 
 .ec-announcement-pagination {
@@ -82,14 +85,14 @@
   justify-content: center;
   gap: 20px;
   margin-top: 28px;
-  color: #485558;
+  color: var(--theme-section-text, #485558);
 }
 
 .ec-announcement-page-btn {
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  color: #6f8e95;
+  color: var(--theme-section-text, #6f8e95);
   font-size: 1.35rem;
   line-height: 1;
   padding: 0;
@@ -99,7 +102,7 @@
 .ec-announcement-page-btn:hover:not(:disabled),
 .ec-announcement-page-btn:focus:not(:disabled),
 .ec-announcement-page-btn:focus-visible:not(:disabled) {
-  color: #485558 !important;
+  color: var(--theme-section-heading, #485558) !important;
   background: transparent !important;
 }
 
@@ -111,7 +114,7 @@
 .ec-announcement-page-label {
   font-size: 1rem;
   line-height: 1.4;
-  color: #485558;
+  color: var(--theme-section-text, #485558);
 }
 
 @media (max-width: 768px) {

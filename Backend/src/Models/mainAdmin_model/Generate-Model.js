@@ -864,10 +864,45 @@ class GenerateModel {
       if (whereParts.length === 0) return null;
       const sites = await this.runSiteSelectQuery({
         whereClause: `(${whereParts.join(' OR ')})`,
-        limitOne: true,
+        limitOne: false,
         params,
       });
-      let site = Array.isArray(sites) && sites.length > 0 ? sites[0] : null;
+      let site = null;
+
+      if (Array.isArray(sites) && sites.length > 0) {
+        const rankedSites = await Promise.all(
+          sites.map(async (candidate) => {
+            const candidateMembers = await this.getSiteMembersSafe(candidate.site_id);
+            const normalizedDomain = String(candidate?.domain || '').trim().toLowerCase();
+            const normalizedCommunityTypeValue = String(candidate?.community_type || '').trim().toLowerCase();
+            const exactDomainMatch = normalizedDomain === normalizedInput;
+            const exactCommunityTypeMatch = normalizedCommunityTypeValue === normalizedInput;
+            const variantDomainMatch = lookupVariants.includes(normalizedDomain);
+            const variantCommunityTypeMatch = lookupVariants.includes(normalizedCommunityTypeValue);
+
+            const score =
+              (exactDomainMatch ? 100 : 0) +
+              (exactCommunityTypeMatch ? 100 : 0) +
+              (variantDomainMatch ? 25 : 0) +
+              (variantCommunityTypeMatch ? 25 : 0) +
+              (Array.isArray(candidateMembers) && candidateMembers.length > 0 ? 50 : 0);
+
+            return {
+              site: { ...candidate, members: candidateMembers || [] },
+              score,
+              memberCount: Array.isArray(candidateMembers) ? candidateMembers.length : 0,
+            };
+          })
+        );
+
+        rankedSites.sort((a, b) => {
+          if (b.score !== a.score) return b.score - a.score;
+          if (b.memberCount !== a.memberCount) return b.memberCount - a.memberCount;
+          return Number(b.site?.site_id || 0) - Number(a.site?.site_id || 0);
+        });
+
+        site = rankedSites[0]?.site || null;
+      }
 
       if (!site) {
         const keys = new Set(lookupVariants);
@@ -895,6 +930,9 @@ class GenerateModel {
             members: [],
           };
         }
+      }
+      if (Array.isArray(site?.members)) {
+        return { ...site, members: site.members };
       }
 
       const members = await this.getSiteMembersSafe(site.site_id);

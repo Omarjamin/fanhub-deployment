@@ -37,8 +37,8 @@
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #2bb3c1;
+  background: color-mix(in srgb, var(--secondary-color, #ffffff) 14%, transparent);
+  color: var(--accent-color, #2bb3c1);
   border: 0;
   text-decoration: none;
   display: inline-flex;

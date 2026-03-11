@@ -3,6 +3,9 @@
   --secondary-color: var(--secondary-color, #ffffff);
   --accent-color: var(--accent-color, #ff1493);
   --secondary-background: var(--secondary-background, var(--secondary-color));
+  --surface-color: var(--surface-color, var(--secondary-color));
+  --surface-text-color: var(--surface-text-color, var(--primary-color));
+  --muted-text-color: var(--muted-text-color, color-mix(in srgb, var(--surface-text-color) 70%, var(--secondary-color) 30%));
   --hover-background: var(--hover-background, var(--accent-color));
   --hover-text-color: var(--hover-text-color, #ffffff);
   --theme-font-heading: var(--theme-font-heading, var(--theme-font-family, Arial, sans-serif));
@@ -12,6 +15,15 @@
   --theme-line-height: var(--theme-line-height, 1.6);
   --theme-letter-spacing: var(--theme-letter-spacing, 0.02em);
   --text-on-primary: var(--text-on-primary, #ffffff);
+  --text-on-accent: var(--text-on-accent, #ffffff);
+  --theme-button-bg: var(--theme-button-bg, var(--accent-color));
+  --theme-button-text: var(--theme-button-text, var(--text-on-accent));
+  --theme-button-hover-bg: var(--theme-button-hover-bg, var(--hover-background));
+  --theme-button-hover-text: var(--theme-button-hover-text, var(--hover-text-color));
+  --theme-nav-text: var(--theme-nav-text, var(--primary-color));
+  --theme-nav-hero-text: var(--theme-nav-hero-text, var(--primary-color));
+  --theme-nav-bg: var(--theme-nav-bg, var(--secondary-color));
+  --theme-accent-soft: var(--theme-accent-soft, color-mix(in srgb, var(--accent-color) 18%, #ffffff));
   --border: var(--border, #d1d5db);
 }
 
@@ -25,7 +37,7 @@ body,
 
 body {
   background: var(--secondary-background, var(--secondary-color));
-  color: var(--primary-color);
+  color: var(--surface-text-color, var(--primary-color));
   font-family: var(--theme-font-body) !important;
   font-size: var(--theme-font-size-base);
   line-height: var(--theme-line-height);
@@ -36,14 +48,14 @@ a,
 .link,
 .nav-link,
 .menu-link {
-  color: var(--primary-color);
+  color: var(--surface-text-color, var(--primary-color));
 }
 
 a:hover,
 .link:hover,
 .nav-link:hover,
 .menu-link:hover {
-  color: var(--hover-text-color);
+  color: var(--accent-color);
 }
 
 button,
@@ -55,6 +67,8 @@ button,
 input[type="button"],
 input[type="submit"] {
   font-family: var(--theme-font-body) !important;
+  background: var(--theme-button-bg);
+  color: var(--theme-button-text);
 }
 
 button:hover,
@@ -65,8 +79,8 @@ button:hover,
 .mv-btn:hover,
 input[type="button"]:hover,
 input[type="submit"]:hover {
-  background: var(--hover-background) !important;
-  color: var(--hover-text-color) !important;
+  background: var(--theme-button-hover-bg) !important;
+  color: var(--theme-button-hover-text) !important;
 }
 
 input,
@@ -89,8 +103,8 @@ textarea:focus {
 .table,
 .widget,
 .tile {
-  background: var(--secondary-color);
-  color: var(--primary-color);
+  background: var(--surface-color);
+  color: var(--surface-text-color, var(--primary-color));
 }
 
 .section-title,
@@ -102,13 +116,13 @@ h4,
 h5,
 h6 {
   font-family: var(--theme-font-heading) !important;
-  color: var(--primary-color);
+  color: var(--surface-text-color, var(--primary-color));
 }
 
 .badge,
 .tag,
 .chip {
-  background: color-mix(in srgb, var(--accent-color) 18%, #ffffff);
-  color: var(--primary-color);
-  border-color: color-mix(in srgb, var(--accent-color) 35%, #ffffff);
+  background: var(--theme-accent-soft);
+  color: var(--surface-text-color, var(--primary-color));
+  border-color: color-mix(in srgb, var(--accent-color) 35%, var(--surface-color) 65%);
 }

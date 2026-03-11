@@ -111,6 +111,74 @@ function HSLToHex(h, s, l) {
   return `#${r.toString(16).padStart(2, "0")}${g.toString(16).padStart(2, "0")}${b.toString(16).padStart(2, "0")}`;
 }
 
+function mixHex(colorA, colorB, ratio = 0.5) {
+  const first = normalizeHex(colorA);
+  const second = normalizeHex(colorB);
+  if (!first) return second || "#000000";
+  if (!second) return first;
+
+  const weight = Math.max(0, Math.min(1, Number(ratio)));
+  const a = first.replace("#", "");
+  const b = second.replace("#", "");
+  const mixed = [0, 2, 4].map((index) => {
+    const channelA = parseInt(a.substring(index, index + 2), 16);
+    const channelB = parseInt(b.substring(index, index + 2), 16);
+    const value = Math.round((channelA * (1 - weight)) + (channelB * weight));
+    return value.toString(16).padStart(2, "0");
+  }).join("");
+
+  return `#${mixed}`;
+}
+
+function deriveSurfaceTone(base, reference, amount = 0.12) {
+  const baseHex = normalizeHex(base);
+  const referenceHex = normalizeHex(reference);
+  if (!baseHex) return referenceHex || "#ffffff";
+  if (!referenceHex) return baseHex;
+  return mixHex(baseHex, referenceHex, amount);
+}
+
+function isNearWhite(hex) {
+  return getBrightness(hex) >= 238;
+}
+
+function isNearBlack(hex) {
+  return getBrightness(hex) <= 18;
+}
+
+function keepPaletteCharacter(color, background, palette = []) {
+  const normalized = normalizeHex(color);
+  const bg = normalizeHex(background);
+  const options = palette.map((entry) => normalizeHex(entry)).filter(Boolean);
+  if (!normalized || !bg) {
+    return normalized || bg || "#000000";
+  }
+
+  const paletteSeed =
+    options.find((entry) => entry !== bg && entry !== normalized) ||
+    options.find((entry) => entry !== bg) ||
+    normalized;
+
+  if (isNearWhite(normalized)) {
+    return pickReadableColor(bg, mixHex(paletteSeed, normalized, 0.18), [
+      adjustLightness(paletteSeed, -10),
+      adjustLightness(paletteSeed, 8),
+      mixHex(bg, paletteSeed, 0.7),
+      normalized,
+    ]);
+  }
+
+  if (isNearBlack(normalized)) {
+    return pickReadableColor(bg, mixHex(paletteSeed, normalized, 0.14), [
+      adjustLightness(paletteSeed, 14),
+      adjustLightness(paletteSeed, -8),
+      normalized,
+    ]);
+  }
+
+  return normalized;
+}
+
 function adjustLightness(hex, amount) {
   const hsl = hexToHSL(hex);
   if (!hsl) return "#000000";
@@ -128,6 +196,56 @@ function getContrastColor(hex) {
   return brightness > 150 ? "#000000" : "#ffffff";
 }
 
+function getRelativeLuminance(hex) {
+  const safeHex = normalizeHex(hex);
+  if (!safeHex) return 0;
+  const normalized = safeHex.replace("#", "");
+  const channels = [0, 2, 4].map((index) => {
+    const value = parseInt(normalized.substring(index, index + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+
+  return (0.2126 * channels[0]) + (0.7152 * channels[1]) + (0.0722 * channels[2]);
+}
+
+function getContrastRatio(foreground, background) {
+  const fg = normalizeHex(foreground);
+  const bg = normalizeHex(background);
+  if (!fg || !bg) return 1;
+  const lighter = Math.max(getRelativeLuminance(fg), getRelativeLuminance(bg));
+  const darker = Math.min(getRelativeLuminance(fg), getRelativeLuminance(bg));
+  return (lighter + 0.05) / (darker + 0.05);
+}
+
+function pickReadableColor(background, preferred, fallbacks = []) {
+  const bg = normalizeHex(background);
+  const candidates = [preferred, ...fallbacks]
+    .map((value) => normalizeHex(value))
+    .filter(Boolean);
+
+  if (!bg) {
+    return candidates[0] || "#000000";
+  }
+
+  let best = candidates[0] || getContrastColor(bg);
+  let bestScore = getContrastRatio(best, bg);
+
+  candidates.forEach((candidate) => {
+    const score = getContrastRatio(candidate, bg);
+    if (score > bestScore) {
+      best = candidate;
+      bestScore = score;
+    }
+  });
+
+  if (bestScore >= 4.5) {
+    return best;
+  }
+
+  const fallbackContrast = getContrastColor(bg);
+  return getContrastRatio(fallbackContrast, bg) >= bestScore ? fallbackContrast : best;
+}
+
 function getBrightness(hex) {
   const safeHex = normalizeHex(hex);
   if (!safeHex) return 0;
@@ -136,12 +254,6 @@ function getBrightness(hex) {
   const g = parseInt(normalized.substring(2, 4), 16);
   const b = parseInt(normalized.substring(4, 6), 16);
   return (r * 299 + g * 587 + b * 114) / 1000;
-}
-
-function getVibranceScore(hex) {
-  const hsl = hexToHSL(normalizeHex(hex));
-  if (!hsl) return 0;
-  return (hsl.s * 2) + (100 - Math.abs(hsl.l - 50));
 }
 
 function parsePaletteSource(source) {
@@ -165,20 +277,14 @@ export function assignColorRoles(palette) {
     return {};
   }
 
-  const uniquePalette = Array.from(new Set(normalizedPalette));
-  const byBrightness = [...uniquePalette].sort((a, b) => getBrightness(b) - getBrightness(a));
-  const byVibrance = [...uniquePalette].sort((a, b) => getVibranceScore(b) - getVibranceScore(a));
-
-  const background = byBrightness[0];
-  const primary = byVibrance.find((color) => color !== background) || byVibrance[0] || background;
-  const accent =
-    byVibrance.find((color) => color !== primary && color !== background) ||
-    byBrightness.find((color) => color !== primary && color !== background) ||
-    primary;
-  const secondary =
-    uniquePalette.find((color) => color !== primary && color !== accent && color !== background) ||
-    accent;
-  const text = getContrastColor(background);
+  const primary = normalizedPalette[0];
+  const secondary = normalizedPalette[1] || primary;
+  const accent = normalizedPalette[2] || primary;
+  const background = normalizedPalette[3] || secondary || primary;
+  const textSeed = normalizedPalette[4] || null;
+  const text = textSeed
+    ? pickReadableColor(background, textSeed, [primary, accent, getContrastColor(background)])
+    : getContrastColor(background);
 
   return {
     primary,
@@ -477,11 +583,44 @@ export function applyThemeColors(data) {
 
   const root = document.documentElement;
   const theme = normalizeThemeData(data);
+  const paletteColors = Array.isArray(theme.palette) ? theme.palette : [];
   const primary = theme.primary;
   const secondary = theme.secondary;
   const accent = theme.accent || primary;
   const background = theme.background || secondary;
   const text = theme.text || getContrastColor(background);
+  const surface = pickReadableColor(background, secondary, [adjustLightness(background, 4), adjustLightness(background, -4)]);
+  const surfaceTextBase = pickReadableColor(surface, primary, [text, accent, "#111111", "#ffffff"]);
+  const surfaceText = keepPaletteCharacter(surfaceTextBase, surface, [primary, secondary, accent, ...paletteColors]);
+  const mutedTextBase = pickReadableColor(background, adjustLightness(surfaceText, getBrightness(surfaceText) > 150 ? -28 : 28), [surfaceText, primary, text]);
+  const mutedText = keepPaletteCharacter(mutedTextBase, background, [primary, secondary, accent, ...paletteColors]);
+  const buttonBg = pickReadableColor(background, accent, [primary, adjustLightness(accent, -12), adjustLightness(accent, 12)]);
+  const buttonText = pickReadableColor(buttonBg, getContrastColor(buttonBg), [surfaceText, text, "#ffffff", "#000000"]);
+  const buttonHoverBg = pickReadableColor(background, adjustLightness(buttonBg, getBrightness(buttonBg) > 150 ? -12 : 12), [primary, accent]);
+  const buttonHoverText = pickReadableColor(buttonHoverBg, getContrastColor(buttonHoverBg), [buttonText, surfaceText, "#ffffff", "#000000"]);
+  const accentSoft = pickReadableColor(background, adjustLightness(accent, getBrightness(background) > 150 ? -18 : 20), [accent, primary]);
+  const borderColor = pickReadableColor(background, adjustLightness(primary, getBrightness(background) > 150 ? 28 : -28), [primary, accent, surfaceText]);
+  const navSurface = secondary || surface || background;
+  const finalNavHeroText = primary;
+  const finalNavScrolledText = primary;
+  const sectionHeading = keepPaletteCharacter(
+    pickReadableColor(background, primary, [surfaceText, accent, text, "#111111", "#ffffff"]),
+    background,
+    [primary, secondary, accent, ...paletteColors],
+  );
+  const sectionBody = keepPaletteCharacter(
+    pickReadableColor(background, mixHex(sectionHeading, background, 0.2), [surfaceText, text, primary]),
+    background,
+    [primary, secondary, accent, ...paletteColors],
+  );
+  const sectionMuted = keepPaletteCharacter(
+    pickReadableColor(background, mixHex(sectionBody, background, 0.28), [mutedText, sectionBody, text]),
+    background,
+    [primary, secondary, accent, ...paletteColors],
+  );
+  const lightSurface = getBrightness(background) > 150
+    ? deriveSurfaceTone(background, "#ffffff", 0.45)
+    : deriveSurfaceTone(secondary, "#ffffff", 0.72);
 
   root.style.setProperty("--primary-color", primary);
   root.style.setProperty("--secondary-color", secondary);
@@ -500,10 +639,25 @@ export function applyThemeColors(data) {
 
   root.style.setProperty("--text-on-primary", getContrastColor(primary));
   root.style.setProperty("--text-on-accent", getContrastColor(accent));
-  root.style.setProperty("--border", adjustLightness(primary, 35));
-  root.style.setProperty("--hover-background", adjustLightness(accent, -8));
-  root.style.setProperty("--hover-text-color", getContrastColor(adjustLightness(accent, -8)));
+  root.style.setProperty("--border", borderColor);
+  root.style.setProperty("--hover-background", buttonHoverBg);
+  root.style.setProperty("--hover-text-color", buttonHoverText);
   root.style.setProperty("--secondary-background", background);
+  root.style.setProperty("--surface-color", surface);
+  root.style.setProperty("--surface-text-color", surfaceText);
+  root.style.setProperty("--muted-text-color", mutedText);
+  root.style.setProperty("--theme-button-bg", buttonBg);
+  root.style.setProperty("--theme-button-text", buttonText);
+  root.style.setProperty("--theme-button-hover-bg", buttonHoverBg);
+  root.style.setProperty("--theme-button-hover-text", buttonHoverText);
+  root.style.setProperty("--theme-nav-text", finalNavScrolledText);
+  root.style.setProperty("--theme-nav-hero-text", finalNavHeroText);
+  root.style.setProperty("--theme-nav-bg", navSurface);
+  root.style.setProperty("--theme-accent-soft", accentSoft);
+  root.style.setProperty("--theme-section-heading", sectionHeading);
+  root.style.setProperty("--theme-section-text", sectionBody);
+  root.style.setProperty("--theme-section-muted", sectionMuted);
+  root.style.setProperty("--theme-light-surface", lightSurface);
   applyTypographyConfig({
     ...(theme.typography || {}),
     heading: {

@@ -4,20 +4,21 @@
 .banner {
   padding: 130px 24px 110px 24px;
   text-align: center;
-  background: var(--secondary-color, linear-gradient(to bottom, #ADD8E6, #FFB6C1));
-  color: #111827;
+  background: var(--secondary-background, var(--secondary-color, #ffffff));
+  color: var(--surface-text-color, var(--primary-color, #111827));
   margin: 0 -1rem;
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
 }
 
 /* Single banner video */
 .banner-video-wrap {
   max-width: 960px;
   margin: 0 auto;
-  background: #ffffff;
+  background: var(--theme-light-surface, #ffffff);
   border-radius: 28px;
   padding: 20px;
   box-shadow: 0 32px 64px rgba(15, 23, 42, 0.15);
-  border: 1px solid rgba(248, 113, 170, 0.2);
+  border: 1px solid color-mix(in srgb, var(--border, #d1d5db) 55%, transparent);
 }
 
 /* Watch latest release button - sa ilalim ng banner */
@@ -30,19 +31,21 @@
   padding: 0.75rem 1.75rem;
   font-size: 1rem;
   font-weight: 600;
-  color: black;
-  background: var(--accent-color);
+  color: var(--theme-button-text, var(--text-on-accent, #ffffff));
+  background: var(--theme-button-bg, var(--accent-color, #ec4899));
   border: none;
   border-radius: 2.5rem;
   cursor: pointer;
-  box-shadow: 0 4px 20px rgba(236, 72, 153, 0.4);
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--accent-color, #ec4899) 40%, transparent);
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .watch-latest-btn:hover {
   transform: translateY(-3px);
-  box-shadow: 0 8px 28px rgba(236, 72, 153, 0.5);
-  filter: brightness(1.08);
+  background: var(--theme-button-hover-bg, var(--hover-background, var(--accent-color, #ec4899)));
+  color: var(--theme-button-hover-text, var(--hover-text-color, #ffffff));
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--accent-color, #ec4899) 50%, transparent);
+  filter: none;
 }
 
 .watch-latest-btn:active {

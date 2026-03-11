@@ -1,12 +1,13 @@
 
 #events {
   padding: 44px 20px 48px;
-  background: #ffffff;
+  background: var(--secondary-background, #ffffff);
 }
 
 #events .section-title {
   margin: 0 0 16px;
-  color: #000000 !important;
+  color: var(--theme-section-heading, #000000) !important;
+  font-family: var(--theme-font-heading, var(--theme-font-body, Arial, sans-serif)) !important;
 }
 
 .event-list {
@@ -24,7 +25,8 @@
 .event-copy {
   max-width: 860px;
   margin-bottom: 24px;
-  color: #4a5457;
+  color: var(--theme-section-text, #4a5457);
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
 }
 
 .event-feature-title {
@@ -32,12 +34,16 @@
   font-size: clamp(1.4rem, 2.6vw, 2rem);
   line-height: 1.35;
   font-weight: 700;
+  color: var(--theme-section-heading, var(--surface-text-color, #111111));
+  font-family: var(--theme-font-heading, var(--theme-font-body, Arial, sans-serif));
 }
 
 .event-feature-text {
   margin: 0;
   font-size: clamp(1rem, 1.8vw, 1.2rem);
   line-height: 1.45;
+  color: var(--theme-section-text, #4a5457);
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
 }
 
 .event-feature-card {
@@ -69,30 +75,32 @@
   text-decoration: none;
   font-size: 1rem;
   font-weight: 700;
-  color: #ffffff;
-  background: #78c7d5;
+  color: var(--theme-button-text, #ffffff);
+  background: var(--theme-button-bg, #78c7d5);
 }
 
 .event-feature-link:hover,
 .event-feature-link:focus,
 .event-feature-link:focus-visible {
-  color: #ffffff;
-  background: #63b8c7;
+  color: var(--theme-button-hover-text, #ffffff);
+  background: var(--theme-button-hover-bg, #63b8c7);
 }
 
 .event-empty-card {
   padding: 18px;
   text-align: center;
-  color: #485558;
+  color: var(--theme-section-text, #485558);
 }
 
 .event-empty-card h3 {
   margin: 0 0 8px;
+  font-family: var(--theme-font-heading, var(--theme-font-body, Arial, sans-serif));
 }
 
 .event-empty-card p {
   margin: 0;
   opacity: 0.8;
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
 }
 
 @media (max-width: 768px) {

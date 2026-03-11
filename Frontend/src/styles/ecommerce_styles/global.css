@@ -5,9 +5,21 @@
   --secondary-color: #ffffff; /* default for bg */ 
   --accent-color: #ff0000;    /* default  then font  and border */
   --secondary-background: var(--secondary-color);
+  --surface-color: var(--secondary-color);
+  --surface-text-color: var(--primary-color);
+  --muted-text-color: color-mix(in srgb, var(--surface-text-color) 74%, var(--secondary-color) 26%);
   --hover-background: var(--accent-color);
   --hover-text-color: #ffffff;
   --text-on-primary: #ffffff;
+  --text-on-accent: #ffffff;
+  --theme-button-bg: var(--accent-color);
+  --theme-button-text: var(--text-on-accent);
+  --theme-button-hover-bg: var(--hover-background);
+  --theme-button-hover-text: var(--hover-text-color);
+  --theme-nav-text: var(--primary-color);
+  --theme-nav-hero-text: var(--primary-color);
+  --theme-nav-bg: var(--secondary-color);
+  --theme-accent-soft: color-mix(in srgb, var(--accent-color) 18%, #ffffff);
   --theme-font-heading: Arial, sans-serif;
   --theme-font-body: Arial, sans-serif;
   --theme-font-family: Arial, sans-serif;
@@ -39,7 +51,7 @@ body {
   font-family: var(--theme-font-body, var(--theme-font-family));
   background: var(--secondary-background, var(--secondary-color));
   background-size: cover;
-  color: var(--primary-color);
+  color: var(--surface-text-color, var(--primary-color));
 }
 
 button,
@@ -54,6 +66,8 @@ button,
   border-radius: var(--theme-button-radius);
   border: var(--theme-button-border);
   box-shadow: var(--theme-button-shadow);
+  background: var(--theme-button-bg);
+  color: var(--theme-button-text);
 }
 
 button:hover,
@@ -64,8 +78,8 @@ button:hover,
 .mv-btn:hover,
 .nav-link:hover,
 .auth-form1 .mv-btn:hover {
-  background: var(--hover-background, var(--accent-color));
-  color: var(--hover-text-color, var(--text-on-primary, #ffffff));
+  background: var(--theme-button-hover-bg, var(--hover-background, var(--accent-color)));
+  color: var(--theme-button-hover-text, var(--hover-text-color, var(--text-on-primary, #ffffff)));
 }
 
 
@@ -86,7 +100,7 @@ button:hover,
 
 
 .section-title {
-  color: var(--primary-color) !important;
+  color: var(--surface-text-color, var(--primary-color)) !important;
   text-align: center;
   margin: 30px 0 15px;
 }
@@ -127,4 +141,3 @@ main {
     padding-bottom: 60px;
   }
 }
-
