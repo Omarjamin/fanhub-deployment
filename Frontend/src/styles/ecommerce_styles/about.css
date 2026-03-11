@@ -125,6 +125,7 @@
   padding: 0;
   background: transparent;
   color: inherit;
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
   font-size: 2rem;
   line-height: 1;
   cursor: pointer;

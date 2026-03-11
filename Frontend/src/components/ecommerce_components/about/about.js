@@ -123,6 +123,18 @@ function normalizeMembersFromPayload(payload = {}) {
         : [];
 }
 
+async function fetchWebsiteById(siteId) {
+    const normalizedId = Number(siteId || 0);
+    if (!normalizedId) return null;
+
+    try {
+        const res = await api.get(`/generate/generated-websites/${normalizedId}`);
+        return res?.data?.data || null;
+    } catch (_) {
+        return null;
+    }
+}
+
 function renderAbout(root, groupInfo, membersData) {
     root.querySelectorAll('#about').forEach((node) => node.remove());
 
@@ -245,21 +257,14 @@ export default function About(root, data = {}) {
 
     (async () => {
         let payload = getPayloadSource(data);
+        const initialSiteId = Number(payload?.site_id || payload?.id || 0);
         console.info('[About Debug] initial', {
             siteSlug,
             hasSiteData: Boolean(data?.siteData),
             payloadKeys: Object.keys(payload || {}),
+            initialSiteId,
             initialMembersCount: Array.isArray(payload?.members) ? payload.members.length : 0,
         });
-        const cachedPayload = getCachedSitePayload(siteSlug);
-        if ((!Array.isArray(payload?.members) || !payload.members.length) && cachedPayload) {
-            payload = cachedPayload;
-            console.info('[About Debug] using cached payload', {
-                siteSlug,
-                cachedKeys: Object.keys(cachedPayload || {}),
-                cachedMembersCount: Array.isArray(cachedPayload?.members) ? cachedPayload.members.length : 0,
-            });
-        }
         let groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
         let membersData = normalizeMembersFromPayload(payload);
 
@@ -267,6 +272,24 @@ export default function About(root, data = {}) {
             Boolean(String(payload?.site_name || payload?.community_name || payload?.name || '').trim()) ||
             Boolean(String(payload?.description || payload?.about || payload?.short_bio || payload?.shortBio || '').trim()) ||
             Boolean(String(payload?.group_photo || payload?.banner || payload?.logo || '').trim());
+
+        if ((!membersData.length || !hasUsefulGroupInfo) && initialSiteId) {
+            const websiteById = await fetchWebsiteById(initialSiteId);
+            if (websiteById) {
+                const fetchedMembers = normalizeMembersFromPayload(websiteById);
+                console.info('[About Debug] direct id fetch result', {
+                    requestSiteId: initialSiteId,
+                    responseSiteId: websiteById?.site_id,
+                    fetchedMembersCount: fetchedMembers.length,
+                    rawMembersCount: Array.isArray(websiteById?.members) ? websiteById.members.length : 0,
+                });
+                payload = websiteById;
+                groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
+                if (fetchedMembers.length || String(payload?.site_name || payload?.description || payload?.short_bio || '').trim()) {
+                    membersData = fetchedMembers;
+                }
+            }
+        }
 
         if ((!membersData.length || !hasUsefulGroupInfo) && siteSlug) {
             const slugVariants = Array.from(new Set([
@@ -279,6 +302,14 @@ export default function About(root, data = {}) {
                 try {
                     const res = await api.get(`/generate/generated-websites/type/${encodeURIComponent(candidate)}`);
                     payload = res?.data?.data || {};
+                    const resolvedSiteId = Number(payload?.site_id || payload?.id || 0);
+
+                    if (!Array.isArray(payload?.members) || !payload.members.length) {
+                        const websiteById = await fetchWebsiteById(resolvedSiteId);
+                        if (websiteById) {
+                            payload = websiteById;
+                        }
+                    }
 
                     const fetchedMembers = normalizeMembersFromPayload(payload);
                     console.info('[About Debug] type fetch result', {
@@ -301,43 +332,21 @@ export default function About(root, data = {}) {
         }
 
         if (!membersData.length && siteSlug) {
-            const slugVariants = new Set([
-                siteSlug,
-                siteSlug.replace(/-website$/i, ''),
-                siteSlug.endsWith('-website') ? siteSlug : `${siteSlug}-website`,
-            ].filter(Boolean));
-
-            try {
-                const res = await api.get('/generate/generated-websites');
-                const rows = Array.isArray(res?.data?.data)
-                    ? res.data.data
-                    : Array.isArray(res?.data?.websites)
-                        ? res.data.websites
-                        : [];
-
-                const matched = rows.find((row) => {
-                    const domain = String(row?.domain || '').trim().toLowerCase();
-                    const communityType = String(row?.community_type || '').trim().toLowerCase();
-                    const siteName = String(row?.site_name || '').trim().toLowerCase();
-                    return slugVariants.has(domain) || slugVariants.has(communityType) || slugVariants.has(siteName);
+            const cachedPayload = getCachedSitePayload(siteSlug);
+            if (cachedPayload) {
+                const fetchedMembers = normalizeMembersFromPayload(cachedPayload);
+                console.info('[About Debug] using cached payload as last fallback', {
+                    siteSlug,
+                    cachedSiteId: cachedPayload?.site_id,
+                    fetchedMembersCount: fetchedMembers.length,
+                    rawMembersCount: Array.isArray(cachedPayload?.members) ? cachedPayload.members.length : 0,
                 });
-
-                if (matched) {
-                    const fetchedMembers = normalizeMembersFromPayload(matched);
-                    console.info('[About Debug] list fetch matched row', {
-                        siteSlug,
-                        matchedSiteId: matched?.site_id,
-                        matchedDomain: matched?.domain,
-                        matchedCommunityType: matched?.community_type,
-                        fetchedMembersCount: fetchedMembers.length,
-                        rawMembersCount: Array.isArray(matched?.members) ? matched.members.length : 0,
-                    });
-                    if (fetchedMembers.length) {
-                        membersData = fetchedMembers;
-                    }
-                    groupInfo = buildGroupInfo(matched, fallbackGroupInfo);
+                payload = cachedPayload;
+                if (fetchedMembers.length) {
+                    membersData = fetchedMembers;
                 }
-            } catch (_) {}
+                groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
+            }
         }
 
         console.info('[About Debug] final render payload', {

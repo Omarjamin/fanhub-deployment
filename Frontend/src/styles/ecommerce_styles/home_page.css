@@ -137,21 +137,11 @@ body:has(.ec-lead-image) main {
   color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
   transform: none;
   box-shadow: none !important;
-  opacity: 0.76;
+  opacity: 1;
 }
 
 .navbar nav a:hover::before {
-  content: '';
-  position: absolute;
-  top: auto;
-  bottom: -6px;
-  left: 50%;
-  width: 100%;
-  height: 2px;
-  background: var(--accent-color, #ff70b8);
-  transform: translateX(-50%);
-  transition: opacity 0.2s ease;
-  opacity: 0.85;
+  content: none;
 }
 
 .navbar nav a:focus,
@@ -206,7 +196,7 @@ body:has(.ec-lead-image) main {
   color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
   transform: none;
   box-shadow: none !important;
-  opacity: 0.76;
+  opacity: 1;
 }
 .navbar .menu-toggle {
   display: none;
@@ -229,7 +219,7 @@ body:has(.ec-lead-image) main {
   background: transparent !important;
   color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
   transform: none;
-  opacity: 0.76;
+  opacity: 1;
 }
 
 /* Tablet Responsive */
