@@ -837,6 +837,39 @@ class GenerateModel {
     return [];
   }
 
+  async getWebsiteMembers({ siteId = null, communityType = '' } = {}) {
+    try {
+      if (!this.db) await this.connectAdmin();
+
+      const normalizedSiteId = Number(siteId || 0);
+      if (normalizedSiteId > 0) {
+        const directMembers = await this.getSiteMembersSafe(normalizedSiteId);
+        if (Array.isArray(directMembers) && directMembers.length > 0) {
+          return directMembers;
+        }
+      }
+
+      const normalizedCommunityType = String(communityType || '').trim();
+      if (!normalizedCommunityType) {
+        return [];
+      }
+
+      const site = await this.getWebsiteByCommunityType(normalizedCommunityType);
+      if (!site) {
+        return [];
+      }
+
+      if (Array.isArray(site?.members) && site.members.length > 0) {
+        return site.members;
+      }
+
+      return await this.getResolvedSiteMembersSafe(site);
+    } catch (err) {
+      console.warn('Get website members fallback:', err?.message || err);
+      return [];
+    }
+  }
+
   async getWebsiteById(siteId) {
     try {
       if (!this.db) await this.connectAdmin();

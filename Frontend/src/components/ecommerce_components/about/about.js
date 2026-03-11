@@ -115,9 +115,47 @@ function getCachedSitePayload(siteSlug = '') {
     return null;
 }
 
+function parseMemberArray(value) {
+    if (Array.isArray(value)) return value;
+    if (typeof value === 'string') {
+        try {
+            const parsed = JSON.parse(value);
+            return Array.isArray(parsed) ? parsed : [];
+        } catch (_) {
+            return [];
+        }
+    }
+    return [];
+}
+
+function resolveMemberRows(payload = {}) {
+    const candidates = [
+        payload?.members,
+        payload?.site_members,
+        payload?.membersData,
+        payload?.memberData,
+        payload?.data?.members,
+        payload?.data?.site_members,
+        payload?.siteData?.members,
+        payload?.siteData?.site_members,
+        payload?.site?.members,
+        payload?.website?.members,
+    ];
+
+    for (const candidate of candidates) {
+        const rows = parseMemberArray(candidate);
+        if (rows.length) {
+            return rows;
+        }
+    }
+
+    return [];
+}
+
 function normalizeMembersFromPayload(payload = {}) {
-    return Array.isArray(payload?.members)
-        ? payload.members
+    const rows = resolveMemberRows(payload);
+    return rows.length
+        ? rows
             .map((member) => normalizeMember(member))
             .filter((member) => member.name || member.primaryValue || member.secondaryValue || member.photo)
         : [];
@@ -133,6 +171,30 @@ async function fetchWebsiteById(siteId) {
     } catch (_) {
         return null;
     }
+}
+
+async function fetchMembersByCommunity(siteSlug = '', siteId = 0) {
+    const slugVariants = Array.from(new Set([
+        String(siteSlug || '').trim().toLowerCase(),
+        String(siteSlug || '').trim().toLowerCase().replace(/-website$/i, ''),
+        String(siteSlug || '').trim().toLowerCase().endsWith('-website')
+            ? String(siteSlug || '').trim().toLowerCase()
+            : `${String(siteSlug || '').trim().toLowerCase().replace(/-website$/i, '')}-website`,
+    ].filter(Boolean)));
+
+    for (const candidate of slugVariants) {
+        try {
+            const res = await api.get(`/generate/generated-websites/type/${encodeURIComponent(candidate)}/members`, {
+                params: Number(siteId || 0) > 0 ? { siteId: Number(siteId) } : undefined,
+            });
+            const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
+            if (rows.length) {
+                return rows;
+            }
+        } catch (_) {}
+    }
+
+    return [];
 }
 
 function renderAbout(root, groupInfo, membersData) {
@@ -263,7 +325,7 @@ export default function About(root, data = {}) {
             hasSiteData: Boolean(data?.siteData),
             payloadKeys: Object.keys(payload || {}),
             initialSiteId,
-            initialMembersCount: Array.isArray(payload?.members) ? payload.members.length : 0,
+            initialMembersCount: resolveMemberRows(payload).length,
         });
         let groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
         let membersData = normalizeMembersFromPayload(payload);
@@ -281,7 +343,7 @@ export default function About(root, data = {}) {
                     requestSiteId: initialSiteId,
                     responseSiteId: websiteById?.site_id,
                     fetchedMembersCount: fetchedMembers.length,
-                    rawMembersCount: Array.isArray(websiteById?.members) ? websiteById.members.length : 0,
+                    rawMembersCount: resolveMemberRows(websiteById).length,
                 });
                 payload = websiteById;
                 groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
@@ -304,7 +366,7 @@ export default function About(root, data = {}) {
                     payload = res?.data?.data || {};
                     const resolvedSiteId = Number(payload?.site_id || payload?.id || 0);
 
-                    if (!Array.isArray(payload?.members) || !payload.members.length) {
+                    if (!resolveMemberRows(payload).length) {
                         const websiteById = await fetchWebsiteById(resolvedSiteId);
                         if (websiteById) {
                             payload = websiteById;
@@ -318,7 +380,7 @@ export default function About(root, data = {}) {
                         responseDomain: payload?.domain,
                         responseCommunityType: payload?.community_type,
                         fetchedMembersCount: fetchedMembers.length,
-                        rawMembersCount: Array.isArray(payload?.members) ? payload.members.length : 0,
+                        rawMembersCount: resolveMemberRows(payload).length,
                     });
 
                     groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
@@ -332,6 +394,20 @@ export default function About(root, data = {}) {
         }
 
         if (!membersData.length && siteSlug) {
+            const memberRows = await fetchMembersByCommunity(siteSlug, initialSiteId || payload?.site_id || payload?.id);
+            const fetchedMembers = normalizeMembersFromPayload({ members: memberRows });
+            console.info('[About Debug] dedicated members api fallback', {
+                siteSlug,
+                requestedSiteId: initialSiteId || payload?.site_id || payload?.id || null,
+                fetchedMembersCount: fetchedMembers.length,
+                rawMembersCount: memberRows.length,
+            });
+            if (fetchedMembers.length) {
+                membersData = fetchedMembers;
+            }
+        }
+
+        if (!membersData.length && siteSlug) {
             const cachedPayload = getCachedSitePayload(siteSlug);
             if (cachedPayload) {
                 const fetchedMembers = normalizeMembersFromPayload(cachedPayload);
@@ -339,7 +415,7 @@ export default function About(root, data = {}) {
                     siteSlug,
                     cachedSiteId: cachedPayload?.site_id,
                     fetchedMembersCount: fetchedMembers.length,
-                    rawMembersCount: Array.isArray(cachedPayload?.members) ? cachedPayload.members.length : 0,
+                    rawMembersCount: resolveMemberRows(cachedPayload).length,
                 });
                 payload = cachedPayload;
                 if (fetchedMembers.length) {

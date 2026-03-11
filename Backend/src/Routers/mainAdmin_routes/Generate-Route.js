@@ -17,6 +17,7 @@ Generaterouter.get('/generated-websites', authenticate, authorize, generateCtrl.
 Generaterouter.get('/community-selections', authenticate, authorize, generateCtrl.getCommunitySelections.bind(generateCtrl));
 
 // GET - Single website by community type (public for fanhub/<communityType>)
+Generaterouter.get('/generated-websites/type/:communityType/members', generateCtrl.getWebsiteMembers.bind(generateCtrl));
 Generaterouter.get('/generated-websites/type/:communityType', generateCtrl.getWebsiteByCommunityType.bind(generateCtrl));
 
 // GET - Single website by ID

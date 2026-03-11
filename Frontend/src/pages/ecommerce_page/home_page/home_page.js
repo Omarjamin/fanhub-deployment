@@ -19,6 +19,7 @@ import '../../../styles/ecommerce_styles/announcement.css';
 
 export default function HOMEPAGE(data = {}) {
   const { navigation, main, footer} = Layouts(this.root);
+  console.info('[Home Page Debug] render data payload', data);
   Navigation(navigation, data);
   LeadImage(main, data);
   Banner(main, data);

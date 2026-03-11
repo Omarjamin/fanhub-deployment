@@ -1006,6 +1006,11 @@ export async function fetchSiteBySlug(siteSlug) {
     throw new Error("Invalid site slug");
   }
 
+  console.info("[Runtime Debug] fetchSiteBySlug:start", {
+    requestSlug: slug,
+    cachedKey: `site_data:${slug}`,
+  });
+
   try {
     const cached = sessionStorage.getItem(`site_data:${slug}`);
     if (cached) {
@@ -1029,6 +1034,8 @@ export async function fetchSiteBySlug(siteSlug) {
           resolvedSlug: parsed?.community_type || parsed?.domain || slug,
           siteId: parsed?.site_id,
           membersCount: Array.isArray(parsed?.members) ? parsed.members.length : 0,
+          memberNames: Array.isArray(parsed?.members) ? parsed.members.map((member) => member?.name) : [],
+          payload: parsed,
         });
         const resolvedCachedSlug = String(
           parsed?.community_type ||
@@ -1056,13 +1063,20 @@ export async function fetchSiteBySlug(siteSlug) {
     `${adminApiBase}/admin`,
   ]));
 
+  console.info("[Runtime Debug] fetchSiteBySlug:lookup-plan", {
+    requestSlug: slug,
+    slugVariants,
+    baseVariants,
+  });
+
   let payload = null;
   let lastError = null;
 
   for (const base of baseVariants) {
     for (const candidate of slugVariants) {
       try {
-        const res = await fetch(`${base}/generate/generated-websites/type/${encodeURIComponent(candidate)}`, {
+        const requestUrl = `${base}/generate/generated-websites/type/${encodeURIComponent(candidate)}`;
+        const res = await fetch(requestUrl, {
           headers: {
             apikey: getApiKey(),
             "x-site-slug": candidate,
@@ -1072,6 +1086,20 @@ export async function fetchSiteBySlug(siteSlug) {
         });
 
         const json = await res.json().catch(() => ({}));
+        console.info("[Runtime Debug] fetchSiteBySlug:response", {
+          requestSlug: slug,
+          candidate,
+          requestUrl,
+          ok: res.ok,
+          status: res.status,
+          success: json?.success,
+          siteId: json?.data?.site_id,
+          domain: json?.data?.domain,
+          communityType: json?.data?.community_type,
+          membersCount: Array.isArray(json?.data?.members) ? json.data.members.length : 0,
+          memberNames: Array.isArray(json?.data?.members) ? json.data.members.map((member) => member?.name) : [],
+          payload: json?.data || null,
+        });
         if (res.ok && json?.success && json?.data) {
           payload = json.data;
           console.info("[Runtime Debug] fetched site payload", {
@@ -1080,11 +1108,18 @@ export async function fetchSiteBySlug(siteSlug) {
             domain: payload?.domain,
             communityType: payload?.community_type,
             membersCount: Array.isArray(payload?.members) ? payload.members.length : 0,
+            memberNames: Array.isArray(payload?.members) ? payload.members.map((member) => member?.name) : [],
           });
           break;
         }
         lastError = new Error(json?.message || `Failed to fetch website (${res.status})`);
       } catch (err) {
+        console.warn("[Runtime Debug] fetchSiteBySlug:error", {
+          requestSlug: slug,
+          candidate,
+          base,
+          message: err?.message || String(err),
+        });
         lastError = err;
       }
     }
@@ -1114,6 +1149,17 @@ export async function fetchSiteBySlug(siteSlug) {
     localStorage.setItem("active_site_data", JSON.stringify(payload));
     localStorage.setItem("active_site_slug", resolvedSlug);
   } catch (_) {}
+
+  console.info("[Runtime Debug] fetchSiteBySlug:final-payload", {
+    requestSlug: slug,
+    resolvedSlug,
+    siteId: payload?.site_id,
+    domain: payload?.domain,
+    communityType: payload?.community_type,
+    membersCount: Array.isArray(payload?.members) ? payload.members.length : 0,
+    memberNames: Array.isArray(payload?.members) ? payload.members.map((member) => member?.name) : [],
+    payload,
+  });
 
   applyThemeColors(payload);
   return payload;

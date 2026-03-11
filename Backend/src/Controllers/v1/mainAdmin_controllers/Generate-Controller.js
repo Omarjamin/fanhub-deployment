@@ -512,6 +512,40 @@ class GenerateController {
     }
   }
 
+  // GET /generated-websites/type/:communityType/members
+  async getWebsiteMembers(req, res) {
+    try {
+      const normalizedCommunityType = String(req?.params?.communityType || req?.query?.communityType || '').trim();
+      const normalizedSiteId = Number(req?.query?.siteId || 0);
+
+      if (!normalizedCommunityType && !normalizedSiteId) {
+        return res.status(400).json({
+          success: false,
+          message: 'communityType or siteId is required',
+        });
+      }
+
+      const members = await this.model.getWebsiteMembers({
+        siteId: normalizedSiteId,
+        communityType: normalizedCommunityType,
+      });
+
+      res.status(200).json({
+        success: true,
+        message: 'Website members fetched successfully',
+        data: members,
+        total: Array.isArray(members) ? members.length : 0,
+      });
+    } catch (err) {
+      console.error('GetWebsiteMembers error:', err);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch website members',
+        error: err.message,
+      });
+    }
+  }
+
   // GET /generated-websites/names
   async getTemplate(req, res) {
     try {
