@@ -3,7 +3,14 @@ import { Menu, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getModernResolvedSite } from "@/lib/modern-react/site";
 
-const navItems = ["Home", "About", "Members", "Music", "Events", "Shop"];
+const navItems = [
+  { label: "Home", id: "home" },
+  { label: "About", id: "about" },
+  { label: "Members", id: "members" },
+  { label: "Music", id: "music" },
+  { label: "Events", id: "events" },
+  { label: "Shop", id: "shop" },
+];
 
 const Navbar = () => {
   const navigate = useNavigate();
@@ -16,10 +23,14 @@ const Navbar = () => {
   const site = useMemo(() => getModernResolvedSite(), []);
   const [logoFailed, setLogoFailed] = useState(false);
   const showLogo = Boolean(site.logo) && !logoFailed;
-  const heroNavText = "rgba(255,255,255,0.96)";
-  const heroNavMuted = "rgba(255,255,255,0.84)";
+  const heroNavText = "rgba(255,255,255,0.98)";
+  const heroNavMuted = "rgba(255,255,255,0.9)";
   const scrolledNavText = "var(--theme-nav-text, var(--color-on-surface, #111111))";
   const scrolledNavMuted = "color-mix(in srgb, var(--theme-nav-text, var(--color-on-surface, #111111)) 78%, white 22%)";
+  const isHomeRoute = location.pathname === "/";
+  const useHeroNav = isHomeRoute && !isScrolled;
+  const desktopLinkColor = useHeroNav ? heroNavMuted : scrolledNavMuted;
+  const desktopLinkHover = useHeroNav ? "var(--color-accent, #ff1493)" : "var(--color-accent, #ff1493)";
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -49,38 +60,62 @@ const Navbar = () => {
     setMobileOpen(false);
   };
 
+  const desktopNavStyle = {
+    display: "flex",
+    alignItems: "center",
+    gap: "2rem",
+    listStyle: "none",
+    margin: 0,
+    padding: 0,
+    flex: "0 1 auto",
+  };
+
+  const linkBaseStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "transparent",
+    border: "none",
+    padding: 0,
+    minWidth: "fit-content",
+    lineHeight: 1,
+    fontSize: "0.84rem",
+    fontWeight: 700,
+    letterSpacing: "0.28em",
+    textTransform: "uppercase",
+    textDecoration: "none",
+    textShadow: isScrolled ? "none" : "0 1px 10px rgba(0,0,0,0.22)",
+    cursor: "pointer",
+  };
+
   return (
     <header
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "backdrop-blur-xl shadow-lg" : "bg-transparent"
-      }`}
-      style={
-        isScrolled
-          ? {
-              background:
-                "linear-gradient(180deg, color-mix(in srgb, var(--color-primary-soft) 88%, white 12%), color-mix(in srgb, var(--color-primary-soft) 96%, var(--color-surface) 4%))",
-              borderBottom: "1px solid color-mix(in srgb, var(--color-primary) 22%, white 78%)",
-            }
-          : undefined
-      }
+      className="fixed top-0 left-0 right-0 z-50 shadow-lg transition-all duration-300"
+      style={{
+        background: useHeroNav
+          ? "linear-gradient(180deg, rgba(20, 18, 24, 0.24), rgba(20, 18, 24, 0.08))"
+          : "linear-gradient(180deg, color-mix(in srgb, var(--color-primary-soft) 88%, white 12%), color-mix(in srgb, var(--color-primary-soft) 96%, var(--color-surface) 4%))",
+        borderBottom: useHeroNav
+          ? "1px solid rgba(255,255,255,0.12)"
+          : "1px solid color-mix(in srgb, var(--color-primary) 22%, white 78%)",
+      }}
     >
-      <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
+      <nav className="container mx-auto px-4 h-16 flex items-center justify-between gap-6">
         <button
           onClick={() => scrollTo("home")}
-          className="flex items-center gap-2"
-          style={{ background: "transparent", border: "none", padding: 0 }}
+          className="modern-nav-button flex items-center gap-2"
         >
           {showLogo ? (
             <img
               src={site.logo}
               alt={`${site.siteName} Logo`}
-              className={`h-8 ${isScrolled ? "" : "brightness-0 invert"}`}
+              className="modern-nav-logo h-9 w-auto max-w-[120px] object-contain"
               onError={() => setLogoFailed(true)}
             />
           ) : (
             <span
               className="font-display text-xl uppercase tracking-[0.22em]"
-              style={{ color: isScrolled ? scrolledNavText : heroNavText }}
+              style={{ color: useHeroNav ? heroNavText : scrolledNavText }}
             >
               {site.siteName}
             </span>
@@ -88,26 +123,26 @@ const Navbar = () => {
         </button>
 
         {isDesktop ? (
-        <ul className="gap-8" style={{ display: "flex", alignItems: "center", listStyle: "none", margin: 0, padding: 0 }}>
+        <ul style={desktopNavStyle}>
           {navItems.map((item) => (
-            <li key={item}>
+            <li key={item.id}>
               <button
-                onClick={() => scrollTo(item.toLowerCase())}
-                className="font-body text-sm font-medium transition-colors uppercase tracking-widest"
+                onClick={() => scrollTo(item.id)}
+                className="modern-nav-button"
                 style={{
-                  background: "transparent",
-                  border: "none",
-                  padding: 0,
-                  color: isScrolled ? scrolledNavMuted : heroNavMuted,
+                  ...linkBaseStyle,
+                  color: desktopLinkColor,
                 }}
                 onMouseEnter={(event) => {
-                  event.currentTarget.style.color = isScrolled ? scrolledNavText : heroNavText;
+                  event.currentTarget.style.color = desktopLinkHover;
+                  event.currentTarget.style.background = "transparent";
                 }}
                 onMouseLeave={(event) => {
-                  event.currentTarget.style.color = isScrolled ? scrolledNavMuted : heroNavMuted;
+                  event.currentTarget.style.color = desktopLinkColor;
+                  event.currentTarget.style.background = "transparent";
                 }}
               >
-                {item}
+                {item.label}
               </button>
             </li>
           ))}
@@ -116,7 +151,8 @@ const Navbar = () => {
 
         {!isDesktop ? (
           <button
-            style={{ color: isScrolled ? scrolledNavText : heroNavText, background: "transparent", border: "none", padding: 0 }}
+            className="modern-nav-button"
+            style={{ color: useHeroNav ? heroNavText : scrolledNavText }}
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
           >
@@ -127,7 +163,7 @@ const Navbar = () => {
 
       {!isDesktop && mobileOpen && (
         <div
-          className="backdrop-blur-xl border-t"
+          className="border-t"
           style={{
             background:
               "linear-gradient(180deg, color-mix(in srgb, var(--color-primary-soft) 90%, white 10%), color-mix(in srgb, var(--color-surface) 92%, var(--color-primary-soft) 8%))",
@@ -136,19 +172,26 @@ const Navbar = () => {
         >
           <ul className="flex flex-col items-center gap-6 py-8" style={{ listStyle: "none", margin: 0 }}>
             {navItems.map((item) => (
-              <li key={item}>
+              <li key={item.id}>
                 <button
-                  onClick={() => scrollTo(item.toLowerCase())}
-                  className="font-body text-lg transition-colors uppercase tracking-widest"
-                  style={{ color: scrolledNavMuted, background: "transparent", border: "none", padding: 0 }}
+                  onClick={() => scrollTo(item.id)}
+                  className="modern-nav-button font-body text-lg transition-colors uppercase tracking-widest"
+                  style={{
+                    color: scrolledNavMuted,
+                    padding: 0,
+                    fontWeight: 700,
+                    letterSpacing: "0.18em",
+                  }}
                   onMouseEnter={(event) => {
-                    event.currentTarget.style.color = scrolledNavText;
+                    event.currentTarget.style.color = "var(--color-accent, #ff1493)";
+                    event.currentTarget.style.background = "transparent";
                   }}
                   onMouseLeave={(event) => {
                     event.currentTarget.style.color = scrolledNavMuted;
+                    event.currentTarget.style.background = "transparent";
                   }}
                 >
-                  {item}
+                  {item.label}
                 </button>
               </li>
             ))}

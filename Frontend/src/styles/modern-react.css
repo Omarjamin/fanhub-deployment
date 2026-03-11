@@ -71,4 +71,25 @@
     background-clip: text;
     color: transparent;
   }
+
+  .modern-react-root .modern-nav-button,
+  [data-react-root="modern"] .modern-nav-button,
+  .modern-react-root .modern-nav-button:hover,
+  [data-react-root="modern"] .modern-nav-button:hover,
+  .modern-react-root .modern-nav-button:focus,
+  [data-react-root="modern"] .modern-nav-button:focus,
+  .modern-react-root .modern-nav-button:active,
+  [data-react-root="modern"] .modern-nav-button:active {
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none !important;
+  }
+
+  .modern-react-root .modern-nav-logo,
+  [data-react-root="modern"] .modern-nav-logo {
+    display: block;
+    object-fit: contain;
+    filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.18));
+  }
 }

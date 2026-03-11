@@ -801,9 +801,10 @@ export default function GenerateWebsite() {
           <div class="gw-group-photo-panel">
             <div class="gw-form-group">
               <label for="groupPhoto">Group Photo</label>
-              <div class="gw-file-input">
+              <div class="gw-upload-inline">
                 <input type="file" id="groupPhoto" accept="image/*">
-                <span class="gw-file-label">Choose group photo</span>
+                <button type="button" class="gw-file-action-btn" id="groupPhotoBrowseBtn">Choose Group Photo</button>
+                <span class="gw-upload-file-name" id="groupPhotoFileLabel">No file selected</span>
               </div>
               <small class="gw-field-hint">This stays mapped to the site-level group photo.</small>
             </div>
@@ -1640,6 +1641,13 @@ export default function GenerateWebsite() {
       triggerLeadImagePicker();
     });
 
+    section.querySelector('#groupPhotoBrowseBtn')?.addEventListener('click', () => {
+      const groupPhotoInput = section.querySelector('#groupPhoto');
+      if (groupPhotoInput) {
+        groupPhotoInput.click();
+      }
+    });
+
     section.querySelector('#logo')?.addEventListener('change', (e) => {
       if (e.target.files[0]) {
         const maxSize = 5 * 1024 * 1024; // 5MB
@@ -1728,7 +1736,11 @@ export default function GenerateWebsite() {
       label.textContent = 'No file selected';
       return;
     }
-    label.textContent = 'Choose group photo';
+    if (input.id === 'groupPhoto') {
+      label.textContent = 'No file selected';
+      return;
+    }
+    label.textContent = 'No file selected';
   };
 
   const validateForm = () => {

@@ -32,7 +32,7 @@ const HeroSection = () => {
             <img
               src={site.logo}
               alt={`${site.siteName} Logo`}
-              className="h-24 md:h-32 mx-auto mb-4 brightness-0 invert"
+              className="mx-auto mb-4 h-24 w-auto max-w-[260px] object-contain drop-shadow-[0_10px_35px_rgba(0,0,0,0.28)] md:h-32 md:max-w-[340px]"
               onError={() => setLogoFailed(true)}
             />
           ) : (
