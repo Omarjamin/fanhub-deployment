@@ -184,14 +184,32 @@ async function fetchMembersByCommunity(siteSlug = '', siteId = 0) {
 
     for (const candidate of slugVariants) {
         try {
-            const res = await api.get(`/generate/generated-websites/type/${encodeURIComponent(candidate)}/members`, {
-                params: Number(siteId || 0) > 0 ? { siteId: Number(siteId) } : undefined,
+            const params = Number(siteId || 0) > 0 ? { siteId: Number(siteId) } : undefined;
+            console.info('[About Debug] requesting dedicated members api', {
+                requestSlug: candidate,
+                requestSiteId: Number(siteId || 0) || null,
+                params,
             });
+            const res = await api.get(`/generate/generated-websites/type/${encodeURIComponent(candidate)}/members`, { params });
             const rows = Array.isArray(res?.data?.data) ? res.data.data : [];
+            console.info('[About Debug] dedicated members api response', {
+                requestSlug: candidate,
+                requestSiteId: Number(siteId || 0) || null,
+                total: Array.isArray(rows) ? rows.length : 0,
+                rows,
+            });
             if (rows.length) {
                 return rows;
             }
-        } catch (_) {}
+        } catch (error) {
+            console.warn('[About Debug] dedicated members api failed', {
+                requestSlug: candidate,
+                requestSiteId: Number(siteId || 0) || null,
+                status: error?.response?.status || null,
+                message: error?.response?.data?.message || error?.message || String(error),
+                data: error?.response?.data || null,
+            });
+        }
     }
 
     return [];
