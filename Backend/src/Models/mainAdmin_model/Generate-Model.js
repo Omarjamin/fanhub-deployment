@@ -792,21 +792,55 @@ class GenerateModel {
   async getSiteMembersSafe(siteId) {
     const queries = [
       `
-        SELECT id, name, role, description, image_profile
+        SELECT
+          member_id AS id,
+          name,
+          NULL AS role,
+          birthdate,
+          NULL AS description,
+          image_profile,
+          community_id
         FROM site_members
         WHERE site_id = ?
         ORDER BY created_at ASC
       `,
       `
-        SELECT member_id AS id, name, role, description, image_profile
+        SELECT
+          member_id AS id,
+          name,
+          NULL AS role,
+          birthdate,
+          NULL AS description,
+          image_profile,
+          community_id
         FROM site_members
         WHERE site_id = ?
         ORDER BY created_at ASC
       `,
       `
-        SELECT name, role, description, image_profile
+        SELECT
+          member_id AS id,
+          name,
+          NULL AS role,
+          birthdate,
+          NULL AS description,
+          image_profile,
+          community_id
         FROM site_members
         WHERE site_id = ?
+      `,
+      `
+        SELECT
+          member_id AS id,
+          name,
+          NULL AS role,
+          birthdate,
+          NULL AS description,
+          image_profile,
+          community_id
+        FROM site_members
+        WHERE community_id = ?
+        ORDER BY created_at ASC
       `
     ];
 
@@ -935,6 +969,30 @@ class GenerateModel {
         if (Array.isArray(members) && members.length > 0) {
           return members;
         }
+      }
+
+      if (candidateIds.size > 0) {
+        try {
+          const [communityRows] = await this.db.query(
+            `
+              SELECT
+                member_id AS id,
+                name,
+                NULL AS role,
+                birthdate,
+                NULL AS description,
+                image_profile,
+                community_id
+              FROM site_members
+              WHERE community_id IN (${Array.from(candidateIds).map(() => '?').join(', ')})
+              ORDER BY created_at ASC
+            `,
+            Array.from(candidateIds),
+          );
+          if (Array.isArray(communityRows) && communityRows.length > 0) {
+            return communityRows;
+          }
+        } catch (_) {}
       }
 
       return [];

@@ -184,7 +184,10 @@ async function fetchMembersByCommunity(siteSlug = '', siteId = 0) {
 
     for (const candidate of slugVariants) {
         try {
-            const params = Number(siteId || 0) > 0 ? { siteId: Number(siteId) } : undefined;
+            const params = {
+                ...(Number(siteId || 0) > 0 ? { siteId: Number(siteId) } : {}),
+                _t: Date.now(),
+            };
             console.info('[About Debug] requesting dedicated members api', {
                 requestSlug: candidate,
                 requestSiteId: Number(siteId || 0) || null,

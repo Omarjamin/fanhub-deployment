@@ -110,7 +110,7 @@ body:has(.ec-lead-image) main {
 }
 
 .navbar nav a {
-  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000)));
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #111111)));
   font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
   font-weight: 600;
   margin: 0 clamp(0.25rem, 1vw, 0.625rem);
@@ -134,7 +134,7 @@ body:has(.ec-lead-image) main {
 
 .navbar nav a:hover {
   background: transparent !important;
-  color: inherit !important;
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #111111))) !important;
   transform: none;
   box-shadow: none !important;
   opacity: 1;
@@ -149,7 +149,7 @@ body:has(.ec-lead-image) main {
 .navbar nav a:active,
 .navbar nav a.active {
   background: transparent;
-  color: inherit !important;
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #111111))) !important;
   outline: none;
   box-shadow: none !important;
 }
@@ -193,7 +193,7 @@ body:has(.ec-lead-image) main {
 
 .navbar .nav-right a:hover {
   background: transparent !important;
-  color: inherit !important;
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
   transform: none;
   box-shadow: none !important;
   opacity: 1;
@@ -217,7 +217,7 @@ body:has(.ec-lead-image) main {
 
 .navbar .menu-toggle:hover {
   background: transparent !important;
-  color: inherit !important;
+  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
   transform: none;
   opacity: 1;
 }

@@ -518,6 +518,13 @@ class GenerateController {
       const normalizedCommunityType = String(req?.params?.communityType || req?.query?.communityType || '').trim();
       const normalizedSiteId = Number(req?.query?.siteId || 0);
 
+      res.set({
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        Pragma: 'no-cache',
+        Expires: '0',
+        Surrogate-Control: 'no-store',
+      });
+
       if (!normalizedCommunityType && !normalizedSiteId) {
         return res.status(400).json({
           success: false,
