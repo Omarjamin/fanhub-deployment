@@ -1,3 +1,5 @@
+import Navigation from '../navigation.js';
+import Footer from '../footer.js';
 import { api } from '../../../services/ecommerce_services/config.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
 import '../../../styles/ecommerce_styles/order_history.css';
@@ -8,24 +10,35 @@ function resolveItemWeightGrams(item) {
   return 0;
 }
 
-export default function OrderHistory() {
+export default function OrderHistory(payload = null) {
   const root = document.getElementById("app");
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
   const communityType =
     pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]
       ? pathParts[2]
       : (pathParts[0] === 'fanhub' ? pathParts[1] : '');
+  const communityData = payload?.communityData || {};
   const homePath = communityType ? `/fanhub/${communityType}` : '/';
   const shopPath = communityType ? `/fanhub/${communityType}/shop` : '/shop';
   const communityCartPath = communityType ? `/fanhub/${communityType}/shop` : '/shop';
   
+  document.body.classList.remove(
+    'ec-order-confirmation-page',
+    'ec-checkout-page',
+    'ec-product-page',
+    'ec-shop-page',
+    'ec-auth-page',
+  );
+  document.body.classList.add('ec-order-history-page');
   root.innerHTML = `
-    <div class="order-history-container">
-      <div class="container">
+    <div id="navigation-container"></div>
+    <main class="order-history-page-shell">
+      <div class="order-history-container order-history-page">
+        <div class="container">
         <!-- Header with Stats -->
         <div class="order-history-header">
           <div class="header-title">
-            <button class="btn-link" id="back-to-shop" onclick="window.location.href='${homePath}'">
+            <button class="btn-link" id="back-to-shop" type="button">
               <span class="order-history-back-arrow" aria-hidden="true">←</span>
               <span class="order-history-back-label">Back to home</span>
             </button>
@@ -113,8 +126,17 @@ export default function OrderHistory() {
           </div>
         </div>
       </div>
-    </div>
+    </main>
+    <div id="footer-container"></div>
   `;
+
+  const navContainer = document.getElementById('navigation-container');
+  Navigation(navContainer, { ...communityData, community_type: communityType });
+  const footerContainer = document.getElementById('footer-container');
+  Footer(footerContainer, { community_type: communityType });
+  document.getElementById('back-to-shop')?.addEventListener('click', () => {
+    window.location.href = homePath;
+  });
 
   let allOrders = [];
   let currentView = 'table';

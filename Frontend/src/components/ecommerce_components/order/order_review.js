@@ -77,7 +77,7 @@ export default function OrderReview(root) {
         /* =========================
            3. RENDER UI
         ========================= */
-        root.className = 'form-container';
+        root.className = 'form-container form-container--review';
         root.innerHTML = `
             <div class="order-review-card">
                 <div class="order-review-header">

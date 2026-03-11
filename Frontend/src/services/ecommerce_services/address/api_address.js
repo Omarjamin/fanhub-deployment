@@ -2,6 +2,7 @@ class Address_Api {
   constructor() {
     this.base = 'https://psgc.cloud/api/v2';
     this.lookupBase = 'https://psgc.cloud/api';
+    this.lookupV1Base = 'https://psgc.cloud/api/v1';
     this.NCR = 'National Capital Region (NCR)'; // Use name for clarity
     this.zipLookupPromise = null;
   }
@@ -23,6 +24,21 @@ class Address_Api {
 
   async fetchRows(url) {
     return this.extractRows(await this.fetchJson(url));
+  }
+
+  normalizeName(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\./g, '')
+      .replace(/\s+/g, ' ');
+  }
+
+  normalizeType(value) {
+    const type = String(value || '').trim().toLowerCase();
+    if (type.includes('city')) return 'city';
+    if (type.includes('municipality')) return 'municipality';
+    return '';
   }
 
   // Get all regions
@@ -65,6 +81,26 @@ class Address_Api {
     return this.zipLookupPromise;
   }
 
+  async searchZipByContext(locality) {
+    const normalizedName = this.normalizeName(locality?.name);
+    if (!normalizedName) return '';
+
+    const params = new URLSearchParams({
+      q: String(locality.name || '').trim(),
+      per_page: '100',
+    });
+
+    if (locality?.provinceCode) params.set('province_code', String(locality.provinceCode).trim());
+    if (locality?.regionCode) params.set('region_code', String(locality.regionCode).trim());
+
+    const normalizedType = this.normalizeType(locality?.type);
+    if (normalizedType) params.set('type', normalizedType);
+
+    const rows = await this.fetchRows(`${this.lookupV1Base}/cities-municipalities?${params.toString()}`);
+    const match = rows.find(row => this.normalizeName(row?.name) === normalizedName);
+    return String(match?.zip_code || match?.zipCode || '').trim();
+  }
+
   // Get ZIP code for a city/municipality from PSGC Cloud list endpoints.
   async getZipCode(locality) {
     const localityName = typeof locality === 'string'
@@ -73,20 +109,46 @@ class Address_Api {
     const localityCode = typeof locality === 'object'
       ? String(locality?.code || locality?.id || '')
       : '';
+    const localityType = typeof locality === 'object'
+      ? String(locality?.type || '')
+      : '';
+    const regionCode = typeof locality === 'object'
+      ? String(locality?.regionCode || '')
+      : '';
+    const provinceCode = typeof locality === 'object'
+      ? String(locality?.provinceCode || '')
+      : '';
 
-    const normalizedName = String(localityName || '').trim().toLowerCase();
+    const normalizedName = this.normalizeName(localityName);
     if (!normalizedName && !localityCode) return '';
 
     const rows = await this.getZipLookupRows();
     const match = rows.find(row => {
       const rowCode = String(row?.code || row?.id || '').trim();
-      const rowName = String(row?.name || row?.cityName || row?.municipalityName || '').trim().toLowerCase();
+      const rowName = this.normalizeName(row?.name || row?.cityName || row?.municipalityName);
 
       if (localityCode && rowCode && rowCode === localityCode) return true;
+      return false;
+    });
+
+    if (match?.zip_code || match?.zipCode) {
+      return String(match?.zip_code || match?.zipCode || '').trim();
+    }
+
+    const contextualZip = await this.searchZipByContext({
+      name: localityName,
+      type: localityType,
+      regionCode,
+      provinceCode,
+    }).catch(() => '');
+    if (contextualZip) return contextualZip;
+
+    const fallbackMatch = rows.find(row => {
+      const rowName = this.normalizeName(row?.name || row?.cityName || row?.municipalityName);
       return normalizedName ? rowName === normalizedName : false;
     });
 
-    return String(match?.zip_code || match?.zipCode || '').trim();
+    return String(fallbackMatch?.zip_code || fallbackMatch?.zipCode || '').trim();
   }
 }
 

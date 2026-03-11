@@ -538,7 +538,9 @@ body:has(.ec-lead-image) main {
 .navbar.ec-hero-nav.scrolled,
 body.ec-shop-page .navbar,
 body.ec-auth-page .navbar,
-body.ec-checkout-page .navbar {
+body.ec-checkout-page .navbar,
+body.ec-order-history-page .navbar,
+body.ec-order-confirmation-page .navbar {
   --ecommerce-nav-fg: #fff;
   --ecommerce-nav-hover: #fff;
 }
@@ -567,7 +569,17 @@ body.ec-checkout-page .navbar .logo,
 body.ec-checkout-page .navbar .logo a,
 body.ec-checkout-page .navbar nav a,
 body.ec-checkout-page .navbar .nav-right a,
-body.ec-checkout-page .navbar .menu-toggle {
+body.ec-checkout-page .navbar .menu-toggle,
+body.ec-order-history-page .navbar .logo,
+body.ec-order-history-page .navbar .logo a,
+body.ec-order-history-page .navbar nav a,
+body.ec-order-history-page .navbar .nav-right a,
+body.ec-order-history-page .navbar .menu-toggle,
+body.ec-order-confirmation-page .navbar .logo,
+body.ec-order-confirmation-page .navbar .logo a,
+body.ec-order-confirmation-page .navbar nav a,
+body.ec-order-confirmation-page .navbar .nav-right a,
+body.ec-order-confirmation-page .navbar .menu-toggle {
   color: var(--ecommerce-nav-fg) !important;
 }
 
@@ -588,7 +600,15 @@ body.ec-auth-page .navbar .nav-right a:focus-visible,
 body.ec-checkout-page .navbar nav a:hover,
 body.ec-checkout-page .navbar nav a:focus-visible,
 body.ec-checkout-page .navbar .nav-right a:hover,
-body.ec-checkout-page .navbar .nav-right a:focus-visible {
+body.ec-checkout-page .navbar .nav-right a:focus-visible,
+body.ec-order-history-page .navbar nav a:hover,
+body.ec-order-history-page .navbar nav a:focus-visible,
+body.ec-order-history-page .navbar .nav-right a:hover,
+body.ec-order-history-page .navbar .nav-right a:focus-visible,
+body.ec-order-confirmation-page .navbar nav a:hover,
+body.ec-order-confirmation-page .navbar nav a:focus-visible,
+body.ec-order-confirmation-page .navbar .nav-right a:hover,
+body.ec-order-confirmation-page .navbar .nav-right a:focus-visible {
   color: var(--ecommerce-nav-hover) !important;
   background: transparent !important;
 }
@@ -600,13 +620,19 @@ body.ec-shop-page .navbar nav a[aria-current="page"],
 body.ec-auth-page .navbar nav a.active,
 body.ec-auth-page .navbar nav a[aria-current="page"],
 body.ec-checkout-page .navbar nav a.active,
-body.ec-checkout-page .navbar nav a[aria-current="page"] {
+body.ec-checkout-page .navbar nav a[aria-current="page"],
+body.ec-order-history-page .navbar nav a.active,
+body.ec-order-history-page .navbar nav a[aria-current="page"],
+body.ec-order-confirmation-page .navbar nav a.active,
+body.ec-order-confirmation-page .navbar nav a[aria-current="page"] {
   color: #fff !important;
 }
 
 .navbar .logo img.logo-img-default,
 body.ec-shop-page .navbar .logo img.logo-img-default,
 body.ec-auth-page .navbar .logo img.logo-img-default,
-body.ec-checkout-page .navbar .logo img.logo-img-default {
+body.ec-checkout-page .navbar .logo img.logo-img-default,
+body.ec-order-history-page .navbar .logo img.logo-img-default,
+body.ec-order-confirmation-page .navbar .logo img.logo-img-default {
   filter: brightness(0) invert(1) !important;
 }

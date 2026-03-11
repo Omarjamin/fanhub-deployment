@@ -3318,3 +3318,177 @@
     display: flex;
   }
 }
+
+/* ======================= REVIEW STEP CLEANUP ======================= */
+.checkout-main .checkout-form-with-summary.review-only > .form-container--review {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  padding: 0 !important;
+  min-width: 0 !important;
+  width: 100% !important;
+  max-width: none !important;
+  flex: none !important;
+  overflow: visible !important;
+}
+
+.checkout-main .order-review-card {
+  width: 100%;
+  max-width: none !important;
+  min-height: 0 !important;
+  height: auto !important;
+  margin: 0 !important;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.checkout-main .order-review-card .order-review-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 0 !important;
+  text-align: center;
+}
+
+.checkout-main .order-review-card .order-review-title {
+  margin-bottom: 0 !important;
+}
+
+.checkout-main .order-review-card .order-review-subtitle {
+  max-width: 54ch;
+  margin: 0 auto;
+  font-size: 0.98rem;
+  line-height: 1.6;
+}
+
+.checkout-main .order-review-card .review-sections {
+  align-items: stretch;
+  height: auto !important;
+}
+
+.checkout-main .order-review-card .review-section {
+  min-width: 0;
+  min-height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.checkout-main .order-review-card .section-content {
+  min-width: 0;
+  overflow: visible !important;
+  color: var(--co-text) !important;
+  font-size: 0.96rem;
+  line-height: 1.65;
+}
+
+.checkout-main .order-review-card .info-item {
+  display: grid;
+  gap: 6px;
+}
+
+.checkout-main .order-review-card .info-item + .info-item {
+  margin-top: 14px;
+}
+
+.checkout-main .order-review-card .info-value,
+.checkout-main .order-review-card .product-name,
+.checkout-main .order-review-card .payment-note span:last-child,
+.checkout-main .order-review-card .total-label,
+.checkout-main .order-review-card .total-value,
+.checkout-main .order-review-card td {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.checkout-main .order-review-card .edit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 10px 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--co-accent) 24%, white 76%);
+  background: color-mix(in srgb, var(--co-accent) 10%, white 90%);
+  color: var(--co-accent-strong) !important;
+  font-size: 0.82rem;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+}
+
+.checkout-main .order-review-card .edit-link svg {
+  flex: 0 0 auto;
+}
+
+.checkout-main .order-review-card .payment-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.checkout-main .order-review-card .note-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  min-height: 28px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--co-accent) 14%, white 86%);
+  color: var(--co-accent-strong);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.checkout-main .order-review-card .items-table {
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.checkout-main .order-review-card .items-section table {
+  min-width: 520px;
+}
+
+.checkout-main .order-review-card .order-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.checkout-main .order-review-card .btn-confirm-order {
+  min-width: 180px;
+}
+
+@media (max-width: 768px) {
+  .checkout-main .checkout-form-with-summary.review-only > .form-container--review {
+    padding: 0 !important;
+  }
+
+  .checkout-main .order-review-card {
+    gap: 18px;
+  }
+
+  .checkout-main .order-review-card .order-review-header {
+    align-items: flex-start;
+    text-align: left;
+  }
+
+  .checkout-main .order-review-card .order-review-subtitle {
+    margin: 0;
+    max-width: none;
+  }
+
+  .checkout-main .order-review-card .edit-link {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .checkout-main .order-review-card .items-section table {
+    min-width: 460px;
+  }
+
+  .checkout-main .order-review-card .order-actions {
+    display: none;
+  }
+}

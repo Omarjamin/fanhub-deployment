@@ -97,7 +97,9 @@ export default async function ShippingForm(root) {
 
     const api = new Address_Api();
     const state = {
+        regionCode: '',
         regionName: '',
+        provinceCode: '',
         provinceName: '',
         cityName: ''
     };
@@ -144,6 +146,7 @@ async function loadProvinces(api, regionName) {
                 const option = document.createElement('option');
                 option.textContent = p.name;
                 option.value = p.name;
+                option.dataset.code = String(p.code || p.id || '');
                 provinceSelect.appendChild(option);
             });
             console.log('Provinces added to dropdown');
@@ -199,7 +202,7 @@ function resetZipField(zipInput, placeholder = 'Auto-filled after selecting a ci
     zipInput.readOnly = true;
 }
 
-async function autoFillZipCode(api, citySelect, zipInput) {
+async function autoFillZipCode(api, citySelect, zipInput, state) {
     if (!citySelect || !zipInput) return '';
 
     const selectedOption = citySelect.options[citySelect.selectedIndex];
@@ -207,6 +210,8 @@ async function autoFillZipCode(api, citySelect, zipInput) {
         name: citySelect.value,
         code: selectedOption?.dataset?.code || '',
         type: selectedOption?.dataset?.type || '',
+        regionCode: state?.regionCode || '',
+        provinceCode: state?.provinceCode || '',
     };
 
     resetZipField(zipInput, 'Loading ZIP code...');
@@ -263,7 +268,9 @@ function setupEvents(api, state) {
 
         if (region) {
             region.addEventListener('change', async () => {
+                state.regionCode = region.value;
                 state.regionName = region.options[region.selectedIndex].text;
+                state.provinceCode = '';
                 state.provinceName = '';
                 state.cityName = '';
                 console.log('Region selected:', state.regionName);
@@ -296,6 +303,7 @@ function setupEvents(api, state) {
 
         if (province) {
             province.addEventListener('change', async () => {
+                state.provinceCode = province.options[province.selectedIndex]?.dataset?.code || '';
                 state.provinceName = province.value;
                 state.cityName = '';
 
@@ -355,7 +363,7 @@ function setupEvents(api, state) {
                 
                 await Promise.all([
                     loadBarangays(api, state.regionName, state.provinceName, state.cityName),
-                    autoFillZipCode(api, city, zip),
+                    autoFillZipCode(api, city, zip, state),
                 ]);
 
                 barangay.disabled = false;
