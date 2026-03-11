@@ -51,9 +51,35 @@ class GenerateModel {
     this.siteColumns = null;
   }
 
+  async ensureSiteTemplateColumns() {
+    if (!this.db) await this.connectAdmin();
+    const hasSites = await this.hasTable('sites');
+    if (!hasSites) return;
+
+    const [rows] = await this.db.query('SHOW COLUMNS FROM sites');
+    const cols = new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+
+    const desiredColumns = [
+      { name: 'template_id', sql: 'ALTER TABLE sites ADD COLUMN template_id INT NULL AFTER community_id' },
+      { name: 'template', sql: 'ALTER TABLE sites ADD COLUMN template VARCHAR(120) NULL AFTER template_id' },
+      { name: 'template_name', sql: 'ALTER TABLE sites ADD COLUMN template_name VARCHAR(255) NULL AFTER template' },
+      { name: 'template_key', sql: 'ALTER TABLE sites ADD COLUMN template_key VARCHAR(120) NULL AFTER template_name' },
+    ];
+
+    for (const column of desiredColumns) {
+      if (cols.has(column.name)) continue;
+      try {
+        await this.db.query(column.sql);
+      } catch (_) {}
+    }
+
+    this.siteColumns = null;
+  }
+
   async getSiteColumns() {
     if (this.siteColumns) return this.siteColumns;
     await this.ensureSiteCommunityColumn();
+    await this.ensureSiteTemplateColumns();
     const [rows] = await this.db.query('SHOW COLUMNS FROM sites');
     this.siteColumns = new Set((rows || []).map((row) => String(row?.Field || '').trim()));
     return this.siteColumns;
@@ -1182,6 +1208,10 @@ class GenerateModel {
       site_name,
       community_type,
       community_id,
+      template_id,
+      template,
+      template_name,
+      template_key,
       status,
       short_bio,
       description,
@@ -1244,6 +1274,27 @@ class GenerateModel {
         const numeric = Number(community_id);
         updates.push('community_id = ?');
         params.push(Number.isFinite(numeric) && numeric > 0 ? numeric : null);
+      }
+
+      if (template_id !== undefined && siteCols.has('template_id')) {
+        const numeric = Number(template_id);
+        updates.push('template_id = ?');
+        params.push(Number.isFinite(numeric) && numeric > 0 ? numeric : null);
+      }
+
+      if (template !== undefined && siteCols.has('template')) {
+        updates.push('template = ?');
+        params.push(String(template || '').trim() || null);
+      }
+
+      if (template_name !== undefined && siteCols.has('template_name')) {
+        updates.push('template_name = ?');
+        params.push(String(template_name || '').trim() || null);
+      }
+
+      if (template_key !== undefined && siteCols.has('template_key')) {
+        updates.push('template_key = ?');
+        params.push(String(template_key || '').trim().toLowerCase() || null);
       }
 
       if (status !== undefined) {

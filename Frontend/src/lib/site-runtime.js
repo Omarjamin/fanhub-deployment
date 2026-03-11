@@ -1236,7 +1236,18 @@ export async function renderEcommerceTemplatePage({ root, siteSlug, page, passMo
     throw new Error(`Missing ecommerce template page: ${page}`);
   }
 
-  const payload = passMode === "raw" ? siteData : { siteSlug, siteData };
+  const templateKey = String(templateValue || "").trim().toLowerCase();
+  const shouldForceObjectPayload = templateKey.includes("modern");
+  const payload = (passMode === "raw" && !shouldForceObjectPayload)
+    ? siteData
+    : { siteSlug, siteData };
+  console.info("[Runtime Debug] renderEcommerceTemplatePage", {
+    siteSlug,
+    page,
+    templateKey,
+    requestedPassMode: passMode,
+    usingObjectPayload: shouldForceObjectPayload || passMode !== "raw",
+  });
   Page.call({ root }, payload);
 }
   

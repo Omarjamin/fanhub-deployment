@@ -14,10 +14,15 @@ export function mountModernReactApp(root, payload = {}) {
     throw new Error("Missing mount root for modern template");
   }
 
+  const normalizedSiteData =
+    payload?.siteData && typeof payload.siteData === "object"
+      ? payload.siteData
+      : (payload && typeof payload === "object" ? payload : null);
+
   const siteSlug = String(
     payload?.siteSlug ||
-      payload?.siteData?.community_type ||
-      payload?.siteData?.domain ||
+      normalizedSiteData?.community_type ||
+      normalizedSiteData?.domain ||
       ""
   )
     .trim()
@@ -25,7 +30,7 @@ export function mountModernReactApp(root, payload = {}) {
 
   setModernTemplateContext({
     siteSlug,
-    siteData: payload?.siteData || null,
+    siteData: normalizedSiteData,
     page: payload?.page || "home",
   });
 
