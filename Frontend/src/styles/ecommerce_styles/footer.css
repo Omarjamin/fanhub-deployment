@@ -7,8 +7,14 @@
 .ec-footer {
   margin-top: 20px;
   padding: 20px 14px 16px;
-  border-top: 1px solid color-mix(in srgb, var(--primary-color, #1f2937) 12%, transparent);
-  background: var(--secondary-background, var(--secondary-color, #ffffff));
+  border-top: 1px solid color-mix(in srgb, var(--primary-color, #1f2937) 18%, white 82%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 68%, white 32%),
+      color-mix(in srgb, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 28%, var(--secondary-background, var(--background-color, #f8f9fb)) 72%) 36%,
+      var(--secondary-background, var(--background-color, #f8f9fb)) 100%
+    );
   color: var(--theme-section-text, var(--primary-color, #1f2937));
   font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
 }
@@ -52,6 +58,15 @@
 
 .ec-footer-brand {
   max-width: 560px;
+  padding: 20px 22px;
+  border-radius: 20px;
+  border: 1px solid color-mix(in srgb, var(--primary-color, #1f2937) 14%, white 86%);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-color, #ffffff) 94%, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 6%),
+      color-mix(in srgb, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 18%, white 82%)
+    );
 }
 
 .ec-footer-brand-note strong {

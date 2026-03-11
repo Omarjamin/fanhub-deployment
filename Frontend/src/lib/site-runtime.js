@@ -279,9 +279,8 @@ function parsePaletteSource(source) {
 }
 
 function chooseOnColor(background) {
-  const dark = "#111111";
-  const light = "#FFFFFF";
-  return getContrastRatio(dark, background) >= getContrastRatio(light, background) ? dark : light;
+  const candidates = ["#111111", "#1F2937", "#FFFFFF", "#F8FAFC"];
+  return pickReadableColor(background, candidates[0], candidates.slice(1));
 }
 
 function ensureAccessibleBackground(background, foreground, minContrast = 4.5) {
@@ -315,6 +314,109 @@ function buildValidatedPair(role, background, foreground) {
   };
 }
 
+function deriveNeutralFoundation(primary) {
+  const hsl = hexToHSL(primary);
+  if (!hsl) {
+    return {
+      background: "#F8F9FB",
+      surface: "#FFFFFF",
+      surfaceAlt: "#F1F5F9",
+      textPrimary: "#1F2937",
+      textSecondary: "#6B7280",
+      border: "#D1D5DB",
+    };
+  }
+
+  const subtleHue = hsl.h;
+  return {
+    background: HSLToHex(subtleHue, 18, 98),
+    surface: HSLToHex(subtleHue, 14, 99),
+    surfaceAlt: HSLToHex(subtleHue, 16, 95),
+    textPrimary: HSLToHex(subtleHue, 18, 18),
+    textSecondary: HSLToHex(subtleHue, 10, 42),
+    border: HSLToHex(subtleHue, 12, 84),
+  };
+}
+
+function deriveSecondaryFallback(primary) {
+  const hsl = hexToHSL(primary);
+  if (!hsl) return "#64748B";
+  return HSLToHex((hsl.h + 30) % 360, Math.max(10, hsl.s * 0.35), Math.min(62, hsl.l + 10));
+}
+
+function buildColorVariants(base, neutralSurface = "#FFFFFF") {
+  const baseHex = normalizeHex(base) || "#3b82f6";
+  const isLight = getBrightness(baseHex) > 150;
+  return {
+    soft: deriveSurfaceTone(baseHex, neutralSurface, 0.84),
+    hover: ensureAccessibleBackground(
+      adjustLightness(baseHex, isLight ? -8 : 8),
+      chooseOnColor(baseHex),
+    ),
+    active: ensureAccessibleBackground(
+      adjustLightness(baseHex, isLight ? -14 : 14),
+      chooseOnColor(baseHex),
+    ),
+    light: adjustLightness(baseHex, 15),
+    dark: adjustLightness(baseHex, -15),
+  };
+}
+
+function buildComponentTokens(colors, onColors) {
+  return {
+    page: {
+      bg: colors.background,
+      text: colors.textPrimary,
+    },
+    section: {
+      bg: colors.background,
+      heading: colors.textPrimary,
+      body: colors.textSecondary,
+    },
+    card: {
+      bg: colors.surface,
+      title: colors.textPrimary,
+      body: colors.textSecondary,
+      border: colors.border,
+    },
+    buttonPrimary: {
+      bg: colors.primary,
+      text: onColors.onPrimary,
+      hoverBg: colors.primaryHover,
+      hoverText: chooseOnColor(colors.primaryHover),
+    },
+    buttonSecondary: {
+      bg: colors.surface,
+      text: colors.textPrimary,
+      border: colors.border,
+      hoverBg: colors.surfaceAlt,
+      hoverText: colors.textPrimary,
+    },
+    badgeAccent: {
+      bg: colors.accentSoft,
+      text: colors.accent,
+    },
+    nav: {
+      bg: colors.surface,
+      text: onColors.onSurface,
+    },
+  };
+}
+
+function validateComponentTokens(tokens) {
+  return [
+    buildValidatedPair("page.text", tokens.page.bg, tokens.page.text),
+    buildValidatedPair("section.heading", tokens.section.bg, tokens.section.heading),
+    buildValidatedPair("section.body", tokens.section.bg, tokens.section.body),
+    buildValidatedPair("card.title", tokens.card.bg, tokens.card.title),
+    buildValidatedPair("card.body", tokens.card.bg, tokens.card.body),
+    buildValidatedPair("buttonPrimary", tokens.buttonPrimary.bg, tokens.buttonPrimary.text),
+    buildValidatedPair("buttonSecondary", tokens.buttonSecondary.bg, tokens.buttonSecondary.text),
+    buildValidatedPair("badgeAccent", tokens.badgeAccent.bg, tokens.badgeAccent.text),
+    buildValidatedPair("nav", tokens.nav.bg, tokens.nav.text),
+  ];
+}
+
 export function assignColorRoles(palette) {
   const normalizedPalette = parsePaletteSource(palette)
     .map((color) => normalizeHex(color))
@@ -325,50 +427,77 @@ export function assignColorRoles(palette) {
   }
 
   const primary = normalizedPalette[0];
-  const secondary = normalizedPalette[1] || primary;
+  const secondary = normalizedPalette[1] || deriveSecondaryFallback(primary);
   const accent = normalizedPalette[2] || primary;
-  const background = "#F8F9FB";
-  const surface = "#FFFFFF";
-  const textPrimary = "#1F2937";
-  const textSecondary = "#6B7280";
-  const border = "#D1D5DB";
+  const neutralFoundation = deriveNeutralFoundation(primary);
+  const background = neutralFoundation.background;
+  const surface = neutralFoundation.surface;
+  const surfaceAlt = neutralFoundation.surfaceAlt;
+  const textPrimary = neutralFoundation.textPrimary;
+  const textSecondary = neutralFoundation.textSecondary;
+  const border = neutralFoundation.border;
 
   const validatedPrimary = ensureAccessibleBackground(primary, chooseOnColor(primary));
   const validatedSecondary = ensureAccessibleBackground(secondary, chooseOnColor(secondary));
   const validatedAccent = ensureAccessibleBackground(accent, chooseOnColor(accent));
+  const primaryVariants = buildColorVariants(validatedPrimary, surface);
+  const secondaryVariants = buildColorVariants(validatedSecondary, surface);
+  const accentVariants = buildColorVariants(validatedAccent, surface);
 
   const onPrimary = chooseOnColor(validatedPrimary);
   const onSecondary = chooseOnColor(validatedSecondary);
   const onAccent = chooseOnColor(validatedAccent);
   const onSurface = chooseOnColor(surface);
   const onBackground = chooseOnColor(background);
+  const colors = {
+    background,
+    surface,
+    surfaceAlt,
+    border,
+    textPrimary,
+    textSecondary,
+    primary: validatedPrimary,
+    secondary: validatedSecondary,
+    accent: validatedAccent,
+    primarySoft: primaryVariants.soft,
+    primaryHover: primaryVariants.hover,
+    primaryActive: primaryVariants.active,
+    secondarySoft: secondaryVariants.soft,
+    secondaryHover: secondaryVariants.hover,
+    accentSoft: accentVariants.soft,
+    accentHover: accentVariants.hover,
+  };
+  const onColors = {
+    onPrimary,
+    onSecondary,
+    onAccent,
+    onSurface,
+    onBackground,
+  };
+  const componentTokens = buildComponentTokens(colors, onColors);
+  const validatedPairs = validateComponentTokens(componentTokens);
 
   return {
+    colors,
     semanticColors: {
       background,
       surface,
+      surfaceAlt,
       textPrimary,
       textSecondary,
       border,
-      primary,
-      secondary,
-      accent,
+      primary: validatedPrimary,
+      secondary: validatedSecondary,
+      accent: validatedAccent,
+      primarySoft: primaryVariants.soft,
+      primaryHover: primaryVariants.hover,
+      secondarySoft: secondaryVariants.soft,
+      accentSoft: accentVariants.soft,
+      accentHover: accentVariants.hover,
     },
-    onColors: {
-      onPrimary,
-      onSecondary,
-      onAccent,
-      onSurface,
-      onBackground,
-    },
-    validatedPairs: [
-      buildValidatedPair("Hero heading", background, onBackground),
-      buildValidatedPair("Card title", surface, textPrimary),
-      buildValidatedPair("Card text", surface, textSecondary),
-      buildValidatedPair("Button Primary", validatedPrimary, onPrimary),
-      buildValidatedPair("Button Secondary", surface, textPrimary),
-      buildValidatedPair("Accent UI", validatedAccent, onAccent),
-    ],
+    onColors,
+    componentTokens,
+    validatedPairs,
   };
 }
 
@@ -400,7 +529,8 @@ function normalizeThemeData(data) {
     data?.colors;
 
   const colorSystem = assignColorRoles(palette);
-  const semanticColors = colorSystem?.semanticColors || {};
+  const semanticColors = colorSystem?.semanticColors || colorSystem?.colors || {};
+  const tokenColors = colorSystem?.colors || semanticColors;
   const onColors = colorSystem?.onColors || {};
   const fontConfig =
     (source?.font && typeof source.font === "object" ? source.font : null) ||
@@ -548,7 +678,7 @@ function normalizeThemeData(data) {
       data?.secondary_color ??
       data?.secondaryColor ??
       semanticColors.secondary
-    ) || "#ffffff",
+    ) || deriveSecondaryFallback(semanticColors.primary || "#3b82f6"),
     accent: normalizeHex(
       source?.accent_color ??
       source?.accentColor ??
@@ -563,6 +693,12 @@ function normalizeThemeData(data) {
       data?.backgroundColor ??
       semanticColors.background
     ),
+    textPrimary: normalizeHex(
+      source?.text_color ??
+      source?.textColor ??
+      data?.text_color ??
+      data?.textColor
+    ) || semanticColors.textPrimary,
     text: normalizeHex(
       source?.text_color ??
       source?.textColor ??
@@ -592,6 +728,8 @@ function normalizeThemeData(data) {
     ) || "#D1D5DB",
     onColors,
     semanticColors,
+    colors: tokenColors,
+    componentTokens: colorSystem?.componentTokens || {},
     validatedPairs: Array.isArray(colorSystem?.validatedPairs) ? colorSystem.validatedPairs : [],
     buttonStyle:
       source?.button_style ??
@@ -690,7 +828,8 @@ export function applyThemeColors(data) {
   const accent = theme.accent || primary;
   const background = theme.background || "#F8F9FB";
   const surface = theme.surface || "#FFFFFF";
-  const text = theme.text || "#1F2937";
+  const surfaceAlt = theme.colors?.surfaceAlt || deriveSurfaceTone(surface, background, 0.35);
+  const text = theme.textPrimary || theme.text || "#1F2937";
   const textSecondary = theme.textSecondary || "#6B7280";
   const borderColor = theme.borderColor || "#D1D5DB";
   const onPrimary = theme.onColors?.onPrimary || chooseOnColor(primary);
@@ -698,22 +837,60 @@ export function applyThemeColors(data) {
   const onAccent = theme.onColors?.onAccent || chooseOnColor(accent);
   const onSurface = theme.onColors?.onSurface || chooseOnColor(surface);
   const onBackground = theme.onColors?.onBackground || chooseOnColor(background);
-  const buttonBg = ensureAccessibleBackground(primary, onPrimary);
-  const buttonText = chooseOnColor(buttonBg);
-  const buttonHoverBg = ensureAccessibleBackground(
-    adjustLightness(buttonBg, getBrightness(buttonBg) > 150 ? -8 : 8),
-    buttonText,
-  );
-  const buttonHoverText = chooseOnColor(buttonHoverBg);
-  const accentSoft = deriveSurfaceTone(accent, "#FFFFFF", 0.82);
-  const navSurface = surface;
-  const finalNavHeroText = onSurface;
-  const finalNavScrolledText = onSurface;
-  const sectionHeading = text;
-  const sectionBody = textSecondary;
+  const colors = {
+    background,
+    surface,
+    surfaceAlt,
+    border: borderColor,
+    textPrimary: text,
+    textSecondary,
+    primary,
+    secondary,
+    accent,
+    primarySoft: theme.colors?.primarySoft || deriveSurfaceTone(primary, "#FFFFFF", 0.84),
+    primaryHover: theme.colors?.primaryHover || ensureAccessibleBackground(adjustLightness(primary, getBrightness(primary) > 150 ? -8 : 8), onPrimary),
+    primaryActive: theme.colors?.primaryActive || ensureAccessibleBackground(adjustLightness(primary, getBrightness(primary) > 150 ? -14 : 14), onPrimary),
+    secondarySoft: theme.colors?.secondarySoft || deriveSurfaceTone(secondary, "#FFFFFF", 0.84),
+    secondaryHover: theme.colors?.secondaryHover || ensureAccessibleBackground(adjustLightness(secondary, getBrightness(secondary) > 150 ? -8 : 8), onSecondary),
+    accentSoft: theme.colors?.accentSoft || deriveSurfaceTone(accent, "#FFFFFF", 0.82),
+    accentHover: theme.colors?.accentHover || ensureAccessibleBackground(adjustLightness(accent, getBrightness(accent) > 150 ? -8 : 8), onAccent),
+  };
+  const componentTokens = Object.keys(theme.componentTokens || {}).length
+    ? theme.componentTokens
+    : buildComponentTokens(colors, theme.onColors || { onPrimary, onSecondary, onAccent, onSurface, onBackground });
+  const buttonBg = componentTokens.buttonPrimary?.bg || colors.primary;
+  const buttonText = componentTokens.buttonPrimary?.text || onPrimary;
+  const buttonHoverBg = componentTokens.buttonPrimary?.hoverBg || colors.primaryHover;
+  const buttonHoverText = componentTokens.buttonPrimary?.hoverText || chooseOnColor(buttonHoverBg);
+  const navSurface = componentTokens.nav?.bg || colors.surface;
+  const finalNavHeroText = componentTokens.nav?.text || onSurface;
+  const finalNavScrolledText = componentTokens.nav?.text || onSurface;
+  const sectionHeading = componentTokens.section?.heading || text;
+  const sectionBody = componentTokens.section?.body || textSecondary;
   const sectionMuted = textSecondary;
-  const lightSurface = surface;
+  const lightSurface = componentTokens.card?.bg || surface;
 
+  root.style.setProperty("--color-background", background);
+  root.style.setProperty("--color-surface", surface);
+  root.style.setProperty("--color-surface-alt", surfaceAlt);
+  root.style.setProperty("--color-border", borderColor);
+  root.style.setProperty("--color-text-primary", text);
+  root.style.setProperty("--color-text-secondary", textSecondary);
+  root.style.setProperty("--color-primary", primary);
+  root.style.setProperty("--color-secondary", secondary);
+  root.style.setProperty("--color-accent", accent);
+  root.style.setProperty("--color-primary-soft", colors.primarySoft);
+  root.style.setProperty("--color-primary-hover", colors.primaryHover);
+  root.style.setProperty("--color-primary-active", colors.primaryActive);
+  root.style.setProperty("--color-secondary-soft", colors.secondarySoft);
+  root.style.setProperty("--color-secondary-hover", colors.secondaryHover);
+  root.style.setProperty("--color-accent-soft", colors.accentSoft);
+  root.style.setProperty("--color-accent-hover", colors.accentHover);
+  root.style.setProperty("--color-on-primary", onPrimary);
+  root.style.setProperty("--color-on-secondary", onSecondary);
+  root.style.setProperty("--color-on-accent", onAccent);
+  root.style.setProperty("--color-on-surface", onSurface);
+  root.style.setProperty("--color-on-background", onBackground);
   root.style.setProperty("--primary-color", primary);
   root.style.setProperty("--secondary-color", secondary);
   root.style.setProperty("--accent-color", accent);
@@ -721,13 +898,13 @@ export function applyThemeColors(data) {
   root.style.setProperty("--text-color", text);
 
   root.style.setProperty("--primary", primary);
-  root.style.setProperty("--primary-light", adjustLightness(primary, 15));
-  root.style.setProperty("--primary-dark", adjustLightness(primary, -15));
-  root.style.setProperty("--primary-soft-bg", adjustLightness(primary, 40));
+  root.style.setProperty("--primary-light", colors.primarySoft);
+  root.style.setProperty("--primary-dark", colors.primaryActive);
+  root.style.setProperty("--primary-soft-bg", colors.primarySoft);
 
   root.style.setProperty("--accent", accent);
-  root.style.setProperty("--accent-light", adjustLightness(accent, 15));
-  root.style.setProperty("--accent-dark", adjustLightness(accent, -15));
+  root.style.setProperty("--accent-light", colors.accentSoft);
+  root.style.setProperty("--accent-dark", colors.accentHover);
 
   root.style.setProperty("--text-on-primary", onPrimary);
   root.style.setProperty("--text-on-secondary", onSecondary);
@@ -739,16 +916,30 @@ export function applyThemeColors(data) {
   root.style.setProperty("--hover-text-color", buttonHoverText);
   root.style.setProperty("--secondary-background", background);
   root.style.setProperty("--surface-color", surface);
+  root.style.setProperty("--surface-alt-color", surfaceAlt);
   root.style.setProperty("--surface-text-color", text);
   root.style.setProperty("--muted-text-color", textSecondary);
+  root.style.setProperty("--button-primary-bg", buttonBg);
+  root.style.setProperty("--button-primary-text", buttonText);
+  root.style.setProperty("--button-primary-hover-bg", buttonHoverBg);
+  root.style.setProperty("--button-primary-hover-text", buttonHoverText);
+  root.style.setProperty("--button-secondary-bg", componentTokens.buttonSecondary?.bg || surface);
+  root.style.setProperty("--button-secondary-text", componentTokens.buttonSecondary?.text || text);
+  root.style.setProperty("--button-secondary-border", componentTokens.buttonSecondary?.border || borderColor);
+  root.style.setProperty("--button-secondary-hover-bg", componentTokens.buttonSecondary?.hoverBg || surfaceAlt);
+  root.style.setProperty("--button-secondary-hover-text", componentTokens.buttonSecondary?.hoverText || text);
   root.style.setProperty("--theme-button-bg", buttonBg);
   root.style.setProperty("--theme-button-text", buttonText);
   root.style.setProperty("--theme-button-hover-bg", buttonHoverBg);
   root.style.setProperty("--theme-button-hover-text", buttonHoverText);
+  root.style.setProperty("--nav-bg", navSurface);
+  root.style.setProperty("--nav-text", finalNavScrolledText);
+  root.style.setProperty("--card-bg", componentTokens.card?.bg || surface);
+  root.style.setProperty("--card-border", componentTokens.card?.border || borderColor);
   root.style.setProperty("--theme-nav-text", finalNavScrolledText);
   root.style.setProperty("--theme-nav-hero-text", finalNavHeroText);
   root.style.setProperty("--theme-nav-bg", navSurface);
-  root.style.setProperty("--theme-accent-soft", accentSoft);
+  root.style.setProperty("--theme-accent-soft", colors.accentSoft);
   root.style.setProperty("--theme-section-heading", sectionHeading);
   root.style.setProperty("--theme-section-text", sectionBody);
   root.style.setProperty("--theme-section-muted", sectionMuted);

@@ -1,4 +1,4 @@
-import { FormEvent, useEffect, useState } from "react";
+﻿import { FormEvent, useEffect, useState } from "react";
 import { Send, Mail, ShieldCheck } from "lucide-react";
 import { fetchSiteProfile } from "@/lib/ecommerceApi";
 import { toast } from "@/hooks/use-toast";
@@ -107,10 +107,24 @@ const Footer = () => {
   };
 
   return (
-    <footer className="px-4 pb-8 pt-16 border-t border-border/60 bg-gradient-to-b from-card/30 via-card/60 to-background">
+    <footer
+      className="px-4 pb-8 pt-16 border-t"
+      style={{
+        borderColor: "color-mix(in srgb, var(--color-primary) 18%, white 82%)",
+        background:
+          "linear-gradient(180deg, color-mix(in srgb, var(--color-primary-soft) 72%, white 28%), color-mix(in srgb, var(--color-primary-soft) 38%, var(--color-background) 62%) 34%, var(--color-background) 100%)",
+      }}
+    >
       <div className="container mx-auto">
         <div className="grid lg:grid-cols-[1fr_1.2fr] gap-8 md:gap-10 items-start">
-          <div className="rounded-2xl border border-border/60 bg-background/70 p-6 md:p-8">
+          <div
+            className="rounded-2xl border p-6 md:p-8"
+            style={{
+              borderColor: "color-mix(in srgb, var(--color-primary) 14%, white 86%)",
+              background:
+                "linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 92%, var(--color-primary-soft) 8%), color-mix(in srgb, var(--color-primary-soft) 22%, white 78%))",
+            }}
+          >
             <h3 className="font-display text-3xl md:text-4xl text-gradient">Contact Admin</h3>
             <p className="mt-4 text-muted-foreground font-body leading-relaxed">
               Send your concern, feedback, or report directly to the admin team for this community site.
@@ -129,7 +143,12 @@ const Footer = () => {
 
           <form
             onSubmit={handleSubmit}
-            className="rounded-2xl border border-border/60 bg-background/80 p-6 md:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.08)]"
+            className="rounded-2xl border p-6 md:p-8 shadow-[0_20px_50px_rgba(0,0,0,0.08)]"
+            style={{
+              borderColor: "color-mix(in srgb, var(--color-primary) 16%, white 84%)",
+              background:
+                "linear-gradient(180deg, color-mix(in srgb, var(--color-surface) 94%, var(--color-primary-soft) 6%), color-mix(in srgb, var(--color-primary-soft) 18%, white 82%))",
+            }}
           >
             <div className="grid md:grid-cols-2 gap-4">
               <label className="flex flex-col gap-2 text-sm font-body text-foreground">
@@ -180,7 +199,7 @@ const Footer = () => {
 
         <div className="mt-8 pt-6 border-t border-border/60 text-center space-y-1">
           <p className="text-sm text-muted-foreground font-body">
-            � {new Date().getFullYear()} {siteName} Fanhub. Educational Purposes Only.
+            © {new Date().getFullYear()} {siteName} Fanhub. Educational Purposes Only.
           </p>
           <p className="text-xs text-muted-foreground/70 font-body">
             This is an unofficial fan-made site.
@@ -192,3 +211,4 @@ const Footer = () => {
 };
 
 export default Footer;
+

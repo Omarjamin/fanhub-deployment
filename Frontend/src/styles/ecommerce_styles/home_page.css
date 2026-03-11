@@ -42,9 +42,14 @@ body:has(.ec-lead-image) main {
 }
 
 .navbar.ec-hero-nav.scrolled {
-  background: var(--theme-nav-bg);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--primary-color, #111111) 70%, white 30%),
+      color-mix(in srgb, var(--primary-color, #111111) 82%, var(--color-surface, var(--surface-color, #ffffff)) 18%)
+    );
   backdrop-filter: blur(10px);
-  box-shadow: 0 clamp(2px, 0.5vw, 4px) clamp(4px, 1vw, 6px) rgba(0, 0, 0, 0.1);
+  box-shadow: 0 clamp(2px, 0.5vw, 4px) clamp(8px, 1.2vw, 12px) rgba(0, 0, 0, 0.16);
 }
 
 .navbar.ec-hero-nav.scrolled .logo,
@@ -60,7 +65,12 @@ body:has(.ec-lead-image) main {
   top: 0;
   left: 0;
   width: 100%;
-  background: var(--theme-nav-bg);
+  background:
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 84%, white 16%),
+      color-mix(in srgb, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 94%, var(--color-surface, var(--surface-color, #ffffff)) 6%)
+    );
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -76,7 +86,7 @@ body:has(.ec-lead-image) main {
   font-weight: bold;
   color: var(--theme-nav-text, var(--primary-color, #111111));
   text-decoration: none;
-  font-family: var(--theme-font-heading, var(--theme-font-body, var(--theme-font-family, Arial, sans-serif)));
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
   display: flex;
   align-items: center;
   gap: clamp(0.5rem, 1.5vw, 0.75rem);
@@ -101,7 +111,7 @@ body:has(.ec-lead-image) main {
 
 .navbar nav a {
   color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000)));
-  font-family: var(--theme-font-heading, var(--theme-font-body, var(--theme-font-family, Arial, sans-serif)));
+  font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
   font-weight: 600;
   margin: 0 clamp(0.25rem, 1vw, 0.625rem);
   text-decoration: none;
@@ -269,7 +279,12 @@ body:has(.ec-lead-image) main {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: color-mix(in srgb, var(--theme-nav-bg, var(--surface-color, #ffffff)) 96%, transparent);
+    background:
+      linear-gradient(
+        180deg,
+        color-mix(in srgb, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 90%, white 10%),
+        color-mix(in srgb, var(--color-surface, var(--surface-color, #ffffff)) 90%, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 10%)
+      );
     backdrop-filter: blur(10px);
     flex-direction: column;
     display: none;

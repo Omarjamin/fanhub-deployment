@@ -37,8 +37,17 @@ const Navbar = () => {
   return (
     <header
       className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled ? "bg-background/90 backdrop-blur-md shadow-lg" : "bg-transparent"
+        isScrolled ? "backdrop-blur-xl shadow-lg" : "bg-transparent"
       }`}
+      style={
+        isScrolled
+          ? {
+              background:
+                "linear-gradient(180deg, color-mix(in srgb, var(--color-primary-soft) 88%, white 12%), color-mix(in srgb, var(--color-primary-soft) 96%, var(--color-surface) 4%))",
+              borderBottom: "1px solid color-mix(in srgb, var(--color-primary) 22%, white 78%)",
+            }
+          : undefined
+      }
     >
       <nav className="container mx-auto px-4 h-16 flex items-center justify-between">
         <button onClick={() => scrollTo("home")} className="flex items-center gap-2">
@@ -68,7 +77,14 @@ const Navbar = () => {
       </nav>
 
       {mobileOpen && (
-        <div className="md:hidden bg-background/95 backdrop-blur-md border-t border-border">
+        <div
+          className="md:hidden backdrop-blur-xl border-t"
+          style={{
+            background:
+              "linear-gradient(180deg, color-mix(in srgb, var(--color-primary-soft) 90%, white 10%), color-mix(in srgb, var(--color-surface) 92%, var(--color-primary-soft) 8%))",
+            borderColor: "color-mix(in srgb, var(--color-primary) 18%, white 82%)",
+          }}
+        >
           <ul className="flex flex-col items-center gap-6 py-8">
             {navItems.map((item) => (
               <li key={item}>
