@@ -19,8 +19,18 @@ function resolveSiteSlug(data = {}) {
   return '';
 }
 
+function formatSiteLabel(value = '') {
+  const text = String(value || '').trim();
+  if (!text) return 'BINI';
+  return text
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function LoginForm(root, data = {}) {
   const siteSlug = resolveSiteSlug(data);
+  const siteLabel = formatSiteLabel(data?.site_name || data?.site_title || siteSlug || 'BINI');
 
   if (siteSlug) {
     sessionStorage.setItem('site_slug', siteSlug);
@@ -37,29 +47,70 @@ export default function LoginForm(root, data = {}) {
   }
 
   root.innerHTML = `
-    <section class="auth-section">
-      <h2 class="section-title">Login to ${siteSlug || 'Site'}</h2>
+    <section class="auth-section auth-section-login">
+      <div class="auth-shell">
+        <div class="auth-intro">
+          <span class="auth-kicker">Official fan access</span>
+          <h1 class="auth-heading">Welcome back to ${siteLabel}</h1>
+          <p class="auth-copy">
+            Sign in to manage your orders, check out faster, and stay ready for exclusive drops and community features.
+          </p>
 
-      <form class="auth-form1">
-        <input type="email" name="email" placeholder="Email" required>
-        <input type="password" name="password" placeholder="Password" required>
-        <button type="submit" class="mv-btn">Login</button>
-
-        <div style="margin-top:14px; text-align:center; color:#777; letter-spacing:0.6px;">------or--------</div>
-
-        <div class="google-auth-wrap">
-          <div id="googleLoginBtn"></div>
+          <div class="auth-highlights">
+            <div class="auth-highlight">
+              <strong>Track every order</strong>
+              <span>Keep your purchases, delivery updates, and history in one place.</span>
+            </div>
+            <div class="auth-highlight">
+              <strong>Faster checkout</strong>
+              <span>Use your account for a smoother shopping flow on your next visit.</span>
+            </div>
+            <div class="auth-highlight">
+              <strong>Stay connected</strong>
+              <span>Get back to the shop and community space without restarting your session.</span>
+            </div>
+          </div>
         </div>
-        <small id="googleLoginHint" style="display:block; text-align:center; margin-top:6px; color:#666;"></small>
 
-        <p style="margin-top:14px;">Don't have an account? <a href="${signupPath}">Sign up</a></p>
-        <p>Forgot Password? <a href="#" class="forgot-password-link">Click Here</a></p>
+        <div class="auth-card">
+          <div class="auth-card-head">
+            <span class="auth-badge">Sign In</span>
+            <h2 class="section-title">Login to your account</h2>
+            <p class="auth-subtitle">Use the email and password connected to your ${siteLabel} profile.</p>
+          </div>
 
-        <div class="recaptcha-wrap">
-          <div id="recaptchaLoginBox"></div>
+          <form class="auth-form1">
+            <label class="auth-field">
+              <span>Email address</span>
+              <input type="email" name="email" placeholder="you@example.com" required>
+            </label>
+
+            <label class="auth-field">
+              <span>Password</span>
+              <input type="password" name="password" placeholder="Enter your password" required>
+            </label>
+
+            <button type="submit" class="mv-btn">Login</button>
+
+            <div class="auth-divider"><span>Or continue with</span></div>
+
+            <div class="google-auth-wrap">
+              <div id="googleLoginBtn"></div>
+            </div>
+            <small id="googleLoginHint" class="auth-helper auth-helper-google"></small>
+
+            <div class="auth-links">
+              <p>Don't have an account? <a href="${signupPath}">Sign up</a></p>
+              <p>Forgot your password? <a href="#" class="forgot-password-link">Reset it here</a></p>
+            </div>
+
+            <div class="recaptcha-wrap">
+              <div id="recaptchaLoginBox"></div>
+            </div>
+            <small id="recaptchaLoginHint" class="auth-helper auth-helper-recaptcha"></small>
+          </form>
         </div>
-        <small id="recaptchaLoginHint" style="display:block; text-align:center; margin-top:6px; color:#666;"></small>
-      </form>
+      </div>
     </section>
   `;
 
@@ -69,18 +120,22 @@ export default function LoginForm(root, data = {}) {
   const googleLoginHint = root.querySelector('#googleLoginHint');
   const recaptchaLoginBox = root.querySelector('#recaptchaLoginBox');
   const recaptchaLoginHint = root.querySelector('#recaptchaLoginHint');
+  const recaptchaWrap = root.querySelector('.recaptcha-wrap');
   const identityStatus = getIdentityProviderStatus();
 
   if (identityStatus.hasRecaptchaV2) {
-    recaptchaLoginHint.textContent = 'Please complete reCAPTCHA before login.';
+    recaptchaLoginHint.textContent = 'Complete reCAPTCHA before signing in.';
   } else if (identityStatus.hasRecaptchaV3) {
-    recaptchaLoginHint.textContent = 'reCAPTCHA v3 enabled (invisible).';
+    recaptchaLoginHint.textContent = 'Protected by invisible reCAPTCHA.';
+    recaptchaWrap?.classList.add('is-passive');
   } else {
-    recaptchaLoginHint.textContent = `reCAPTCHA is not configured yet. (v2=${identityStatus.hasRecaptchaV2}, v3=${identityStatus.hasRecaptchaV3})`;
+    recaptchaLoginHint.textContent = 'reCAPTCHA is not available for this site yet.';
+    recaptchaWrap?.classList.add('is-passive');
   }
 
   if (!identityStatus.hasGoogle) {
-    googleLoginHint.textContent = `Google login is not configured yet. (hasGoogle=${identityStatus.hasGoogle})`;
+    googleLoginHint.textContent = 'Google sign-in is not available yet.';
+    root.querySelector('.google-auth-wrap')?.classList.add('is-unavailable');
   }
 
   forgotPasswordLink.addEventListener('click', (e) => {
@@ -128,8 +183,9 @@ export default function LoginForm(root, data = {}) {
       });
     } catch (err) {
       if (googleLoginHint) {
-        googleLoginHint.textContent = '';
+        googleLoginHint.textContent = identityStatus.hasGoogle ? 'Google sign-in is temporarily unavailable.' : googleLoginHint.textContent;
       }
+      root.querySelector('.google-auth-wrap')?.classList.add('is-unavailable');
       console.error('Google button render error:', err);
     }
   })();

@@ -194,46 +194,27 @@ export default function AdminLandingPage() {
             <h3 class="section-title">Community Sites</h3>
             <p class="section-subtitle">Open each site directly and manage every community under the same platform standard.</p>
           </div>
-          <div class="features-grid templates-grid" id="templatesGrid">
+          <div class="templates-grid" id="templatesGrid">
             <!-- Templates injected via JS -->
           </div>
         </div>
       </div>
     </section>
-    <!-- Platform Highlights Section -->
+    <!-- Developers Section -->
     <section id="process" class="success">
       <div class="success-container">
         <div class="section-header">
-          <h2 class="section-title">Platform Highlights</h2>
-          <p class="section-subtitle">Core capabilities that keep each fan community site organized, scalable, and consistent.</p>
+          <h2 class="section-title">Developers</h2>
+          <p class="section-subtitle">Connect with the developers on GitHub.</p>
         </div>
         <div class="success-grid" id="processGrid">
-          <!-- Platform highlights injected via JS -->
+          <!-- Developers injected via JS -->
         </div>
       </div>
     </section>
     <!-- Footer -->
     <footer class="footer">
       <div class="footer-container">
-        <div class="footer-grid">
-          <div class="footer-brand">
-            <div class="logo">
-              <div class="logo-icon">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false"><path fill="#ff4b8d" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 6 3.99 4 6.5 4c1.74 0 3.41.81 4.5 2.09C12.09 4.81 13.76 4 15.5 4 18.01 4 20 6 20 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-              </div>
-              <span class="logo-text">FanHub</span>
-            </div>
-            <p class="footer-tagline">Built for fan communities with integrated ecommerce and multi-site access.</p>
-          </div>
-          <div class="footer-column">
-            <h4 class="footer-heading">Navigation</h4>
-            <ul class="footer-links">
-              <li><a href="#features">Core Functions</a></li>
-              <li><a href="#templates">Community Sites</a></li>
-              <li><a href="#process">Template Highlights</a></li>
-            </ul>
-          </div>
-        </div>
         <div class="footer-bottom">
           <p>&copy; 2026 FanHub. Educational purposes only.</p>
         </div>
@@ -246,9 +227,8 @@ export default function AdminLandingPage() {
       <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
         <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
         <div class="modal-body">
-          <div id="modalIcon" class="feature-icon"></div>
-          <h3 id="modalTitle" class="feature-title"></h3>
-          <p id="modalDescription" class="feature-description"></p>
+        <h3 id="modalTitle" class="feature-title"></h3>
+        <p id="modalDescription" class="feature-description"></p>
         </div>
       </div>
     </div>
@@ -379,34 +359,70 @@ export default function AdminLandingPage() {
 
     const features = [
       {
+        icon: 'gif',
+        title: 'Banner',
+        description: 'Hero banners highlight the community with a strong visual entry point and key messaging.',
+        image: '/bann.gif'
+      },
+      {
+        icon: 'info',
+        title: 'About',
+        description: 'About section introduces the artist story, background, and identity in one place.',
+        image: '/about.png'
+      },
+      {
+        icon: 'disc',
+        title: 'Discography',
+        description: 'Discography lists albums, releases, and tracks with curated metadata and artwork.',
+        image: '/album.jfif'
+      },
+      {
+        icon: 'calendar',
+        title: 'Events',
+        description: 'Events highlight schedules, appearances, and activities for fans to follow.',
+        image: '/event.jfif'
+      },
+      {
+        icon: 'megaphone',
+        title: 'Announcements',
+        description: 'Announcements keep fans updated with official news, notices, and platform updates.',
+        image: '/announcement.jfif'
+      },
+      {
         icon: 'users',
         title: 'Community-Type Scoped System',
-        description: 'Every route, fetch, and database action is isolated by community_type to keep each fan site independent.'
+        description: 'Every route, fetch, and database action is isolated by community_type to keep each fan site independent.',
+        image: '/com.png'
       },
       {
         icon: 'trending-up',
         title: 'Post Interactions',
-        description: 'Core social actions include likes, comments, reposts, counts, status checks, and reporting with consistent API flow.'
+        description: 'Core social actions include likes, comments, reposts, counts, status checks, and reporting with consistent API flow.',
+        image: '/post.jfif'
       },
       {
         icon: 'zap',
         title: 'Messaging and Presence',
-        description: 'Real-time chat with online/offline indicators and community-separated message storage for cleaner conversation history.'
+        description: 'Real-time chat with online/offline indicators and community-separated message storage for cleaner conversation history.',
+        image: '/message.jfif'
       },
       {
         icon: 'shield',
         title: 'Search and Profile Routing',
-        description: 'User and hashtag navigation resolves to the correct community route, including current and other-user profiles.'
+        description: 'User and hashtag navigation resolves to the correct community route, including current and other-user profiles.',
+        image: '/see.png'
       },
       {
         icon: 'bar-chart-3',
         title: 'Suggestion to Website Generation',
-        description: 'Fans can send suggestions without login; admin review drives generated community websites from the core workflow.'
+        description: 'Fans can send suggestions without login; admin review drives generated community websites from the core workflow.',
+        image: '/gene.jfif'
       },
       {
         icon: 'check-circle',
         title: 'Ecommerce Order Flow',
-        description: 'Shop, cart, checkout, and order history are integrated so placed items are removed from cart and tracked properly.'
+        description: 'Shop, cart, checkout, and order history are integrated so placed items are removed from cart and tracked properly.',
+        image: '/E-COMMERCE.jfif'
       }
     ];
 
@@ -416,15 +432,25 @@ export default function AdminLandingPage() {
       zap: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>',
       shield: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>',
       'bar-chart-3': '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
-      'check-circle': '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>'
+      'check-circle': '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+      image: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>',
+      info: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>',
+      disc: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/><line x1="12" y1="2" x2="12" y2="5"/></svg>',
+      calendar: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+      megaphone: '<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a2 2 0 0 0 2 2h2l5 4V5L7 9H5a2 2 0 0 0-2 2z"/><path d="M14 9h5a2 2 0 0 1 0 6h-5"/></svg>'
     };
 
     featuresGrid.innerHTML = features.map(feature => `
-      <div class="feature-card">
-        <div class="feature-icon">${icons[feature.icon] || ''}</div>
-        <h3 class="feature-title">${feature.title}</h3>
-        <p class="feature-description">${feature.description}</p>
-      </div>
+      <article class="feature-card">
+        <div class="feature-media">
+          <img src="${feature.image}" alt="${feature.title}">
+          <div class="feature-overlay"></div>
+        </div>
+        <div class="feature-body">
+          <h3 class="feature-title">${feature.title}</h3>
+          <p class="feature-description">${feature.description}</p>
+        </div>
+      </article>
     `).join('');
   }
 
@@ -439,7 +465,6 @@ export default function AdminLandingPage() {
 
     templatesGrid.innerHTML = templates.map(template => `
       <div class="template-card">
-        <div class="feature-icon"><span style="font-size:20px;display:inline-block;font-weight:700">${template.badge}</span></div>
         <h3 class="feature-title">${template.name}</h3>
         <p class="feature-description">${template.desc}</p>
         <div style="margin-top:1.25rem;">
@@ -464,17 +489,21 @@ export default function AdminLandingPage() {
     const processGrid = section.querySelector('#processGrid');
     if (!processGrid) return;
 
-    const steps = [
-      { step: '01', title: 'Template-Based Generation', description: 'Community websites are generated from reusable templates to keep layout, structure, and setup consistent.' },
-      { step: '02', title: 'Social + Commerce', description: 'Fan interactions and ecommerce flows work together inside one unified user experience.' },
-      { step: '03', title: 'Admin-Driven Control', description: 'Platform settings and generated site behavior are centrally managed for consistency.' }
+    const developers = [
+      { name: 'Serg Michael Appari', role: 'Frontend Developer', github: 'https://github.com/sergaparri', photo: '/serg.jpg' },
+      { name: 'Miko Aldrin Alvarado', role: 'Backend Developer', github: 'https://github.com/MikoAldrinAlvarado', photo: '/miko.jpg' },
+      { name: 'Jamin Nicole Omar', role: 'Full Stack Developer', github: 'https://github.com/Omarjamin', photo: '/jamin.jpg' },
+      { name: 'Chris Aaron Abesamis', role: 'Analysis/Tester', github: 'https://github.com/chrisaaronabesamis', photo: '/aaron.jpg' },
+      { name: 'Daisyrie Hilario', role: 'Documentation', github: 'https://github.com/desdiaz956', photo: '/daisy.jpg' }
     ];
 
-    processGrid.innerHTML = steps.map(item => `
-      <div class="success-card">
-        <p class="success-stat">${item.step}</p>
-        <p class="success-label">${item.title}</p>
-        <p class="success-description">${item.description}</p>
+    processGrid.innerHTML = developers.map((dev, index) => `
+      <div class="success-card developer-card">
+        <p class="success-stat">${String(index + 1).padStart(2, '0')}</p>
+        <img class="developer-avatar" src="${dev.photo}" alt="${dev.name}">
+        <p class="success-label">${dev.name}</p>
+        <p class="developer-role">${dev.role}</p>
+        <a class="success-description" href="${dev.github}" target="_blank" rel="noopener">View GitHub</a>
       </div>
     `).join('');
   }
@@ -484,8 +513,3 @@ export default function AdminLandingPage() {
 
   return section;
 }
-
-
-
-
-

@@ -17,37 +17,98 @@ function resolveSiteSlug(data = {}) {
   return '';
 }
 
+function formatSiteLabel(value = '') {
+  const text = String(value || '').trim();
+  if (!text) return 'BINI';
+  return text
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
 export default function Signup(root, data = {}) {
   const siteSlug = resolveSiteSlug(data);
+  const siteLabel = formatSiteLabel(data?.site_name || data?.site_title || siteSlug || 'BINI');
   const signinPath = siteSlug ? `/fanhub/${siteSlug}/signin` : '/signin';
   const homePath = siteSlug ? `/fanhub/${siteSlug}` : '/';
   let pendingRegistration = null;
 
   root.innerHTML = `
-    <section class="auth-section">
-      <h2 class="section-title">Create Account</h2>
+    <section class="auth-section auth-section-signup">
+      <div class="auth-shell">
+        <div class="auth-intro">
+          <span class="auth-kicker">Create your profile</span>
+          <h1 class="auth-heading">Join ${siteLabel}</h1>
+          <p class="auth-copy">
+            Create an account to shop faster, keep your order history organized, and unlock a smoother fan experience.
+          </p>
 
-      <form class="auth-form1">
-        <input type="text" name="firstname" placeholder="First Name" required>
-        <input type="text" name="lastname" placeholder="Last Name" required>
-        <input type="email" name="email" placeholder="Email" required>
-        <input type="password" name="password" placeholder="Password" required>
-        <button type="submit" class="mv-btn">Create Account</button>
-
-        <div style="margin-top:14px; text-align:center; color:#777; letter-spacing:0.6px;">------or--------</div>
-
-        <div class="google-auth-wrap">
-          <div id="googleSignupBtn"></div>
+          <div class="auth-highlights">
+            <div class="auth-highlight">
+              <strong>One account for everything</strong>
+              <span>Use a single profile for shopping, tracking, and future account features.</span>
+            </div>
+            <div class="auth-highlight">
+              <strong>Secure verification</strong>
+              <span>Your signup is protected through email OTP and reCAPTCHA verification.</span>
+            </div>
+            <div class="auth-highlight">
+              <strong>Ready for new drops</strong>
+              <span>Get into the store faster once your account is already set up.</span>
+            </div>
+          </div>
         </div>
-        <small id="googleSignupHint" style="display:block; text-align:center; margin-top:6px; color:#666;"></small>
 
-        <p style="margin-top:14px;">Already have an account? <a href="${signinPath}">Login</a></p>
+        <div class="auth-card">
+          <div class="auth-card-head">
+            <span class="auth-badge">Create Account</span>
+            <h2 class="section-title">Set up your profile</h2>
+            <p class="auth-subtitle">Create your ${siteLabel} account with your basic details below.</p>
+          </div>
 
-        <div class="recaptcha-wrap">
-          <div id="recaptchaSignupBox"></div>
+          <form class="auth-form1">
+            <div class="auth-grid-two">
+              <label class="auth-field">
+                <span>First name</span>
+                <input type="text" name="firstname" placeholder="First name" required>
+              </label>
+
+              <label class="auth-field">
+                <span>Last name</span>
+                <input type="text" name="lastname" placeholder="Last name" required>
+              </label>
+            </div>
+
+            <label class="auth-field">
+              <span>Email address</span>
+              <input type="email" name="email" placeholder="you@example.com" required>
+            </label>
+
+            <label class="auth-field">
+              <span>Password</span>
+              <input type="password" name="password" placeholder="Create a password" required>
+            </label>
+
+            <button type="submit" class="mv-btn">Create Account</button>
+
+            <div class="auth-divider"><span>Or continue with</span></div>
+
+            <div class="google-auth-wrap">
+              <div id="googleSignupBtn"></div>
+            </div>
+            <small id="googleSignupHint" class="auth-helper auth-helper-google"></small>
+
+            <div class="auth-links">
+              <p>Already have an account? <a href="${signinPath}">Login</a></p>
+            </div>
+
+            <div class="recaptcha-wrap">
+              <div id="recaptchaSignupBox"></div>
+            </div>
+            <small id="recaptchaSignupHint" class="auth-helper auth-helper-recaptcha"></small>
+          </form>
         </div>
-        <small id="recaptchaSignupHint" style="display:block; text-align:center; margin-top:6px; color:#666;"></small>
-      </form>
+      </div>
     </section>
   `;
 
@@ -56,18 +117,22 @@ export default function Signup(root, data = {}) {
   const googleSignupHint = root.querySelector('#googleSignupHint');
   const recaptchaSignupBox = root.querySelector('#recaptchaSignupBox');
   const recaptchaSignupHint = root.querySelector('#recaptchaSignupHint');
+  const recaptchaWrap = root.querySelector('.recaptcha-wrap');
   const identityStatus = getIdentityProviderStatus();
 
   if (identityStatus.hasRecaptchaV2) {
-    recaptchaSignupHint.textContent = 'Please complete reCAPTCHA before creating account.';
+    recaptchaSignupHint.textContent = 'Complete reCAPTCHA before creating your account.';
   } else if (identityStatus.hasRecaptchaV3) {
-    recaptchaSignupHint.textContent = 'reCAPTCHA v3 enabled (invisible).';
+    recaptchaSignupHint.textContent = 'Protected by invisible reCAPTCHA.';
+    recaptchaWrap?.classList.add('is-passive');
   } else {
-    recaptchaSignupHint.textContent = 'reCAPTCHA is not configured yet.';
+    recaptchaSignupHint.textContent = 'reCAPTCHA is not available for this site yet.';
+    recaptchaWrap?.classList.add('is-passive');
   }
 
   if (!identityStatus.hasGoogle) {
-    googleSignupHint.textContent = 'Google login is not configured yet.';
+    googleSignupHint.textContent = 'Google sign-up is not available yet.';
+    root.querySelector('.google-auth-wrap')?.classList.add('is-unavailable');
   }
 
   (async () => {
@@ -105,8 +170,9 @@ export default function Signup(root, data = {}) {
       });
     } catch (err) {
       if (googleSignupHint) {
-        googleSignupHint.textContent = '';
+        googleSignupHint.textContent = identityStatus.hasGoogle ? 'Google sign-up is temporarily unavailable.' : googleSignupHint.textContent;
       }
+      root.querySelector('.google-auth-wrap')?.classList.add('is-unavailable');
       console.error('Signup Google button render error:', err);
     }
   })();
@@ -180,20 +246,18 @@ export default function Signup(root, data = {}) {
 
     modal = document.createElement('div');
     modal.id = 'signupOtpModal';
-    modal.style.cssText = `
-      position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: none;
-      align-items: center; justify-content: center; z-index: 9999;
-    `;
+    modal.className = 'auth-modal';
     modal.innerHTML = `
-      <div style="background:#fff; width:min(92vw,420px); border-radius:12px; padding:18px;">
-        <h3 style="margin:0 0 6px;">Verify Gmail</h3>
-        <p id="signupOtpEmailHint" style="margin:0 0 12px; color:#555; font-size:14px;"></p>
-        <input id="signupOtpInput" type="text" placeholder="Enter OTP code" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px;">
-        <div style="display:flex; gap:8px; margin-top:12px;">
-          <button id="signupOtpVerifyBtn" class="mv-btn" style="flex:1;">Verify & Create</button>
-          <button id="signupOtpResendBtn" class="mv-btn" style="flex:1;">Resend OTP</button>
+      <div class="auth-modal-card">
+        <span class="auth-badge">Email Verification</span>
+        <h3 class="auth-modal-title">Verify your Gmail</h3>
+        <p id="signupOtpEmailHint" class="auth-modal-hint"></p>
+        <input id="signupOtpInput" class="auth-modal-input" type="text" placeholder="Enter OTP code">
+        <div class="auth-modal-actions">
+          <button id="signupOtpVerifyBtn" class="mv-btn">Verify & Create</button>
+          <button id="signupOtpResendBtn" class="mv-btn auth-secondary-btn">Resend OTP</button>
         </div>
-        <button id="signupOtpCloseBtn" style="margin-top:10px; width:100%; padding:10px; border:1px solid #ddd; background:#fff; border-radius:8px; cursor:pointer;">Cancel</button>
+        <button id="signupOtpCloseBtn" class="auth-modal-cancel" type="button">Cancel</button>
       </div>
     `;
     document.body.appendChild(modal);

@@ -13,6 +13,23 @@ function redirectToSigninWithDelay(signinPath) {
   }, 2000);
 }
 
+function buildNavIcon({
+  href,
+  icon,
+  id = '',
+  title = '',
+  classes = '',
+  authFeature = '',
+  hidden = false,
+}) {
+  const className = `nav-icon ${classes}`.trim();
+  return `
+      <a href="${href}"${id ? ` id="${id}"` : ''} class="${className}"${authFeature ? ` data-auth-feature="${authFeature}"` : ''}${title ? ` title="${title}" aria-label="${title}"` : ''}${hidden ? ' style="display:none"' : ''}>
+        <span class="nav-icon-glyph" aria-hidden="true">${icon}</span>
+      </a>
+  `;
+}
+
 export default function Navigation(root, data = {}) {
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
   const urlCommunityType =
@@ -49,6 +66,36 @@ export default function Navigation(root, data = {}) {
   ).trim();
   const isDefaultLogo = !String(data?.logo || data?.logo_url || data?.logo_image || data?.image_url || '').trim();
   const isHeroHomepage = pathParts[0] === 'fanhub' && pathParts.length === 2;
+  const orderHistoryIcon = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 6h11"></path>
+      <path d="M9 12h11"></path>
+      <path d="M9 18h11"></path>
+      <path d="M5 6h.01"></path>
+      <path d="M5 12h.01"></path>
+      <path d="M5 18h.01"></path>
+    </svg>
+  `;
+  const cartIcon = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="9" cy="20" r="1.4"></circle>
+      <circle cx="18" cy="20" r="1.4"></circle>
+      <path d="M3 4h2l2.2 10.2a1 1 0 0 0 1 .8h8.9a1 1 0 0 0 1-.76L20 7H6.1"></path>
+    </svg>
+  `;
+  const userIcon = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 21a8 8 0 0 0-16 0"></path>
+      <circle cx="12" cy="8" r="4"></circle>
+    </svg>
+  `;
+  const logoutIcon = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+      <path d="M14 7l5 5-5 5"></path>
+      <path d="M19 12H9"></path>
+    </svg>
+  `;
 
   const heroNavLinks = `
       <a href="${homePath}" class="nav-link active">Home</a>
@@ -72,29 +119,17 @@ export default function Navigation(root, data = {}) {
   `;
 
   const heroRightContent = `
-      <a href="${orderHistoryPath}" class="nav-icon nav-auth-only" data-auth-feature="order-history">&#128220;</a>
-      <a href="${cartPath}" class="nav-icon nav-auth-only" data-auth-feature="cart">&#128722;</a>
-      <a href="${signinPath}" id="signinLink" class="nav-icon">&#128100;</a>
-      <a href="#" id="logoutBtn" class="nav-icon" style="display:none" title="Logout">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-          <polyline points="16,17 21,12 16,7"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-      </a>
+      ${buildNavIcon({ href: orderHistoryPath, icon: orderHistoryIcon, classes: 'nav-auth-only nav-icon-orders', authFeature: 'order-history', title: 'Order history' })}
+      ${buildNavIcon({ href: cartPath, icon: cartIcon, classes: 'nav-auth-only nav-icon-cart', authFeature: 'cart', title: 'Cart' })}
+      ${buildNavIcon({ href: signinPath, icon: userIcon, id: 'signinLink', classes: 'nav-icon-user', title: 'Sign in' })}
+      ${buildNavIcon({ href: '#', icon: logoutIcon, id: 'logoutBtn', classes: 'nav-icon-logout', title: 'Logout', hidden: true })}
   `;
 
   const defaultRightContent = `
-      <a href="${orderHistoryPath}" class="nav-icon nav-auth-only" data-auth-feature="order-history">&#128220;</a>
-      <a href="${cartPath}" class="nav-icon nav-auth-only" data-auth-feature="cart">&#128722;</a>
-      <a href="${signinPath}" id="signinLink" class="nav-icon">&#128100;</a>
-      <a href="#" id="logoutBtn" class="nav-icon" style="display:none" title="Logout">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-          <polyline points="16,17 21,12 16,7"></polyline>
-          <line x1="21" y1="12" x2="9" y2="12"></line>
-        </svg>
-      </a>
+      ${buildNavIcon({ href: orderHistoryPath, icon: orderHistoryIcon, classes: 'nav-auth-only nav-icon-orders', authFeature: 'order-history', title: 'Order history' })}
+      ${buildNavIcon({ href: cartPath, icon: cartIcon, classes: 'nav-auth-only nav-icon-cart', authFeature: 'cart', title: 'Cart' })}
+      ${buildNavIcon({ href: signinPath, icon: userIcon, id: 'signinLink', classes: 'nav-icon-user', title: 'Sign in' })}
+      ${buildNavIcon({ href: '#', icon: logoutIcon, id: 'logoutBtn', classes: 'nav-icon-logout', title: 'Logout', hidden: true })}
   `;
 
   root.innerHTML = `
@@ -249,9 +284,9 @@ export default function Navigation(root, data = {}) {
     const auth = isAuthenticated();
     if (auth) {
       signinLink && (signinLink.style.display = 'none');
-      logoutBtn && (logoutBtn.style.display = 'inline');
+      logoutBtn && (logoutBtn.style.display = 'inline-flex');
     } else {
-      signinLink && (signinLink.style.display = 'inline');
+      signinLink && (signinLink.style.display = 'inline-flex');
       logoutBtn && (logoutBtn.style.display = 'none');
     }
 

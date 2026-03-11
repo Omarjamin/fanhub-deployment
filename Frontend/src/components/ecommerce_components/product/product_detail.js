@@ -21,6 +21,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     const communityType = String(
       explicitCommunityType || (parts[0] === 'fanhub' ? parts[1] : '') || ''
     ).trim().toLowerCase();
+    const shopPath = communityType ? `/fanhub/${communityType}/shop` : '/shop';
 
     const { product, variants } = await fetchProductDetails(productId, communityType);
 
@@ -201,7 +202,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     const backBtn = root.querySelector('#product-back-to-shop');
     backBtn?.addEventListener('click', (e) => {
       e.preventDefault();
-      history.back();
+      window.location.href = shopPath;
     });
   } catch (err) {
     console.error('Error loading product detail', err);
