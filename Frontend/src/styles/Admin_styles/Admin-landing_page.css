@@ -293,7 +293,7 @@ a:hover { color: var(--primary); }
   color: #000;
 }
 
-.auth-card {
+.admin-landing-section .auth-card {
   background: #15131a;
   border: 1px solid #2a2632;
   border-radius: var(--radius);
@@ -485,12 +485,8 @@ a:hover { color: var(--primary); }
   color: var(--muted-foreground);
 }
 
-.section-title {
-  color: #ffffff;
-}
-
 .admin-landing-section .section-title {
-  color: #ffffff !important;
+  color: #ffffff;
 }
 
 .feature-icon {

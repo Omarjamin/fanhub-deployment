@@ -3,10 +3,16 @@
 =================================== */
 
 .auth-section {
-  --auth-surface: color-mix(in srgb, var(--ec-surface-strong, #ffffff) 92%, white 8%);
-  --auth-surface-soft: color-mix(in srgb, var(--ec-surface, #fff7fb) 86%, white 14%);
-  --auth-border: color-mix(in srgb, var(--ec-border, rgba(165, 106, 146, 0.18)) 92%, white 8%);
-  --auth-accent-soft: color-mix(in srgb, var(--ec-accent, #f062a6) 12%, white 88%);
+  --auth-accent: color-mix(in srgb, var(--ec-accent, #f062a6) 82%, #f472b6 18%);
+  --auth-accent-strong: color-mix(in srgb, var(--ec-accent-strong, #e14d95) 76%, #db2777 24%);
+  --auth-surface: #fffdfd;
+  --auth-surface-soft: #fff5fa;
+  --auth-surface-strong: #fff9fc;
+  --auth-border: rgba(226, 169, 201, 0.62);
+  --auth-text: #2f1f34;
+  --auth-muted: #715c6f;
+  --auth-heading: #301b39;
+  --auth-accent-soft: color-mix(in srgb, var(--auth-accent) 14%, white 86%);
   --auth-shadow: 0 26px 56px rgba(121, 75, 107, 0.14);
   position: relative;
   min-height: 100vh;
@@ -22,7 +28,7 @@
       color-mix(in srgb, var(--secondary-background, #fff8fb) 88%, white 12%),
       color-mix(in srgb, var(--surface-color, #ffffff) 78%, var(--theme-accent-soft, #f7dce9) 22%)
     );
-  color: var(--ec-text, var(--surface-text-color, #111111));
+  color: var(--auth-text);
   font-family: var(--ec-font-body, var(--theme-font-body, Arial, sans-serif));
   font-size: var(--ec-font-size, 16px);
   line-height: var(--ec-line-height, 1.6);
@@ -57,6 +63,7 @@
 .auth-shell {
   position: relative;
   z-index: 1;
+  isolation: isolate;
   width: min(1100px, 100%);
   display: grid;
   grid-template-columns: minmax(320px, 1.05fr) minmax(340px, 460px);
@@ -66,6 +73,9 @@
 
 .auth-intro,
 .auth-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   border: 1px solid var(--auth-border);
   border-radius: clamp(24px, 4vw, 30px);
   box-shadow: var(--auth-shadow);
@@ -94,9 +104,9 @@
   min-height: 32px;
   padding: 0 14px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--ec-accent, #f062a6) 14%, white 86%);
-  color: var(--ec-accent-strong, #e14d95);
-  border: 1px solid color-mix(in srgb, var(--ec-accent, #f062a6) 30%, white 70%);
+  background: color-mix(in srgb, var(--auth-accent) 14%, white 86%);
+  color: var(--auth-accent-strong);
+  border: 1px solid color-mix(in srgb, var(--auth-accent) 28%, white 72%);
   font-size: 0.76rem;
   line-height: 1;
   letter-spacing: 0.12em;
@@ -110,7 +120,7 @@
   font-size: clamp(2.35rem, 5vw, 4rem);
   line-height: 0.95;
   letter-spacing: 0.01em;
-  color: var(--ec-heading, #2f2430);
+  color: var(--auth-heading);
 }
 
 .auth-copy {
@@ -118,7 +128,7 @@
   max-width: 38ch;
   font-size: 1rem;
   line-height: 1.75;
-  color: var(--ec-text-muted, #6f5b6d);
+  color: var(--auth-muted);
 }
 
 .auth-highlights {
@@ -129,8 +139,8 @@
 .auth-highlight {
   padding: 15px 16px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--auth-surface-soft) 88%, white 12%);
-  border: 1px solid color-mix(in srgb, var(--ec-accent, #f062a6) 12%, var(--auth-border) 88%);
+  background: color-mix(in srgb, var(--auth-surface-soft) 90%, white 10%);
+  border: 1px solid color-mix(in srgb, var(--auth-accent) 12%, var(--auth-border) 88%);
 }
 
 .auth-highlight strong,
@@ -140,12 +150,12 @@
 
 .auth-highlight strong {
   margin-bottom: 4px;
-  color: var(--ec-heading, #2f2430);
+  color: var(--auth-heading);
   font-size: 0.98rem;
 }
 
 .auth-highlight span {
-  color: var(--ec-text-muted, #6f5b6d);
+  color: var(--auth-muted);
   font-size: 0.92rem;
   line-height: 1.55;
 }
@@ -155,9 +165,28 @@
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--auth-surface) 95%, white 5%),
-      color-mix(in srgb, var(--auth-surface-soft) 90%, white 10%)
-    );
+      color-mix(in srgb, var(--auth-surface-strong) 96%, white 4%),
+      color-mix(in srgb, var(--auth-surface-soft) 88%, white 12%)
+    ) !important;
+  border: 1px solid var(--auth-border) !important;
+  box-shadow: var(--auth-shadow) !important;
+  color: var(--auth-text) !important;
+}
+
+.auth-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background:
+    radial-gradient(circle at top right, rgba(244, 114, 182, 0.12), transparent 34%),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.84), rgba(255, 245, 250, 0.96));
+  pointer-events: none;
+}
+
+.auth-card > * {
+  position: relative;
+  z-index: 1;
 }
 
 .auth-card-head {
@@ -173,14 +202,14 @@
   letter-spacing: 0.01em;
   font-size: clamp(1.85rem, 3vw, 2.4rem);
   line-height: 1.05;
-  color: var(--ec-heading, #2f2430) !important;
+  color: var(--auth-heading) !important;
   font-family: var(--ec-font-heading, var(--theme-font-heading, Georgia, serif)) !important;
   text-align: left;
 }
 
 .auth-subtitle {
   margin: 0;
-  color: var(--ec-text-muted, #6f5b6d);
+  color: var(--auth-muted);
   font-size: 0.96rem;
   line-height: 1.7;
 }
@@ -218,7 +247,7 @@
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: 0.03em;
-  color: var(--ec-text-muted, #6f5b6d);
+  color: var(--auth-muted);
 }
 
 .auth-form1 input,
@@ -226,25 +255,25 @@
   width: 100%;
   min-height: 52px;
   padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--ec-accent, #f062a6) 14%, var(--auth-border) 86%);
+  border: 1px solid color-mix(in srgb, var(--auth-accent) 14%, var(--auth-border) 86%);
   border-radius: 16px;
   font-size: 1rem;
-  color: var(--ec-text, #111111);
-  background: rgba(255, 255, 255, 0.94);
+  color: var(--auth-text);
+  background: rgba(255, 255, 255, 0.97);
   transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
   font-family: var(--ec-font-body, var(--theme-font-body, Arial, sans-serif));
 }
 
 .auth-form1 input::placeholder,
 .auth-modal-input::placeholder {
-  color: color-mix(in srgb, var(--ec-text-muted, #6f5b6d) 82%, white 18%);
+  color: color-mix(in srgb, var(--auth-muted) 82%, white 18%);
 }
 
 .auth-form1 input:focus,
 .auth-modal-input:focus {
   outline: none;
-  border-color: color-mix(in srgb, var(--ec-accent, #f062a6) 56%, white 44%);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ec-accent, #f062a6) 16%, white 84%);
+  border-color: color-mix(in srgb, var(--auth-accent) 54%, white 46%);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--auth-accent) 16%, white 84%);
   background: #ffffff;
 }
 
@@ -274,26 +303,26 @@
 .auth-form1 .mv-btn,
 .auth-modal .mv-btn {
   margin-top: 4px;
-  background: var(--theme-button-bg, var(--ec-button-bg, var(--ec-accent, #f062a6)));
-  color: var(--theme-button-text, var(--ec-button-text, #ffffff));
+  background: linear-gradient(135deg, var(--auth-accent), var(--auth-accent-strong));
+  color: #ffffff;
   border: 1px solid transparent;
-  box-shadow: 0 14px 28px color-mix(in srgb, var(--theme-button-bg, var(--ec-accent, #f062a6)) 24%, transparent);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--auth-accent) 24%, transparent);
 }
 
 .auth-form1 .mv-btn:hover,
 .auth-form1 .mv-btn:focus-visible,
 .auth-modal .mv-btn:hover,
 .auth-modal .mv-btn:focus-visible {
-  background: var(--theme-button-hover-bg, var(--ec-button-hover-bg, var(--ec-accent-strong, #e14d95))) !important;
-  color: var(--theme-button-hover-text, var(--ec-button-hover-text, #ffffff)) !important;
-  box-shadow: 0 18px 32px color-mix(in srgb, var(--theme-button-hover-bg, var(--ec-accent-strong, #e14d95)) 26%, transparent);
+  background: linear-gradient(135deg, var(--auth-accent-strong), color-mix(in srgb, var(--auth-accent-strong) 84%, #be185d 16%)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 18px 32px color-mix(in srgb, var(--auth-accent-strong) 26%, transparent);
   transform: translateY(-1px);
 }
 
 .auth-secondary-btn,
 .auth-modal-cancel {
   background: rgba(255, 255, 255, 0.92) !important;
-  color: var(--ec-text, #111111) !important;
+  color: var(--auth-text) !important;
   border: 1px solid var(--auth-border) !important;
   box-shadow: none !important;
 }
@@ -302,9 +331,9 @@
 .auth-secondary-btn:focus-visible,
 .auth-modal-cancel:hover,
 .auth-modal-cancel:focus-visible {
-  background: color-mix(in srgb, var(--ec-accent, #f062a6) 8%, white 92%) !important;
-  color: var(--ec-accent-strong, #e14d95) !important;
-  border-color: color-mix(in srgb, var(--ec-accent, #f062a6) 26%, white 74%) !important;
+  background: color-mix(in srgb, var(--auth-accent) 8%, white 92%) !important;
+  color: var(--auth-accent-strong) !important;
+  border-color: color-mix(in srgb, var(--auth-accent) 26%, white 74%) !important;
   transform: translateY(-1px);
 }
 
@@ -313,7 +342,7 @@
   align-items: center;
   gap: 12px;
   margin: 2px 0;
-  color: var(--ec-text-muted, #6f5b6d);
+  color: var(--auth-muted);
   font-size: 0.82rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -324,7 +353,7 @@
   content: "";
   flex: 1;
   height: 1px;
-  background: color-mix(in srgb, var(--ec-accent, #f062a6) 18%, var(--auth-border) 82%);
+  background: color-mix(in srgb, var(--auth-accent) 18%, var(--auth-border) 82%);
 }
 
 .google-auth-wrap,
@@ -335,7 +364,7 @@
   justify-content: center;
   align-items: center;
   border-radius: 18px;
-  border: 1px dashed color-mix(in srgb, var(--ec-accent, #f062a6) 24%, var(--auth-border) 76%);
+  border: 1px dashed color-mix(in srgb, var(--auth-accent) 24%, var(--auth-border) 76%);
   background: color-mix(in srgb, var(--auth-surface-soft) 84%, white 16%);
 }
 
@@ -389,7 +418,7 @@
   margin: -2px 0 0;
   font-size: 0.84rem;
   line-height: 1.55;
-  color: var(--ec-text-muted, #6f5b6d);
+  color: var(--auth-muted);
 }
 
 .auth-helper:empty {
@@ -408,7 +437,7 @@
 .auth-form1 .section-copy,
 .auth-links p {
   margin: 0;
-  color: var(--ec-text, var(--surface-text-color, #111111));
+  color: var(--auth-text);
   font-family: var(--ec-font-body, var(--theme-font-body, Arial, sans-serif));
 }
 
@@ -418,14 +447,14 @@
 
 .auth-form1 a,
 .auth-links a {
-  color: var(--ec-accent, var(--accent-color, #ffbe0b));
+  color: var(--auth-accent-strong);
   font-weight: 800;
   text-decoration: none;
 }
 
 .auth-form1 a:hover,
 .auth-links a:hover {
-  color: var(--ec-accent-strong, #e14d95);
+  color: color-mix(in srgb, var(--auth-accent-strong) 82%, #831843 18%);
   text-decoration: underline;
 }
 
@@ -455,12 +484,12 @@
   font-family: var(--ec-font-heading, var(--theme-font-heading, Georgia, serif));
   font-size: 1.6rem;
   line-height: 1.1;
-  color: var(--ec-heading, #2f2430);
+  color: var(--auth-heading);
 }
 
 .auth-modal-hint {
   margin: 0 0 16px;
-  color: var(--ec-text-muted, #6f5b6d);
+  color: var(--auth-muted);
   font-size: 0.94rem;
   line-height: 1.6;
 }

@@ -57,14 +57,14 @@ function ensureEditModal() {
         <button class="search-post-modal-close" aria-label="Close">&times;</button>
       </div>
       <div class="search-post-modal-body">
-        <form class="edit-post-form" style="display:flex;flex-direction:column;gap:12px;">
-          <textarea name="content" rows="5" style="width:100%;padding:12px;border:1px solid #d1d5db;border-radius:12px;resize:vertical;"></textarea>
-          <input type="file" name="image_file" accept="image/*" />
-          <img class="edit-post-preview" alt="Post image preview" style="display:none;width:100%;max-height:280px;object-fit:cover;border-radius:12px;" />
-          <button type="button" class="edit-post-remove-image report-post-option" style="display:none;">Remove image</button>
-          <div style="display:flex;justify-content:flex-end;gap:10px;">
+        <form class="edit-post-form">
+          <textarea name="content" rows="5" class="edit-post-textarea" placeholder="Update your post"></textarea>
+          <input type="file" name="image_file" accept="image/*" class="edit-post-file" />
+          <img class="edit-post-preview" alt="Post image preview" />
+          <button type="button" class="edit-post-remove-image report-post-option">Remove image</button>
+          <div class="edit-post-actions">
             <button type="button" class="report-post-option edit-post-cancel">Cancel</button>
-            <button type="submit" class="report-post-option" style="background:#111827;color:#fff;">Save changes</button>
+            <button type="submit" class="report-post-option edit-post-save">Save changes</button>
           </div>
         </form>
       </div>

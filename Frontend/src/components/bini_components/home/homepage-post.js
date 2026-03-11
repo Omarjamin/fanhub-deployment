@@ -219,11 +219,41 @@ function sortPostsByRank(posts) {
 
 // Build HTML for a single post (shared by renderPosts and prependSinglePost)
 function getCurrentUserId() {
-  return String(
+  const storedUserId =
     sessionStorage.getItem('currentUserId') ||
     sessionStorage.getItem('userId') ||
     sessionStorage.getItem('user_id') ||
-    ''
+    '';
+
+  if (String(storedUserId || '').trim()) {
+    return String(storedUserId).trim();
+  }
+
+  try {
+    const token = String(getSessionToken(getActiveSiteSlug()) || '').trim();
+    const [, payload = ''] = token.split('.');
+    if (!payload) return '';
+
+    const normalized = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
+    const decoded = JSON.parse(atob(padded));
+    return String(decoded?.id || decoded?.user_id || decoded?.sub || '').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function resolvePostOwnerId(post = {}) {
+  return String(
+    post.user_id ||
+      post.userId ||
+      post.owner_id ||
+      post.author_id ||
+      post.user?.user_id ||
+      post.user?.id ||
+      post.author?.user_id ||
+      post.author?.id ||
+      '',
   ).trim();
 }
 
@@ -239,7 +269,9 @@ function findPostCard(container, postId) {
 }
 
 function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeCount, commentCount, repostCount }) {
-  const isOwnPost = getCurrentUserId() && String(post.user_id || '') === getCurrentUserId();
+  const currentUserId = getCurrentUserId();
+  const postOwnerId = resolvePostOwnerId(post);
+  const isOwnPost = Boolean(currentUserId && postOwnerId && postOwnerId === currentUserId);
   const imageHtml = post.img_url
     ? `<img src="${post.img_url}" data-full="${post.img_url}" alt="Post Image" class="post-image" />`
     : '';
@@ -257,10 +289,10 @@ function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeC
   return `
     <div class="post-card" data-post-id="${post.post_id}">
       <div class="post-meta1">
-        <a href="#" class="profile-link" data-user-id="${post.user_id}">
+        <a href="#" class="profile-link" data-user-id="${postOwnerId}">
           <img src="${post.profile_picture || '/circle-user.png'}" class="profile-picture" onerror="this.src='/circle-user.png';">
         </a>
-        <a href="#" class="profile-link" data-user-id="${post.user_id}">
+        <a href="#" class="profile-link" data-user-id="${postOwnerId}">
           <span class="post-fullname">${post.fullname || 'You'}</span>
         </a>
         <span class="post-time">${postCreationTime}</span>
