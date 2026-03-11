@@ -24,8 +24,9 @@ export default async function Checkout() {
       : '';
   const shopPath = communityType ? `/fanhub/${communityType}/shop` : '/shop';
 
-  Navigation(navigation); 
+  Navigation(navigation, { community_type: communityType }); 
   Footer(footer, { community_type: communityType });
+  main.classList.add('checkout-main');
   
   // Initialize checkout step if not set
   if (!sessionStorage.getItem('checkoutStep')) {
@@ -36,7 +37,11 @@ export default async function Checkout() {
   main.innerHTML = `
     <div class="checkout-header">
       <button id="back-to-shop" class="btn-link">
-        <span class="back-arrow" aria-hidden="true"></span>
+        <span class="back-arrow" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 18l-6-6 6-6"></path>
+          </svg>
+        </span>
         <span class="back-label">Back</span>
       </button>
       <h1 class="checkout-title">Checkout</h1>

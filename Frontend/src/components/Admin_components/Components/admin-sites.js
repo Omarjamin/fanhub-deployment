@@ -289,14 +289,6 @@ export async function fetchAdminSites() {
         nav_position: row?.nav_position ?? '',
         logo: row?.logo ?? '',
         banner: row?.banner ?? '',
-        group_photo: row?.group_photo ?? '',
-        lead_image: row?.lead_image ?? '',
-        instagram_url: row?.instagram_url ?? '',
-        facebook_url: row?.facebook_url ?? '',
-        tiktok_url: row?.tiktok_url ?? '',
-        spotify_url: row?.spotify_url ?? '',
-        x_url: row?.x_url ?? '',
-        youtube_url: row?.youtube_url ?? '',
         members: Array.isArray(row?.members) ? row.members : [],
       };
     })

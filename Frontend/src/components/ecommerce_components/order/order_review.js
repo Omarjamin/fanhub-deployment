@@ -1,9 +1,15 @@
 import { placeOrder } from '../../../services/ecommerce_services/order/place_order.js';
 
+const peso = '\u20B1';
+
 function resolveItemWeightGrams(item) {
     const explicitWeight = Number(item?.weight_g ?? item?.weightG ?? item?.weight_grams ?? item?.weight);
     if (Number.isFinite(explicitWeight) && explicitWeight > 0) return explicitWeight;
     return 0;
+}
+
+function formatPeso(value) {
+    return `${peso}${Number(value || 0).toFixed(2)}`;
 }
 
 export default function OrderReview(root) {
@@ -43,9 +49,9 @@ export default function OrderReview(root) {
 
         const rawTotals = checkoutSummary || computedTotals || orderData;
 
-        // Prefer real-time shippingFee from sessionStorage over checkoutSummary
-        const shippingFeeVal = shippingFeeStored 
-            ? Number(shippingFeeStored) 
+        // Prefer real-time shipping fee from sessionStorage over checkoutSummary.
+        const shippingFeeVal = shippingFeeStored
+            ? Number(shippingFeeStored)
             : (rawTotals?.shippingFee ?? rawTotals?.shipping_fee ?? 0);
 
         const totals = rawTotals
@@ -63,9 +69,9 @@ export default function OrderReview(root) {
         const summaryTotal = (() => {
             if (!totals) return 0;
             const subtotalVal = Number(totals.subtotal ?? totals.sub_total ?? 0);
-            const shippingFeeVal = Number(totals.shippingFee ?? totals.shipping_fee ?? totals.shipping ?? 0);
+            const shippingFeeAmount = Number(totals.shippingFee ?? totals.shipping_fee ?? totals.shipping ?? 0);
             const codFeeVal = Number(totals.codFee ?? totals.cod_fee ?? 0) || 0;
-            return subtotalVal + shippingFeeVal + codFeeVal;
+            return subtotalVal + shippingFeeAmount + codFeeVal;
         })();
 
         /* =========================
@@ -88,7 +94,7 @@ export default function OrderReview(root) {
                 <div class="review-mobile-bar">
                     <div class="review-mobile-total">
                         <span>Total</span>
-                        <strong>₱${summaryTotal.toFixed(2)}</strong>
+                        <strong>${formatPeso(summaryTotal)}</strong>
                     </div>
                     <button id="mobilePlaceOrderBtn" class="review-mobile-button" ${disablePlaceOrder ? 'disabled' : ''}>
                         Place Order
@@ -100,7 +106,6 @@ export default function OrderReview(root) {
         createHiddenForms(root, address || {}, payment || {});
         bindEditLinks(root);
 
-        // Setup Place Order button functionality
         const placeOrderBtn = document.getElementById('placeOrderBtn');
         if (placeOrderBtn) {
             placeOrderBtn.addEventListener('click', async () => {
@@ -109,7 +114,6 @@ export default function OrderReview(root) {
                     return;
                 }
 
-                // Disable button while placing order
                 placeOrderBtn.disabled = true;
                 const origText = placeOrderBtn.textContent;
                 placeOrderBtn.textContent = 'Placing order...';
@@ -117,7 +121,6 @@ export default function OrderReview(root) {
                 try {
                     const result = await placeOrder();
                     if (result && result.success) {
-                        // Redirect to confirmation with order id if available
                         const id = result.orderId || sessionStorage.getItem('lastOrderId');
                         const confirmationPath = communityType
                             ? `/fanhub/${communityType}/order-confirmation`
@@ -130,7 +133,7 @@ export default function OrderReview(root) {
                     }
                 } catch (err) {
                     console.error('Place order failed:', err);
-                    alert('Failed to place order: ' + (err.message || 'Server error'));
+                    alert(`Failed to place order: ${err.message || 'Server error'}`);
                 } finally {
                     placeOrderBtn.disabled = false;
                     placeOrderBtn.textContent = origText;
@@ -140,12 +143,11 @@ export default function OrderReview(root) {
 
         const mobilePlaceOrderBtn = document.getElementById('mobilePlaceOrderBtn');
         if (mobilePlaceOrderBtn) {
-            mobilePlaceOrderBtn.addEventListener('click', (e) => {
-                e.preventDefault();
+            mobilePlaceOrderBtn.addEventListener('click', event => {
+                event.preventDefault();
                 placeOrderBtn?.click();
             });
         }
-
     } catch (err) {
         console.error('OrderReview error:', err);
         root.innerHTML = '<p>Error loading order review.</p>';
@@ -159,17 +161,17 @@ function renderAddress(address) {
     const fullAddress = address
         ? (address.fullAddress ||
            [
-             address.street,
-             address.barangayText || address.barangay,
-             address.cityText || address.city,
-             address.provinceText || address.province,
-             address.regionText || address.region,
-             address.zip
+               address.street,
+               address.barangayText || address.barangay,
+               address.cityText || address.city,
+               address.provinceText || address.province,
+               address.regionText || address.region,
+               address.zip,
            ]
                .filter(Boolean)
                .join(', '))
         : null;
-    
+
     return `
         <div class="review-section shipping-section">
             <div class="section-header">
@@ -205,7 +207,7 @@ function renderAddress(address) {
                                 </div>
                             ` : ''}
                           `
-                        : `<div class="info-empty">No shipping address selected.</div>`
+                        : '<div class="info-empty">No shipping address selected.</div>'
                 }
             </div>
         </div>
@@ -216,7 +218,7 @@ function renderPayment(payment) {
     const paymentMethod = payment
         ? (payment.methodText || payment.name || payment.method)
         : null;
-    
+
     return `
         <div class="review-section payment-section">
             <div class="section-header">
@@ -240,11 +242,11 @@ function renderPayment(payment) {
                                 <span class="info-value payment-method">${paymentMethod}</span>
                             </div>
                             <div class="payment-note">
-                                <span class="note-icon">ℹ️</span>
+                                <span class="note-icon">Info</span>
                                 <span>Payment will be collected upon delivery</span>
                             </div>
                           `
-                        : `<div class="info-empty">No payment method selected.</div>`
+                        : '<div class="info-empty">No payment method selected.</div>'
                 }
             </div>
         </div>
@@ -263,7 +265,7 @@ function renderItems(items) {
             <div class="section-content">
                 ${
                     items.length === 0
-                        ? `<div class="info-empty">No items in cart.</div>`
+                        ? '<div class="info-empty">No items in cart.</div>'
                         : `
                             <div class="items-table">
                                 <table>
@@ -277,17 +279,17 @@ function renderItems(items) {
                                     </thead>
                                     <tbody>
                                         ${items
-                                            .map(it => {
-                                                const productName = it.product_name || it.name || 'Unknown Product';
-                                                const quantity = it.quantity || it.qty || 1;
-                                                const price = parseFloat(it.display_price || it.price || 0);
+                                            .map(item => {
+                                                const productName = item.product_name || item.name || 'Unknown Product';
+                                                const quantity = item.quantity || item.qty || 1;
+                                                const price = parseFloat(item.display_price || item.price || 0);
                                                 const subtotal = price * quantity;
                                                 return `
                                                     <tr>
-                                                        <td class="product-name">${productName}<br><small>${(resolveItemWeightGrams(it) * Number(quantity || 0)).toLocaleString()}g total</small></td>
+                                                        <td class="product-name">${productName}<br><small>${(resolveItemWeightGrams(item) * Number(quantity || 0)).toLocaleString()}g total</small></td>
                                                         <td class="quantity">${quantity}</td>
-                                                        <td class="price">₱${price.toFixed(2)}</td>
-                                                        <td class="subtotal">₱${subtotal.toFixed(2)}</td>
+                                                        <td class="price">${formatPeso(price)}</td>
+                                                        <td class="subtotal">${formatPeso(subtotal)}</td>
                                                     </tr>
                                                 `;
                                             })
@@ -318,7 +320,6 @@ function renderTotals(totals, disablePlaceOrder = false) {
     const totalWeightGrams = Array.isArray(checkoutItems) && checkoutItems.length > 0
         ? checkoutItems.reduce((sum, item) => sum + (resolveItemWeightGrams(item) * Number(item?.quantity || 0)), 0)
         : Number(totals.total_weight_grams ?? sessionStorage.getItem('checkoutWeightGrams') ?? 0);
-    // Always recalculate total from components to ensure shipping fee update is reflected
     const totalVal = subtotalVal + shippingFeeVal + codFeeVal;
 
     return `
@@ -332,22 +333,22 @@ function renderTotals(totals, disablePlaceOrder = false) {
                 <div class="totals-list">
                     <div class="total-row">
                         <span class="total-label">Subtotal</span>
-                        <span class="total-value">₱${subtotalVal.toFixed(2)}</span>
+                        <span class="total-value">${formatPeso(subtotalVal)}</span>
                     </div>
                     <div class="total-row">
                         <span class="total-label">Shipping Fee</span>
-                        <span class="total-value">₱${shippingFeeVal.toFixed(2)}</span>
+                        <span class="total-value">${formatPeso(shippingFeeVal)}</span>
                     </div>
                     <div class="total-row">
                         <span class="total-label">Total Weight</span>
                         <span class="total-value">${Number(totalWeightGrams || 0).toLocaleString()}g</span>
                     </div>
                     ${
-                        (codFeeVal > 0)
+                        codFeeVal > 0
                             ? `
                                 <div class="total-row">
                                     <span class="total-label">COD Fee</span>
-                                    <span class="total-value">₱${codFeeVal.toFixed(2)}</span>
+                                    <span class="total-value">${formatPeso(codFeeVal)}</span>
                                 </div>
                               `
                             : ''
@@ -355,7 +356,7 @@ function renderTotals(totals, disablePlaceOrder = false) {
                     <div class="total-divider"></div>
                     <div class="total-row total-final">
                         <span class="total-label">Total Amount</span>
-                        <span class="total-value final-amount">₱${totalVal.toFixed(2)}</span>
+                        <span class="total-value final-amount">${formatPeso(totalVal)}</span>
                     </div>
                 </div>
                 <div class="order-actions">
@@ -373,15 +374,13 @@ function renderTotals(totals, disablePlaceOrder = false) {
 ========================= */
 function bindEditLinks(root) {
     root.querySelectorAll('.edit-link').forEach(link => {
-        link.addEventListener('click', e => {
-            e.preventDefault();
+        link.addEventListener('click', event => {
+            event.preventDefault();
             sessionStorage.setItem('checkoutStep', link.dataset.step);
             window.dispatchEvent(new Event('stepChanged'));
         });
     });
 }
-
-// Place order is handled by the checkout buttons component; no inline handler here.
 
 /* =========================
    HIDDEN FORMS

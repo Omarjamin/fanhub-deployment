@@ -81,12 +81,12 @@ export default async function ShippingForm(root) {
                 <div class="form-row">
                     <div class="form-group">
                         <label for="zip">ZIP Code</label>
-                        <input type="text" id="zip"  required>
+                        <input type="text" id="zip" name="zip" required readonly inputmode="numeric" autocomplete="postal-code" placeholder="Auto-filled after selecting a city">
                     </div>
 
                     <div class="form-group">
                         <label>&nbsp;</label>
-                        <button id="nextbtn" class="show">Next</button>
+                        <button id="nextbtn" class="show" type="button">Next</button>
                     </div>
                 </div>
             </form>
@@ -167,6 +167,8 @@ async function loadCities(api, regionName, provinceName) {
                 const option = document.createElement('option');
                 option.textContent = c.name;
                 option.value = c.name;
+                option.dataset.code = String(c.code || c.id || '');
+                option.dataset.type = String(c.type || '');
                 citySelect.appendChild(option);
             });
             console.log('Cities added to dropdown');
@@ -188,6 +190,45 @@ async function loadBarangays(api, regionName, provinceName, cityName) {
         option.textContent = b.name;
         barangaySelect.appendChild(option);
     });
+}
+
+function resetZipField(zipInput, placeholder = 'Auto-filled after selecting a city') {
+    if (!zipInput) return;
+    zipInput.value = '';
+    zipInput.placeholder = placeholder;
+    zipInput.readOnly = true;
+}
+
+async function autoFillZipCode(api, citySelect, zipInput) {
+    if (!citySelect || !zipInput) return '';
+
+    const selectedOption = citySelect.options[citySelect.selectedIndex];
+    const locality = {
+        name: citySelect.value,
+        code: selectedOption?.dataset?.code || '',
+        type: selectedOption?.dataset?.type || '',
+    };
+
+    resetZipField(zipInput, 'Loading ZIP code...');
+
+    try {
+        const detectedZip = await api.getZipCode(locality);
+        if (String(detectedZip || '').trim()) {
+            zipInput.value = String(detectedZip).trim();
+            zipInput.placeholder = 'ZIP code detected';
+            zipInput.readOnly = true;
+            return zipInput.value;
+        }
+
+        zipInput.placeholder = 'ZIP not found, enter manually';
+        zipInput.readOnly = false;
+        return '';
+    } catch (error) {
+        console.error('Error auto-filling ZIP code:', error);
+        zipInput.placeholder = 'ZIP not found, enter manually';
+        zipInput.readOnly = false;
+        return '';
+    }
 }
 
 
@@ -223,13 +264,15 @@ function setupEvents(api, state) {
         if (region) {
             region.addEventListener('change', async () => {
                 state.regionName = region.options[region.selectedIndex].text;
+                state.provinceName = '';
+                state.cityName = '';
                 console.log('Region selected:', state.regionName);
 
                 // RESET
                 province.innerHTML = '<option value="">Select Province</option>';
                 city.innerHTML = '<option value="">Select City/Municipality</option>';
                 barangay.innerHTML = '<option value="">Select Barangay</option>';
-                zip.value = '';
+                resetZipField(zip);
 
                 province.disabled = true;
                 city.disabled = true;
@@ -254,9 +297,21 @@ function setupEvents(api, state) {
         if (province) {
             province.addEventListener('change', async () => {
                 state.provinceName = province.value;
+                state.cityName = '';
+
+                city.innerHTML = '<option value="">Select City/Municipality</option>';
+                barangay.innerHTML = '<option value="">Select Barangay</option>';
+                city.disabled = true;
 
                 barangay.disabled = true;
-                zip.value = '';
+                resetZipField(zip);
+
+                if (!state.provinceName) {
+                    sessionStorage.removeItem('shippingFee');
+                    sessionStorage.removeItem('shippingRegion');
+                    window.dispatchEvent(new Event('shippingFeeUpdated'));
+                    return;
+                }
 
                 await loadCities(api, state.regionName, state.provinceName);
                 city.disabled = false;
@@ -287,11 +342,22 @@ function setupEvents(api, state) {
         if (city) {
             city.addEventListener('change', async () => {
                 state.cityName = city.value;
+                barangay.innerHTML = '<option value="">Select Barangay</option>';
+                barangay.disabled = true;
+                resetZipField(zip);
 
-                zip.value = '';
+                if (!state.cityName) {
+                    sessionStorage.removeItem('shippingFee');
+                    sessionStorage.removeItem('shippingRegion');
+                    window.dispatchEvent(new Event('shippingFeeUpdated'));
+                    return;
+                }
                 
-                // Pass regionName to API so it can check if NCR
-                await loadBarangays(api, state.regionName, state.provinceName, state.cityName);
+                await Promise.all([
+                    loadBarangays(api, state.regionName, state.provinceName, state.cityName),
+                    autoFillZipCode(api, city, zip),
+                ]);
+
                 barangay.disabled = false;
 
                 const rateProvince = state.provinceName || state.cityName;

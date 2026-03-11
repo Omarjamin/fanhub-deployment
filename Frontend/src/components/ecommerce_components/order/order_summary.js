@@ -1,17 +1,23 @@
 import { getCart } from '../cart/cart.js';
 
+const peso = '\u20B1';
+const emDash = '\u2014';
+
 function resolveItemWeightGrams(item) {
     const explicitWeight = Number(item?.weight_g ?? item?.weightG ?? item?.weight_grams ?? item?.weight);
     if (Number.isFinite(explicitWeight) && explicitWeight > 0) return explicitWeight;
     return 0;
 }
 
+function formatPeso(value) {
+    return `${peso}${Number(value || 0).toFixed(2)}`;
+}
+
 export default async function OrderSummary(root) {
     const cartItems = await getCart();
     const selectedItems = JSON.parse(sessionStorage.getItem('selectedCartItems') || '{}');
     const checkoutItems = cartItems.filter(item => selectedItems[item.variant_id]);
-    
-    // Check for Buy Now items if no cart items selected
+
     const buyNowItems = JSON.parse(sessionStorage.getItem('checkoutItems') || '[]');
     const displayItems = checkoutItems.length > 0 ? checkoutItems : buyNowItems;
 
@@ -21,36 +27,35 @@ export default async function OrderSummary(root) {
         return sum + (resolveItemWeightGrams(item) * qty);
     }, 0);
 
-    // Read shipping fee from sessionStorage. If not present, show as not calculated (—)
     const shippingFeeStored = sessionStorage.getItem('shippingFee');
     const shippingFee = shippingFeeStored ? parseFloat(shippingFeeStored) : null;
     const total = subTotal + (shippingFee || 0);
 
-    root.innerHTML += `
+    root.innerHTML = `
     <section class="order-summary">
         <div class="summary-container">
-            <h3>Order Summary</h3>
-            ${displayItems.length === 0 ? '<p style="color: #000000; font-weight: 500;">No items selected for checkout.</p>' : `
-            <div style="width: 100%; overflow-x: visible;">
-                <table class="order-table" style="width: 100%;">
+            <h3 class="summary-title">Order Summary</h3>
+            ${displayItems.length === 0 ? '<p class="summary-empty">No items selected for checkout.</p>' : `
+            <div class="order-table-wrap">
+                <table class="order-table">
                     <thead>
                         <tr>
-                            <th style="width: 15%;">Image</th>
-                            <th style="width: 45%;">Product</th>
-                            <th style="width: 20%;">Price</th>
-                            <th style="width: 20%;">Qty</th>
+                            <th class="summary-col-image">Image</th>
+                            <th class="summary-col-product">Product</th>
+                            <th class="summary-col-price">Price</th>
+                            <th class="summary-col-qty">Qty</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${displayItems.map(item => `
                             <tr>
                                 <td><img src="${item.image_url}" alt="${item.product_name}" class="product-image"></td>
-                                <td style="color: #000000; font-weight: 500; white-space: normal;">
-                                  ${item.product_name} ${item.variant_name || ''}
-                                  <br><small>Weight: ${(resolveItemWeightGrams(item) * Number(item.quantity || 0)).toLocaleString()}g total</small>
+                                <td class="summary-product-cell">
+                                    <span class="summary-product-name">${item.product_name} ${item.variant_name || ''}</span>
+                                    <small class="summary-product-meta">Weight: ${(resolveItemWeightGrams(item) * Number(item.quantity || 0)).toLocaleString()}g total</small>
                                 </td>
-                                <td style="color: #000000; font-weight: 600;">₱${(parseFloat(item.price) || 0).toFixed(2)}</td>
-                                <td style="color: #000000; font-weight: 600;">${item.quantity}</td>
+                                <td class="summary-price-cell">${formatPeso(parseFloat(item.price) || 0)}</td>
+                                <td class="summary-qty-cell">${item.quantity}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -59,38 +64,36 @@ export default async function OrderSummary(root) {
             `}
             <div class="summary-totals">
                 <div class="total-row">
-                    <span style="color: #000000;">Sub Total:</span>
-                    <span style="color: #000000;">₱${subTotal.toFixed(2)}</span>
+                    <span>Sub Total:</span>
+                    <span>${formatPeso(subTotal)}</span>
                 </div>
                 <div class="total-row">
-                    <span style="color: #000000;">Shipping Fee:</span>
-                    <span id="shippingFeeValue" style="color: #000000;">${shippingFee === null ? '—' : `₱${shippingFee.toFixed(2)}`}</span>
+                    <span>Shipping Fee:</span>
+                    <span id="shippingFeeValue">${shippingFee === null ? emDash : formatPeso(shippingFee)}</span>
                 </div>
                 <div class="total-row">
-                    <span style="color: #000000;">Total Weight:</span>
-                    <span style="color: #000000;">${totalWeightGrams.toLocaleString()}g</span>
+                    <span>Total Weight:</span>
+                    <span>${totalWeightGrams.toLocaleString()}g</span>
                 </div>
                 <div class="total-row total">
                     <span>Total:</span>
-                    <span id="totalValue">₱${total.toFixed(2)}</span>
+                    <span id="totalValue">${formatPeso(total)}</span>
                 </div>
             </div>
         </div>
     </section>
     `;
 
-    // Update display when shipping fee is updated elsewhere
     function updateFeeDisplay() {
         const sfStored = sessionStorage.getItem('shippingFee');
         const sf = sfStored ? parseFloat(sfStored) : null;
         const shippingElem = document.getElementById('shippingFeeValue');
         const totalElem = document.getElementById('totalValue');
         if (shippingElem) {
-            shippingElem.textContent = sf === null ? '—' : `₱${sf.toFixed(2)}`;
-            shippingElem.style.color = '#000000';
+            shippingElem.textContent = sf === null ? emDash : formatPeso(sf);
         }
         if (totalElem) {
-            totalElem.textContent = `₱${(subTotal + (sf || 0)).toFixed(2)}`;
+            totalElem.textContent = formatPeso(subTotal + (sf || 0));
         }
     }
 
