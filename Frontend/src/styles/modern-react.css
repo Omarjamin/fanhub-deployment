@@ -1,8 +1,11 @@
+@import "./theme-overrides.css";
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  .modern-react-root,
   [data-react-root="modern"] {
     --background-rgb: var(--background-rgb, 248 249 251);
     --foreground-rgb: var(--foreground-rgb, 31 41 55);
@@ -23,19 +26,28 @@
     color: rgb(var(--foreground-rgb));
     background: rgb(var(--background-rgb));
     font-family: var(--theme-font-body, Arial), sans-serif;
+    min-height: 100vh;
   }
 
+  .modern-react-root *,
   [data-react-root="modern"] *,
+  .modern-react-root *::before,
+  .modern-react-root *::after,
   [data-react-root="modern"] *::before,
   [data-react-root="modern"] *::after {
     box-sizing: border-box;
   }
 
+  .modern-react-root img,
   [data-react-root="modern"] img {
     display: block;
     max-width: 100%;
   }
 
+  .modern-react-root button,
+  .modern-react-root input,
+  .modern-react-root select,
+  .modern-react-root textarea,
   [data-react-root="modern"] button,
   [data-react-root="modern"] input,
   [data-react-root="modern"] select,
@@ -43,10 +55,12 @@
     font: inherit;
   }
 
+  .modern-react-root .container,
   [data-react-root="modern"] .container {
     width: min(1200px, calc(100% - 2rem));
   }
 
+  .modern-react-root .text-gradient,
   [data-react-root="modern"] .text-gradient {
     background-image: linear-gradient(
       120deg,

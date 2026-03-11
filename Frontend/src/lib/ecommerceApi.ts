@@ -22,12 +22,100 @@ function getSiteData() {
   return getModernSiteData();
 }
 
+function asRecord(value: unknown): GenericRecord | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as GenericRecord)
+    : null;
+}
+
+function parseJsonIfNeeded<T = unknown>(value: unknown): T | null {
+  if (typeof value !== "string") return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
+function pickArray(...candidates: unknown[]) {
+  for (const candidate of candidates) {
+    if (Array.isArray(candidate)) return candidate;
+    const parsed = parseJsonIfNeeded(candidate);
+    if (Array.isArray(parsed)) return parsed;
+  }
+  return [];
+}
+
+function getNormalizedSitePayload(site: unknown) {
+  const root = asRecord(site) || {};
+  const data = asRecord(root.data) || {};
+  const payload = asRecord(root.payload) || {};
+  const siteData = asRecord(root.siteData) || {};
+  const siteNode = asRecord(root.site) || {};
+
+  return {
+    ...data,
+    ...payload,
+    ...siteData,
+    ...siteNode,
+    ...root,
+    members: pickArray(
+      root.members,
+      root.site_members,
+      root.membersData,
+      data.members,
+      data.site_members,
+      payload.members,
+      payload.site_members,
+      siteData.members,
+      siteData.site_members,
+      siteNode.members,
+      siteNode.site_members,
+    ),
+    discography: pickArray(
+      root.discography,
+      root.music,
+      data.discography,
+      data.music,
+      payload.discography,
+      payload.music,
+      siteData.discography,
+      siteData.music,
+    ),
+    events: pickArray(
+      root.events,
+      root.event_posters,
+      data.events,
+      data.event_posters,
+      payload.events,
+      payload.event_posters,
+      siteData.events,
+      siteData.event_posters,
+    ),
+  };
+}
+
 function toAbsoluteMediaUrl(value: string, fallback = "") {
   const raw = String(value || "").trim();
   if (!raw) return fallback;
   if (/^https?:\/\//i.test(raw)) return raw;
   const origin = String(window.__API_ORIGIN__ || new URL(resolveApiV1()).origin).replace(/\/$/, "");
   return `${origin}${raw.startsWith("/") ? "" : "/"}${raw}`;
+}
+
+function formatDisplayDate(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const parsed = new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return new Intl.DateTimeFormat("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(parsed);
 }
 
 async function fetchGeneratedSiteData() {
@@ -55,7 +143,9 @@ async function fetchGeneratedSiteData() {
 }
 
 async function ensureSiteData() {
-  return getSiteData() || (await fetchGeneratedSiteData());
+  const current = getSiteData();
+  if (current) return getNormalizedSitePayload(current);
+  return getNormalizedSitePayload(await fetchGeneratedSiteData());
 }
 
 function normalizeCollection(row: GenericRecord) {
@@ -78,7 +168,7 @@ function normalizeProduct(row: GenericRecord) {
 }
 
 export async function fetchSiteProfile() {
-  const site = await ensureSiteData();
+  const site = getNormalizedSitePayload(await ensureSiteData());
   return {
     siteName: String(site?.site_name || site?.community_name || site?.community_type || "Community"),
     shortBio: String(site?.short_bio || site?.description_short || site?.site_tagline || ""),
@@ -93,20 +183,25 @@ export async function fetchSiteProfile() {
 }
 
 export async function fetchSiteMembers() {
-  const site = await ensureSiteData();
-  const rows = Array.isArray(site?.members) ? site.members : [];
+  const site = getNormalizedSitePayload(await ensureSiteData());
+  const rows = pickArray(site?.members, site?.site_members);
   return rows.map((member: GenericRecord, index: number) => ({
     id: String(member.member_id || member.id || index + 1),
     name: String(member.name || "Member"),
-    role: String(member.role || ""),
-    description: String(member.description || ""),
+    role: String(member.role || member.position || member.title || ""),
+    description: String(
+      member.description ||
+        member.bio ||
+        formatDisplayDate(member.birthdate) ||
+        "",
+    ),
     image: toAbsoluteMediaUrl(member.image_profile || member.image || member.photo || "", ""),
   }));
 }
 
 export async function fetchDiscographyAlbums() {
-  const site = await ensureSiteData();
-  const rows = Array.isArray(site?.discography) ? site.discography : [];
+  const site = getNormalizedSitePayload(await ensureSiteData());
+  const rows = pickArray(site?.discography, site?.music);
   return rows.map((album: GenericRecord, index: number) => ({
     id: String(album.id || album.album_id || index + 1),
     title: String(album.title || album.album_name || "Release"),
@@ -118,12 +213,15 @@ export async function fetchDiscographyAlbums() {
 }
 
 export async function fetchEventPosters() {
-  const site = await ensureSiteData();
-  const rows = Array.isArray(site?.events) ? site.events : [];
+  const site = getNormalizedSitePayload(await ensureSiteData());
+  const rows = pickArray(site?.events, site?.event_posters);
   return rows.map((event: GenericRecord, index: number) => ({
     id: String(event.id || event.event_id || index + 1),
     name: String(event.title || event.event_name || "Event"),
-    image: toAbsoluteMediaUrl(event.poster_url || event.image || event.banner || "", ""),
+    image: toAbsoluteMediaUrl(
+      event.poster_url || event.poster || event.image || event.image_url || event.banner || "",
+      "",
+    ),
     ticketLink: String(event.ticket_link || event.link || "#"),
   }));
 }

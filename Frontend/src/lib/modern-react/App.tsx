@@ -1,13 +1,13 @@
 import React from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
-import Index from "../../pages/modern_page/Index.tsx";
-import Shop from "../../pages/modern_page/Shop.tsx";
-import Cart from "../../pages/modern_page/Cart.tsx";
-import Checkout from "../../pages/modern_page/Checkout.tsx";
-import OrderHistory from "../../pages/modern_page/OrderHistory.tsx";
-import OrderConfirmation from "../../pages/modern_page/OrderConfirmation.tsx";
-import BuyNowConfirm from "../../pages/modern_page/BuyNowConfirm.tsx";
-import NotFound from "../../pages/modern_page/NotFound.tsx";
+import Index from "../../pages/modern_page/Index";
+import Shop from "../../pages/modern_page/Shop";
+import Cart from "../../pages/modern_page/Cart";
+import Checkout from "../../pages/modern_page/Checkout";
+import OrderHistory from "../../pages/modern_page/OrderHistory";
+import OrderConfirmation from "../../pages/modern_page/OrderConfirmation";
+import BuyNowConfirm from "../../pages/modern_page/BuyNowConfirm";
+import NotFound from "../../pages/modern_page/NotFound";
 
 type ModernAppProps = {
   basename: string;
