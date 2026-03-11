@@ -1040,6 +1040,63 @@
   font-weight: 500;
 }
 
+.gw-section .gw-file-input-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 40px;
+}
+
+.gw-section .gw-file-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gw-section .gw-file-action-btn {
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #111827;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.gw-section .gw-file-action-label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.gw-section .gw-file-action-btn:hover {
+  background: #f3f4f6;
+  border-color: #94a3b8;
+}
+
+.gw-section .gw-upload-inline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  min-height: 44px;
+}
+
+.gw-section .gw-upload-inline input[type="file"] {
+  display: none;
+}
+
+.gw-section .gw-upload-file-name {
+  font-size: 12px;
+  color: #666;
+  font-weight: 500;
+}
+
 /* Members Section */
 .gw-section .gw-btn-add-member {
   background: #333;
@@ -1259,20 +1316,20 @@
 
 .gw-section .gw-modal-content {
   background: #ffffff;
-  border-radius: 6px;
+  border-radius: 16px;
   width: 90%;
-  max-width: 480px;
+  max-width: 720px;
   max-height: 90vh;
   overflow-y: auto;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
 }
 
 .gw-section .gw-modal-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
-  border-bottom: 1px solid #ddd;
+  padding: 18px 22px;
+  border-bottom: 1px solid #e5e7eb;
 }
 
 .gw-section .gw-modal-header h3 {
@@ -1283,32 +1340,77 @@
 }
 
 .gw-section .gw-modal-close {
-  background: none;
-  border: none;
+  background: #f8fafc;
+  border: 1px solid #dbe2ea;
+  border-radius: 999px;
   font-size: 20px;
-  color: #999;
+  color: #64748b;
   cursor: pointer;
   padding: 0;
-  width: 28px;
-  height: 28px;
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .gw-section .gw-modal-close:hover {
-  color: #333;
+  color: #0f172a;
+  background: #eef2f7;
 }
 
 .gw-section .gw-modal-body {
-  padding: 16px 20px;
+  padding: 22px;
 }
 
 .gw-section .gw-modal-footer {
   display: flex;
   gap: 10px;
-  padding: 16px 20px;
-  border-top: 1px solid #ddd;
+  padding: 18px 22px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.gw-section .gw-member-modal-grid {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.gw-section .gw-member-modal-preview {
+  min-height: 280px;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.gw-section .gw-member-modal-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-height: 320px;
+  object-fit: cover;
+}
+
+.gw-section .gw-member-modal-placeholder {
+  padding: 20px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.gw-section .gw-member-modal-fields {
+  display: grid;
+  gap: 12px;
+}
+
+.gw-section .gw-upload-inline-member {
+  justify-content: flex-start;
 }
 
 .gw-section .gw-btn-save-member,
@@ -1397,6 +1499,14 @@
 
   .gw-section .gw-modal-content {
     width: 95%;
+  }
+
+  .gw-section .gw-member-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .gw-section .gw-member-modal-preview {
+    min-height: 220px;
   }
 
   .gw-section .gw-palette-modal-body {

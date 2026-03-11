@@ -46,6 +46,19 @@ This section highlights the group and its members. Member details and images are
 }
 
 function normalizeMember(member = {}) {
+    const rawBirthdate = String(member?.birthdate || '').trim();
+    const formattedBirthdate = rawBirthdate
+        ? (() => {
+            const parsed = new Date(rawBirthdate);
+            if (Number.isNaN(parsed.getTime())) return rawBirthdate;
+            return new Intl.DateTimeFormat('en-US', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                timeZone: 'UTC',
+            }).format(parsed);
+        })()
+        : '';
     const primaryValue = String(
         member?.fullname ||
         member?.full_name ||
@@ -55,7 +68,7 @@ function normalizeMember(member = {}) {
         ''
     ).trim();
     const secondaryValue = String(
-        member?.birthdate ||
+        formattedBirthdate ||
         member?.description ||
         ''
     ).trim();

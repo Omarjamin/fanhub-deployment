@@ -62,6 +62,15 @@ export default function Community() {
             <textarea id="siteDescription" rows="3"></textarea>
           </div>
           <div class="form-group">
+            <label>Logo URL</label>
+            <input type="url" id="siteLogo" placeholder="https://...">
+            <input type="file" id="siteLogoFile" accept="image/*">
+            <div class="cm-group-photo-preview-wrap">
+              <img id="siteLogoPreview" class="cm-group-photo-preview" alt="Logo preview" style="display:none;">
+              <p id="siteLogoPreviewEmpty" class="cm-group-photo-empty">No logo set.</p>
+            </div>
+          </div>
+          <div class="form-group">
             <label>Group Photo URL</label>
             <input type="url" id="groupPhoto" placeholder="https://...">
             <div class="cm-group-photo-preview-wrap">
@@ -179,6 +188,7 @@ export default function Community() {
         spotify_url: String(row.spotify_url || '').trim(),
         x_url: String(row.x_url || '').trim(),
         youtube_url: String(row.youtube_url || '').trim(),
+        logo: String(row.logo || '').trim(),
         primary_color: String(row.primary_color || '').trim(),
         secondary_color: String(row.secondary_color || '').trim(),
         accent_color: String(row.accent_color || '').trim(),
@@ -231,6 +241,15 @@ export default function Community() {
   }
 
   async function uploadMemberImage(file) {
+    const imageData = new FormData();
+    imageData.append('file', file);
+    const response = await api.post('/bini/cloudinary/upload', imageData, {
+      headers: getAdminHeaders(),
+    });
+    return String(response?.data?.url || '').trim();
+  }
+
+  async function uploadSiteImage(file) {
     const imageData = new FormData();
     imageData.append('file', file);
     const response = await api.post('/bini/cloudinary/upload', imageData, {
@@ -328,6 +347,24 @@ export default function Community() {
     empty.style.display = 'block';
   }
 
+  function updateLogoPreview(value) {
+    const preview = section.querySelector('#siteLogoPreview');
+    const empty = section.querySelector('#siteLogoPreviewEmpty');
+    const imageUrl = String(value || '').trim();
+    if (!preview || !empty) return;
+
+    if (imageUrl) {
+      preview.src = imageUrl;
+      preview.style.display = 'block';
+      empty.style.display = 'none';
+      return;
+    }
+
+    preview.removeAttribute('src');
+    preview.style.display = 'none';
+    empty.style.display = 'block';
+  }
+
   function openEditModal(siteId) {
     const site = allSites.find((s) => s.id === Number(siteId));
     if (!site) return;
@@ -337,6 +374,8 @@ export default function Community() {
     section.querySelector('#status').value = site.status;
     section.querySelector('#shortBio').value = site.short_bio || '';
     section.querySelector('#siteDescription').value = site.description || '';
+    section.querySelector('#siteLogo').value = site.logo || '';
+    updateLogoPreview(site.logo || '');
     section.querySelector('#groupPhoto').value = site.group_photo || '';
     updateGroupPhotoPreview(site.group_photo || '');
     section.querySelector('#leadImage').value = site.lead_image || '';
@@ -379,6 +418,7 @@ export default function Community() {
     const status = String(section.querySelector('#status').value || '').trim().toLowerCase();
     const short_bio = String(section.querySelector('#shortBio').value || '').trim();
     const description = String(section.querySelector('#siteDescription').value || '').trim();
+    const logo = String(section.querySelector('#siteLogo').value || '').trim();
     const group_photo = String(section.querySelector('#groupPhoto').value || '').trim();
     const lead_image = String(section.querySelector('#leadImage').value || '').trim();
     const instagram_url = String(section.querySelector('#instagramUrl').value || '').trim();
@@ -413,6 +453,7 @@ export default function Community() {
         status,
         short_bio,
         description,
+        logo,
         group_photo,
         lead_image,
         instagram_url,
@@ -454,6 +495,9 @@ export default function Community() {
 
   function setupEventListeners() {
     section.querySelector('#siteStatusFilter')?.addEventListener('change', applyFilters);
+    section.querySelector('#siteLogo')?.addEventListener('input', (e) => {
+      updateLogoPreview(e.target.value);
+    });
     section.querySelector('#groupPhoto')?.addEventListener('input', (e) => {
       updateGroupPhotoPreview(e.target.value);
     });
@@ -531,6 +575,38 @@ export default function Community() {
     section.addEventListener('change', async (e) => {
       const target = e.target;
       if (!(target instanceof HTMLInputElement)) return;
+
+      if (target.id === 'siteLogoFile') {
+        const file = target.files?.[0];
+        if (!file) return;
+
+        const maxSize = 2 * 1024 * 1024;
+        if (file.size > maxSize) {
+          alert('Logo image must be less than 2MB');
+          target.value = '';
+          return;
+        }
+
+        try {
+          const imageUrl = await uploadSiteImage(file);
+          if (!imageUrl) {
+            alert('Failed to upload logo image.');
+            return;
+          }
+          const logoInput = section.querySelector('#siteLogo');
+          if (logoInput) {
+            logoInput.value = imageUrl;
+          }
+          updateLogoPreview(imageUrl);
+        } catch (err) {
+          console.error('Logo upload failed:', err?.response?.data || err.message || err);
+          alert('Failed to upload logo image.');
+        } finally {
+          target.value = '';
+        }
+        return;
+      }
+
       if (!target.classList.contains('cm-member-image-file')) return;
 
       const row = target.closest('.cm-member-row');

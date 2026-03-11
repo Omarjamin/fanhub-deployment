@@ -670,9 +670,10 @@ export default function GenerateWebsite() {
             <div class="gw-form-row">
               <div class="gw-form-group">
                 <label for="logo">Upload Logo</label>
-                <div class="gw-file-input">
+                <div class="gw-upload-inline">
                   <input type="file" id="logo" accept="image/*">
-                  <span class="gw-file-label">Choose file or drag here</span>
+                  <label for="logo" class="gw-file-action-btn gw-file-action-label" id="logoBrowseBtn">Upload Logo</label>
+                  <span class="gw-upload-file-name" id="logoFileLabel">No file selected</span>
                 </div>
               </div>
             </div>
@@ -1327,23 +1328,31 @@ export default function GenerateWebsite() {
           <button class="gw-modal-close" type="button">&times;</button>
         </div>
         <div class="gw-modal-body">
-          <div class="gw-form-group">
-            <label>Member Name</label>
-            <input type="text" class="gw-member-name" value="${member.name}" placeholder="Enter member name" required>
-          </div>
-          <div class="gw-form-group">
-            <label>Role</label>
-            <input type="text" class="gw-member-role" value="${member.role}" placeholder="e.g., Manager, Designer" required>
-          </div>
-          <div class="gw-form-group">
-            <label>Description</label>
-            <textarea class="gw-member-description" placeholder="Enter member description" rows="3">${member.description}</textarea>
-          </div>
-          <div class="gw-form-group">
-            <label>Member Image</label>
-            <div class="gw-file-input">
-              <input type="file" class="gw-member-image" accept="image/*">
-              <span class="gw-file-label">Choose file or drag here</span>
+          <div class="gw-member-modal-grid">
+            <div class="gw-member-modal-preview">
+              ${member.image ? `<img src="${member.image}" alt="${member.name || 'Member'} preview" class="gw-member-modal-image">` : '<div class="gw-member-modal-placeholder">No image selected</div>'}
+            </div>
+            <div class="gw-member-modal-fields">
+              <div class="gw-form-group">
+                <label>Member Name</label>
+                <input type="text" class="gw-member-name" value="${member.name}" placeholder="Enter member name" required>
+              </div>
+              <div class="gw-form-group">
+                <label>Role</label>
+                <input type="text" class="gw-member-role" value="${member.role}" placeholder="e.g., Manager, Designer" required>
+              </div>
+              <div class="gw-form-group">
+                <label>Description</label>
+                <textarea class="gw-member-description" placeholder="Enter member description" rows="4">${member.description}</textarea>
+              </div>
+              <div class="gw-form-group">
+                <label>Member Image</label>
+                <div class="gw-upload-inline gw-upload-inline-member">
+                  <input type="file" class="gw-member-image" id="gwMemberImageInput-${idx}" accept="image/*">
+                  <label for="gwMemberImageInput-${idx}" class="gw-file-action-btn gw-file-action-label">Upload Photo</label>
+                  <span class="gw-upload-file-name gw-member-image-name">${member.image ? 'Image selected' : 'No file selected'}</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -1356,14 +1365,8 @@ export default function GenerateWebsite() {
     document.body.appendChild(modal);
 
     const fileInput = modal.querySelector('.gw-member-image');
-    fileInput.style.display = 'block';
-    fileInput.style.position = 'relative';
-    fileInput.style.zIndex = '1000';
-    fileInput.addEventListener('click', (e) => {
-      fileInput.focus();
-    });
-    fileInput.addEventListener('focus', () => {
-    });
+    const fileNameLabel = modal.querySelector('.gw-member-image-name');
+    const previewContainer = modal.querySelector('.gw-member-modal-preview');
     fileInput.addEventListener('change', (e) => {
       if (e.target.files[0]) {
         const maxSize = 2 * 1024 * 1024; // 2MB
@@ -1375,6 +1378,12 @@ export default function GenerateWebsite() {
         const reader = new FileReader();
         reader.onload = (event) => {
           member.image = event.target.result;
+          if (previewContainer) {
+            previewContainer.innerHTML = `<img src="${member.image}" alt="${member.name || 'Member'} preview" class="gw-member-modal-image">`;
+          }
+          if (fileNameLabel) {
+            fileNameLabel.textContent = e.target.files[0].name;
+          }
         };
         reader.readAsDataURL(e.target.files[0]);
       }
@@ -1599,6 +1608,17 @@ export default function GenerateWebsite() {
       openPaletteModal(formData.palette, selectedPaletteId || 'custom');
     });
 
+    const triggerLogoPicker = () => {
+      const logoInput = section.querySelector('#logo');
+      if (logoInput) {
+        logoInput.click();
+      }
+    };
+
+    section.querySelector('#logoBrowseBtn')?.addEventListener('click', () => {
+      triggerLogoPicker();
+    });
+
     section.querySelector('#logo')?.addEventListener('change', (e) => {
       if (e.target.files[0]) {
         const maxSize = 5 * 1024 * 1024; // 5MB
@@ -1666,7 +1686,9 @@ export default function GenerateWebsite() {
     const label = input.parentElement.querySelector('.gw-file-label');
     if (input.files.length > 0) {
       label.textContent = input.files[0].name;
+      return;
     }
+    label.textContent = input.id === 'logo' ? 'Choose file or drag here' : 'Choose group photo';
   };
 
   const validateForm = () => {
