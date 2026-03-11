@@ -200,12 +200,12 @@ export default function Discography(root, data = {}) {
         album.classList.add("active");
         album.style.pointerEvents = "auto";
       } else if (index === nextIndex) {
-        album.style.transform = "translate(-50%, -50%) translateX(84%) scale(0.76)";
-        album.style.opacity = "0.58";
+        album.style.transform = "translate(-50%, -50%) translateX(58%) scale(0.82)";
+        album.style.opacity = "0.72";
         album.style.zIndex = "2";
       } else if (index === prevIndex) {
-        album.style.transform = "translate(-50%, -50%) translateX(-84%) scale(0.76)";
-        album.style.opacity = "0.58";
+        album.style.transform = "translate(-50%, -50%) translateX(-58%) scale(0.82)";
+        album.style.opacity = "0.72";
         album.style.zIndex = "2";
       } else {
         album.style.transform = "translate(-50%, -50%) translateX(0) scale(0.7)";

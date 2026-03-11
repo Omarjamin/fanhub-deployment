@@ -820,6 +820,23 @@ class GenerateModel {
     return [];
   }
 
+  async getResolvedSiteMembersSafe(site = {}) {
+    const candidateIds = Array.from(new Set([
+      Number(site?.site_id || 0) || null,
+      Number(site?.community_id || 0) || null,
+      Number(site?.id || 0) || null,
+    ].filter(Boolean)));
+
+    for (const candidateId of candidateIds) {
+      const members = await this.getSiteMembersSafe(candidateId);
+      if (Array.isArray(members) && members.length > 0) {
+        return members;
+      }
+    }
+
+    return [];
+  }
+
   async getWebsiteById(siteId) {
     try {
       if (!this.db) await this.connectAdmin();
@@ -831,7 +848,7 @@ class GenerateModel {
       if (!sites || sites.length === 0) return null;
       const site = sites[0];
 
-      const members = await this.getSiteMembersSafe(siteId);
+      const members = await this.getResolvedSiteMembersSafe(site);
       return { ...site, members: members || [] };
     } catch (err) {
       console.warn('Get website by ID fallback:', err?.message || err);
@@ -860,6 +877,10 @@ class GenerateModel {
         whereParts.push(...lookupVariants.map(() => 'LOWER(TRIM(s.domain)) = ?'));
         params.push(...lookupVariants);
       }
+      if (siteCols.has('site_name')) {
+        whereParts.push(...lookupVariants.map(() => 'LOWER(TRIM(s.site_name)) = ?'));
+        params.push(...lookupVariants);
+      }
 
       if (whereParts.length === 0) return null;
       const sites = await this.runSiteSelectQuery({
@@ -873,26 +894,34 @@ class GenerateModel {
         const canonicalInput = normalizedInput.replace(/-website$/, '');
         const rankedSites = await Promise.all(
           sites.map(async (candidate) => {
-            const candidateMembers = await this.getSiteMembersSafe(candidate.site_id);
+            const candidateMembers = await this.getResolvedSiteMembersSafe(candidate);
             const normalizedDomain = String(candidate?.domain || '').trim().toLowerCase();
             const normalizedCommunityTypeValue = String(candidate?.community_type || '').trim().toLowerCase();
+            const normalizedSiteName = String(candidate?.site_name || '').trim().toLowerCase();
             const canonicalDomain = normalizedDomain.replace(/-website$/, '');
             const canonicalCommunityType = normalizedCommunityTypeValue.replace(/-website$/, '');
+            const canonicalSiteName = normalizedSiteName.replace(/-website$/, '');
             const exactDomainMatch = normalizedDomain === normalizedInput;
             const exactCommunityTypeMatch = normalizedCommunityTypeValue === normalizedInput;
+            const exactSiteNameMatch = normalizedSiteName === normalizedInput;
             const variantDomainMatch = lookupVariants.includes(normalizedDomain);
             const variantCommunityTypeMatch = lookupVariants.includes(normalizedCommunityTypeValue);
+            const variantSiteNameMatch = lookupVariants.includes(normalizedSiteName);
             const canonicalDomainMatch = canonicalDomain === canonicalInput;
             const canonicalCommunityTypeMatch = canonicalCommunityType === canonicalInput;
+            const canonicalSiteNameMatch = canonicalSiteName === canonicalInput;
             const hasMembers = Array.isArray(candidateMembers) && candidateMembers.length > 0;
 
             const score =
               (exactDomainMatch ? 80 : 0) +
               (exactCommunityTypeMatch ? 80 : 0) +
+              (exactSiteNameMatch ? 80 : 0) +
               (variantDomainMatch ? 25 : 0) +
               (variantCommunityTypeMatch ? 25 : 0) +
+              (variantSiteNameMatch ? 25 : 0) +
               (canonicalDomainMatch ? 60 : 0) +
               (canonicalCommunityTypeMatch ? 60 : 0) +
+              (canonicalSiteNameMatch ? 60 : 0) +
               (hasMembers ? 220 : 0);
 
             return {
@@ -931,7 +960,12 @@ class GenerateModel {
         const matchedCommunity = communityRows.find((row) => {
           const domain = String(row?.domain || '').trim().toLowerCase();
           const siteName = String(row?.site_name || '').trim().toLowerCase();
-          return keys.has(domain) || keys.has(siteName);
+          const canonicalDomain = domain.replace(/-website$/, '');
+          const canonicalSiteName = siteName.replace(/-website$/, '');
+          return keys.has(domain) ||
+            keys.has(siteName) ||
+            canonicalDomain === normalizedInput.replace(/-website$/, '') ||
+            canonicalSiteName === normalizedInput.replace(/-website$/, '');
         });
 
         if (!matchedCommunity) return null;
@@ -963,10 +997,11 @@ class GenerateModel {
         return { ...site, members: site.members };
       }
 
-      const members = await this.getSiteMembersSafe(site.site_id);
+      const members = await this.getResolvedSiteMembersSafe(site);
       console.info('[Generate Model Debug] fetched members after resolve', {
         requestCommunityType: normalizedInput,
         siteId: site?.site_id,
+        communityId: site?.community_id,
         membersCount: Array.isArray(members) ? members.length : 0,
       });
       return { ...site, members: members || [] };

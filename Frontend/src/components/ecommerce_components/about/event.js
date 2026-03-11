@@ -32,7 +32,7 @@ function renderEvents(section, events) {
   list.innerHTML = `
     <div class="event-feature">
       <div class="event-copy">
-        <h3 class="event-feature-title">Catch the latest BINI event and stay in the loop.</h3>
+        <p class="event-feature-text">Catch the latest BINI event and stay in the loop.</p>
         <p class="event-feature-text">
           Don’t miss updates, posters, and ticket information for <strong>${title}</strong>.
           Tap below to view the featured event and see more details.

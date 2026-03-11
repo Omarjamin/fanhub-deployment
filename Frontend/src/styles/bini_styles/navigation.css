@@ -28,7 +28,7 @@
 }
 
 .nav-button:hover {
-  background-color:var(--hover-background);
+  background-color:var(--hover-background) !important;
 }
 
 .nav-button .material-icons {

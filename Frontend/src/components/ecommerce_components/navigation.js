@@ -188,8 +188,9 @@ export default function Navigation(root, data = {}) {
 
       if (targetSection) {
         e.preventDefault();
-        const headerHeight = 80;
-        const targetPosition = targetSection.offsetTop - headerHeight;
+        const navHeight = navBar?.offsetHeight || 88;
+        const extraOffset = 18;
+        const targetPosition = window.scrollY + targetSection.getBoundingClientRect().top - navHeight - extraOffset;
         window.scrollTo({ top: targetPosition, behavior: 'smooth' });
         navLinks.forEach((l) => l.classList.remove('active'));
         link.classList.add('active');
