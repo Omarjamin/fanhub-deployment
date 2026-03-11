@@ -870,22 +870,30 @@ class GenerateModel {
       let site = null;
 
       if (Array.isArray(sites) && sites.length > 0) {
+        const canonicalInput = normalizedInput.replace(/-website$/, '');
         const rankedSites = await Promise.all(
           sites.map(async (candidate) => {
             const candidateMembers = await this.getSiteMembersSafe(candidate.site_id);
             const normalizedDomain = String(candidate?.domain || '').trim().toLowerCase();
             const normalizedCommunityTypeValue = String(candidate?.community_type || '').trim().toLowerCase();
+            const canonicalDomain = normalizedDomain.replace(/-website$/, '');
+            const canonicalCommunityType = normalizedCommunityTypeValue.replace(/-website$/, '');
             const exactDomainMatch = normalizedDomain === normalizedInput;
             const exactCommunityTypeMatch = normalizedCommunityTypeValue === normalizedInput;
             const variantDomainMatch = lookupVariants.includes(normalizedDomain);
             const variantCommunityTypeMatch = lookupVariants.includes(normalizedCommunityTypeValue);
+            const canonicalDomainMatch = canonicalDomain === canonicalInput;
+            const canonicalCommunityTypeMatch = canonicalCommunityType === canonicalInput;
+            const hasMembers = Array.isArray(candidateMembers) && candidateMembers.length > 0;
 
             const score =
-              (exactDomainMatch ? 100 : 0) +
-              (exactCommunityTypeMatch ? 100 : 0) +
+              (exactDomainMatch ? 80 : 0) +
+              (exactCommunityTypeMatch ? 80 : 0) +
               (variantDomainMatch ? 25 : 0) +
               (variantCommunityTypeMatch ? 25 : 0) +
-              (Array.isArray(candidateMembers) && candidateMembers.length > 0 ? 50 : 0);
+              (canonicalDomainMatch ? 60 : 0) +
+              (canonicalCommunityTypeMatch ? 60 : 0) +
+              (hasMembers ? 220 : 0);
 
             return {
               site: { ...candidate, members: candidateMembers || [] },
