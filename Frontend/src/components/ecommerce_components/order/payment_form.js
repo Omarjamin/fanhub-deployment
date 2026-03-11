@@ -5,17 +5,25 @@ export default async function PaymentForm(root) {
         <div class="form-container">
             <h3>Payment Method</h3>
             <form id="paymentForm">
-                <div class="form-row">
-                    <div class="form-group">
-                        <span style="display:block; margin-bottom:10px; font-weight:600;">Select Payment Method</span>
-                        <label for="paymentMethodCod" style="display:flex; align-items:center; gap:10px; padding:14px 16px; border:1px solid #d1d5db; border-radius:12px; cursor:pointer; background:#fff;">
+                <div class="payment-methods">
+                    <span class="payment-section-label">Select Payment Method</span>
+
+                    <label class="payment-card" for="paymentMethodCod" data-method="cod">
+                        <div class="payment-card-head">
                             <input id="paymentMethodCod" type="radio" name="paymentMethod" value="cod" required>
-                            <span>
-                                <strong>Cash on Delivery</strong><br>
-                                <small style="color:#6b7280;">Pay when your order arrives.</small>
-                            </span>
-                        </label>
-                    </div>
+                            <div class="payment-card-title">
+                                <strong>Cash on Delivery</strong>
+                                <small>Pay when your order arrives.</small>
+                            </div>
+                            <div class="payment-card-logo">COD</div>
+                        </div>
+                        <div class="payment-fields">
+                            <p class="payment-helper">Prepare exact cash if possible.</p>
+                        </div>
+                    </label>
+                </div>
+
+                <div class="form-row payment-actions">
                     <div class="form-group">
                         <button class="btn-next" id="paymentNextBtn" type="button">Next</button>
                     </div>
@@ -39,8 +47,20 @@ export default async function PaymentForm(root) {
     }
 
     // Setup event listener to save payment data to sessionStorage
+    const cards = Array.from(root.querySelectorAll('.payment-card'));
+    const updateCardState = () => {
+        cards.forEach((card) => {
+            const input = card.querySelector('input[name="paymentMethod"]');
+            if (!input) return;
+            const isSelected = input.checked;
+            card.classList.toggle('is-selected', isSelected);
+            card.setAttribute('aria-expanded', isSelected ? 'true' : 'false');
+        });
+    };
+
     root.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
         input.addEventListener('change', () => {
+            updateCardState();
             const paymentMethodSelect = root.querySelector('input[name="paymentMethod"]:checked');
             if (!paymentMethodSelect) return;
             const paymentData = {
@@ -50,6 +70,8 @@ export default async function PaymentForm(root) {
             sessionStorage.setItem('paymentData', JSON.stringify(paymentData));
         });
     });
+
+    updateCardState();
 
     // Setup next button functionality
     setTimeout(() => {

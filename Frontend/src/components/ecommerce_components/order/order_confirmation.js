@@ -1,4 +1,5 @@
 import Navigation from '../navigation.js';
+import Footer from '../footer.js';
 import { api } from '../../../services/ecommerce_services/config.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
 import '../../../styles/ecommerce_styles/order_confirmation.css';
@@ -49,11 +50,14 @@ export default function OrderConfirmation(payload = null) {
         </div>
       </div>
     </main>
+    <div id="footer-container"></div>
   `;
 
   // Initialize navigation
   const navContainer = document.getElementById("navigation-container");
   Navigation(navContainer, communityData);
+  const footerContainer = document.getElementById("footer-container");
+  Footer(footerContainer, { community_type: communityType });
 
   // Generate order number
   function generateOrderNumber() {

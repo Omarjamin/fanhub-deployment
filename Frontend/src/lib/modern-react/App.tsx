@@ -8,6 +8,8 @@ import OrderHistory from "../../pages/modern_page/OrderHistory";
 import OrderConfirmation from "../../pages/modern_page/OrderConfirmation";
 import BuyNowConfirm from "../../pages/modern_page/BuyNowConfirm";
 import NotFound from "../../pages/modern_page/NotFound";
+import SignIn from "../../pages/modern_page/SignIn";
+import SignUp from "../../pages/modern_page/SignUp";
 
 type ModernAppProps = {
   basename: string;
@@ -18,6 +20,8 @@ export default function ModernApp({ basename }: ModernAppProps) {
     <BrowserRouter basename={basename}>
       <Routes>
         <Route path="/" element={<Index />} />
+        <Route path="/signin" element={<SignIn />} />
+        <Route path="/signup" element={<SignUp />} />
         <Route path="/shop" element={<Shop />} />
         <Route path="/cart" element={<Cart />} />
         <Route path="/checkout" element={<Checkout />} />

@@ -1,9 +1,13 @@
 .product-detail {
   max-width: 1180px;
   margin: 88px auto 48px;
-  padding: 0 20px;
-  font-family: Arial, sans-serif;
-  background: #ffffff;
+  padding: clamp(20px, 3vw, 30px);
+  font-family: var(--pd-font-body);
+  background: var(--pd-surface-muted);
+  border: 1px solid var(--pd-border);
+  border-radius: calc(var(--pd-radius-card) + 6px);
+  box-shadow: var(--pd-shadow);
+  color: var(--pd-text);
 }
 
 .product-detail-back-btn {
@@ -12,36 +16,65 @@
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  color: #666666;
+  color: var(--pd-accent);
   font-size: 0.9rem;
   line-height: 1.4;
   text-decoration: underline;
   text-underline-offset: 4px;
   cursor: pointer;
+  font-family: var(--pd-font-body);
+  font-weight: 600;
+}
+
+.product-detail-back-btn:hover,
+.product-detail-back-btn:focus,
+.product-detail-back-btn:focus-visible,
+.product-detail-back-btn:active {
+  color: var(--pd-accent-strong) !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  outline: none !important;
 }
 
 .product-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(280px, 0.75fr);
   gap: 32px;
-  align-items: start;
+  align-items: stretch;
 }
 
 .product-media {
-  background: #fbfbfb;
-  border: 1px solid rgba(17, 17, 17, 0.08);
+  background: var(--pd-surface-strong);
+  border: 1px solid var(--pd-border);
+  display: grid;
+  place-items: center;
+  padding: clamp(20px, 3vw, 28px);
+  border-radius: var(--pd-radius-card);
+  box-shadow: var(--pd-shadow);
 }
 
 .product-detail-img {
   display: block;
   width: 100%;
-  aspect-ratio: 1 / 1;
+  max-width: 520px;
+  max-height: 520px;
+  height: auto;
+  aspect-ratio: auto;
   object-fit: contain;
-  background: #fbfbfb;
+  background: var(--pd-surface);
+  image-rendering: auto;
 }
 
 .product-meta {
-  color: #222222;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: clamp(24px, 3vw, 32px);
+  background: var(--pd-surface-strong);
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius-card);
+  box-shadow: var(--pd-shadow);
+  color: var(--pd-text);
 }
 
 .product-store-kicker {
@@ -49,7 +82,7 @@
   font-size: 0.66rem;
   line-height: 1.4;
   letter-spacing: 0.16em;
-  color: #8a8a8a;
+  color: var(--pd-text-muted);
 }
 
 .product-title {
@@ -57,7 +90,8 @@
   font-size: clamp(2.1rem, 3vw, 3rem);
   line-height: 1.02;
   font-weight: 400;
-  color: #111111;
+  color: var(--pd-heading);
+  font-family: var(--pd-font-heading);
 }
 
 .product-detail .product-price {
@@ -65,14 +99,15 @@
   font-size: 1.05rem;
   line-height: 1.4;
   font-weight: 400;
-  color: #000000 !important;
+  color: var(--pd-heading) !important;
+  font-family: var(--pd-font-heading);
 }
 
 .product-shipping-note {
   margin: 0 0 18px;
   font-size: 0.86rem;
   line-height: 1.45;
-  color: #7a7a7a;
+  color: var(--pd-text-muted);
 }
 
 .product-shipping-note span {
@@ -85,11 +120,11 @@
   font-size: 0.84rem;
   line-height: 1.4;
   font-weight: 400;
-  color: #666666;
+  color: var(--pd-text);
 }
 
 .product-option-title span {
-  color: #8a8a8a;
+  color: var(--pd-text-muted);
 }
 
 .variant-options {
@@ -102,25 +137,26 @@
 .product-detail .variant-option {
   min-width: 44px;
   padding: 9px 16px;
-  border: 1px solid rgba(17, 17, 17, 0.22);
-  border-radius: 999px;
-  background: #ffffff !important;
-  color: #666666 !important;
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius-button);
+  background: var(--pd-surface-strong) !important;
+  color: var(--pd-text) !important;
   box-shadow: none !important;
   cursor: pointer;
   font-size: 0.9rem;
   line-height: 1.2;
-  font-weight: 400;
+  font-weight: 600;
   transform: none !important;
-  transition: none !important;
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+  font-family: var(--pd-font-body);
 }
 
 .product-detail .variant-option:hover,
 .product-detail .variant-option:focus,
 .product-detail .variant-option:focus-visible {
-  background: #ffffff !important;
-  color: #666666 !important;
-  border-color: rgba(17, 17, 17, 0.22) !important;
+  background: color-mix(in srgb, var(--pd-accent) 8%, white) !important;
+  color: var(--pd-accent-strong) !important;
+  border-color: color-mix(in srgb, var(--pd-accent) 42%, white) !important;
   box-shadow: none !important;
   transform: none !important;
   outline: none !important;
@@ -130,10 +166,10 @@
 .product-detail .variant-option.active:hover,
 .product-detail .variant-option.active:focus,
 .product-detail .variant-option.active:focus-visible {
-  background: #111111 !important;
-  color: #ffffff !important;
-  border-color: #111111 !important;
-  box-shadow: none !important;
+  background: var(--pd-button-bg) !important;
+  color: var(--pd-button-text) !important;
+  border-color: var(--pd-button-bg) !important;
+  box-shadow: var(--pd-button-shadow) !important;
   transform: none !important;
   outline: none !important;
 }
@@ -150,27 +186,32 @@
   display: inline-grid;
   grid-template-columns: 40px 74px 40px;
   align-items: center;
-  border: 1px solid rgba(17, 17, 17, 0.3);
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius-button);
+  overflow: hidden;
+  background: var(--pd-surface-strong);
 }
 
 .product-detail .qty-step-btn {
   height: 38px;
   border: 0 !important;
-  background: #ffffff !important;
+  background: var(--pd-surface-strong) !important;
   box-shadow: none !important;
-  color: #666666;
+  color: var(--pd-text);
   font-size: 1.2rem;
   line-height: 1;
   cursor: pointer;
   border-radius: 0 !important;
-  transition: none !important;
+  transition: background-color 0.2s ease, color 0.2s ease !important;
+  font-family: var(--pd-font-body);
+  font-weight: 700;
 }
 
 .product-detail .qty-step-btn:hover,
 .product-detail .qty-step-btn:focus,
 .product-detail .qty-step-btn:focus-visible {
-  background: #ffffff !important;
-  color: #666666 !important;
+  background: color-mix(in srgb, var(--pd-accent) 8%, white) !important;
+  color: var(--pd-accent-strong) !important;
   box-shadow: none !important;
   transform: none !important;
   border-color: transparent !important;
@@ -180,16 +221,18 @@
 .qty-input {
   height: 38px;
   border: 0;
-  border-left: 1px solid rgba(17, 17, 17, 0.18);
-  border-right: 1px solid rgba(17, 17, 17, 0.18);
+  border-left: 1px solid var(--pd-border);
+  border-right: 1px solid var(--pd-border);
   border-radius: 0;
   width: 74px;
   font-size: 0.96rem;
   text-align: center;
-  background: #ffffff;
-  color: #222222;
+  background: var(--pd-surface-strong);
+  color: var(--pd-text);
   appearance: textfield;
   -moz-appearance: textfield;
+  font-family: var(--pd-font-body);
+  font-weight: 600;
 }
 
 .qty-input:focus {
@@ -205,33 +248,39 @@
 .button-group {
   display: flex;
   gap: 12px;
+  width: 100%;
   margin-bottom: 16px;
 }
 
-.product-detail .btn-primary {
+.product-detail .btn-primary,
+.product-detail .add-to-cart-btn {
   width: 100%;
   min-height: 44px;
   padding: 12px 18px;
-  border: 1px solid rgba(17, 17, 17, 0.55) !important;
-  border-radius: 0 !important;
-  background: #ffffff !important;
-  color: #111111 !important;
-  box-shadow: none !important;
+  border: 1px solid transparent !important;
+  border-radius: var(--pd-radius-button) !important;
+  background: var(--pd-button-bg) !important;
+  color: var(--pd-button-text) !important;
+  box-shadow: var(--pd-button-shadow) !important;
   font-size: 0.96rem;
   line-height: 1.2;
-  font-weight: 400;
+  font-weight: 700;
   cursor: pointer;
   transform: none !important;
-  transition: none !important;
+  transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease !important;
+  font-family: var(--pd-font-body);
 }
 
 .product-detail .btn-primary:hover,
 .product-detail .btn-primary:focus,
-.product-detail .btn-primary:focus-visible {
-  background: #ffffff !important;
-  color: #111111 !important;
-  border-color: rgba(17, 17, 17, 0.55) !important;
-  box-shadow: none !important;
+.product-detail .btn-primary:focus-visible,
+.product-detail .add-to-cart-btn:hover,
+.product-detail .add-to-cart-btn:focus,
+.product-detail .add-to-cart-btn:focus-visible {
+  background: var(--pd-button-hover-bg) !important;
+  color: var(--pd-button-hover-text) !important;
+  border-color: transparent !important;
+  box-shadow: var(--pd-button-shadow-hover) !important;
   transform: none !important;
   outline: none !important;
 }
@@ -244,15 +293,112 @@
   margin: 0;
   font-size: 0.94rem;
   line-height: 1.7;
-  color: #777777;
+  color: var(--pd-text-muted);
 }
 
 .loading,
 .error {
   text-align: center;
   font-size: 1rem;
-  color: #555555;
+  color: var(--pd-text-muted);
   padding: 80px 0;
+  font-family: var(--pd-font-body);
+}
+
+.related-products {
+  max-width: 1180px;
+  margin: 36px auto 60px;
+  padding: clamp(22px, 3vw, 28px);
+  background: var(--pd-surface-muted);
+  border: 1px solid var(--pd-border);
+  border-radius: calc(var(--pd-radius-card) + 4px);
+  box-shadow: var(--pd-shadow);
+}
+
+.related-products h3 {
+  margin: 0 0 16px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--pd-heading);
+  font-family: var(--pd-font-heading);
+}
+
+.related-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.related-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  width: 100%;
+  min-height: 100%;
+  border: 1px solid var(--pd-border);
+  border-radius: calc(var(--pd-radius-card) - 6px);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--pd-surface-strong) 86%, white 14%), var(--pd-surface-strong));
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 10px 22px color-mix(in srgb, var(--pd-accent) 10%, transparent);
+  overflow: hidden;
+  transform: translateY(0);
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease !important;
+}
+
+.related-card::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--pd-button-bg), var(--pd-accent-strong));
+  opacity: 0.9;
+}
+
+.related-card:hover,
+.related-card:focus,
+.related-card:focus-visible,
+.related-card:active {
+  background: color-mix(in srgb, var(--pd-accent) 6%, var(--pd-surface-strong)) !important;
+  border-color: color-mix(in srgb, var(--pd-accent) 34%, var(--pd-border)) !important;
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--pd-accent) 16%, transparent) !important;
+  transform: translateY(-4px) !important;
+  outline: none !important;
+}
+
+.related-card img {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+  border-radius: calc(var(--pd-radius-card) - 10px);
+  background: var(--pd-surface);
+  border: 1px solid color-mix(in srgb, var(--pd-border) 90%, white 10%);
+  display: block;
+  margin-bottom: 12px;
+}
+
+.related-card-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-top: 2px;
+}
+
+.related-name {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--pd-heading);
+}
+
+.related-price {
+  margin-top: 4px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--pd-accent-strong);
 }
 
 @media (max-width: 900px) {
@@ -265,10 +411,16 @@
   }
 }
 
+@media (max-width: 900px) {
+  .related-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 520px) {
   .product-detail {
     margin: 72px auto 36px;
-    padding: 0 14px;
+    padding: 16px;
   }
 
   .variant-options {
@@ -287,4 +439,283 @@
   .qty-input {
     width: 64px;
   }
+
+  .related-products {
+    padding: 18px 14px;
+  }
+
+  .related-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* Theme token cleanup */
+.product-detail-page,
+.product-detail-section,
+.product-details-page,
+.product-details-container,
+.product-details-wrapper {
+  color: var(--pd-text);
+  font-family: var(--pd-font-body);
+}
+
+.product-detail-page .product-card,
+.product-detail-page .details-card,
+.product-details-page .product-card,
+.product-details-page .details-card,
+.product-details-container .product-info,
+.product-details-container .product-summary,
+.product-details-wrapper .product-info,
+.product-details-wrapper .product-summary {
+  background: var(--pd-surface-strong);
+  color: var(--pd-text);
+  border: 1px solid var(--pd-border);
+  box-shadow: var(--pd-shadow);
+}
+
+.product-detail-page h1,
+.product-detail-page h2,
+.product-details-page h1,
+.product-details-page h2,
+.product-details-container h1,
+.product-details-container h2 {
+  color: var(--pd-heading);
+  font-family: var(--pd-font-heading);
+}
+
+.product-detail-page .add-to-cart-btn,
+.product-detail-page .buy-now-btn,
+.product-details-page .add-to-cart-btn,
+.product-details-page .buy-now-btn,
+.product-details-container .add-to-cart-btn,
+.product-details-container .buy-now-btn,
+.product-detail-page .product-actions button,
+.product-details-page .product-actions button,
+.product-details-container .product-actions button,
+.product-details-wrapper .product-actions button,
+.product-details-wrapper .add-to-cart-btn,
+.product-details-wrapper .buy-now-btn {
+  background: var(--pd-button-bg);
+  color: var(--pd-button-text);
+  border: 1px solid transparent;
+  border-radius: var(--pd-radius-button);
+  box-shadow: 0 12px 24px color-mix(in srgb, var(--pd-button-bg) 22%, transparent);
+}
+
+.product-detail-page .add-to-cart-btn:hover,
+.product-detail-page .buy-now-btn:hover,
+.product-details-page .add-to-cart-btn:hover,
+.product-details-page .buy-now-btn:hover,
+.product-details-container .add-to-cart-btn:hover,
+.product-details-container .buy-now-btn:hover,
+.product-detail-page .product-actions button:hover,
+.product-details-page .product-actions button:hover,
+.product-details-container .product-actions button:hover,
+.product-details-wrapper .product-actions button:hover,
+.product-details-wrapper .add-to-cart-btn:hover,
+.product-details-wrapper .buy-now-btn:hover {
+  background: var(--pd-button-hover-bg);
+  color: var(--pd-button-hover-text);
+}
+
+.product-detail-page .add-to-cart-btn.secondary,
+.product-details-page .add-to-cart-btn.secondary,
+.product-details-container .add-to-cart-btn.secondary,
+.product-details-wrapper .add-to-cart-btn.secondary,
+.product-detail-page .product-actions .secondary,
+.product-details-page .product-actions .secondary,
+.product-details-container .product-actions .secondary,
+.product-details-wrapper .product-actions .secondary {
+  background: var(--pd-surface-strong);
+  color: var(--pd-accent);
+  border-color: color-mix(in srgb, var(--pd-accent) 45%, white);
+  box-shadow: none;
+}
+
+.product-detail-page .add-to-cart-btn.secondary:hover,
+.product-details-page .add-to-cart-btn.secondary:hover,
+.product-details-container .add-to-cart-btn.secondary:hover,
+.product-details-wrapper .add-to-cart-btn.secondary:hover,
+.product-detail-page .product-actions .secondary:hover,
+.product-details-page .product-actions .secondary:hover,
+.product-details-container .product-actions .secondary:hover,
+.product-details-wrapper .product-actions .secondary:hover {
+  background: color-mix(in srgb, var(--pd-accent) 10%, white);
+  color: var(--pd-accent-strong);
+  border-color: color-mix(in srgb, var(--pd-accent-strong) 45%, white);
+}
+
+/* Product detail exact UI controls */
+.product-detail-page .back-link,
+.product-details-page .back-link,
+.product-details-container .back-link,
+.product-details-wrapper .back-link,
+.product-detail-page a[href*="shop"],
+.product-details-page a[href*="shop"] {
+  color: var(--pd-accent);
+  font-family: var(--pd-font-body);
+  font-weight: 600;
+  text-decoration-color: color-mix(in srgb, var(--pd-accent) 45%, transparent);
+}
+
+.product-detail-page .back-link:hover,
+.product-details-page .back-link:hover,
+.product-details-container .back-link:hover,
+.product-details-wrapper .back-link:hover,
+.product-detail-page a[href*="shop"]:hover,
+.product-details-page a[href*="shop"]:hover {
+  color: var(--pd-accent-strong);
+}
+
+.product-detail-page .size-selector button,
+.product-detail-page .size-options button,
+.product-detail-page .size-btn,
+.product-detail-page .variant-btn,
+.product-detail-page .option-btn,
+.product-details-page .size-selector button,
+.product-details-page .size-options button,
+.product-details-page .size-btn,
+.product-details-page .variant-btn,
+.product-details-page .option-btn,
+.product-details-container .size-selector button,
+.product-details-container .size-options button,
+.product-details-container .size-btn,
+.product-details-container .variant-btn,
+.product-details-container .option-btn {
+  background: var(--pd-surface-strong);
+  color: var(--pd-text);
+  border: 1px solid var(--pd-border);
+  border-radius: var(--pd-radius-button);
+  font-family: var(--pd-font-body);
+  font-weight: 700;
+  box-shadow: none;
+}
+
+.product-detail-page .size-selector button.active,
+.product-detail-page .size-options button.active,
+.product-detail-page .size-btn.active,
+.product-detail-page .variant-btn.active,
+.product-detail-page .option-btn.active,
+.product-detail-page .size-selector button[aria-pressed="true"],
+.product-details-page .size-selector button.active,
+.product-details-page .size-options button.active,
+.product-details-page .size-btn.active,
+.product-details-page .variant-btn.active,
+.product-details-page .option-btn.active,
+.product-details-page .size-selector button[aria-pressed="true"],
+.product-details-container .size-selector button.active,
+.product-details-container .size-options button.active,
+.product-details-container .size-btn.active,
+.product-details-container .variant-btn.active,
+.product-details-container .option-btn.active,
+.product-details-container .size-selector button[aria-pressed="true"] {
+  background: var(--pd-button-bg);
+  color: var(--pd-button-text);
+  border-color: transparent;
+  box-shadow: 0 10px 20px color-mix(in srgb, var(--pd-button-bg) 18%, transparent);
+}
+
+.product-detail-page .quantity-selector,
+.product-detail-page .quantity-control,
+.product-detail-page .quantity-controls,
+.product-details-page .quantity-selector,
+.product-details-page .quantity-control,
+.product-details-page .quantity-controls,
+.product-details-container .quantity-selector,
+.product-details-container .quantity-control,
+.product-details-container .quantity-controls {
+  border: 1px solid var(--pd-border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--pd-surface-strong);
+}
+
+.product-detail-page .quantity-selector button,
+.product-detail-page .quantity-control button,
+.product-detail-page .quantity-controls button,
+.product-details-page .quantity-selector button,
+.product-details-page .quantity-control button,
+.product-details-page .quantity-controls button,
+.product-details-container .quantity-selector button,
+.product-details-container .quantity-control button,
+.product-details-container .quantity-controls button {
+  background: transparent;
+  color: var(--pd-text);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.product-detail-page .quantity-selector input,
+.product-detail-page .quantity-control input,
+.product-detail-page .quantity-controls input,
+.product-details-page .quantity-selector input,
+.product-details-page .quantity-control input,
+.product-details-page .quantity-controls input,
+.product-details-container .quantity-selector input,
+.product-details-container .quantity-control input,
+.product-details-container .quantity-controls input {
+  border: 0;
+  background: transparent;
+  color: var(--pd-text);
+  text-align: center;
+  font-family: var(--pd-font-body);
+  font-weight: 600;
+  box-shadow: none;
+}
+
+.product-detail-page .product-price,
+.product-details-page .product-price,
+.product-details-container .product-price,
+.product-details-wrapper .product-price {
+  color: var(--pd-heading);
+  font-family: var(--pd-font-heading);
+}
+/* Product detail theme bridge */
+.product-detail,
+.product-detail-page,
+.product-details-page,
+.product-details-container,
+.product-details-wrapper {
+  --pd-surface: var(--theme-surface, var(--ec-surface, #fff7fb));
+  --pd-surface-strong: var(--theme-surface-strong, var(--ec-surface-strong, #ffffff));
+  --pd-surface-muted: var(--theme-surface-muted, var(--ec-surface-muted, color-mix(in srgb, var(--pd-surface) 90%, white 10%)));
+  --pd-text: var(--theme-text, var(--ec-text, #2f2430));
+  --pd-text-muted: var(--theme-text-muted, var(--ec-text-muted, #6f5b6d));
+  --pd-heading: var(--theme-heading, var(--ec-heading, var(--pd-text)));
+  --pd-border: var(--theme-border, var(--ec-border, rgba(165, 106, 146, 0.18)));
+  --pd-shadow: var(--theme-shadow, var(--ec-shadow, 0 16px 36px rgba(121, 75, 107, 0.14)));
+  --pd-accent: var(--theme-accent, var(--ec-accent, #f062a6));
+  --pd-accent-strong: var(--theme-accent-strong, var(--ec-accent-strong, #e14d95));
+  --pd-button-bg: var(--theme-button-bg, var(--ec-button-bg, var(--pd-accent)));
+  --pd-button-text: var(--theme-button-text, var(--ec-button-text, #ffffff));
+  --pd-button-hover-bg: var(--theme-button-hover-bg, var(--ec-button-hover-bg, var(--pd-accent-strong)));
+  --pd-button-hover-text: var(--theme-button-hover-text, var(--ec-button-hover-text, #ffffff));
+  --pd-button-shadow: var(--theme-button-shadow, 0 10px 24px color-mix(in srgb, var(--pd-button-bg) 22%, transparent));
+  --pd-button-shadow-hover: 0 12px 28px color-mix(in srgb, var(--pd-button-hover-bg) 24%, transparent);
+  --pd-font-body: var(--theme-font-body, var(--ec-font-body, inherit));
+  --pd-font-heading: var(--theme-font-heading, var(--ec-font-heading, inherit));
+  --pd-line-height: var(--theme-line-height, var(--ec-line-height, 1.6));
+  --pd-letter-spacing: var(--theme-letter-spacing, var(--ec-letter-spacing, normal));
+  --pd-radius-card: var(--theme-radius-card, var(--ec-radius-card, 22px));
+  --pd-radius-button: var(--theme-radius-button, var(--ec-radius-button, 999px));
+  color: var(--pd-text);
+  font-family: var(--pd-font-body);
+  line-height: var(--pd-line-height);
+  letter-spacing: var(--pd-letter-spacing);
+}
+
+.product-detail-page h1,
+.product-detail-page h2,
+.product-detail-page h3,
+.product-details-page h1,
+.product-details-page h2,
+.product-details-page h3,
+.product-details-container h1,
+.product-details-container h2,
+.product-details-container h3,
+.product-details-wrapper h1,
+.product-details-wrapper h2,
+.product-details-wrapper h3 {
+  color: var(--pd-heading);
+  font-family: var(--pd-font-heading);
 }

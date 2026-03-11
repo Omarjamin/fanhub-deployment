@@ -47,6 +47,7 @@ export default function Navigation(root, data = {}) {
     data?.image_url ||
     '/BINI_logo.svg.png'
   ).trim();
+  const isDefaultLogo = !String(data?.logo || data?.logo_url || data?.logo_image || data?.image_url || '').trim();
   const isHeroHomepage = pathParts[0] === 'fanhub' && pathParts.length === 2;
 
   const heroNavLinks = `
@@ -100,7 +101,7 @@ export default function Navigation(root, data = {}) {
   <header class="navbar">
     <button id="menuToggle" class="menu-toggle" aria-label="Toggle navigation menu" aria-expanded="false">&#9776;</button>
     <a href="${homePath}" class="logo">
-      <img src="${logoSrc}" alt="Logo" class="logo-img" onerror="this.src='/BINI_logo.svg.png'">
+      <img src="${logoSrc}" alt="Logo" class="logo-img${isDefaultLogo ? ' logo-img-default' : ''}" onerror="this.src='/BINI_logo.svg.png'">
     </a>
     <nav id="navMenu" role="navigation" aria-label="Main navigation">
       <button class="nav-close-btn" aria-label="Close navigation menu">&#10005;</button>

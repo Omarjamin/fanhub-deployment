@@ -1,4 +1,3 @@
-
 import { api } from '../../../services/ecommerce_services/config.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
 import '../../../styles/ecommerce_styles/order_history.css';
@@ -18,7 +17,7 @@ export default function OrderHistory() {
       : (pathParts[0] === 'fanhub' ? pathParts[1] : '');
   const homePath = communityType ? `/fanhub/${communityType}` : '/';
   const shopPath = communityType ? `/fanhub/${communityType}/shop` : '/shop';
-  const communityCartPath = communityType ? `/fanhub/${communityType}/cart` : '/cart';
+  const communityCartPath = communityType ? `/fanhub/${communityType}/shop` : '/shop';
   
   root.innerHTML = `
     <div class="order-history-container">
@@ -82,6 +81,7 @@ export default function OrderHistory() {
               <option value="Delivered">Delivered</option>
               <option value="Cancelled">Cancelled</option>
             </select>
+            <button type="button" class="filter-clear-btn" onclick="clearFilters()">Clear Filters</button>
           </div>
         </div>
 
@@ -837,7 +837,8 @@ export default function OrderHistory() {
             }
           }
           
-          alert(`All items from order #${orderId} have been added to your cart. Redirecting to cart...`);
+          sessionStorage.setItem('openCartOnLoad', '1');
+          alert(`All items from order #${orderId} have been added to your cart. Redirecting to shop...`);
           // Redirect to cart page
           window.location.href = communityCartPath;
         } else {

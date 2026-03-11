@@ -77,7 +77,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
             </div>
 
             <div class="button-group">
-              <button class="btn-primary" id="add-to-cart-btn">Add to Cart</button>
+              <button class="btn-primary add-to-cart-btn" id="add-to-cart-btn">Add to Cart</button>
             </div>
 
             <p class="product-desc">${product.description || ''}</p>
@@ -85,6 +85,56 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
         </div>
       </section>
     `;
+
+    // Render related products from current collection (stored in session)
+    try {
+      const rawRelated = JSON.parse(sessionStorage.getItem('collectionProducts') || '[]');
+      const related = Array.isArray(rawRelated)
+        ? rawRelated.filter((p) => String(p.product_id || '') !== String(productId)).slice(0, 6)
+        : [];
+
+      if (related.length) {
+        const relatedHtml = `
+          <section class="related-products">
+            <h3>You may also like</h3>
+            <div class="related-grid">
+              ${related
+                .map((p) => {
+                  const id = p.product_id;
+                  const name = p.name || '';
+                  const imgUrl = p.image_url || '';
+                  const priceVal = Number(p.price || 0);
+                  return `
+                    <button class="related-card" data-product-id="${id}">
+                      <img src="${imgUrl}" alt="${name}" />
+                      <div class="related-card-copy">
+                        <div class="related-name">${name}</div>
+                        <div class="related-price">PHP ${priceVal.toFixed(2)}</div>
+                      </div>
+                    </button>
+                  `;
+                })
+                .join('')}
+            </div>
+          </section>
+        `;
+        root.insertAdjacentHTML('beforeend', relatedHtml);
+
+        root.querySelectorAll('.related-card').forEach((card) => {
+          card.addEventListener('click', async () => {
+            const id = card.dataset.productId;
+            if (!id) return;
+            const productPath = communityType
+              ? `/fanhub/${communityType}/product/${id}`
+              : `/product/${id}`;
+            history.pushState({ page: 'product', id, communityType }, '', productPath);
+            await ProductDetail(root, id, communityType);
+          });
+        });
+      }
+    } catch (err) {
+      console.warn('Failed to render related products', err);
+    }
 
     const variantBtns = root.querySelectorAll('.variant-option');
     variantBtns.forEach((btn, idx) => {

@@ -22,10 +22,10 @@ body.ec-shop-page main {
 }
 
 body.ec-shop-page .navbar {
-  background: rgba(255, 255, 255, 0.96);
-  box-shadow: none;
-  border-bottom: 1px solid rgba(17, 17, 17, 0.08);
-  backdrop-filter: blur(8px);
+  background: var(--ecommerce-nav-bg) !important;
+  box-shadow: 0 clamp(2px, 0.5vw, 4px) clamp(4px, 1vw, 6px) rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid rgba(17, 17, 17, 0.1);
+  backdrop-filter: none;
 }
 
 body.ec-shop-page .navbar nav a.active {

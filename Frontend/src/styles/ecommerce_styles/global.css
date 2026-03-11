@@ -1,41 +1,30 @@
 @import "../theme-overrides.css";
 
 :root {
-  --primary-color: #000000;   /* default  button*/
-  --secondary-color: #ffffff; /* default for bg */ 
-  --accent-color: #ff0000;    /* default  then font  and border */
-  --secondary-background: var(--secondary-color);
-  --surface-color: var(--secondary-color);
-  --surface-text-color: var(--primary-color);
-  --muted-text-color: color-mix(in srgb, var(--surface-text-color) 74%, var(--secondary-color) 26%);
-  --hover-background: var(--accent-color);
+  --primary-color: #385257;
+  --secondary-color: #edf4f5;
+  --accent-color: #5f8086;
+  --secondary-background:
+    radial-gradient(circle at 18% 18%, rgba(255, 255, 255, 0.8), transparent 34%),
+    radial-gradient(circle at 82% 14%, rgba(255, 255, 255, 0.55), transparent 26%),
+    radial-gradient(circle at 70% 72%, rgba(216, 235, 239, 0.72), transparent 30%),
+    linear-gradient(180deg, #edf4f5 0%, #e6eff1 100%);
+  --hover-background: linear-gradient(135deg, #5f8086, #46656b);
   --hover-text-color: #ffffff;
   --text-on-primary: #ffffff;
-  --text-on-accent: #ffffff;
-  --theme-button-bg: var(--accent-color);
-  --theme-button-text: var(--text-on-accent);
-  --theme-button-hover-bg: var(--hover-background);
-  --theme-button-hover-text: var(--hover-text-color);
-  --theme-nav-text: var(--primary-color);
-  --theme-nav-hero-text: var(--primary-color);
-  --theme-nav-bg: var(--secondary-color);
-  --theme-accent-soft: color-mix(in srgb, var(--accent-color) 18%, #ffffff);
-  --theme-font-heading: Arial, sans-serif;
-  --theme-font-body: Arial, sans-serif;
+  --surface-color: rgba(255, 255, 255, 0.78);
+  --surface-border: rgba(95, 128, 134, 0.24);
+  --surface-shadow: 0 10px 24px rgba(55, 82, 87, 0.12);
+  --muted-text-color: #5f7478;
+  --soft-accent: rgba(95, 128, 134, 0.12);
   --theme-font-family: Arial, sans-serif;
-  --theme-font-size-base: 16px;
-  --theme-line-height: 1.6;
-  --theme-letter-spacing: 0.02em;
   --theme-button-radius: 12px;
-  --theme-button-border: none;
-  --theme-button-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+  --theme-button-border: 1px solid var(--surface-border);
+  --theme-button-shadow: 0 6px 16px rgba(55, 82, 87, 0.14);
 }
 
 body {
-  font-family: var(--theme-font-body, var(--theme-font-family)) !important;
-  font-size: var(--theme-font-size-base, 16px);
-  line-height: var(--theme-line-height, 1.6);
-  letter-spacing: var(--theme-letter-spacing, 0.02em);
+  font-family: var(--theme-font-family) !important;
 }
 
 
@@ -48,10 +37,10 @@ section {
   box-sizing: border-box;
 }
 body {
-  font-family: var(--theme-font-body, var(--theme-font-family));
+  font-family: var(--theme-font-family);
   background: var(--secondary-background, var(--secondary-color));
   background-size: cover;
-  color: var(--surface-text-color, var(--primary-color));
+  color: var(--primary-color);
 }
 
 button,
@@ -66,8 +55,6 @@ button,
   border-radius: var(--theme-button-radius);
   border: var(--theme-button-border);
   box-shadow: var(--theme-button-shadow);
-  background: var(--theme-button-bg);
-  color: var(--theme-button-text);
 }
 
 button:hover,
@@ -78,8 +65,8 @@ button:hover,
 .mv-btn:hover,
 .nav-link:hover,
 .auth-form1 .mv-btn:hover {
-  background: var(--theme-button-hover-bg, var(--hover-background, var(--accent-color)));
-  color: var(--theme-button-hover-text, var(--hover-text-color, var(--text-on-primary, #ffffff)));
+  background: var(--hover-background, var(--accent-color));
+  color: var(--hover-text-color, var(--text-on-primary, #ffffff));
 }
 
 
@@ -87,6 +74,65 @@ button:hover,
 #container,
 #main {
   background: transparent;
+}
+
+#main,
+main {
+  background: var(--secondary-background);
+}
+
+a,
+.link,
+.nav-link {
+  color: var(--primary-color);
+}
+
+button,
+.btn,
+.btn-link,
+.btn-primary,
+.btn-secondary,
+.mv-btn,
+.nav-link,
+.auth-form1 .mv-btn,
+input[type="button"],
+input[type="submit"] {
+  color: var(--primary-color);
+  background: var(--surface-color);
+  border: var(--theme-button-border);
+  box-shadow: var(--theme-button-shadow);
+}
+
+button:focus,
+button:focus-visible,
+.btn:focus,
+.btn:focus-visible,
+.btn-link:focus,
+.btn-link:focus-visible,
+.btn-primary:focus,
+.btn-primary:focus-visible,
+.btn-secondary:focus,
+.btn-secondary:focus-visible,
+.nav-link:focus,
+.nav-link:focus-visible,
+input[type="button"]:focus,
+input[type="button"]:focus-visible,
+input[type="submit"]:focus,
+input[type="submit"]:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
+input,
+select,
+textarea {
+  color: var(--primary-color);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+::selection {
+  background: rgba(95, 128, 134, 0.24);
+  color: #2f484d;
 }
 
 @keyframes rainbow {
@@ -100,24 +146,15 @@ button:hover,
 
 
 .section-title {
-  color: var(--surface-text-color, var(--primary-color)) !important;
+  color: var(--primary-color) !important;
   text-align: center;
   margin: 30px 0 15px;
-}
-
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  font-family: var(--theme-font-heading, var(--theme-font-body, var(--theme-font-family, Arial, sans-serif))) !important;
 }
 
 /* Container for better desktop layout */
 .container {
   max-width: 1400px;
-  margin: 0px;
+  margin: 0 auto;
   padding: 0 clamp(1rem, 3vw, 2rem);
   width: 100%;
   box-sizing: border-box;
@@ -140,4 +177,252 @@ main {
   section {
     padding-bottom: 60px;
   }
+}
+
+/* Shared ecommerce palette overrides */
+.navbar,
+.auth-container,
+.cart-modal,
+.checkout-form-with-summary .form-container,
+.checkout-form-with-summary .summary-container,
+.order-history-container,
+.orders-table-container,
+.product-details-container,
+.collection-card,
+.album-card,
+.announcement-card,
+.event-card {
+  color: var(--primary-color);
+}
+
+.container,
+.card,
+.panel,
+.modal-content,
+.order-history-container,
+.orders-table-container,
+.product-details-container,
+.checkout-form-with-summary .form-container,
+.checkout-form-with-summary .summary-container,
+.auth-form1,
+.auth-form,
+.announcement-card,
+.event-card,
+.collection-card,
+.album-card {
+  background-color: rgba(255, 255, 255, 0.72);
+  border-color: var(--surface-border);
+}
+
+[class*="btn"],
+button,
+input[type="button"],
+input[type="submit"] {
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--primary-color);
+  border-color: var(--surface-border);
+}
+
+[class*="btn"]:hover,
+button:hover,
+input[type="button"]:hover,
+input[type="submit"]:hover {
+  background: var(--hover-background) !important;
+  color: var(--hover-text-color) !important;
+  border-color: transparent !important;
+}
+
+.btn-primary,
+.checkout-btn,
+.place-order-btn,
+.submit-btn,
+.see-details-btn,
+.add-to-cart-btn,
+.buy-now-btn,
+.shop-now-btn {
+  background: var(--hover-background) !important;
+  color: var(--hover-text-color) !important;
+  border-color: transparent !important;
+}
+
+.btn-secondary,
+.secondary-btn,
+.ghost-btn,
+.continue-shopping-btn {
+  background: rgba(255, 255, 255, 0.82) !important;
+  color: var(--primary-color) !important;
+  border: 1px solid var(--surface-border) !important;
+}
+
+a[class*="btn"],
+.link-button,
+.accent-text,
+.price,
+.current-price,
+.highlight,
+.product-price,
+.section-title,
+.auth-link {
+  color: var(--accent-color) !important;
+}
+
+.price,
+.current-price,
+.product-price {
+  color: #000000 !important;
+}
+
+input,
+select,
+textarea {
+  border-color: var(--surface-border) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  box-shadow: 0 0 0 2px rgba(95, 128, 134, 0.18) !important;
+}
+/* Shared ecommerce/BINI theme bridge */
+:root {
+  --ec-surface: var(--theme-surface, #fff7fb);
+  --ec-surface-strong: var(--theme-surface-strong, #ffffff);
+  --ec-surface-muted: var(--theme-surface-muted, #fdf0f5);
+  --ec-text: var(--theme-text, #2f2430);
+  --ec-text-muted: var(--theme-text-muted, #6f5b6d);
+  --ec-heading: var(--theme-heading, var(--ec-text));
+  --ec-border: var(--theme-border, rgba(165, 106, 146, 0.18));
+  --ec-shadow: var(--theme-shadow, 0 16px 36px rgba(121, 75, 107, 0.14));
+  --ec-accent: var(--theme-accent, #f062a6);
+  --ec-accent-strong: var(--theme-accent-strong, #e14d95);
+  --ec-button-bg: var(--theme-button-bg, var(--ec-accent));
+  --ec-button-text: var(--theme-button-text, #ffffff);
+  --ec-button-hover-bg: var(--theme-button-hover-bg, var(--ec-accent-strong));
+  --ec-button-hover-text: var(--theme-button-hover-text, #ffffff);
+  --ec-radius-card: var(--theme-radius-card, 22px);
+  --ec-radius-button: var(--theme-radius-button, 999px);
+  --ec-font-body: var(--theme-font-body, inherit);
+  --ec-font-heading: var(--theme-font-heading, inherit);
+  --ec-font-size: var(--theme-font-size-base, 16px);
+  --ec-line-height: var(--theme-line-height, 1.6);
+  --ec-letter-spacing: var(--theme-letter-spacing, normal);
+}
+
+body,
+body.ec-shop-page,
+body.ec-auth-page,
+body.ec-checkout-page,
+body.ec-product-page,
+body.ec-order-history-page,
+body.ec-order-confirmation-page {
+  color: var(--ec-text);
+  font-family: var(--ec-font-body);
+  font-size: var(--ec-font-size);
+  line-height: var(--ec-line-height);
+  letter-spacing: var(--ec-letter-spacing);
+}
+
+h1, h2, h3, h4, h5, h6,
+.section-title,
+.page-title,
+.card-title,
+.product-title,
+.collection-title,
+.order-title {
+  color: var(--ec-heading);
+  font-family: var(--ec-font-heading);
+}
+
+a,
+.text-button,
+button.link-button,
+.btn-link,
+.link-like {
+  color: var(--ec-accent);
+}
+
+a:hover,
+.text-button:hover,
+button.link-button:hover,
+.btn-link:hover,
+.link-like:hover {
+  color: var(--ec-accent-strong);
+}
+
+button,
+.btn,
+input[type="submit"],
+input[type="button"],
+.primary-btn,
+.action-btn,
+.checkout-btn,
+.shop-now-btn,
+.add-to-cart-btn,
+.buy-now-btn,
+.auth-button,
+.confirm-btn,
+.place-order-btn {
+  background: var(--ec-button-bg);
+  color: var(--ec-button-text);
+  border: 1px solid transparent;
+  border-radius: var(--ec-radius-button);
+  font-family: var(--ec-font-body);
+  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+button:hover,
+.btn:hover,
+input[type="submit"]:hover,
+input[type="button"]:hover,
+.primary-btn:hover,
+.action-btn:hover,
+.checkout-btn:hover,
+.shop-now-btn:hover,
+.add-to-cart-btn:hover,
+.buy-now-btn:hover,
+.auth-button:hover,
+.confirm-btn:hover,
+.place-order-btn:hover {
+  background: var(--ec-button-hover-bg);
+  color: var(--ec-button-hover-text);
+}
+
+.card,
+.product-card,
+.collection-card,
+.order-card,
+.summary-card,
+.checkout-card,
+.auth-form1,
+.auth-form,
+.modal-content,
+.panel,
+.widget-card {
+  background: var(--ec-surface-strong);
+  color: var(--ec-text);
+  border: 1px solid var(--ec-border);
+  border-radius: var(--ec-radius-card);
+  box-shadow: var(--ec-shadow);
+}
+
+input,
+select,
+textarea {
+  background: var(--ec-surface-strong);
+  color: var(--ec-text);
+  border: 1px solid var(--ec-border);
+  font-family: var(--ec-font-body);
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--ec-text-muted);
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: color-mix(in srgb, var(--ec-accent) 50%, white);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ec-accent) 18%, transparent);
+  outline: none;
 }

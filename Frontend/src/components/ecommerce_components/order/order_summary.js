@@ -35,10 +35,10 @@ export default async function OrderSummary(root) {
                 <table class="order-table" style="width: 100%;">
                     <thead>
                         <tr>
-                            <th style="width: 15%;">Product Image</th>
-                            <th style="width: 45%;">Product Name</th>
+                            <th style="width: 15%;">Image</th>
+                            <th style="width: 45%;">Product</th>
                             <th style="width: 20%;">Price</th>
-                            <th style="width: 20%;">Quantity</th>
+                            <th style="width: 20%;">Qty</th>
                         </tr>
                     </thead>
                     <tbody>

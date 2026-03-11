@@ -1,9 +1,8 @@
-import BaseSignup from '../auth_page/signup_page.js';
-import { applyModernTemplateShell } from '../../../lib/modern-template-shell.js';
-import '../../../styles/ecommerce_styles/modern-template.css';
+import mountModernReactApp from "../../../lib/modern-react/mount.js";
 
-export default function ModernSignup(data = {}) {
-  applyModernTemplateShell(this.root, 'signup');
-  return BaseSignup.call(this, data);
+export default function ModernSignup(payload = {}) {
+  mountModernReactApp(this.root, {
+    ...payload,
+    page: "signup",
+  });
 }
-

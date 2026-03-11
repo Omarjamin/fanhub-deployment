@@ -19,11 +19,16 @@ body:has(.ec-lead-image) main {
   box-shadow: none;
 }
 
+.navbar {
+  --ecommerce-nav-fg: var(--theme-nav-hero-text, var(--text-on-background, #ffffff));
+  --ecommerce-nav-hover: var(--accent-color, #ff70b8);
+}
+
 .navbar.ec-hero-nav .logo,
 .navbar.ec-hero-nav nav a,
 .navbar.ec-hero-nav .nav-right a,
 .navbar.ec-hero-nav .menu-toggle {
-  color: #ffffff !important;
+  color: var(--ecommerce-nav-fg) !important;
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.28);
 }
 
@@ -42,12 +47,14 @@ body:has(.ec-lead-image) main {
 }
 
 .navbar.ec-hero-nav.scrolled {
-  background:
+  --ecommerce-nav-bg:
     linear-gradient(
       180deg,
       color-mix(in srgb, var(--primary-color, #111111) 70%, white 30%),
       color-mix(in srgb, var(--primary-color, #111111) 82%, var(--color-surface, var(--surface-color, #ffffff)) 18%)
     );
+  background:
+    var(--ecommerce-nav-bg);
   backdrop-filter: blur(10px);
   box-shadow: 0 clamp(2px, 0.5vw, 4px) clamp(8px, 1.2vw, 12px) rgba(0, 0, 0, 0.16);
 }
@@ -56,7 +63,7 @@ body:has(.ec-lead-image) main {
 .navbar.ec-hero-nav.scrolled nav a,
 .navbar.ec-hero-nav.scrolled .nav-right a,
 .navbar.ec-hero-nav.scrolled .menu-toggle {
-  color: #ffffff !important;
+  color: var(--ecommerce-nav-fg) !important;
   text-shadow: none;
 }
 
@@ -65,12 +72,14 @@ body:has(.ec-lead-image) main {
   top: 0;
   left: 0;
   width: 100%;
-  background:
+  --ecommerce-nav-bg:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 84%, white 16%),
-      color-mix(in srgb, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 94%, var(--color-surface, var(--surface-color, #ffffff)) 6%)
+      color-mix(in srgb, var(--primary-color, #111111) 70%, white 30%),
+      color-mix(in srgb, var(--primary-color, #111111) 82%, var(--color-surface, var(--surface-color, #ffffff)) 18%)
     );
+  background:
+    var(--ecommerce-nav-bg);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -81,10 +90,14 @@ body:has(.ec-lead-image) main {
   min-height: clamp(50px, 8vw, 60px);
 }
 
+.navbar > * {
+  min-width: 0;
+}
+
 .navbar .logo {
   font-size: clamp(1.25rem, 3vw, 1.8rem);
   font-weight: bold;
-  color: var(--theme-nav-text, var(--primary-color, #111111));
+  color: var(--ecommerce-nav-fg);
   text-decoration: none;
   font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
   display: flex;
@@ -99,6 +112,10 @@ body:has(.ec-lead-image) main {
   transition: transform 0.3s ease;
 }
 
+.navbar .logo img.logo-img-default {
+  filter: brightness(0) invert(1);
+}
+
 .navbar .logo:hover img {
   transform: scale(1.05);
 }
@@ -106,11 +123,12 @@ body:has(.ec-lead-image) main {
 .navbar nav {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: clamp(0.5rem, 1.5vw, 0.625rem);
 }
 
 .navbar nav a {
-  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #111111)));
+  color: var(--ecommerce-nav-fg);
   font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
   font-weight: 600;
   margin: 0 clamp(0.25rem, 1vw, 0.625rem);
@@ -134,7 +152,7 @@ body:has(.ec-lead-image) main {
 
 .navbar nav a:hover {
   background: transparent !important;
-  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #111111))) !important;
+  color: var(--ecommerce-nav-hover) !important;
   transform: none;
   box-shadow: none !important;
   opacity: 1;
@@ -149,7 +167,7 @@ body:has(.ec-lead-image) main {
 .navbar nav a:active,
 .navbar nav a.active {
   background: transparent;
-  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #111111))) !important;
+  color: var(--ecommerce-nav-hover) !important;
   outline: none;
   box-shadow: none !important;
 }
@@ -168,14 +186,16 @@ body:has(.ec-lead-image) main {
 .navbar .nav-right {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: clamp(0.5rem, 1.5vw, 0.625rem);
+  min-width: max-content;
 }
 
 .navbar .nav-right a {
   margin-left: 0;
   font-size: clamp(1rem, 2.5vw, 1.2rem);
   text-decoration: none;
-  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000)));
+  color: var(--ecommerce-nav-fg);
   font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
   padding: 0;
   border-radius: 0;
@@ -183,26 +203,62 @@ body:has(.ec-lead-image) main {
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: auto;
-  min-height: auto;
+  min-width: 2rem;
+  min-height: 2rem;
+  width: 2rem;
+  height: 2rem;
   box-sizing: border-box;
   background: transparent !important;
   border: none !important;
   box-shadow: none !important;
+  line-height: 1;
+  align-self: center;
+  flex: 0 0 auto;
+}
+
+.navbar .nav-right a svg {
+  display: block;
+  width: 18px;
+  height: 18px;
 }
 
 .navbar .nav-right a:hover {
   background: transparent !important;
-  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
+  color: var(--ecommerce-nav-hover) !important;
   transform: none;
   box-shadow: none !important;
   opacity: 1;
 }
+
+@media (min-width: 769px) {
+  .navbar {
+    display: grid;
+    grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
+    align-items: center;
+    column-gap: clamp(1rem, 2vw, 2rem);
+  }
+
+  .navbar .logo {
+    grid-column: 1;
+    justify-self: start;
+  }
+
+  #navMenu {
+    grid-column: 2;
+    justify-self: center;
+  }
+
+  .navbar .nav-right {
+    grid-column: 3;
+    justify-self: end;
+  }
+}
+
 .navbar .menu-toggle {
   display: none;
   font-size: clamp(1.25rem, 3vw, 1.5rem);
   cursor: pointer;
-  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000)));
+  color: var(--ecommerce-nav-fg);
   font-family: var(--theme-font-body, var(--theme-font-family, Arial, sans-serif));
   padding: 0.25rem;
   border-radius: 0;
@@ -217,7 +273,7 @@ body:has(.ec-lead-image) main {
 
 .navbar .menu-toggle:hover {
   background: transparent !important;
-  color: var(--theme-nav-text, var(--surface-text-color, var(--primary-color, #000000))) !important;
+  color: var(--ecommerce-nav-hover) !important;
   transform: none;
   opacity: 1;
 }
@@ -411,4 +467,80 @@ body:has(.ec-lead-image) main {
     min-height: clamp(24px, 4vw, 28px);
     padding: clamp(0.25rem, 0.8vw, 0.3rem);
   }
+}
+.navbar,
+.navbar.ec-hero-nav.scrolled,
+body.ec-shop-page .navbar,
+body.ec-auth-page .navbar,
+body.ec-checkout-page .navbar {
+  --ecommerce-nav-fg: #fff;
+  --ecommerce-nav-hover: #fff;
+}
+
+.navbar .logo,
+.navbar .logo a,
+.navbar nav a,
+.navbar .nav-right a,
+.navbar .menu-toggle,
+.navbar.ec-hero-nav.scrolled .logo,
+.navbar.ec-hero-nav.scrolled .logo a,
+.navbar.ec-hero-nav.scrolled nav a,
+.navbar.ec-hero-nav.scrolled .nav-right a,
+.navbar.ec-hero-nav.scrolled .menu-toggle,
+body.ec-shop-page .navbar .logo,
+body.ec-shop-page .navbar .logo a,
+body.ec-shop-page .navbar nav a,
+body.ec-shop-page .navbar .nav-right a,
+body.ec-shop-page .navbar .menu-toggle,
+body.ec-auth-page .navbar .logo,
+body.ec-auth-page .navbar .logo a,
+body.ec-auth-page .navbar nav a,
+body.ec-auth-page .navbar .nav-right a,
+body.ec-auth-page .navbar .menu-toggle,
+body.ec-checkout-page .navbar .logo,
+body.ec-checkout-page .navbar .logo a,
+body.ec-checkout-page .navbar nav a,
+body.ec-checkout-page .navbar .nav-right a,
+body.ec-checkout-page .navbar .menu-toggle {
+  color: var(--ecommerce-nav-fg) !important;
+}
+
+.navbar nav a:hover,
+.navbar nav a:focus-visible,
+.navbar .nav-right a:hover,
+.navbar .nav-right a:focus-visible,
+.navbar .menu-toggle:hover,
+.navbar .menu-toggle:focus-visible,
+body.ec-shop-page .navbar nav a:hover,
+body.ec-shop-page .navbar nav a:focus-visible,
+body.ec-shop-page .navbar .nav-right a:hover,
+body.ec-shop-page .navbar .nav-right a:focus-visible,
+body.ec-auth-page .navbar nav a:hover,
+body.ec-auth-page .navbar nav a:focus-visible,
+body.ec-auth-page .navbar .nav-right a:hover,
+body.ec-auth-page .navbar .nav-right a:focus-visible,
+body.ec-checkout-page .navbar nav a:hover,
+body.ec-checkout-page .navbar nav a:focus-visible,
+body.ec-checkout-page .navbar .nav-right a:hover,
+body.ec-checkout-page .navbar .nav-right a:focus-visible {
+  color: var(--ecommerce-nav-hover) !important;
+  background: transparent !important;
+}
+
+.navbar nav a.active,
+.navbar nav a[aria-current="page"],
+body.ec-shop-page .navbar nav a.active,
+body.ec-shop-page .navbar nav a[aria-current="page"],
+body.ec-auth-page .navbar nav a.active,
+body.ec-auth-page .navbar nav a[aria-current="page"],
+body.ec-checkout-page .navbar nav a.active,
+body.ec-checkout-page .navbar nav a[aria-current="page"] {
+  color: #fff !important;
+}
+
+.navbar .logo img.logo-img-default,
+body.ec-shop-page .navbar .logo img.logo-img-default,
+body.ec-auth-page .navbar .logo img.logo-img-default,
+body.ec-checkout-page .navbar .logo img.logo-img-default {
+  filter: brightness(0) invert(1) !important;
 }

@@ -60,6 +60,13 @@ export default function OrderReview(root) {
         const hasItems = items.length > 0;
 
         const disablePlaceOrder = !(hasAddress && hasPayment && hasItems);
+        const summaryTotal = (() => {
+            if (!totals) return 0;
+            const subtotalVal = Number(totals.subtotal ?? totals.sub_total ?? 0);
+            const shippingFeeVal = Number(totals.shippingFee ?? totals.shipping_fee ?? totals.shipping ?? 0);
+            const codFeeVal = Number(totals.codFee ?? totals.cod_fee ?? 0) || 0;
+            return subtotalVal + shippingFeeVal + codFeeVal;
+        })();
 
         /* =========================
            3. RENDER UI
@@ -76,13 +83,15 @@ export default function OrderReview(root) {
                     ${renderAddress(address)}
                     ${renderPayment(payment)}
                     ${renderItems(items)}
-                    ${renderTotals(totals)}
+                    ${renderTotals(totals, disablePlaceOrder)}
                 </div>
-
-                <div class="order-actions">
-                    <button id="placeOrderBtn" class="btn-confirm-order" ${disablePlaceOrder ? 'disabled' : ''}>
-                        <span class="btn-icon">✓</span>
-                        <span>Place Order</span>
+                <div class="review-mobile-bar">
+                    <div class="review-mobile-total">
+                        <span>Total</span>
+                        <strong>₱${summaryTotal.toFixed(2)}</strong>
+                    </div>
+                    <button id="mobilePlaceOrderBtn" class="review-mobile-button" ${disablePlaceOrder ? 'disabled' : ''}>
+                        Place Order
                     </button>
                 </div>
             </div>
@@ -129,6 +138,14 @@ export default function OrderReview(root) {
             });
         }
 
+        const mobilePlaceOrderBtn = document.getElementById('mobilePlaceOrderBtn');
+        if (mobilePlaceOrderBtn) {
+            mobilePlaceOrderBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                placeOrderBtn?.click();
+            });
+        }
+
     } catch (err) {
         console.error('OrderReview error:', err);
         root.innerHTML = '<p>Error loading order review.</p>';
@@ -141,7 +158,14 @@ export default function OrderReview(root) {
 function renderAddress(address) {
     const fullAddress = address
         ? (address.fullAddress ||
-           [address.street, address.barangayText, address.cityText, address.province]
+           [
+             address.street,
+             address.barangayText || address.barangay,
+             address.cityText || address.city,
+             address.provinceText || address.province,
+             address.regionText || address.region,
+             address.zip
+           ]
                .filter(Boolean)
                .join(', '))
         : null;
@@ -150,7 +174,6 @@ function renderAddress(address) {
         <div class="review-section shipping-section">
             <div class="section-header">
                 <div class="section-title">
-                    <span class="section-icon">📦</span>
                     <span>Shipping Address</span>
                 </div>
                 <a href="#" class="edit-link" data-step="1">
@@ -198,7 +221,6 @@ function renderPayment(payment) {
         <div class="review-section payment-section">
             <div class="section-header">
                 <div class="section-title">
-                    <span class="section-icon">💳</span>
                     <span>Payment Method</span>
                 </div>
                 <a href="#" class="edit-link" data-step="2">
@@ -234,7 +256,6 @@ function renderItems(items) {
         <div class="review-section items-section">
             <div class="section-header">
                 <div class="section-title">
-                    <span class="section-icon">🛒</span>
                     <span>Order Items</span>
                 </div>
                 <span class="item-count">${items.length} ${items.length === 1 ? 'item' : 'items'}</span>
@@ -281,7 +302,7 @@ function renderItems(items) {
     `;
 }
 
-function renderTotals(totals) {
+function renderTotals(totals, disablePlaceOrder = false) {
     if (!totals) {
         return `
             <div class="review-section totals-section">
@@ -304,7 +325,6 @@ function renderTotals(totals) {
         <div class="review-section totals-section">
             <div class="section-header">
                 <div class="section-title">
-                    <span class="section-icon">🧾</span>
                     <span>Price Summary</span>
                 </div>
             </div>
@@ -337,6 +357,11 @@ function renderTotals(totals) {
                         <span class="total-label">Total Amount</span>
                         <span class="total-value final-amount">₱${totalVal.toFixed(2)}</span>
                     </div>
+                </div>
+                <div class="order-actions">
+                    <button id="placeOrderBtn" class="btn-confirm-order" ${disablePlaceOrder ? 'disabled' : ''}>
+                        <span>Place Order</span>
+                    </button>
                 </div>
             </div>
         </div>

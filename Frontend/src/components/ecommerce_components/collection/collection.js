@@ -293,6 +293,17 @@ export default function Collection(root, data = {}) {
 
     currentProducts = [...products];
     collectionModeProducts = [...products];
+    try {
+      const relatedPayload = products.map((p) => ({
+        product_id: p.product_id || p.id || p.productId,
+        name: p.name || '',
+        image_url: p.image_url || p.img_url || p.image || (Array.isArray(p.images) && p.images[0]) || '',
+        price: p.price ?? resolveProductPrice(p),
+      }));
+      sessionStorage.setItem('collectionProducts', JSON.stringify(relatedPayload));
+    } catch (_) {
+      sessionStorage.removeItem('collectionProducts');
+    }
     selectedCategory = 'all';
 
     document.querySelectorAll('.category-btn').forEach((btn) => btn.classList.remove('active'));
