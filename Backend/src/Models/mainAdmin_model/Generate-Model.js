@@ -907,7 +907,7 @@ class GenerateModel {
         if (Array.isArray(directMembers) && directMembers.length > 0) {
           return directMembers;
         }
-      }
+      }//asda
 
       const normalizedCommunityType = String(communityType || '').trim();
       if (!normalizedCommunityType) {
