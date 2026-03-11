@@ -1362,7 +1362,7 @@ export default function GenerateWebsite() {
         </div>
       </div>
     `;
-    document.body.appendChild(modal);
+    section.appendChild(modal);
 
     const fileInput = modal.querySelector('.gw-member-image');
     const fileNameLabel = modal.querySelector('.gw-member-image-name');
