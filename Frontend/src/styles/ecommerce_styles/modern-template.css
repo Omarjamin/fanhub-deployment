@@ -1,0 +1,132 @@
+body.ec-template-modern,
+html.ec-template-modern {
+  background:
+    radial-gradient(circle at top, color-mix(in srgb, var(--accent-color, #d946ef) 12%, transparent) 0%, transparent 28%),
+    linear-gradient(180deg, color-mix(in srgb, var(--secondary-background, #0b1020) 94%, #000000 6%) 0%, var(--secondary-background, #0b1020) 100%);
+}
+
+.ec-template-modern #container,
+.ec-template-modern #main,
+.ec-template-modern main {
+  background: transparent;
+}
+
+.ec-template-modern .navbar {
+  background: color-mix(in srgb, var(--secondary-background, #0b1020) 88%, transparent) !important;
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid color-mix(in srgb, var(--accent-color, #d946ef) 24%, transparent);
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.18);
+}
+
+.ec-template-modern .navbar nav a,
+.ec-template-modern .navbar .nav-right a,
+.ec-template-modern .navbar .logo,
+.ec-template-modern .navbar .menu-toggle {
+  color: var(--text-on-surface, #ffffff) !important;
+}
+
+.ec-template-modern .banner,
+.ec-template-modern .about-section,
+.ec-template-modern .discography-section,
+.ec-template-modern .ec-announcement,
+.ec-template-modern #events,
+.ec-template-modern .ec-footer,
+.ec-template-modern .auth-page-wrapper,
+.ec-template-modern .collection-section,
+.ec-template-modern .order-confirm-section {
+  background: transparent !important;
+}
+
+.ec-template-modern .banner-video-wrap,
+.ec-template-modern .carousel-image,
+.ec-template-modern .image-stack::before,
+.ec-template-modern .image-stack::after,
+.ec-template-modern .album-card img,
+.ec-template-modern .ec-footer-grid,
+.ec-template-modern .product-card,
+.ec-template-modern .order-summary,
+.ec-template-modern .checkout-step-content,
+.ec-template-modern .shipping-form-container,
+.ec-template-modern .payment-form-container,
+.ec-template-modern .review-only,
+.ec-template-modern .ec-footer,
+.ec-template-modern .ec-footer-brand,
+.ec-template-modern .ec-announcement-shell,
+.ec-template-modern .event-feature-card {
+  border-radius: 24px;
+}
+
+.ec-template-modern .banner-video-wrap,
+.ec-template-modern .ec-footer,
+.ec-template-modern .ec-footer-form,
+.ec-template-modern .order-summary,
+.ec-template-modern .checkout-step-content,
+.ec-template-modern .shipping-form-container,
+.ec-template-modern .payment-form-container,
+.ec-template-modern .review-only {
+  background: color-mix(in srgb, var(--surface-color, #ffffff) 14%, rgba(8, 12, 24, 0.82) 86%) !important;
+  border: 1px solid color-mix(in srgb, var(--accent-color, #d946ef) 20%, transparent);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.24);
+}
+
+.ec-template-modern .about-title,
+.ec-template-modern .discography-title,
+.ec-template-modern .ec-announcement-title,
+.ec-template-modern #events .section-title,
+.ec-template-modern .checkout-title,
+.ec-template-modern .order-confirm-section .section-title {
+  color: var(--text-on-background, #ffffff) !important;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ec-template-modern .about-description,
+.ec-template-modern .detail-value,
+.ec-template-modern .member-name,
+.ec-template-modern .ec-announcement-date,
+.ec-template-modern .ec-announcement-item-title,
+.ec-template-modern .event-copy,
+.ec-template-modern .ec-footer-grid p,
+.ec-template-modern .ec-footer-copy {
+  color: color-mix(in srgb, var(--text-on-background, #ffffff) 82%, transparent) !important;
+}
+
+.ec-template-modern .watch-latest-btn,
+.ec-template-modern .discography-cta,
+.ec-template-modern .event-feature-link,
+.ec-template-modern .ec-footer-submit,
+.ec-template-modern .btn-primary {
+  background: linear-gradient(135deg, var(--theme-button-bg, var(--primary-color, #7c3aed)), var(--accent-color, #d946ef)) !important;
+  color: var(--theme-button-text, #ffffff) !important;
+  border: none !important;
+  box-shadow: 0 18px 36px color-mix(in srgb, var(--accent-color, #d946ef) 22%, transparent);
+}
+
+.ec-template-modern .watch-latest-btn:hover,
+.ec-template-modern .discography-cta:hover,
+.ec-template-modern .event-feature-link:hover,
+.ec-template-modern .ec-footer-submit:hover,
+.ec-template-modern .btn-primary:hover {
+  background: linear-gradient(135deg, var(--theme-button-hover-bg, var(--primary-dark, #6d28d9)), var(--accent-dark, #c026d3)) !important;
+  color: var(--theme-button-hover-text, #ffffff) !important;
+}
+
+.ec-template-modern .btn-secondary,
+.ec-template-modern .btn-link {
+  background: color-mix(in srgb, var(--surface-color, #ffffff) 12%, rgba(255, 255, 255, 0.04) 88%) !important;
+  color: var(--text-on-background, #ffffff) !important;
+  border: 1px solid color-mix(in srgb, var(--border, #d1d5db) 42%, transparent) !important;
+}
+
+.ec-template-modern .ec-footer {
+  text-align: center;
+}
+
+.ec-template-modern .ec-footer-grid {
+  justify-items: center;
+}
+
+.ec-template-modern .ec-footer-copy {
+  text-align: center;
+}
+

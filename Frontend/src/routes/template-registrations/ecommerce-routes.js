@@ -15,7 +15,7 @@ export default function registerEcommerceRoutes(app, deps) {
   app.add("/order-history", OrderHistory);
   app.add("/order-confirmation", OrderConfirmation);
 
-  app.add(/\/fanhub\/([^/]+)\/login\/?/, async function (params) {
+  app.add(/\/fanhub\/([^/]+)\/login\/?$/, async function (params) {
     const siteSlug = params?.[0];
     const root = this?.root || document.getElementById("app");
 
@@ -27,7 +27,7 @@ export default function registerEcommerceRoutes(app, deps) {
     }
   });
 
-  app.add(/\/fanhub\/([^/]+)\/signin\/?/, async function (params) {
+  app.add(/\/fanhub\/([^/]+)\/signin\/?$/, async function (params) {
     const siteSlug = params?.[0];
     const root = this?.root || document.getElementById("app");
 
@@ -39,7 +39,7 @@ export default function registerEcommerceRoutes(app, deps) {
     }
   });
 
-  app.add(/\/fanhub\/([^/]+)\/signup\/?/, async function (params) {
+  app.add(/\/fanhub\/([^/]+)\/signup\/?$/, async function (params) {
     const siteSlug = params?.[0];
     const root = this?.root || document.getElementById("app");
 
@@ -51,7 +51,19 @@ export default function registerEcommerceRoutes(app, deps) {
     }
   });
 
-  app.add(/\/fanhub\/([^/]+)\/shop\/?/, async function (params) {
+  app.add(/\/fanhub\/([^/]+)\/shop\/product\/([^/]+)\/?$/, async function (params) {
+    const siteSlug = params?.[0];
+    const root = this?.root || document.getElementById("app");
+
+    try {
+      await renderEcommerceTemplatePage({ root, siteSlug, page: "buyNowConfirm" });
+    } catch (err) {
+      console.error(err);
+      PageNotFound.call({ root });
+    }
+  });
+
+  app.add(/\/fanhub\/([^/]+)\/shop\/?$/, async function (params) {
     const siteSlug = params?.[0];
     const root = this?.root || document.getElementById("app");
 
@@ -63,7 +75,19 @@ export default function registerEcommerceRoutes(app, deps) {
     }
   });
 
-  app.add(/\/fanhub\/([^/]+)\/checkout\/?/, async function (params) {
+  app.add(/\/fanhub\/([^/]+)\/cart\/?$/, async function (params) {
+    const siteSlug = params?.[0];
+    const root = this?.root || document.getElementById("app");
+
+    try {
+      await renderEcommerceTemplatePage({ root, siteSlug, page: "cart" });
+    } catch (err) {
+      console.error(err);
+      PageNotFound.call({ root });
+    }
+  });
+
+  app.add(/\/fanhub\/([^/]+)\/checkout\/?$/, async function (params) {
     const siteSlug = params?.[0];
     const root = this?.root || document.getElementById("app");
 
@@ -75,7 +99,7 @@ export default function registerEcommerceRoutes(app, deps) {
     }
   });
 
-  app.add(/\/fanhub\/([^/]+)\/order-history\/?/, async function (params) {
+  app.add(/\/fanhub\/([^/]+)\/order-history\/?$/, async function (params) {
     const siteSlug = params?.[0];
     const root = this?.root || document.getElementById("app");
 
@@ -87,7 +111,7 @@ export default function registerEcommerceRoutes(app, deps) {
     }
   });
 
-  app.add(/\/fanhub\/([^/]+)\/order-confirmation\/?/, async function (params) {
+  app.add(/\/fanhub\/([^/]+)\/order-confirmation\/?$/, async function (params) {
     const siteSlug = params?.[0];
     const root = this?.root || document.getElementById("app");
 

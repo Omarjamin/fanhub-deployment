@@ -35,6 +35,16 @@ function normalizeHex(value) {
   return trimmed.startsWith("#") ? trimmed : `#${trimmed}`;
 }
 
+function hexToRgbChannels(value, fallback = "0 0 0") {
+  const hex = normalizeHex(value);
+  if (!hex) return fallback;
+  const normalized = hex.replace("#", "");
+  const r = parseInt(normalized.substring(0, 2), 16);
+  const g = parseInt(normalized.substring(2, 4), 16);
+  const b = parseInt(normalized.substring(4, 6), 16);
+  return `${r} ${g} ${b}`;
+}
+
 function applyButtonStyle(style, root = document.documentElement) {
   const buttonStyles = {
     rounded: { radius: "12px", border: "none", shadow: "0 6px 16px rgba(0, 0, 0, 0.18)" },
@@ -743,6 +753,19 @@ export function applyThemeColors(data) {
   root.style.setProperty("--theme-section-text", sectionBody);
   root.style.setProperty("--theme-section-muted", sectionMuted);
   root.style.setProperty("--theme-light-surface", lightSurface);
+  root.style.setProperty("--background-rgb", hexToRgbChannels(background, "248 249 251"));
+  root.style.setProperty("--foreground-rgb", hexToRgbChannels(text, "31 41 55"));
+  root.style.setProperty("--card-rgb", hexToRgbChannels(surface, "255 255 255"));
+  root.style.setProperty("--card-foreground-rgb", hexToRgbChannels(text, "31 41 55"));
+  root.style.setProperty("--primary-rgb", hexToRgbChannels(primary, "220 38 38"));
+  root.style.setProperty("--primary-foreground-rgb", hexToRgbChannels(onPrimary, "255 255 255"));
+  root.style.setProperty("--secondary-rgb", hexToRgbChannels(secondary, "17 24 39"));
+  root.style.setProperty("--secondary-foreground-rgb", hexToRgbChannels(onSecondary, "255 255 255"));
+  root.style.setProperty("--accent-rgb", hexToRgbChannels(accent, "244 114 182"));
+  root.style.setProperty("--accent-foreground-rgb", hexToRgbChannels(onAccent, "17 17 17"));
+  root.style.setProperty("--muted-rgb", hexToRgbChannels(background, "241 245 249"));
+  root.style.setProperty("--muted-foreground-rgb", hexToRgbChannels(textSecondary, "100 116 139"));
+  root.style.setProperty("--border-rgb", hexToRgbChannels(borderColor, "209 213 219"));
   applyTypographyConfig({
     ...(theme.typography || {}),
     heading: {
@@ -906,6 +929,10 @@ export async function fetchSiteBySlug(siteSlug) {
 }
 
 export async function renderCommunityTemplatePage({ root, siteSlug, page }) {
+  if (typeof root?.__modernReactCleanup === "function") {
+    root.__modernReactCleanup();
+    delete root.__modernReactCleanup;
+  }
   const siteData = await fetchSiteBySlug(siteSlug);
   const templateValue = String(
     siteData?.template ||
@@ -929,6 +956,10 @@ export async function renderCommunityTemplateRoute({
   page,
   payload,
 }) {
+  if (typeof root?.__modernReactCleanup === "function") {
+    root.__modernReactCleanup();
+    delete root.__modernReactCleanup;
+  }
   const siteData = await fetchSiteBySlug(siteSlug);
   const templateValue = String(
     siteData?.template ||
@@ -950,6 +981,10 @@ export async function renderCommunityTemplateRoute({
 }
 
 export async function renderEcommerceTemplatePage({ root, siteSlug, page, passMode = "object" }) {
+  if (typeof root?.__modernReactCleanup === "function") {
+    root.__modernReactCleanup();
+    delete root.__modernReactCleanup;
+  }
   const siteData = await fetchSiteBySlug(siteSlug);
   const templateValue = String(
     siteData?.template ||
