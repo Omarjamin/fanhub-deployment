@@ -245,9 +245,20 @@ export default function About(root, data = {}) {
 
     (async () => {
         let payload = getPayloadSource(data);
+        console.info('[About Debug] initial', {
+            siteSlug,
+            hasSiteData: Boolean(data?.siteData),
+            payloadKeys: Object.keys(payload || {}),
+            initialMembersCount: Array.isArray(payload?.members) ? payload.members.length : 0,
+        });
         const cachedPayload = getCachedSitePayload(siteSlug);
         if ((!Array.isArray(payload?.members) || !payload.members.length) && cachedPayload) {
             payload = cachedPayload;
+            console.info('[About Debug] using cached payload', {
+                siteSlug,
+                cachedKeys: Object.keys(cachedPayload || {}),
+                cachedMembersCount: Array.isArray(cachedPayload?.members) ? cachedPayload.members.length : 0,
+            });
         }
         let groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
         let membersData = normalizeMembersFromPayload(payload);
@@ -270,6 +281,14 @@ export default function About(root, data = {}) {
                     payload = res?.data?.data || {};
 
                     const fetchedMembers = normalizeMembersFromPayload(payload);
+                    console.info('[About Debug] type fetch result', {
+                        requestSlug: candidate,
+                        responseSiteId: payload?.site_id,
+                        responseDomain: payload?.domain,
+                        responseCommunityType: payload?.community_type,
+                        fetchedMembersCount: fetchedMembers.length,
+                        rawMembersCount: Array.isArray(payload?.members) ? payload.members.length : 0,
+                    });
 
                     groupInfo = buildGroupInfo(payload, fallbackGroupInfo);
 
@@ -305,6 +324,14 @@ export default function About(root, data = {}) {
 
                 if (matched) {
                     const fetchedMembers = normalizeMembersFromPayload(matched);
+                    console.info('[About Debug] list fetch matched row', {
+                        siteSlug,
+                        matchedSiteId: matched?.site_id,
+                        matchedDomain: matched?.domain,
+                        matchedCommunityType: matched?.community_type,
+                        fetchedMembersCount: fetchedMembers.length,
+                        rawMembersCount: Array.isArray(matched?.members) ? matched.members.length : 0,
+                    });
                     if (fetchedMembers.length) {
                         membersData = fetchedMembers;
                     }
@@ -313,6 +340,12 @@ export default function About(root, data = {}) {
             } catch (_) {}
         }
 
+        console.info('[About Debug] final render payload', {
+            siteSlug,
+            groupTitle: groupInfo?.title,
+            finalMembersCount: membersData.length,
+            memberNames: membersData.map((member) => member.name),
+        });
         renderAbout(root, groupInfo, membersData);
     })();
 }

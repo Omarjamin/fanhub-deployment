@@ -909,6 +909,19 @@ class GenerateModel {
           return Number(b.site?.site_id || 0) - Number(a.site?.site_id || 0);
         });
 
+        console.info('[Generate Model Debug] ranked site candidates', {
+          requestCommunityType: normalizedInput,
+          lookupVariants,
+          candidates: rankedSites.map((entry) => ({
+            site_id: entry?.site?.site_id,
+            domain: entry?.site?.domain,
+            community_type: entry?.site?.community_type,
+            memberCount: entry?.memberCount,
+            score: entry?.score,
+          })),
+          chosenSiteId: rankedSites[0]?.site?.site_id || null,
+        });
+
         site = rankedSites[0]?.site || null;
       }
 
@@ -940,10 +953,22 @@ class GenerateModel {
         }
       }
       if (Array.isArray(site?.members)) {
+        console.info('[Generate Model Debug] resolved site result', {
+          requestCommunityType: normalizedInput,
+          siteId: site?.site_id,
+          domain: site?.domain,
+          communityType: site?.community_type,
+          membersCount: Array.isArray(site?.members) ? site.members.length : 0,
+        });
         return { ...site, members: site.members };
       }
 
       const members = await this.getSiteMembersSafe(site.site_id);
+      console.info('[Generate Model Debug] fetched members after resolve', {
+        requestCommunityType: normalizedInput,
+        siteId: site?.site_id,
+        membersCount: Array.isArray(members) ? members.length : 0,
+      });
       return { ...site, members: members || [] };
     } catch (err) {
       console.warn('Get website by community_type fallback:', err?.message || err);

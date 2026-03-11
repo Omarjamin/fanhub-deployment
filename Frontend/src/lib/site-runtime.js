@@ -725,6 +725,12 @@ export async function fetchSiteBySlug(siteSlug) {
           ...(parsed.theme && typeof parsed.theme === "object" ? parsed.theme : {}),
           ...normalizeThemeData(parsed),
         };
+        console.info("[Runtime Debug] using cached site payload", {
+          requestSlug: slug,
+          resolvedSlug: parsed?.community_type || parsed?.domain || slug,
+          siteId: parsed?.site_id,
+          membersCount: Array.isArray(parsed?.members) ? parsed.members.length : 0,
+        });
         const resolvedCachedSlug = String(
           parsed?.community_type ||
           parsed?.site_slug ||
@@ -769,6 +775,13 @@ export async function fetchSiteBySlug(siteSlug) {
         const json = await res.json().catch(() => ({}));
         if (res.ok && json?.success && json?.data) {
           payload = json.data;
+          console.info("[Runtime Debug] fetched site payload", {
+            requestSlug: candidate,
+            siteId: payload?.site_id,
+            domain: payload?.domain,
+            communityType: payload?.community_type,
+            membersCount: Array.isArray(payload?.members) ? payload.members.length : 0,
+          });
           break;
         }
         lastError = new Error(json?.message || `Failed to fetch website (${res.status})`);
