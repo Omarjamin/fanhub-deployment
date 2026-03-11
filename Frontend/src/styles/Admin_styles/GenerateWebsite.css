@@ -1087,6 +1087,10 @@
   min-height: 44px;
 }
 
+.gw-section .gw-upload-inline-secondary {
+  margin-top: 10px;
+}
+
 .gw-section .gw-upload-inline input[type="file"] {
   display: none;
 }

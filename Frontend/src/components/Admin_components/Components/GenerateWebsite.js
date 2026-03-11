@@ -411,6 +411,7 @@ export default function GenerateWebsite() {
     fontUrl: '',
     customFontFile: null,
     logo: null,
+    leadImageFile: null,
     groupPhoto: null,
     leadImage: '',
     instagramUrl: '',
@@ -503,6 +504,7 @@ export default function GenerateWebsite() {
       }));
       
       if (formData.logo) submitData.append('logo', formData.logo);
+      if (formData.leadImageFile) submitData.append('leadImage', formData.leadImageFile);
       if (formData.groupPhoto) submitData.append('groupPhoto', formData.groupPhoto);
       if (formData.typography?.heading?.file) submitData.append('headingFontFile', formData.typography.heading.file);
       if (formData.typography?.body?.file) submitData.append('bodyFontFile', formData.typography.body.file);
@@ -607,6 +609,7 @@ export default function GenerateWebsite() {
       fontUrl: '',
       customFontFile: null,
       logo: null,
+      leadImageFile: null,
       groupPhoto: null,
       leadImage: '',
       instagramUrl: '',
@@ -670,9 +673,10 @@ export default function GenerateWebsite() {
             <div class="gw-form-row">
               <div class="gw-form-group">
                 <label for="logo">Upload Logo</label>
+                <small class="gw-field-hint">Purpose: shown in the site navigation/header as your community brand mark.</small>
                 <div class="gw-upload-inline">
                   <input type="file" id="logo" accept="image/*">
-                  <label for="logo" class="gw-file-action-btn gw-file-action-label" id="logoBrowseBtn">Upload Logo</label>
+                  <button type="button" class="gw-file-action-btn" id="logoBrowseBtn">Choose Logo</button>
                   <span class="gw-upload-file-name" id="logoFileLabel">No file selected</span>
                 </div>
               </div>
@@ -688,7 +692,13 @@ export default function GenerateWebsite() {
             <div class="gw-form-row">
               <div class="gw-form-group">
                 <label for="leadImage">Lead Image URL</label>
+                <small class="gw-field-hint">Purpose: used as the homepage lead/hero image behind the top section.</small>
                 <input type="url" id="leadImage" placeholder="https://...">
+                <div class="gw-upload-inline gw-upload-inline-secondary">
+                  <input type="file" id="leadImageFile" accept="image/*">
+                  <button type="button" class="gw-file-action-btn" id="leadImageBrowseBtn">Upload Lead Image</button>
+                  <span class="gw-upload-file-name" id="leadImageFileLabel">No file selected</span>
+                </div>
               </div>
             </div>
 
@@ -1614,9 +1624,19 @@ export default function GenerateWebsite() {
         logoInput.click();
       }
     };
+    const triggerLeadImagePicker = () => {
+      const leadImageInput = section.querySelector('#leadImageFile');
+      if (leadImageInput) {
+        leadImageInput.click();
+      }
+    };
 
     section.querySelector('#logoBrowseBtn')?.addEventListener('click', () => {
       triggerLogoPicker();
+    });
+
+    section.querySelector('#leadImageBrowseBtn')?.addEventListener('click', () => {
+      triggerLeadImagePicker();
     });
 
     section.querySelector('#logo')?.addEventListener('change', (e) => {
@@ -1628,6 +1648,19 @@ export default function GenerateWebsite() {
           return;
         }
         formData.logo = e.target.files[0];
+        updateFileInput(e.target);
+      }
+    });
+
+    section.querySelector('#leadImageFile')?.addEventListener('change', (e) => {
+      if (e.target.files[0]) {
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (e.target.files[0].size > maxSize) {
+          alert('Lead image file must be less than 5MB');
+          e.target.value = '';
+          return;
+        }
+        formData.leadImageFile = e.target.files[0];
         updateFileInput(e.target);
       }
     });
@@ -1683,12 +1716,22 @@ export default function GenerateWebsite() {
   };
 
   const updateFileInput = (input) => {
-    const label = input.parentElement.querySelector('.gw-file-label');
+    const inline = input.closest('.gw-upload-inline') || input.parentElement;
+    const label = inline?.querySelector('.gw-upload-file-name, .gw-file-label');
+    if (!label) return;
     if (input.files.length > 0) {
       label.textContent = input.files[0].name;
       return;
     }
-    label.textContent = input.id === 'logo' ? 'Choose file or drag here' : 'Choose group photo';
+    if (input.id === 'logo') {
+      label.textContent = 'No file selected';
+      return;
+    }
+    if (input.id === 'leadImageFile') {
+      label.textContent = 'No file selected';
+      return;
+    }
+    label.textContent = 'Choose group photo';
   };
 
   const validateForm = () => {

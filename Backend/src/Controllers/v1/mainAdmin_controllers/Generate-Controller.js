@@ -155,6 +155,7 @@ class GenerateController {
       let logoUrl = null;
       let bannerUrl = bannerLink || null;
       let groupPhotoUrl = String(groupPhoto || group_photo || '').trim() || null;
+      let leadImageUrl = String(lead_image || '').trim() || null;
       let resolvedFontUrl = fontUrl || null;
       let resolvedHeadingFontUrl = null;
       let resolvedBodyFontUrl = null;
@@ -208,6 +209,17 @@ class GenerateController {
             const groupPhotoFile = req.files.groupPhoto;
             groupPhotoUrl = await this.uploadToCloudinary(
               groupPhotoFile.tempFilePath || groupPhotoFile.path,
+              'websites'
+            );
+          }
+        }
+        if (req.files.leadImage) {
+          if (!cloudinaryReady) {
+            console.warn('[GenerateController] Cloudinary not configured. Skipping lead image upload.');
+          } else {
+            const leadImageFile = req.files.leadImage;
+            leadImageUrl = await this.uploadToCloudinary(
+              leadImageFile.tempFilePath || leadImageFile.path,
               'websites'
             );
           }
@@ -369,7 +381,7 @@ class GenerateController {
         logo: logoUrl,
         banner: bannerUrl,
         group_photo: groupPhotoUrl,
-        lead_image,
+        lead_image: leadImageUrl,
         instagram_url,
         facebook_url,
         tiktok_url,
