@@ -35,9 +35,12 @@ export function getModernResolvedSite() {
         site.community_description ||
         "",
     ),
-    logo: toAbsoluteModernMediaUrl(site.logo || site.site_logo || site.group_photo || "", ""),
+    logo: toAbsoluteModernMediaUrl(
+      site.logo || site.logo_url || site.site_logo || site.siteLogo || "",
+      "",
+    ),
     leadImage: toAbsoluteModernMediaUrl(
-      site.lead_image || site.banner || site.group_photo || site.hero_image || "",
+      site.lead_image || site.hero_image || site.banner || site.group_photo || "",
       "",
     ),
     groupPhoto: toAbsoluteModernMediaUrl(site.group_photo || "", ""),

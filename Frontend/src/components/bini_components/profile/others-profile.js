@@ -474,11 +474,8 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
         const postId = button.getAttribute("data-post-id");
         try {
           await repost(postId, token);
-          // Optionally show a success message
-          alert("Reposted successfully!");
         } catch (error) {
           console.error("Repost failed:", error);
-          alert("Failed to repost: " + error.message);
         }
       });
     });

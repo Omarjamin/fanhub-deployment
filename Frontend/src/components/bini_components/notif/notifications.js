@@ -302,9 +302,7 @@ async function showPostModal(post, token) {
       const postId = button.getAttribute("data-post-id");
       try {
         await repost(postId, token);
-        showToast("Post reposted successfully!", "success");
       } catch (error) {
-        showToast("Repost failed: " + error.message, "error");
       }
     });
   });

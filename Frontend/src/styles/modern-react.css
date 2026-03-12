@@ -58,6 +58,10 @@
   .modern-react-root .container,
   [data-react-root="modern"] .container {
     width: min(1200px, calc(100% - 2rem));
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
   }
 
   .modern-react-root .text-gradient,

@@ -15,6 +15,7 @@ import { buildPostMenuHtml, bindPostMenuActions } from '../post/post-menu.js';
 import { renderThreadsSidebar } from '../threadsSidebar.js';
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from '../../../lib/site-context.js';
 import { formatUserTimestamp } from '../../../utils/user-time.js';
+import { showToast } from '../../../utils/toast.js';
 let isLoading = false;
 
 function resolveCommunityType(dataCommunityType = '') {
@@ -529,7 +530,7 @@ function attachPostActions(feed, token, scope = null, communityType = '') {
         
         if (hasReposted) {
           setRepostButtonState(button, true);
-          alert('You have already reposted this post.');
+          showToast('You have already reposted this post.', 'info');
           return;
         }
         
@@ -542,16 +543,11 @@ function attachPostActions(feed, token, scope = null, communityType = '') {
         // Lock repost action after successful repost
         setRepostButtonState(button, true);
         
-        alert('Post reposted successfully!');
-        
       } catch (error) {
         console.error('Repost failed:', error);
         const message = error?.response?.data?.error || error.message;
         if (String(message).toLowerCase().includes('already reposted')) {
           setRepostButtonState(button, true);
-          alert('You have already reposted this post.');
-        } else {
-          alert("Failed to repost: " + message);
         }
       }
     });
