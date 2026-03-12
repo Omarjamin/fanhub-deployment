@@ -1,5 +1,6 @@
 import '../../../styles/Admin_styles/Reports.css';
 import { getAdminHeaders } from './admin-sites.js';
+import { formatAdminDate, formatAdminDateTime } from './admin-date.js';
 import { showToast } from '../../../utils/toast.js';
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1').trim().replace(/\/$/, '');
@@ -865,26 +866,11 @@ async function handlePostDelete(postId, community = '') {
 }
 
 function formatDate(dateString) {
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    year: '2-digit',
-    month: 'numeric',
-    day: 'numeric'
-  });
+  return formatAdminDate(dateString, 'N/A');
 }
 
 function formatDateTime(dateString) {
-  if (!dateString) return 'N/A';
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) return 'N/A';
-  return date.toLocaleString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
+  return formatAdminDateTime(dateString, 'N/A');
 }
 
 function showLoading(show) {

@@ -1,4 +1,5 @@
 import '../../../styles/Admin_styles/Payments.css';
+import { formatAdminDate } from './admin-date.js';
 
 export default function createPayments() {
   const section = document.createElement('section');
@@ -75,7 +76,7 @@ export default function createPayments() {
             ${p.status}
           </span>
         </td>
-        <td>${p.date}</td>
+        <td>${formatAdminDate(p.date, p.date)}</td>
         <td>
           <button class="btn-icon" title="View">👁️</button>
           <button class="btn-icon" title="Refund">↩️</button>

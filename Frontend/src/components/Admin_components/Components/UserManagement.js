@@ -1,4 +1,5 @@
 import '../../../styles/Admin_styles/UserManagement.css';
+import { formatAdminDate } from './admin-date.js';
 
 export default function Users() {
   const section = document.createElement('section');
@@ -69,7 +70,7 @@ export default function Users() {
             ${user.status}
           </span>
         </td>
-        <td>${user.date}</td>
+        <td>${formatAdminDate(user.date, user.date)}</td>
         <td>
           <button class="btn-icon">✏️</button>
           <button class="btn-icon">👁️</button>

@@ -6,6 +6,7 @@ import {
   resolveAdminEndpointUrls,
   resolveAdminSiteFromPath,
 } from './admin-sites.js';
+import { formatAdminDate, formatAdminDateInput, formatAdminDateTime } from './admin-date.js';
 import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
 // import { adminApi } from '../../../services/admin_services/auth.js';
 
@@ -16,7 +17,7 @@ export default function createOrders() {
 
   const section = document.createElement('section');
   section.id = 'orders';
-  section.className = 'conten t-section active';
+  section.className = 'content-section active';
 
   section.innerHTML = `
     <div class="section-header">
@@ -145,6 +146,17 @@ export default function createOrders() {
   let editingOrderId = null;
   let deletingOrderId = null;
 
+  function safeParseShippingAddress(value) {
+    if (!value) return {};
+    if (typeof value === 'object') return value;
+
+    try {
+      return JSON.parse(value);
+    } catch (_) {
+      return {};
+    }
+  }
+
   function findOrder(orderId) {
     return orders.find(order => String(order.orderId) === String(orderId));
   }
@@ -154,13 +166,13 @@ export default function createOrders() {
     if (!tbody) return;
 
     tbody.innerHTML = orders.map(order => `
-      <tr data-order-id="${order.orderId}">
+      <tr data-order-id="${order.orderId}" data-status="${order.status}" data-date-key="${order.dateKey}">
         <td>${order.orderId}</td>
         <td>${order.customerName}</td>
         <td>${order.itemsCount} items</td>
         <td>${order.totalDisplay}</td>
         <td><span class="badge badge-${order.status}">${order.status}</span></td>
-        <td>${order.date}</td>
+        <td>${order.dateDisplay}</td>
         <td>
           <button class="btn-icon" title="View" type="button" data-action="view">&#128065;</button>
           <button class="btn-icon" title="Edit" type="button" data-action="edit">&#9998;</button>
@@ -175,10 +187,10 @@ export default function createOrders() {
     const date = section.querySelector('#orderDateFilter').value;
 
     section.querySelectorAll('#ordersTableBody tr').forEach(row => {
-      const rowStatus = row.cells[3].textContent.toLowerCase();
-      const rowDate = row.cells[4].textContent;
+      const rowStatus = String(row.dataset.status || '').toLowerCase();
+      const rowDate = String(row.dataset.dateKey || '');
 
-      const matchStatus = !status || rowStatus.includes(status);
+      const matchStatus = !status || rowStatus === status;
       const matchDate = !date || rowDate === date;
 
       row.style.display = matchStatus && matchDate ? '' : 'none';
@@ -235,8 +247,11 @@ export default function createOrders() {
           total: totalNum,
           totalDisplay: `PHP ${totalNum.toLocaleString()}`,
           status: statusRaw,
-          date: row.created_at ? String(row.created_at).split(' ')[0] : '',
-          shippingAddress: row.shipping_address ? JSON.parse(row.shipping_address) : {},
+          createdAt: row.created_at || '',
+          dateKey: formatAdminDateInput(row.created_at),
+          dateDisplay: formatAdminDate(row.created_at, 'N/A'),
+          dateDisplayLong: formatAdminDateTime(row.created_at, 'N/A'),
+          shippingAddress: safeParseShippingAddress(row.shipping_address),
         };
       });
 
@@ -293,9 +308,12 @@ export default function createOrders() {
         order.total = Number(updated.total || 0);
         order.totalDisplay = `PHP ${order.total.toLocaleString()}`;
       }
-      order.date = updated.created_at
-        ? String(updated.created_at).split(' ')[0]
-        : order.date;
+      if (updated.created_at) {
+        order.createdAt = updated.created_at;
+        order.dateKey = formatAdminDateInput(updated.created_at);
+        order.dateDisplay = formatAdminDate(updated.created_at, order.dateDisplay);
+        order.dateDisplayLong = formatAdminDateTime(updated.created_at, order.dateDisplayLong);
+      }
     } catch (error) {
       console.error('Error updating order status:', error);
       throw error;
@@ -321,7 +339,7 @@ export default function createOrders() {
       section.querySelector('#viewEmail').textContent = order.customerEmail || 'N/A';
       section.querySelector('#viewPayment').textContent = order.paymentMethod;
       section.querySelector('#viewStatus').innerHTML = `<span class="badge badge-${order.status}">${order.status}</span>`;
-      section.querySelector('#viewDate').textContent = order.date;
+      section.querySelector('#viewDate').textContent = order.dateDisplayLong;
 
       // Populate order items
       const itemsContainer = section.querySelector('#viewOrderItems');

@@ -1,5 +1,11 @@
 import { getAdminHeaders } from './admin-sites.js';
 import { fetchAdminSites, resolveAdminSiteFromPath } from './admin-sites.js';
+import {
+  formatAdminDate,
+  formatAdminDateInput,
+  formatAdminDateTime,
+  formatAdminRelativeTime,
+} from './admin-date.js';
 
 export default function Threads() {
   const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
@@ -135,47 +141,19 @@ export default function Threads() {
   }
 
   function formatDate(dateString) {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    return formatAdminDate(dateString, 'N/A');
   }
 
   function formatDateInput(dateString) {
-    if (!dateString) return '';
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return '';
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
+    return formatAdminDateInput(dateString);
   }
 
   function formatDateTime(dateString) {
-    if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return 'N/A';
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
+    return formatAdminDateTime(dateString, 'N/A');
   }
 
   function formatRelativeTime(dateString) {
-    if (!dateString) return 'just now';
-    const date = new Date(dateString);
-    if (Number.isNaN(date.getTime())) return 'just now';
-    const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (seconds < 60) return 'just now';
-    const minutes = Math.floor(seconds / 60);
-    if (minutes < 60) return `${minutes} minute${minutes > 1 ? 's' : ''} ago`;
-    const hours = Math.floor(minutes / 60);
-    if (hours < 24) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
-    const days = Math.floor(hours / 24);
-    return `${days} day${days > 1 ? 's' : ''} ago`;
+    return formatAdminRelativeTime(dateString, 'just now');
   }
 
   function getInitials(name) {

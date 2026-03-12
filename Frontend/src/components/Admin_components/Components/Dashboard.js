@@ -5,6 +5,7 @@ import {
   getAdminToken,
   resolveAdminSiteFromPath,
 } from './admin-sites.js';
+import { formatAdminDate, formatAdminTime } from './admin-date.js';
 
 const DASHBOARD_DEBUG = true;
 
@@ -50,6 +51,19 @@ export default function Dashboard() {
 
   function getAdminRequestOptions() {
     return { headers: getAdminHeaders() };
+  }
+
+  function formatRevenueRowDate(value) {
+    const raw = String(value || '').trim();
+    return formatAdminDate(raw, raw || '-');
+  }
+
+  function formatRevenueRowTime(dateValue, timeValue) {
+    const rawTime = String(timeValue || '').trim();
+    if (!rawTime || rawTime === '-') return '-';
+
+    const combinedValue = dateValue ? `${dateValue} ${rawTime}` : rawTime;
+    return formatAdminTime(combinedValue, rawTime);
   }
 
   // -----------------------------
@@ -149,8 +163,8 @@ export default function Dashboard() {
       revenueData[communityKey] = Array.isArray(data)
         ? data.map((row) => ({
             orderId: row.order_id ? `#${row.order_id}` : '-',
-            date: row.date,
-            time: row.time || '-',
+            date: formatRevenueRowDate(row.date),
+            time: formatRevenueRowTime(row.date, row.time || '-'),
             revenue: Number(row.revenue ?? row.total_amount ?? 0),
           }))
         : [];
