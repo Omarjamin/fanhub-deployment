@@ -430,6 +430,41 @@ class GenerateController {
     }
   }
 
+  async getPublicGeneratedWebsites(req, res) {
+    try {
+      const websites = await this.model.getGeneratedWebsites();
+      const rows = (Array.isArray(websites) ? websites : [])
+        .filter((site) => String(site?.status || 'active').trim().toLowerCase() !== 'inactive')
+        .map((site) => ({
+          id: Number(site?.id || site?.site_id || 0) || null,
+          site_name: String(site?.site_name || site?.name || '').trim(),
+          domain: String(site?.domain || site?.community_type || '').trim().toLowerCase(),
+          status: String(site?.status || 'active').trim().toLowerCase(),
+          description: String(site?.description || site?.short_bio || '').trim(),
+          short_bio: String(site?.short_bio || site?.description || '').trim(),
+          group_photo: String(site?.group_photo || '').trim(),
+          lead_image: String(site?.lead_image || '').trim(),
+          banner: String(site?.banner || '').trim(),
+          logo: String(site?.logo || '').trim(),
+        }))
+        .filter((site) => site.domain);
+
+      res.status(200).json({
+        success: true,
+        message: 'Public websites fetched successfully',
+        data: rows,
+        total: rows.length,
+      });
+    } catch (err) {
+      console.error('GetPublicGeneratedWebsites error:', err);
+      res.status(500).json({
+        success: false,
+        message: 'Failed to fetch public websites',
+        error: err.message,
+      });
+    }
+  }
+
   // GET /community-selections
   async getCommunitySelections(req, res) {
     try {

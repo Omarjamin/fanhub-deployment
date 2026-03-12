@@ -3,6 +3,7 @@ import '../../../styles/Admin_styles/Admin-landing_page.css';
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1').trim().replace(/\/$/, '');
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 const ADMIN_PENDING_SUGGESTIONS_KEY = 'admin_pending_suggestions_v1';
+const FALLBACK_TEMPLATE_IMAGE = '/bann.gif';
 
 
 
@@ -219,6 +220,7 @@ export default function AdminLandingPage() {
     <footer class="footer">
       <div class="footer-container">
         <div class="footer-bottom">
+          <a href="/subadmin/login" class="admin-login-link">Admin Login</a>
           <p>&copy; 2026 FanHub. Educational purposes only.</p>
         </div>
       </div>
@@ -313,6 +315,19 @@ export default function AdminLandingPage() {
         }
       }
     });
+  };
+
+  const getSiteCardImage = (site) => String(
+    site?.group_photo ||
+    site?.lead_image ||
+    site?.banner ||
+    site?.logo ||
+    FALLBACK_TEMPLATE_IMAGE
+  ).trim();
+
+  const getSiteCardDescription = (site) => {
+    const description = String(site?.short_bio || site?.description || '').trim();
+    return description || 'Community site for updates, fan engagement, and featured content.';
   };
 
   // Initialize event listeners
@@ -475,34 +490,58 @@ export default function AdminLandingPage() {
   }
 
   // Render templates
-  const renderTemplates = () => {
+  const renderTemplates = async () => {
     const templatesGrid = section.querySelector('#templatesGrid');
     if (!templatesGrid) return;
 
-    const templates = [
-      { name: 'bini', badge: 'BN', desc: 'Community site for updates, fan engagement, and shop access.' },
-    ];
+    templatesGrid.innerHTML = '<p class="template-loading">Loading community sites...</p>';
 
-    templatesGrid.innerHTML = templates.map(template => `
-      <div class="template-card">
-        <h3 class="feature-title">${template.name}</h3>
-        <p class="feature-description">${template.desc}</p>
-        <div style="margin-top:1.25rem;">
-          <button class="btn btn-primary btn-full use-template" data-url="/fanhub/${encodeURIComponent(String(template.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, ''))}">Open Site</button>
-        </div>
-      </div>
-    `).join('');
-
-    // Add event listeners for template buttons
-    const templateButtons = section.querySelectorAll('.use-template');
-    templateButtons.forEach(btn => {
-      btn.addEventListener('click', () => {
-        const targetUrl = btn.getAttribute('data-url');
-        if (targetUrl) {
-          window.location.href = targetUrl;
-        }
+    try {
+      const res = await fetch(`${API_BASE}/admin/generate/generated-websites-public`, {
+        method: 'GET',
+        headers: {
+          apikey: API_KEY,
+        },
       });
-    });
+      const payload = await res.json().catch(() => ({}));
+      if (!res.ok || payload?.success === false) {
+        throw new Error(payload?.message || `HTTP ${res.status}`);
+      }
+
+      const templates = (Array.isArray(payload?.data) ? payload.data : [])
+        .filter((site) => String(site?.domain || '').trim());
+
+      if (!templates.length) {
+        templatesGrid.innerHTML = '<p class="template-loading">No generated community sites available yet.</p>';
+        return;
+      }
+
+      templatesGrid.innerHTML = templates.map((template) => {
+        const slug = encodeURIComponent(String(template.domain || '').trim().toLowerCase());
+        const targetUrl = `/fanhub/${slug}`;
+        const displayName = String(template.site_name || template.domain || 'Community').trim();
+        const coverImage = getSiteCardImage(template);
+        const description = getSiteCardDescription(template);
+
+        return `
+          <article class="template-card site-card">
+            <div class="template-media">
+              <img src="${coverImage}" alt="${displayName}">
+            </div>
+            <div class="template-body">
+              <h3 class="feature-title template-title">${displayName}</h3>
+              <p class="feature-description template-description">${description}</p>
+            </div>
+            <div class="template-actions">
+              <a class="btn btn-primary btn-full use-template" href="${targetUrl}">Open Site</a>
+            </div>
+          </article>
+        `;
+      }).join('');
+    } catch (error) {
+      templatesGrid.innerHTML = '<p class="template-loading">Failed to load community sites.</p>';
+      showToast(error?.message || 'Failed to load community sites.', 'error');
+    }
   }
 
   const renderWorkflow = () => {

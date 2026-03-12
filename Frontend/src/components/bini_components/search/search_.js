@@ -1,10 +1,10 @@
 import fetchSuggestedFollowers from '../../../services/bini_services/post/fetchSuggestedFollowers.js';
+import { fetchrandomposts } from '../../../services/bini_services/post/fetchrandompost.js';
 import fetchSearchAll from '../../../services/bini_services/search/fetchSearch.js';
 import { fetchHashtagPosts } from '../../../services/bini_services/search/fetchSearch.js';
 import { fetchPostsByQuery } from '../../../services/bini_services/search/fetchSearch.js';
 import follow from '../../../services/bini_services/post/fetchFollow.js';
 import { renderThreadsSidebar } from '../threadsSidebar.js';
-import api from '../../../services/bini_services/api.js';
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from '../../../lib/site-context.js';
 import { showToast } from '../../../utils/toast.js';
 
@@ -258,10 +258,10 @@ export default async function Search_(root, data = {}) {
     const target = raw.startsWith('#') ? raw.toLowerCase() : `#${raw.toLowerCase()}`;
     const targetWithoutHash = target.replace(/^#/, '');
     try {
-      const response = await api.get('/bini/posts/getrandomposts', { params: { limit: 100, offset: 0 } });
-      const posts = Array.isArray(response.data)
-        ? response.data
-        : (response.data?.posts || response.data?.data || []);
+      const response = await fetchrandomposts(token, 100, 0, communityType);
+      const posts = Array.isArray(response)
+        ? response
+        : (response?.posts || response?.data || []);
       return posts.filter((post) => {
         const tags = Array.isArray(post.tags)
           ? post.tags
@@ -280,10 +280,10 @@ export default async function Search_(root, data = {}) {
     const query = String(searchQuery || '').trim().toLowerCase();
     if (!query) return [];
     try {
-      const response = await api.get('/bini/posts/getrandomposts', { params: { limit: 120, offset: 0 } });
-      const posts = Array.isArray(response.data)
-        ? response.data
-        : (response.data?.posts || response.data?.data || []);
+      const response = await fetchrandomposts(token, 120, 0, communityType);
+      const posts = Array.isArray(response)
+        ? response
+        : (response?.posts || response?.data || []);
       return posts.filter((post) => {
         const content = String(post.content || '').toLowerCase();
         const tags = Array.isArray(post.tags)

@@ -16,10 +16,25 @@ api.interceptors.request.use((config) => {
   const siteSlug = getActiveSiteSlug();
   const token = getSessionToken(siteSlug);
   console.log("API Request - scoped token:", Boolean(token), "site:", siteSlug);
+  const scopedHeaders = getSiteHeaders(siteSlug);
+  const existingSiteSlug = String(
+    config.headers?.["x-site-slug"] || config.headers?.["X-Site-Slug"] || "",
+  ).trim();
+  const existingCommunityType = String(
+    config.headers?.["x-community-type"] || config.headers?.["X-Community-Type"] || "",
+  ).trim();
+  const existingAuthorization = String(
+    config.headers?.Authorization || config.headers?.authorization || "",
+  ).trim();
 
-  Object.assign(config.headers, getSiteHeaders(siteSlug));
+  if (!existingSiteSlug && scopedHeaders["x-site-slug"]) {
+    config.headers["x-site-slug"] = scopedHeaders["x-site-slug"];
+  }
+  if (!existingCommunityType && scopedHeaders["x-community-type"]) {
+    config.headers["x-community-type"] = scopedHeaders["x-community-type"];
+  }
 
-  if (token) {
+  if (token && !existingAuthorization) {
     config.headers.Authorization = `Bearer ${token}`;
   }
 

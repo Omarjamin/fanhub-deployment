@@ -591,28 +591,33 @@ export default class MessagingModal {
         filteredUsers = users;
       }
 
-      // Fetch latest message previews
-      const previewRes = await api.get("/bini/message/preview");
-      const previews = previewRes.data;
+      // Fetch latest message previews, but do not fail the whole modal if previews break.
+      try {
+        const previewRes = await api.get("/bini/message/preview");
+        const previews = Array.isArray(previewRes?.data) ? previewRes.data : [];
 
-      console.log("PREVIEWS", previews);
+        console.log("PREVIEWS", previews);
 
-      // Map previews by user_id
-      const previewMap = {};
-      previews.forEach((p) => {
-        previewMap[p.user_id] = p;
-      });
+        // Map previews by user_id
+        const previewMap = {};
+        previews.forEach((p) => {
+          if (!p?.user_id) return;
+          previewMap[p.user_id] = p;
+        });
 
-      // Merge preview messages into user list
-      filteredUsers.forEach((u) => {
-        const preview = previewMap[u.user_id];
-        if (preview) {
-          u.last_message = preview.last_message;
-          u.sender_id = preview.sender_id;
-          u.last_message_time = preview.created_at;
-          u.unread_count = preview.unread_count;
-        }
-      });
+        // Merge preview messages into user list
+        filteredUsers.forEach((u) => {
+          const preview = previewMap[u.user_id];
+          if (preview) {
+            u.last_message = preview.last_message;
+            u.sender_id = preview.sender_id;
+            u.last_message_time = preview.created_at;
+            u.unread_count = preview.unread_count;
+          }
+        });
+      } catch (previewError) {
+        console.error("Error fetching message previews:", previewError);
+      }
 
       // Sort users: messages first by latest time, then users without messages
       filteredUsers.sort((a, b) => {

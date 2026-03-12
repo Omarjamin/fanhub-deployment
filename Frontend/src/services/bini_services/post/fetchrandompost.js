@@ -33,30 +33,63 @@ function getCommunityTypeFromPath() {
   return '';
 }
 
-export async function fetchrandomposts(token, limit = 7, offset = 0, passedCommunityType = '') {
-  try {
-    const communityType =
-      String(passedCommunityType || '').trim().toLowerCase() || getCommunityTypeFromPath();
-    const activeSite = getActiveSiteSlug(communityType) || communityType;
-    if (!activeSite) throw new Error('community/site scope is required');
-    setActiveSiteSlug(activeSite);
-    const authToken = token || getSessionToken(activeSite);
+function getCommunityCandidates(siteSlug = '') {
+  const normalized = String(siteSlug || '').trim().toLowerCase();
+  const candidates = new Set();
 
-    const response = await api.get(`/bini/posts/getrandomposts?limit=${limit}&offset=${offset}`, {
-      headers: {
-        ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
-        'x-community-type': activeSite,
-        'x-site-slug': activeSite,
-      },
-    });
-    const responseData = response.data || {};
-    console.log('Response from API:', responseData);
+  if (!normalized) return [];
 
-    return responseData || []; // Adjust based on the actual structure returned by the API
-  } catch (error) {
-    console.error('Error in fetchrandomposts:', error);
-    throw error;
+  candidates.add(normalized);
+
+  const withoutWebsite = normalized.replace(/-website$/i, '');
+  if (withoutWebsite) {
+    candidates.add(withoutWebsite);
   }
+
+  if (!normalized.endsWith('-website')) {
+    candidates.add(`${normalized}-website`);
+  }
+
+  return Array.from(candidates).filter(Boolean);
+}
+
+export async function fetchrandomposts(token, limit = 7, offset = 0, passedCommunityType = '') {
+  const communityType =
+    String(passedCommunityType || '').trim().toLowerCase() || getCommunityTypeFromPath();
+  const activeSite = getActiveSiteSlug(communityType) || communityType;
+
+  if (!activeSite) {
+    throw new Error('community/site scope is required');
+  }
+
+  setActiveSiteSlug(activeSite);
+  const authToken = token || getSessionToken(activeSite);
+  const siteCandidates = getCommunityCandidates(activeSite);
+  let lastError = null;
+
+  for (const candidate of siteCandidates) {
+    try {
+      const response = await api.get(`/bini/posts/getrandomposts?limit=${limit}&offset=${offset}`, {
+        headers: {
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          'x-community-type': candidate,
+          'x-site-slug': candidate,
+        },
+      });
+      const responseData = response.data || {};
+      console.log('Response from API:', responseData, 'site:', candidate);
+      if (candidate !== activeSite) {
+        setActiveSiteSlug(candidate);
+      }
+      return responseData || [];
+    } catch (error) {
+      lastError = error;
+      console.warn('fetchrandomposts retry candidate failed:', candidate, error?.message || error);
+    }
+  }
+
+  console.error('Error in fetchrandomposts:', lastError);
+  throw lastError || new Error('Failed to fetch random posts');
 }
 
 

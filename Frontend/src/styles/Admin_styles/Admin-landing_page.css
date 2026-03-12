@@ -583,6 +583,21 @@ a:hover { color: var(--primary); }
   color: #ffffff;
 }
 
+#admin-landing .section-header .section-title,
+#admin-landing .form-header .form-title,
+#admin-landing .form-header .form-subtitle,
+#admin-landing .features .section-title,
+#admin-landing .templates-section .section-title,
+#admin-landing .success .section-title {
+  color: #ffffff !important;
+}
+
+#admin-landing .features .section-subtitle,
+#admin-landing .templates-section .section-subtitle,
+#admin-landing .success .section-subtitle {
+  color: #d8d2e0 !important;
+}
+
 .feature-icon {
   color: #ff6aa7;
 }
@@ -746,6 +761,52 @@ a:hover { color: var(--primary); }
   box-shadow: 0 10px 26px rgb(0 0 0 / 40%);
 }
 
+.template-loading {
+  width: 100%;
+  text-align: center;
+  color: #d8d2e0;
+  padding: 1.5rem 0;
+}
+
+.templates-grid .site-card {
+  padding: 0;
+  overflow: hidden;
+  align-items: stretch;
+}
+
+.template-media {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: #100e14;
+  overflow: hidden;
+}
+
+.template-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.template-body {
+  width: 100%;
+  padding: 1rem 1rem 0.75rem;
+}
+
+.template-title {
+  color: #ffffff;
+  margin-bottom: 0.5rem;
+}
+
+.template-description {
+  color: #c9c3d6;
+}
+
+.template-actions {
+  width: 100%;
+  padding: 0 1rem 1rem;
+}
+
 @media (width >= 1024px) {
   .templates-grid .template-card:only-child {
     grid-column: 2;
@@ -808,11 +869,38 @@ a:hover { color: var(--primary); }
 .footer-bottom {
   padding-top: 1rem;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
 }
 
 .footer-bottom p {
   font-size: 0.85rem;
   color: var(--muted-foreground);
+}
+
+.admin-login-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.6rem;
+  padding: 0.7rem 1.15rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #ffffff !important;
+  font-size: 0.88rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.admin-login-link:hover {
+  background: rgba(255, 75, 141, 0.14);
+  border-color: rgba(255, 75, 141, 0.36);
+  color: #ffffff !important;
+  transform: translateY(-1px);
 }
 
 /* =========================================================

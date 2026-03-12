@@ -34,6 +34,31 @@ function normalizeSiteKey(value) {
   return String(pathMatch?.[1] || raw).trim().toLowerCase();
 }
 
+function getSiteLookupCandidates(value) {
+  const normalized = normalizeSiteKey(value);
+  const candidates = new Set();
+
+  if (!normalized) return [];
+
+  candidates.add(normalized);
+
+  const withoutWebsite = normalized.replace(/-website$/i, "");
+  if (withoutWebsite) {
+    candidates.add(withoutWebsite);
+  }
+
+  if (!normalized.endsWith("-website")) {
+    candidates.add(`${normalized}-website`);
+  }
+
+  const compact = normalized.replace(/[^a-z0-9_]/gi, "");
+  if (compact) {
+    candidates.add(compact);
+  }
+
+  return [...candidates].filter(Boolean);
+}
+
 function guessDbNamesFromSite(site = {}, lookupKey = "") {
   const siteName = normalizeSiteKey(site.site_name || "");
   const domain = normalizeSiteKey(site.domain || "");
@@ -255,25 +280,36 @@ async function resolveSiteDatabaseConfig(domainOrSiteRaw) {
 }
 
 async function resolveSiteNameByDomain(domainOrPathRaw) {
-  const domain = normalizeSiteKey(domainOrPathRaw);
+  const candidates = getSiteLookupCandidates(domainOrPathRaw);
+  const domain = candidates[0] || "";
   if (!domain) return "";
-  if (siteNameByDomainCache[domain]) return siteNameByDomainCache[domain];
+
+  for (const candidate of candidates) {
+    if (siteNameByDomainCache[candidate]) return siteNameByDomainCache[candidate];
+  }
 
   try {
     const adminPool = pools["admin"];
     if (!adminPool) return "";
 
+    const placeholders = candidates.map(() => "LOWER(TRIM(?))").join(", ");
     const siteQuery = `
-      SELECT s.site_name
+      SELECT s.site_name, s.domain
       FROM sites s
-      WHERE LOWER(TRIM(s.domain)) = LOWER(TRIM(?))
+      WHERE LOWER(TRIM(s.domain)) IN (${placeholders})
       ORDER BY s.created_at DESC
       LIMIT 1
     `;
-    const [rows] = await adminPool.query(siteQuery, [domain]);
+    const [rows] = await adminPool.query(siteQuery, candidates);
     const siteName = String(rows?.[0]?.site_name || "").trim().toLowerCase();
     if (siteName) {
-      siteNameByDomainCache[domain] = siteName;
+      candidates.forEach((candidate) => {
+        siteNameByDomainCache[candidate] = siteName;
+      });
+      const resolvedDomain = normalizeSiteKey(rows?.[0]?.domain || "");
+      if (resolvedDomain) {
+        siteNameByDomainCache[resolvedDomain] = siteName;
+      }
       return siteName;
     }
   } catch (error) {
@@ -283,7 +319,8 @@ async function resolveSiteNameByDomain(domainOrPathRaw) {
 }
 
 async function resolveCommunityContext(siteKeyRaw) {
-  const key = normalizeSiteKey(siteKeyRaw);
+  const candidates = getSiteLookupCandidates(siteKeyRaw);
+  const key = candidates[0] || "";
   if (!key) return null;
 
   const adminPool = pools["admin"];
@@ -298,14 +335,15 @@ async function resolveCommunityContext(siteKeyRaw) {
     }
 
     const hasCommunityType = adminSiteColumnsCache.has("community_type");
+    const placeholders = candidates.map(() => "LOWER(TRIM(?))").join(", ");
     const whereParts = [
-      "LOWER(TRIM(s.domain)) = LOWER(TRIM(?))",
-      "LOWER(TRIM(s.site_name)) = LOWER(TRIM(?))",
+      `LOWER(TRIM(s.domain)) IN (${placeholders})`,
+      `LOWER(TRIM(s.site_name)) IN (${placeholders})`,
     ];
-    const params = [key, key];
+    const params = [...candidates, ...candidates];
     if (hasCommunityType) {
-      whereParts.push("LOWER(TRIM(s.community_type)) = LOWER(TRIM(?))");
-      params.push(key);
+      whereParts.push(`LOWER(TRIM(s.community_type)) IN (${placeholders})`);
+      params.push(...candidates);
     }
 
     const [rows] = await adminPool.query(
