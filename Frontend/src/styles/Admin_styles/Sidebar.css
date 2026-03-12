@@ -53,19 +53,50 @@ body:has(.admin-sidebar) .admin-sidebar {
 }
 
 body:has(.admin-sidebar) .sidebar-header {
-  padding: 20px 18px 16px;
+  position: relative;
+  padding: 18px 18px 16px;
   border-bottom: 1px solid #e2e8f0;
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
+  background:
+    linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+  box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.12);
+}
+
+body:has(.admin-sidebar) .sidebar-brand {
+  width: auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  text-align: center;
+}
+
+body:has(.admin-sidebar) .sidebar-logo {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  box-shadow: none;
+}
+
+body:has(.admin-sidebar) .sidebar-logo svg {
+  width: 16px;
+  height: 16px;
 }
 
 body:has(.admin-sidebar) .sidebar-title {
   margin: 0;
   color: #0f172a;
-  font-size: 1.08rem;
+  font-size: 1.5rem;
   font-weight: 700;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  text-align: center;
 }
 
 body:has(.admin-sidebar) .sidebar-toggle {
@@ -75,6 +106,9 @@ body:has(.admin-sidebar) .sidebar-toggle {
   color: #334155;
   font-size: 1.2rem;
   cursor: pointer;
+  position: absolute;
+  top: 20px;
+  right: 16px;
 }
 
 body:has(.admin-sidebar) .sidebar-nav {

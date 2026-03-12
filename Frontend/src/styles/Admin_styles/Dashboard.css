@@ -104,6 +104,41 @@ body:has(#dashboard) #communitySelect:focus {
   flex-shrink: 0;
 }
 
+.stat-icon svg {
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.85;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.stat-card--revenue .stat-icon {
+  color: #0f766e;
+  background: linear-gradient(145deg, rgba(15, 118, 110, 0.16), rgba(20, 184, 166, 0.1));
+}
+
+.stat-card--orders .stat-icon {
+  color: #1d4ed8;
+  background: linear-gradient(145deg, rgba(29, 78, 216, 0.16), rgba(96, 165, 250, 0.1));
+}
+
+.stat-card--posts .stat-icon {
+  color: #7c3aed;
+  background: linear-gradient(145deg, rgba(124, 58, 237, 0.16), rgba(196, 181, 253, 0.14));
+}
+
+.stat-card--stock .stat-icon {
+  color: #b45309;
+  background: linear-gradient(145deg, rgba(245, 158, 11, 0.18), rgba(251, 191, 36, 0.1));
+}
+
+.stat-card--today .stat-icon {
+  color: #be185d;
+  background: linear-gradient(145deg, rgba(236, 72, 153, 0.18), rgba(244, 114, 182, 0.12));
+}
+
 .stat-info h3 {
   margin: 0 0 5px;
   font-size: 0.78rem;

@@ -1220,6 +1220,17 @@ class GenerateModel {
       accent_color,
       button_style,
       font_style,
+      font_type,
+      font_name,
+      font_url,
+      font_heading,
+      font_body,
+      font_size_base,
+      line_height,
+      letter_spacing,
+      typography,
+      palette,
+      theme,
       nav_position,
       logo,
       banner,
@@ -1342,6 +1353,14 @@ class GenerateModel {
         accent_color,
         button_style,
         font_style,
+        font_type,
+        font_name,
+        font_url,
+        font_heading,
+        font_body,
+        font_size_base,
+        line_height,
+        letter_spacing,
         nav_position,
         logo,
         banner,
@@ -1354,6 +1373,20 @@ class GenerateModel {
         x_url,
         youtube_url,
       };
+      const normalizedTypography = typography === undefined
+        ? undefined
+        : (typeof typography === 'string' ? typography : JSON.stringify(typography || {}));
+      const normalizedPalette = palette === undefined
+        ? undefined
+        : (typeof palette === 'string' ? palette : JSON.stringify(palette || []));
+      const normalizedTheme = theme === undefined
+        ? undefined
+        : (typeof theme === 'string' ? theme : JSON.stringify(theme || {}));
+
+      if (normalizedTypography !== undefined) settingsInput.typography = normalizedTypography;
+      if (normalizedPalette !== undefined) settingsInput.palette = normalizedPalette;
+      if (normalizedTheme !== undefined) settingsInput.theme = normalizedTheme;
+
       const settingsKeys = Object.keys(settingsInput).filter((key) => settingsInput[key] !== undefined);
       if (settingsCols.size > 0 && settingsKeys.length > 0) {
         const [existingSetting] = await this.db.query(
@@ -1470,10 +1503,28 @@ class GenerateModel {
   async getTemplateModel() {
     try {
       if (!this.db) await this.connectAdmin();
+      const toTemplateKey = (value) => String(value || '')
+        .trim()
+        .toLowerCase()
+        .replace(/[_\s]+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+      const getCanonicalTemplateKey = (value) => {
+        const normalized = toTemplateKey(value);
+        if (!normalized) return '';
+        if (normalized.includes('minimal')) return 'minimal';
+        if (normalized === 'bini' || normalized === 'bini-template') return 'bini';
+        if (normalized === 'modern' || normalized === 'modern-template') return 'modern';
+        return normalized;
+      };
+      const getTemplateDisplayName = (templateKey, fallbackName) => {
+        if (templateKey === 'bini') return 'Bini Template';
+        if (templateKey === 'modern') return 'Modern Template';
+        return String(fallbackName || 'Template').trim();
+      };
       const builtInTemplates = [
         { template_id: 1, template_name: 'Bini Template', template_key: 'bini' },
         { template_id: 2, template_name: 'Modern Template', template_key: 'modern' },
-        { template_id: 3, template_name: 'Minimal Template', template_key: 'minimal' },
       ];
 
       const hasTemplates = await this.hasTable('templates');
@@ -1510,17 +1561,20 @@ class GenerateModel {
           const normalizedRows = templateRows.map((row, index) => ({
             template_id: Number(row?.template_id || index + 100),
             template_name: String(row?.template_name || `Template ${index + 1}`).trim(),
-            template_key: String(row?.template_key || row?.template_name || `template-${index + 1}`)
-              .trim()
-              .toLowerCase()
-              .replace(/[_\s]+/g, '-'),
+            template_key: getCanonicalTemplateKey(
+              row?.template_key || row?.template_name || `template-${index + 1}`,
+            ),
           }));
 
           const byKey = new Map();
           [...builtInTemplates, ...normalizedRows].forEach((template) => {
-            const key = String(template?.template_key || '').trim().toLowerCase();
-            if (!key) return;
-            byKey.set(key, template);
+            const key = getCanonicalTemplateKey(template?.template_key || template?.template_name);
+            if (!key || key === 'minimal') return;
+            byKey.set(key, {
+              ...template,
+              template_key: key,
+              template_name: getTemplateDisplayName(key, template?.template_name),
+            });
           });
 
           return Array.from(byKey.values());

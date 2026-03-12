@@ -59,8 +59,7 @@ class SuggestionController {
   async getUnreadSuggestions(req, res) {
     try {
       const limit = Number(req.query?.limit || 30);
-      const community = this.resolveCommunity(req, res);
-      const rows = await this.suggestionModel.getUnreadSuggestions(limit, community);
+      const rows = await this.suggestionModel.getUnreadSuggestions(limit, "");
       return res.status(200).json({
         success: true,
         data: rows,
@@ -98,8 +97,7 @@ class SuggestionController {
 
   async markAllSuggestionsRead(req, res) {
     try {
-      const community = this.resolveCommunity(req, res);
-      const updated = await this.suggestionModel.markAllRead(community);
+      const updated = await this.suggestionModel.markAllRead("");
       return res.status(200).json({
         success: true,
         message: "All suggestions marked as read",

@@ -9,6 +9,70 @@ import { formatAdminDate, formatAdminTime } from './admin-date.js';
 
 const DASHBOARD_DEBUG = true;
 
+const STAT_CARDS = [
+  {
+    title: 'Revenue',
+    id: 'totalRevenue',
+    accent: 'revenue',
+    icon: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4 18h16" />
+        <path d="M7 15V9" />
+        <path d="M12 15V6" />
+        <path d="M17 15v-4" />
+      </svg>
+    `,
+  },
+  {
+    title: 'Total Orders',
+    id: 'totalOrders',
+    accent: 'orders',
+    icon: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 8h13l-1.5 7H9L7 4H4" />
+        <circle cx="10" cy="18" r="1.5" />
+        <circle cx="18" cy="18" r="1.5" />
+      </svg>
+    `,
+  },
+  {
+    title: 'Total Posts',
+    id: 'totalPosts',
+    accent: 'posts',
+    icon: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M6 5h12a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H9l-5 3V7a2 2 0 0 1 2-2z" />
+      </svg>
+    `,
+  },
+  {
+    title: 'Low Stock',
+    id: 'lowStock',
+    accent: 'stock',
+    icon: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 3 4 7v10l8 4 8-4V7l-8-4z" />
+        <path d="M12 12v5" />
+        <path d="M12 8h.01" />
+      </svg>
+    `,
+  },
+  {
+    title: 'New Orders Today',
+    id: 'newOrdersToday',
+    accent: 'today',
+    icon: `
+      <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M7 3v3" />
+        <path d="M17 3v3" />
+        <rect x="4" y="5" width="16" height="15" rx="2" />
+        <path d="M8 11h8" />
+        <path d="M12 8v6" />
+      </svg>
+    `,
+  },
+];
+
 function dashboardDebug(label, payload) {
   if (!DASHBOARD_DEBUG) return;
   if (payload === undefined) {
@@ -16,6 +80,10 @@ function dashboardDebug(label, payload) {
     return;
   }
   console.log(`[DASHBOARD DEBUG] ${label}`, payload);
+}
+
+function formatPeso(value) {
+  return `\u20B1${Number(value || 0).toLocaleString()}`;
 }
 
 export default function Dashboard() {
@@ -296,7 +364,6 @@ export default function Dashboard() {
               <div class="stat-info">
                 <h3>${title}</h3>
                 <p class="stat-number" id="${['totalRevenue','totalOrders','totalPosts','lowStock','newOrdersToday'][idx]}">0</p>
-                ${title==='Revenue'?'<span class="stat-change positive">+0% this month</span>':''}
               </div>
             </div>
           `).join('')}
@@ -322,6 +389,78 @@ export default function Dashboard() {
       </div>
     `;
   }
+
+  updateStatCards = function updateStatCardsOverride(communityKey, communityId = null, siteName = '') {
+    const stats = resolveStatsBucket(communityKey, communityId, siteName);
+    const ids = ['totalRevenue', 'totalOrders', 'totalPosts', 'lowStock', 'newOrdersToday'];
+    const keys = ['revenue', 'orders', 'posts', 'lowStock', 'newOrdersToday'];
+
+    ids.forEach((id, idx) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+
+      const value = Number(stats?.[keys[idx]] || 0);
+      el.textContent = id === 'totalRevenue' ? formatPeso(value) : String(value);
+    });
+  };
+
+  renderTableRows = function renderTableRowsOverride(page) {
+    const currentData = revenueData[selectedCommunity] || [];
+    const start = (page - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+
+    return currentData.slice(start, end).map((row) => `
+      <tr>
+        <td style="padding:8px; text-align:center;">${row.orderId}</td>
+        <td style="padding:8px;">${row.date}</td>
+        <td style="padding:8px; text-align:center;">${row.time}</td>
+        <td style="padding:8px; text-align:right;">${formatPeso(row.revenue)}</td>
+      </tr>
+    `).join('');
+  };
+
+  renderDashboardHTML = function renderDashboardHTMLOverride() {
+    return `
+      <div class="dashboard-wrapper">
+        <div class="community-filter" style="margin-bottom:24px;">
+          <label for="communitySelect" style="display:block; margin-bottom:8px; font-weight:600; color:#333;">Select Site</label>
+          <select id="communitySelect" style="padding:10px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; cursor:pointer; width:100%; max-width:300px;">
+            ${renderCommunityOptionsHTML()}
+          </select>
+        </div>
+
+        <div class="dashboard-grid" style="flex-wrap: wrap; gap: 18px;">
+          ${STAT_CARDS.map((card) => `
+            <div class="stat-card stat-card--${card.accent}">
+              <div class="stat-icon">${card.icon}</div>
+              <div class="stat-info">
+                <h3>${card.title}</h3>
+                <p class="stat-number" id="${card.id}">0</p>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+
+        <div class="dashboard-middle" style="margin:40px 0 0 0;">
+          <div class="table-container" style="background:#fff; border-radius:12px; box-shadow:0 2px 8px #0001; padding:24px; margin:0 auto;">
+            <h3 style="color:#333; margin-bottom:18px;">Revenue Table (Daily)</h3>
+            <table style="width:100%; border-collapse: collapse;">
+              <thead>
+                <tr style="background:#f3f4f6;">
+                  <th style="padding:8px; border-bottom:1px solid #e5e7eb; text-align:center;">Order ID</th>
+                  <th style="padding:8px; border-bottom:1px solid #e5e7eb; text-align:left;">Date</th>
+                  <th style="padding:8px; border-bottom:1px solid #e5e7eb; text-align:center;">Time</th>
+                  <th style="padding:8px; border-bottom:1px solid #e5e7eb; text-align:right;">Revenue</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="pagination-container"></div>
+          </div>
+        </div>
+      </div>
+    `;
+  };
 
   function bindEvents() {
     section.addEventListener('change', function(e) {

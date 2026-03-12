@@ -54,7 +54,11 @@ class SuggestionModel {
   }
 
   normalizeScope(scope = '') {
-    return String(scope || '').trim().toLowerCase();
+    const normalized = String(scope || '').trim().toLowerCase();
+    if (!normalized || normalized === 'all' || normalized === 'community-platform' || normalized === 'global') {
+      return '';
+    }
+    return normalized;
   }
 
   async getUnreadSuggestions(limit = 30, community = '') {

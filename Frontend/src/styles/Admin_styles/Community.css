@@ -87,8 +87,10 @@
 
 .cm-sites-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 340px));
+  justify-content: start;
+  align-items: start;
+  gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
@@ -100,6 +102,70 @@
   transition: all 0.2s;
   display: flex;
   flex-direction: column;
+  width: 100%;
+  max-width: 340px;
+}
+
+.cm-card-media-button {
+  position: relative;
+  width: 100%;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: linear-gradient(135deg, #fbcfe8, #fdf2f8);
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.cm-card-media-image,
+.cm-card-media-placeholder {
+  width: 100%;
+  height: 100%;
+}
+
+.cm-card-media-image {
+  object-fit: cover;
+  display: block;
+}
+
+.cm-card-media-placeholder {
+  display: grid;
+  place-items: center;
+  color: #831843;
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,0.75), transparent 42%),
+    linear-gradient(135deg, #fbcfe8 0%, #f9a8d4 48%, #fda4af 100%);
+}
+
+.cm-card-media-chip {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  padding: 0.4rem 0.8rem;
+  border-radius: 999px;
+  background: rgba(17, 24, 39, 0.78);
+  color: white;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cm-card-logo {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 16px;
+  border: 3px solid rgba(255,255,255,0.92);
+  background: white;
+  box-shadow: 0 10px 24px rgba(17,24,39,0.18);
 }
 
 .cm-site-card:hover {
@@ -110,7 +176,9 @@
 .cm-card-header {
   display: flex;
   justify-content: flex-end;
-  padding: 1rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem 0.75rem;
   border-bottom: 1px solid #f0f0f0;
 }
 
@@ -142,6 +210,21 @@
   font-weight: 700;
   color: #333;
   margin: 0 0 1rem;
+}
+
+.cm-card-domain {
+  margin: 0 0 0.6rem;
+  color: #be185d;
+  font-size: 0.92rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+
+.cm-card-description {
+  margin: 0;
+  color: #5b5565;
+  line-height: 1.55;
+  font-size: 0.95rem;
 }
 
 .cm-card-meta {
@@ -320,8 +403,8 @@
   background: white;
   border-radius: 8px;
   padding: 0;
-  max-width: 680px;
-  width: 90%;
+  max-width: 1080px;
+  width: min(1080px, 94vw);
   max-height: 90vh;
   overflow: hidden;
   box-shadow: 0 20px 60px rgba(0,0,0,0.25);
@@ -354,6 +437,156 @@
   padding: 2rem;
   max-height: calc(90vh - 84px);
   overflow-y: auto;
+}
+
+.cm-edit-form {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.cm-form-section {
+  border: 1px solid #f1d5e4;
+  border-radius: 18px;
+  padding: 1.25rem;
+  background: linear-gradient(180deg, #fffafc 0%, #ffffff 100%);
+  box-shadow: 0 10px 24px rgba(236, 72, 153, 0.06);
+}
+
+.cm-form-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.cm-form-eyebrow {
+  margin: 0 0 0.25rem;
+  color: #db2777;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cm-form-section-title {
+  margin: 0;
+  color: #1f2937;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.cm-modal-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.cm-modal-grid-2 {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.cm-modal-grid-3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.cm-span-2 {
+  grid-column: span 2;
+}
+
+.cm-palette-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.cm-color-field {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #7a4a62;
+}
+
+.cm-color-field input[type="color"] {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.2rem;
+  border-radius: 12px;
+  border: 1px solid #f3bfd8;
+  background: white;
+  cursor: pointer;
+}
+
+.cm-theme-preview {
+  --cm-preview-primary: #ec4899;
+  --cm-preview-surface: #ffffff;
+  --cm-preview-accent: #831843;
+  --cm-preview-radius: 18px;
+  --cm-preview-heading-font: 'Georgia', serif;
+  --cm-preview-body-font: 'Arial', sans-serif;
+  padding: 1.1rem;
+  border-radius: 18px;
+  border: 1px solid #f3bfd8;
+  background:
+    radial-gradient(circle at top left, rgba(255,255,255,0.92), transparent 38%),
+    linear-gradient(135deg, color-mix(in srgb, var(--cm-preview-primary) 18%, #ffffff 82%), color-mix(in srgb, var(--cm-preview-accent) 14%, #ffffff 86%));
+  color: #1f2937;
+}
+
+.cm-theme-preview-kicker {
+  display: inline-flex;
+  margin-bottom: 0.5rem;
+  padding: 0.32rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.76);
+  color: #be185d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.cm-theme-preview-title {
+  margin: 0 0 0.4rem;
+  font-family: var(--cm-preview-heading-font);
+  font-size: 1.2rem;
+  color: var(--cm-preview-accent);
+}
+
+.cm-theme-preview-copy {
+  margin: 0 0 1rem;
+  font-family: var(--cm-preview-body-font);
+  line-height: 1.55;
+  color: #475569;
+}
+
+.cm-theme-preview-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.cm-theme-preview-btn {
+  border: none;
+  min-width: 140px;
+  padding: 0.78rem 1rem;
+  border-radius: var(--cm-preview-radius);
+  font-weight: 700;
+  cursor: default;
+  font-family: var(--cm-preview-body-font);
+}
+
+.cm-theme-preview-btn-primary {
+  background: var(--cm-preview-primary);
+  color: white;
+  box-shadow: 0 12px 24px rgba(236, 72, 153, 0.18);
+}
+
+.cm-theme-preview-btn-secondary {
+  background: var(--cm-preview-surface);
+  color: var(--cm-preview-accent);
+  border: 1px solid rgba(131, 24, 67, 0.18);
 }
 
 #membersEditor {
@@ -464,7 +697,45 @@
 }
 
 @media (max-width: 768px) {
+  .cm-section {
+    width: 100%;
+    margin: 0;
+    padding: 1rem;
+  }
+
+  .cm-sites-grid {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .cm-site-card {
+    max-width: 100%;
+  }
+
+  .cm-card-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 14px;
+  }
+
+  .cm-card-header,
+  .cm-card-body,
+  .cm-card-actions {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
   .cm-social-grid {
     grid-template-columns: 1fr;
+  }
+
+  .cm-modal-grid-2,
+  .cm-modal-grid-3,
+  .cm-palette-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .cm-span-2 {
+    grid-column: auto;
   }
 }

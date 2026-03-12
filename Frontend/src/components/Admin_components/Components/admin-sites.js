@@ -229,49 +229,110 @@ export async function fetchAdminJsonWithFallback(endpointPath, params = {}, requ
   return payload;
 }
 
+function isMeaningfulAdminValue(value) {
+  if (value === undefined || value === null) return false;
+  if (typeof value === 'string') return value.trim() !== '';
+  if (Array.isArray(value)) return value.length > 0;
+  return true;
+}
+
+function mergeAdminSiteRow(baseRow = {}, incomingRow = {}) {
+  const merged = { ...baseRow };
+
+  Object.entries(incomingRow || {}).forEach(([key, value]) => {
+    if (isMeaningfulAdminValue(value) || !(key in merged)) {
+      merged[key] = value;
+    }
+  });
+
+  return merged;
+}
+
 export async function fetchAdminSites() {
-  let rows = [];
+  let communityRows = [];
+  let generatedRows = [];
   adminDebug('fetchAdminSites:start', {
     selectedSite: resolveSelectedAdminSite(),
   });
+
   try {
     const communityPayload = await fetchAdminJsonWithFallback(
       'generate/community-selections',
       {},
       { headers: getAdminHeaders() },
     );
-    rows = Array.isArray(communityPayload?.data) ? communityPayload.data : [];
-    adminDebug('fetchAdminSites:community-selections', rows);
-  } catch (_) {
+    communityRows = Array.isArray(communityPayload?.data) ? communityPayload.data : [];
+    adminDebug('fetchAdminSites:community-selections', communityRows);
+  } catch (error) {
+    adminDebug('fetchAdminSites:community-selections:error', error?.message || String(error));
+  }
+
+  try {
     const payload = await fetchAdminJsonWithFallback(
       'generate/generated-websites',
       {},
       { headers: getAdminHeaders() },
     );
-    rows = Array.isArray(payload?.data)
+    generatedRows = Array.isArray(payload?.data)
       ? payload.data
       : Array.isArray(payload?.websites)
         ? payload.websites
         : [];
-    adminDebug('fetchAdminSites:generated-websites-fallback', rows);
+    adminDebug('fetchAdminSites:generated-websites', generatedRows);
+  } catch (error) {
+    adminDebug('fetchAdminSites:generated-websites:error', error?.message || String(error));
   }
 
-  const seen = new Set();
+  const mergedByDomain = new Map();
+  const pushRows = (rows, source) => {
+    (rows || []).forEach((row) => {
+      const domain = normalizeAdminSiteSlug(
+        row?.domain || row?.community_type || row?.community_name || row?.site_name || '',
+      );
+      if (!domain) return;
+
+      const existing = mergedByDomain.get(domain) || {};
+      const generatedRecordId = source === 'generated'
+        ? Number(row?.generated_website_id ?? row?.id ?? 0) || null
+        : (existing.generated_website_id ?? null);
+
+      mergedByDomain.set(
+        domain,
+        mergeAdminSiteRow(existing, {
+          ...row,
+          domain,
+          generated_website_id: generatedRecordId,
+        }),
+      );
+    });
+  };
+
+  pushRows(communityRows, 'community');
+  pushRows(generatedRows, 'generated');
+
+  const rows = Array.from(mergedByDomain.values());
+  if (!rows.length) {
+    adminDebug('fetchAdminSites:mapped', []);
+    return [];
+  }
+
   const mapped = rows
     .map((row, index) => {
       const domain = normalizeAdminSiteSlug(
         row?.domain || row?.community_type || row?.community_name || row?.site_name || '',
       );
       const siteName = String(row?.site_name || row?.name || row?.community_name || domain).trim();
-      if (!domain || seen.has(domain)) return null;
-      seen.add(domain);
       const parsedCommunityId = Number(row?.community_id ?? row?.id ?? 0);
       const parsedSiteId = Number(row?.site_id ?? 0);
-      const parsedId = Number.isFinite(parsedCommunityId) && parsedCommunityId > 0
-        ? parsedCommunityId
-        : (Number.isFinite(parsedSiteId) && parsedSiteId > 0 ? parsedSiteId : Number(row?.id ?? 0));
+      const parsedGeneratedId = Number(row?.generated_website_id ?? 0);
+      const parsedId = Number.isFinite(parsedGeneratedId) && parsedGeneratedId > 0
+        ? parsedGeneratedId
+        : (Number.isFinite(parsedCommunityId) && parsedCommunityId > 0
+          ? parsedCommunityId
+          : (Number.isFinite(parsedSiteId) && parsedSiteId > 0 ? parsedSiteId : Number(row?.id ?? 0)));
       return {
         id: Number.isFinite(parsedId) && parsedId > 0 ? parsedId : index + 1,
+        generated_website_id: Number.isFinite(parsedGeneratedId) && parsedGeneratedId > 0 ? parsedGeneratedId : null,
         site_id: Number.isFinite(parsedSiteId) && parsedSiteId > 0 ? parsedSiteId : null,
         community_id: Number.isFinite(parsedCommunityId) && parsedCommunityId > 0 ? parsedCommunityId : null,
         key: domain,
@@ -286,8 +347,29 @@ export async function fetchAdminSites() {
         accent_color: row?.accent_color ?? '',
         button_style: row?.button_style ?? '',
         font_style: row?.font_style ?? '',
+        font_type: row?.font_type ?? '',
+        font_name: row?.font_name ?? '',
+        font_url: row?.font_url ?? '',
+        font_heading: row?.font_heading ?? '',
+        font_body: row?.font_body ?? '',
+        font_size_base: row?.font_size_base ?? '',
+        line_height: row?.line_height ?? '',
+        letter_spacing: row?.letter_spacing ?? '',
+        palette: row?.palette ?? [],
+        typography: row?.typography ?? {},
+        theme: row?.theme ?? {},
         nav_position: row?.nav_position ?? '',
         logo: row?.logo ?? '',
+        banner: row?.banner ?? row?.banner_link ?? '',
+        group_photo: row?.group_photo ?? row?.groupPhoto ?? '',
+        lead_image: row?.lead_image ?? row?.leadImage ?? '',
+        banner_link: row?.banner_link ?? row?.bannerLink ?? '',
+        instagram_url: row?.instagram_url ?? '',
+        facebook_url: row?.facebook_url ?? '',
+        tiktok_url: row?.tiktok_url ?? '',
+        spotify_url: row?.spotify_url ?? '',
+        x_url: row?.x_url ?? '',
+        youtube_url: row?.youtube_url ?? '',
         banner: row?.banner ?? '',
         members: Array.isArray(row?.members) ? row.members : [],
       };

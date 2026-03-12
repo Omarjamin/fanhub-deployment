@@ -2,6 +2,7 @@ import '../../../styles/Admin_styles/Admin-landing_page.css';
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1').trim().replace(/\/$/, '');
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
+const ADMIN_PENDING_SUGGESTIONS_KEY = 'admin_pending_suggestions_v1';
 
 
 
@@ -152,24 +153,26 @@ export default function AdminLandingPage() {
         </div>
         <!-- Suggestion Card -->
         <div class="auth-container">
-          <div class="auth-card">
-            <form id="suggestionForm">
+          <div class="auth-card suggestion-card">
+            <form id="suggestionForm" class="suggestion-form">
               <div class="form-header">
+                <span class="suggestion-eyebrow">Fan Suggestion Form</span>
                 <h3 class="form-title">Send a Community Suggestion</h3>
-                <p class="form-subtitle">No login required. Suggestions are reviewed by admin for website generation.</p>
+                <p class="form-subtitle">No login required. Submissions are sent to the admin notification queue for website generation review.</p>
               </div>
               <div class="form-group">
                 <label class="form-label" for="suggestCommunityName">Community Name</label>
-                <input type="text" id="suggestCommunityName" class="form-input" required>
+                <input type="text" id="suggestCommunityName" class="form-input suggestion-input" placeholder="Enter community name" required>
               </div>
               <div class="form-group">
                 <label class="form-label" for="suggestNote">Suggestion Details</label>
-                <textarea id="suggestNote" class="form-input" rows="4" style="height:auto;padding:0.75rem;" required></textarea>
+                <textarea id="suggestNote" class="form-input suggestion-input suggestion-textarea" rows="5" placeholder="Describe the site idea, content, and features you want to see" required></textarea>
               </div>
               <div class="form-group">
                 <label class="form-label" for="suggestEmail">Contact Email (optional)</label>
-                <input type="email" id="suggestEmail" class="form-input">
+                <input type="email" id="suggestEmail" class="form-input suggestion-input" placeholder="name@example.com">
               </div>
+              <p class="suggestion-helper">After submit, the request will appear in the admin notification bell.</p>
               <button type="submit" class="btn btn-primary btn-full">Submit Suggestion</button>
             </form>
           </div>
@@ -282,7 +285,24 @@ export default function AdminLandingPage() {
           throw new Error(payload?.message || `HTTP ${res.status}`);
         }
 
-        showToast('Suggestion submitted. Admin will review it for community website generation.', 'success');
+        try {
+          const existing = JSON.parse(localStorage.getItem(ADMIN_PENDING_SUGGESTIONS_KEY) || '[]');
+          const pending = Array.isArray(existing) ? existing : [];
+          const createdItem = payload?.data || {
+            suggestion_id: Date.now(),
+            community_name: communityName,
+            suggestion_text: note,
+            contact_email: contactEmail || null,
+            created_at: new Date().toISOString(),
+          };
+          pending.unshift(createdItem);
+          localStorage.setItem(
+            ADMIN_PENDING_SUGGESTIONS_KEY,
+            JSON.stringify(pending.slice(0, 50)),
+          );
+        } catch (_) {}
+
+        showToast('Suggestion submitted. It is now queued in admin notifications for review.', 'success');
         suggestionForm.reset();
       } catch (error) {
         showToast(error?.message || 'Failed to submit suggestion.', 'error');

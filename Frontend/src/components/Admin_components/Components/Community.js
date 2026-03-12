@@ -1,6 +1,7 @@
 import api from '../../../services/bini_services/api.js';
 import '../../../styles/Admin_styles/Community.css';
 import { fetchAdminSites, getAdminHeaders } from './admin-sites.js';
+import { showToast } from '../../../utils/toast.js';
 
 export default function Community() {
   const section = document.createElement('section');
@@ -37,120 +38,211 @@ export default function Community() {
           <h3>Edit Site</h3>
           <button class="cm-modal-close" id="closeModal">&times;</button>
         </div>
-        <form class="cm-modal-form" id="editForm">
-          <div class="form-group">
-            <label>Site Name</label>
-            <input type="text" id="siteName" required>
-          </div>
-          <div class="form-group">
-            <label>Domain</label>
-            <input type="text" id="siteDomain" required>
-          </div>
-          <div class="form-group">
-            <label>Status</label>
-            <select id="status" required>
-              <option value="active">Active</option>
-              <option value="inactive">Inactive</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Short Description</label>
-            <input type="text" id="shortBio">
-          </div>
-          <div class="form-group">
-            <label>Description</label>
-            <textarea id="siteDescription" rows="3"></textarea>
-          </div>
-          <div class="form-group">
-            <label>Logo URL</label>
-            <input type="url" id="siteLogo" placeholder="https://...">
-            <input type="file" id="siteLogoFile" accept="image/*">
-            <div class="cm-group-photo-preview-wrap">
-              <img id="siteLogoPreview" class="cm-group-photo-preview" alt="Logo preview" style="display:none;">
-              <p id="siteLogoPreviewEmpty" class="cm-group-photo-empty">No logo set.</p>
+        <form class="cm-modal-form cm-edit-form" id="editForm">
+          <section class="cm-form-section">
+            <div class="cm-form-section-header">
+              <div>
+                <p class="cm-form-eyebrow">Site Details</p>
+                <h4 class="cm-form-section-title">Core community information</h4>
+              </div>
             </div>
-          </div>
-          <div class="form-group">
-            <label>Group Photo URL</label>
-            <input type="url" id="groupPhoto" placeholder="https://...">
-            <div class="cm-group-photo-preview-wrap">
-              <img id="groupPhotoPreview" class="cm-group-photo-preview" alt="Group photo preview" style="display:none;">
-              <p id="groupPhotoPreviewEmpty" class="cm-group-photo-empty">No group photo set.</p>
+            <div class="cm-modal-grid cm-modal-grid-2">
+              <div class="form-group">
+                <label>Site Name</label>
+                <input type="text" id="siteName" required>
+              </div>
+              <div class="form-group">
+                <label>Domain</label>
+                <input type="text" id="siteDomain" required>
+              </div>
+              <div class="form-group">
+                <label>Status</label>
+                <select id="status" required>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Navigation Position</label>
+                <select id="navPosition">
+                  <option value="">Default</option>
+                  <option value="top">Top</option>
+                  <option value="left">Left</option>
+                  <option value="right">Right</option>
+                  <option value="bottom">Bottom</option>
+                </select>
+              </div>
+              <div class="form-group cm-span-2">
+                <label>Short Description</label>
+                <input type="text" id="shortBio">
+              </div>
+              <div class="form-group cm-span-2">
+                <label>Description</label>
+                <textarea id="siteDescription" rows="3"></textarea>
+              </div>
             </div>
-          </div>
-          <div class="form-group">
-            <label>Lead Image URL</label>
-            <input type="url" id="leadImage" placeholder="https://...">
-          </div>
-          <div class="cm-social-grid">
+          </section>
+
+          <section class="cm-form-section">
+            <div class="cm-form-section-header">
+              <div>
+                <p class="cm-form-eyebrow">Media & Links</p>
+                <h4 class="cm-form-section-title">Match the generated website assets</h4>
+              </div>
+            </div>
+            <div class="cm-modal-grid cm-modal-grid-2">
+              <div class="form-group">
+                <label>Logo URL</label>
+                <input type="url" id="siteLogo" placeholder="https://...">
+                <input type="file" id="siteLogoFile" accept="image/*">
+                <div class="cm-group-photo-preview-wrap">
+                  <img id="siteLogoPreview" class="cm-group-photo-preview" alt="Logo preview" style="display:none;">
+                  <p id="siteLogoPreviewEmpty" class="cm-group-photo-empty">No logo set.</p>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Group Photo URL</label>
+                <input type="url" id="groupPhoto" placeholder="https://...">
+                <input type="file" id="groupPhotoFile" accept="image/*">
+                <div class="cm-group-photo-preview-wrap">
+                  <img id="groupPhotoPreview" class="cm-group-photo-preview" alt="Group photo preview" style="display:none;">
+                  <p id="groupPhotoPreviewEmpty" class="cm-group-photo-empty">No group photo set.</p>
+                </div>
+              </div>
+              <div class="form-group">
+                <label>Lead Image URL</label>
+                <input type="url" id="leadImage" placeholder="https://...">
+              </div>
+              <div class="form-group">
+                <label>YouTube Banner Link</label>
+                <input type="url" id="bannerLink" placeholder="https://www.youtube.com/watch?v=...">
+              </div>
+            </div>
+            <div class="cm-social-grid">
+              <div class="form-group">
+                <label>Instagram URL</label>
+                <input type="url" id="instagramUrl" placeholder="https://www.instagram.com/...">
+              </div>
+              <div class="form-group">
+                <label>Facebook URL</label>
+                <input type="url" id="facebookUrl" placeholder="https://www.facebook.com/...">
+              </div>
+              <div class="form-group">
+                <label>TikTok URL</label>
+                <input type="url" id="tiktokUrl" placeholder="https://www.tiktok.com/@...">
+              </div>
+              <div class="form-group">
+                <label>Spotify URL</label>
+                <input type="url" id="spotifyUrl" placeholder="https://open.spotify.com/...">
+              </div>
+              <div class="form-group">
+                <label>X URL</label>
+                <input type="url" id="xUrl" placeholder="https://x.com/...">
+              </div>
+              <div class="form-group">
+                <label>YouTube URL</label>
+                <input type="url" id="youtubeUrl" placeholder="https://www.youtube.com/...">
+              </div>
+            </div>
+          </section>
+
+          <section class="cm-form-section">
+            <div class="cm-form-section-header">
+              <div>
+                <p class="cm-form-eyebrow">Design & Colors</p>
+                <h4 class="cm-form-section-title">Edit the saved theme system</h4>
+              </div>
+            </div>
+            <div class="cm-modal-grid cm-modal-grid-3">
+              <div class="form-group">
+                <label>Primary Color</label>
+                <input type="text" id="primaryColor" placeholder="#3b82f6">
+              </div>
+              <div class="form-group">
+                <label>Secondary Color</label>
+                <input type="text" id="secondaryColor" placeholder="#ffffff">
+              </div>
+              <div class="form-group">
+                <label>Accent Color</label>
+                <input type="text" id="accentColor" placeholder="#333333">
+              </div>
+              <div class="form-group">
+                <label>Button Style</label>
+                <select id="buttonStyle">
+                  <option value="">Default</option>
+                  <option value="rounded">Rounded</option>
+                  <option value="square">Square</option>
+                  <option value="pill">Pill</option>
+                  <option value="flat">Flat</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Saved Font Style</label>
+                <input type="text" id="fontStyle" placeholder="Auto-synced from body font" readonly>
+              </div>
+            </div>
+            <div class="cm-palette-grid" id="paletteEditor">
+              <label class="cm-color-field"><span>Palette 1</span><input type="color" id="paletteColor0"></label>
+              <label class="cm-color-field"><span>Palette 2</span><input type="color" id="paletteColor1"></label>
+              <label class="cm-color-field"><span>Palette 3</span><input type="color" id="paletteColor2"></label>
+              <label class="cm-color-field"><span>Palette 4</span><input type="color" id="paletteColor3"></label>
+              <label class="cm-color-field"><span>Palette 5</span><input type="color" id="paletteColor4"></label>
+            </div>
+            <div class="cm-theme-preview" id="themePreview">
+              <span class="cm-theme-preview-kicker">Live Theme Preview</span>
+              <h4 class="cm-theme-preview-title">Community card sample</h4>
+              <p class="cm-theme-preview-copy">This preview reflects the colors and button style saved for the generated site.</p>
+              <div class="cm-theme-preview-actions">
+                <button type="button" class="cm-theme-preview-btn cm-theme-preview-btn-primary">Primary Action</button>
+                <button type="button" class="cm-theme-preview-btn cm-theme-preview-btn-secondary">Secondary</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="cm-form-section">
+            <div class="cm-form-section-header">
+              <div>
+                <p class="cm-form-eyebrow">Typography</p>
+                <h4 class="cm-form-section-title">Reuse the generated website font settings</h4>
+              </div>
+            </div>
+            <div class="cm-modal-grid cm-modal-grid-2">
+              <div class="form-group">
+                <label>Heading Font</label>
+                <input type="text" id="headingFont" placeholder="Playfair Display">
+              </div>
+              <div class="form-group">
+                <label>Body Font</label>
+                <input type="text" id="bodyFont" placeholder="Arial">
+              </div>
+              <div class="form-group">
+                <label>Base Font Size</label>
+                <input type="text" id="fontSizeBase" placeholder="16px">
+              </div>
+              <div class="form-group">
+                <label>Line Height</label>
+                <input type="text" id="lineHeight" placeholder="1.6">
+              </div>
+              <div class="form-group">
+                <label>Letter Spacing</label>
+                <input type="text" id="letterSpacing" placeholder="0.02em">
+              </div>
+            </div>
+          </section>
+
+          <section class="cm-form-section">
+            <div class="cm-form-section-header">
+              <div>
+                <p class="cm-form-eyebrow">Team Members</p>
+                <h4 class="cm-form-section-title">Optional member list</h4>
+              </div>
+            </div>
             <div class="form-group">
-              <label>Instagram URL</label>
-              <input type="url" id="instagramUrl" placeholder="https://www.instagram.com/...">
+              <div id="membersEditor"></div>
+              <button type="button" class="cm-btn cm-btn-edit" id="addMemberBtn">+ Add Member</button>
             </div>
-            <div class="form-group">
-              <label>Facebook URL</label>
-              <input type="url" id="facebookUrl" placeholder="https://www.facebook.com/...">
-            </div>
-            <div class="form-group">
-              <label>TikTok URL</label>
-              <input type="url" id="tiktokUrl" placeholder="https://www.tiktok.com/@...">
-            </div>
-            <div class="form-group">
-              <label>Spotify URL</label>
-              <input type="url" id="spotifyUrl" placeholder="https://open.spotify.com/...">
-            </div>
-            <div class="form-group">
-              <label>X URL</label>
-              <input type="url" id="xUrl" placeholder="https://x.com/...">
-            </div>
-            <div class="form-group">
-              <label>YouTube URL</label>
-              <input type="url" id="youtubeUrl" placeholder="https://www.youtube.com/...">
-            </div>
-          </div>
-          <div class="form-group">
-            <label>Primary Color</label>
-            <input type="text" id="primaryColor" placeholder="#3b82f6">
-          </div>
-          <div class="form-group">
-            <label>Secondary Color</label>
-            <input type="text" id="secondaryColor" placeholder="#ffffff">
-          </div>
-          <div class="form-group">
-            <label>Accent Color</label>
-            <input type="text" id="accentColor" placeholder="#333333">
-          </div>
-          <div class="form-group">
-            <label>Button Style</label>
-            <select id="buttonStyle">
-              <option value="">Default</option>
-              <option value="rounded">Rounded</option>
-              <option value="square">Square</option>
-              <option value="pill">Pill</option>
-              <option value="flat">Flat</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Font Style</label>
-            <select id="fontStyle">
-              <option value="">Default</option>
-              <option value="Arial">Arial</option>
-              <option value="Calibri">Calibri</option>
-              <option value="Segoe UI">Segoe UI</option>
-              <option value="Century Gothic">Century Gothic</option>
-              <option value="Verdana">Verdana</option>
-              <option value="Helvetica">Helvetica</option>
-              <option value="Tahoma">Tahoma</option>
-              <option value="Trebuchet MS">Trebuchet MS</option>
-              <option value="Georgia">Georgia</option>
-              <option value="Times New Roman">Times New Roman</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label>Members</label>
-            <div id="membersEditor"></div>
-            <button type="button" class="cm-btn cm-btn-edit" id="addMemberBtn">+ Add Member</button>
-          </div>
+          </section>
+
           <div class="cm-modal-actions">
             <button type="submit" class="cm-btn cm-btn-save">Save Changes</button>
             <button type="button" class="cm-btn cm-btn-cancel" id="cancelBtn">Cancel</button>
@@ -167,14 +259,16 @@ export default function Community() {
   let activeMemberUploads = 0;
   let currentPage = 1;
   const itemsPerPage = 6;
+  const DEFAULT_PALETTE = ['#ec4899', '#f9a8d4', '#ffffff', '#1f2937', '#831843'];
 
   function normalizeSites(rows) {
     return (rows || []).map((row, index) => {
       const siteName = String(row.site_name || row.name || '').trim();
       const domain = String(row.domain || row.community_type || '').trim().toLowerCase();
-      const parsedId = Number(row.site_id ?? row.id ?? 0);
+      const parsedId = Number(row.generated_website_id ?? row.id ?? row.site_id ?? 0);
       return {
         id: Number.isFinite(parsedId) && parsedId > 0 ? parsedId : index + 1,
+        generated_website_id: Number(row.generated_website_id ?? parsedId ?? 0) || null,
         site_name: siteName || domain,
         domain,
         status: String(row.status || 'active').trim().toLowerCase(),
@@ -182,6 +276,8 @@ export default function Community() {
         description: String(row.description || '').trim(),
         group_photo: String(row.group_photo || '').trim(),
         lead_image: String(row.lead_image || '').trim(),
+        banner: String(row.banner || row.banner_link || '').trim(),
+        banner_link: String(row.banner_link || '').trim(),
         instagram_url: String(row.instagram_url || '').trim(),
         facebook_url: String(row.facebook_url || '').trim(),
         tiktok_url: String(row.tiktok_url || '').trim(),
@@ -194,9 +290,191 @@ export default function Community() {
         accent_color: String(row.accent_color || '').trim(),
         button_style: String(row.button_style || '').trim(),
         font_style: String(row.font_style || '').trim(),
+        font_type: String(row.font_type || '').trim(),
+        font_name: String(row.font_name || '').trim(),
+        font_heading: String(row.font_heading || '').trim(),
+        font_body: String(row.font_body || '').trim(),
+        font_size_base: String(row.font_size_base || '').trim(),
+        line_height: String(row.line_height || '').trim(),
+        letter_spacing: String(row.letter_spacing || '').trim(),
+        nav_position: String(row.nav_position || '').trim(),
+        banner: String(row.banner || row.banner_link || '').trim(),
+        palette: row.palette ?? [],
+        typography: row.typography ?? {},
+        theme: row.theme ?? {},
         members: Array.isArray(row.members) ? row.members : [],
       };
     }).filter((row) => row.domain);
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function getSiteInitials(value) {
+    return String(value || '')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('') || 'SI';
+  }
+
+  function resolveSiteCardImage(site) {
+    return String(site?.group_photo || '').trim();
+  }
+
+  function parseJsonValue(value, fallback) {
+    if (value === undefined || value === null || value === '') return fallback;
+    if (typeof value === 'object') return value;
+
+    try {
+      return JSON.parse(value);
+    } catch (_) {
+      return fallback;
+    }
+  }
+
+  function normalizeHexColor(value, fallback = '#ffffff') {
+    const raw = String(value || '').trim();
+    const expanded = raw.startsWith('#') ? raw : `#${raw}`;
+    return /^#[0-9a-f]{6}$/i.test(expanded)
+      ? expanded.toLowerCase()
+      : fallback;
+  }
+
+  function getSitePalette(site) {
+    const theme = parseJsonValue(site?.theme, {});
+    const paletteSource = parseJsonValue(site?.palette, theme?.palette || []);
+    const palette = Array.isArray(paletteSource) ? paletteSource : [];
+    const normalized = palette
+      .map((color) => normalizeHexColor(color, ''))
+      .filter(Boolean);
+
+    const fallbackPalette = [
+      site?.primary_color || '#ec4899',
+      site?.accent_color || '#831843',
+      site?.secondary_color || '#ffffff',
+      '#1f2937',
+      '#fbcfe8',
+    ].map((color, index) => normalizeHexColor(color, DEFAULT_PALETTE[index]));
+
+    const result = normalized.length ? normalized.slice(0, 5) : fallbackPalette;
+    while (result.length < 5) {
+      result.push(DEFAULT_PALETTE[result.length]);
+    }
+    return result;
+  }
+
+  function getSiteTypography(site) {
+    const theme = parseJsonValue(site?.theme, {});
+    const parsedTypography = parseJsonValue(site?.typography, theme?.typography || {});
+
+    return {
+      heading: String(
+        parsedTypography?.heading?.name ||
+        parsedTypography?.font_heading?.name ||
+        parsedTypography?.font_heading ||
+        site?.font_heading ||
+        site?.font_style ||
+        'Arial',
+      ).trim(),
+      body: String(
+        parsedTypography?.body?.name ||
+        parsedTypography?.font_body?.name ||
+        parsedTypography?.font_body ||
+        site?.font_body ||
+        site?.font_name ||
+        site?.font_style ||
+        'Arial',
+      ).trim(),
+      fontSizeBase: String(
+        parsedTypography?.fontSizeBase ||
+        parsedTypography?.font_size_base ||
+        site?.font_size_base ||
+        '16px',
+      ).trim(),
+      lineHeight: String(
+        parsedTypography?.lineHeight ||
+        parsedTypography?.line_height ||
+        site?.line_height ||
+        '1.6',
+      ).trim(),
+      letterSpacing: String(
+        parsedTypography?.letterSpacing ||
+        parsedTypography?.letter_spacing ||
+        site?.letter_spacing ||
+        '0.02em',
+      ).trim(),
+      type: String(
+        parsedTypography?.body?.type ||
+        parsedTypography?.font_body?.type ||
+        site?.font_type ||
+        'system',
+      ).trim(),
+      bodyUrl: String(
+        parsedTypography?.body?.url ||
+        parsedTypography?.font_body?.url ||
+        site?.font_url ||
+        '',
+      ).trim(),
+      headingUrl: String(
+        parsedTypography?.heading?.url ||
+        parsedTypography?.font_heading?.url ||
+        '',
+      ).trim(),
+    };
+  }
+
+  function setPaletteInputs(palette = []) {
+    palette.slice(0, 5).forEach((color, index) => {
+      const input = section.querySelector(`#paletteColor${index}`);
+      if (input) {
+        input.value = normalizeHexColor(color, DEFAULT_PALETTE[index]);
+      }
+    });
+  }
+
+  function getPaletteValues() {
+    return Array.from({ length: 5 }, (_, index) => {
+      const input = section.querySelector(`#paletteColor${index}`);
+      return normalizeHexColor(input?.value, DEFAULT_PALETTE[index]);
+    });
+  }
+
+  function updateThemePreview() {
+    const preview = section.querySelector('#themePreview');
+    if (!preview) return;
+
+    const primary = normalizeHexColor(section.querySelector('#primaryColor')?.value, '#ec4899');
+    const secondary = normalizeHexColor(section.querySelector('#secondaryColor')?.value, '#ffffff');
+    const accent = normalizeHexColor(section.querySelector('#accentColor')?.value, '#831843');
+    const buttonStyle = String(section.querySelector('#buttonStyle')?.value || 'rounded').trim().toLowerCase();
+    const bodyFont = String(section.querySelector('#bodyFont')?.value || section.querySelector('#fontStyle')?.value || 'Arial').trim();
+    const headingFont = String(section.querySelector('#headingFont')?.value || bodyFont || 'Arial').trim();
+    const fontStyleInput = section.querySelector('#fontStyle');
+    if (fontStyleInput) {
+      fontStyleInput.value = bodyFont;
+    }
+    const radiusMap = {
+      rounded: '18px',
+      square: '0px',
+      pill: '999px',
+      flat: '10px',
+    };
+
+    preview.style.setProperty('--cm-preview-primary', primary);
+    preview.style.setProperty('--cm-preview-surface', secondary);
+    preview.style.setProperty('--cm-preview-accent', accent);
+    preview.style.setProperty('--cm-preview-radius', radiusMap[buttonStyle] || '18px');
+    preview.style.setProperty('--cm-preview-heading-font', `'${headingFont}', serif`);
+    preview.style.setProperty('--cm-preview-body-font', `'${bodyFont}', sans-serif`);
   }
 
   function renderMembersEditor() {
@@ -286,26 +564,47 @@ export default function Community() {
     const start = (currentPage - 1) * itemsPerPage;
     const pageRows = filteredSites.slice(start, start + itemsPerPage);
 
-    container.innerHTML = pageRows.map((site) => `
-      <div class="cm-site-card" data-site-id="${site.id}">
-        <div class="cm-card-header">
-          <span class="cm-badge cm-badge-${site.status}">${site.status.toUpperCase()}</span>
-        </div>
-        <div class="cm-card-body">
-          <h3 class="cm-card-title">${site.site_name}</h3>
-          <p class="cm-card-domain">${site.domain}</p>
-        </div>
+    container.innerHTML = pageRows.map((site) => {
+      const siteName = escapeHtml(site.site_name);
+      const siteDomain = escapeHtml(site.domain);
+      const siteImage = resolveSiteCardImage(site);
+      const safeSiteImage = escapeHtml(siteImage);
+      const shortText = escapeHtml(site.short_bio || site.description || 'No description added yet.');
 
-        <div class="cm-card-actions">
-          <a href="/fanhub/${encodeURIComponent(site.domain)}" class="cm-action-btn cm-btn-visit">Visit</a>
-          <button class="cm-action-btn cm-btn-edit" data-edit="${site.id}">Edit</button>
-          ${site.status === 'active'
-            ? `<button class="cm-action-btn cm-btn-deactivate" data-deactivate="${site.id}">Deactivate</button>`
-            : `<button class="cm-action-btn cm-btn-reactivate" data-reactivate="${site.id}">Activate</button>`
-          }
+      return `
+        <div class="cm-site-card" data-site-id="${site.id}">
+          <button
+            type="button"
+            class="cm-card-media-button"
+            data-edit="${site.id}"
+            aria-label="Edit ${siteName}"
+          >
+            ${siteImage
+              ? `<img src="${safeSiteImage}" alt="${siteName} site preview" class="cm-card-media-image">`
+              : `<div class="cm-card-media-placeholder">${escapeHtml(getSiteInitials(site.site_name))}</div>`
+            }
+            <span class="cm-card-media-chip">Edit Site</span>
+          </button>
+          <div class="cm-card-header">
+            <span class="cm-badge cm-badge-${site.status}">${site.status.toUpperCase()}</span>
+          </div>
+          <div class="cm-card-body">
+            <h3 class="cm-card-title">${siteName}</h3>
+            <p class="cm-card-domain">${siteDomain}</p>
+            <p class="cm-card-description">${shortText}</p>
+          </div>
+
+          <div class="cm-card-actions">
+            <a href="/fanhub/${encodeURIComponent(site.domain)}" class="cm-action-btn cm-btn-visit">Visit</a>
+            <button class="cm-action-btn cm-btn-edit" data-edit="${site.id}">Edit</button>
+            ${site.status === 'active'
+              ? `<button class="cm-action-btn cm-btn-deactivate" data-deactivate="${site.id}">Deactivate</button>`
+              : `<button class="cm-action-btn cm-btn-reactivate" data-reactivate="${site.id}">Activate</button>`
+            }
+          </div>
         </div>
-      </div>
-    `).join('');
+      `;
+    }).join('');
 
     updatePagination(totalPages);
   }
@@ -368,10 +667,13 @@ export default function Community() {
   function openEditModal(siteId) {
     const site = allSites.find((s) => s.id === Number(siteId));
     if (!site) return;
+    const typography = getSiteTypography(site);
+
     editingId = site.id;
     section.querySelector('#siteName').value = site.site_name;
     section.querySelector('#siteDomain').value = site.domain;
     section.querySelector('#status').value = site.status;
+    section.querySelector('#navPosition').value = site.nav_position || '';
     section.querySelector('#shortBio').value = site.short_bio || '';
     section.querySelector('#siteDescription').value = site.description || '';
     section.querySelector('#siteLogo').value = site.logo || '';
@@ -379,6 +681,7 @@ export default function Community() {
     section.querySelector('#groupPhoto').value = site.group_photo || '';
     updateGroupPhotoPreview(site.group_photo || '');
     section.querySelector('#leadImage').value = site.lead_image || '';
+    section.querySelector('#bannerLink').value = site.banner || site.banner_link || '';
     section.querySelector('#instagramUrl').value = site.instagram_url || '';
     section.querySelector('#facebookUrl').value = site.facebook_url || '';
     section.querySelector('#tiktokUrl').value = site.tiktok_url || '';
@@ -389,9 +692,16 @@ export default function Community() {
     section.querySelector('#secondaryColor').value = site.secondary_color || '';
     section.querySelector('#accentColor').value = site.accent_color || '';
     section.querySelector('#buttonStyle').value = site.button_style || '';
-    section.querySelector('#fontStyle').value = site.font_style || '';
+    section.querySelector('#fontStyle').value = typography.body || site.font_style || '';
+    section.querySelector('#headingFont').value = typography.heading || '';
+    section.querySelector('#bodyFont').value = typography.body || '';
+    section.querySelector('#fontSizeBase').value = typography.fontSizeBase || '16px';
+    section.querySelector('#lineHeight').value = typography.lineHeight || '1.6';
+    section.querySelector('#letterSpacing').value = typography.letterSpacing || '0.02em';
+    setPaletteInputs(getSitePalette(site));
     editingMembers = Array.isArray(site.members) ? [...site.members] : [];
     renderMembersEditor();
+    updateThemePreview();
     section.querySelector('#editModal').style.display = 'flex';
   }
 
@@ -409,7 +719,7 @@ export default function Community() {
   async function saveSiteEdit() {
     if (!editingId) return;
     if (activeMemberUploads > 0) {
-      alert('Please wait for member image upload to finish.');
+      showToast('Please wait for member image upload to finish.', 'warning');
       return;
     }
 
@@ -421,6 +731,7 @@ export default function Community() {
     const logo = String(section.querySelector('#siteLogo').value || '').trim();
     const group_photo = String(section.querySelector('#groupPhoto').value || '').trim();
     const lead_image = String(section.querySelector('#leadImage').value || '').trim();
+    const banner = String(section.querySelector('#bannerLink').value || '').trim();
     const instagram_url = String(section.querySelector('#instagramUrl').value || '').trim();
     const facebook_url = String(section.querySelector('#facebookUrl').value || '').trim();
     const tiktok_url = String(section.querySelector('#tiktokUrl').value || '').trim();
@@ -432,6 +743,40 @@ export default function Community() {
     const accent_color = String(section.querySelector('#accentColor').value || '').trim();
     const button_style = String(section.querySelector('#buttonStyle').value || '').trim();
     const font_style = String(section.querySelector('#fontStyle').value || '').trim();
+    const nav_position = String(section.querySelector('#navPosition').value || '').trim();
+    const heading_font = String(section.querySelector('#headingFont').value || '').trim();
+    const body_font = String(section.querySelector('#bodyFont').value || '').trim() || font_style;
+    const font_size_base = String(section.querySelector('#fontSizeBase').value || '').trim();
+    const line_height = String(section.querySelector('#lineHeight').value || '').trim();
+    const letter_spacing = String(section.querySelector('#letterSpacing').value || '').trim();
+    const palette = getPaletteValues();
+    const typography = {
+      heading: {
+        name: heading_font || body_font || font_style || 'Arial',
+        type: 'system',
+      },
+      body: {
+        name: body_font || font_style || 'Arial',
+        type: 'system',
+      },
+      fontSizeBase: font_size_base || '16px',
+      lineHeight: line_height || '1.6',
+      letterSpacing: letter_spacing || '0.02em',
+      font_heading: heading_font || body_font || font_style || 'Arial',
+      font_body: body_font || font_style || 'Arial',
+      font_size_base: font_size_base || '16px',
+      line_height: line_height || '1.6',
+      letter_spacing: letter_spacing || '0.02em',
+    };
+    const theme = {
+      palette,
+      primaryColor: primary_color,
+      secondaryColor: secondary_color,
+      accentColor: accent_color,
+      buttonStyle: button_style,
+      fontStyle: body_font || font_style,
+      typography,
+    };
 
     if (!site_name || !domain) return;
 
@@ -454,6 +799,7 @@ export default function Community() {
         short_bio,
         description,
         logo,
+        banner,
         group_photo,
         lead_image,
         instagram_url,
@@ -466,11 +812,21 @@ export default function Community() {
         secondary_color,
         accent_color,
         button_style,
-        font_style,
+        font_style: body_font || font_style,
+        nav_position,
+        palette,
+        typography,
+        theme,
+        font_heading: heading_font || body_font || font_style,
+        font_body: body_font || font_style,
+        font_size_base,
+        line_height,
+        letter_spacing,
         members: editingMembers,
       });
       await fetchSites();
       closeEditModal();
+      showToast('Site updated successfully.', 'success');
     } catch (err) {
       const backendMessage = String(
         err?.response?.data?.error ||
@@ -479,7 +835,7 @@ export default function Community() {
         'Failed to update site.',
       ).trim();
       console.error('Failed to update site:', err?.response?.data || err.message || err);
-      alert(backendMessage);
+      showToast(backendMessage, 'error');
     }
   }
 
@@ -487,9 +843,13 @@ export default function Community() {
     try {
       await updateSite(siteId, { status: nextStatus });
       await fetchSites();
+      showToast(
+        nextStatus === 'active' ? 'Site activated successfully.' : 'Site deactivated successfully.',
+        'success',
+      );
     } catch (err) {
       console.error('Failed to update status:', err?.response?.data || err.message || err);
-      alert('Failed to update status.');
+      showToast('Failed to update status.', 'error');
     }
   }
 
@@ -500,6 +860,26 @@ export default function Community() {
     });
     section.querySelector('#groupPhoto')?.addEventListener('input', (e) => {
       updateGroupPhotoPreview(e.target.value);
+    });
+    [
+      '#primaryColor',
+      '#secondaryColor',
+      '#accentColor',
+      '#buttonStyle',
+      '#fontStyle',
+      '#headingFont',
+      '#bodyFont',
+      '#fontSizeBase',
+      '#lineHeight',
+      '#letterSpacing',
+      '#paletteColor0',
+      '#paletteColor1',
+      '#paletteColor2',
+      '#paletteColor3',
+      '#paletteColor4',
+    ].forEach((selector) => {
+      section.querySelector(selector)?.addEventListener('input', updateThemePreview);
+      section.querySelector(selector)?.addEventListener('change', updateThemePreview);
     });
 
     section.querySelector('#addSiteBtn')?.addEventListener('click', () => {
@@ -554,19 +934,22 @@ export default function Community() {
         return;
       }
 
-      const editId = target.getAttribute('data-edit');
+      const editTrigger = target.closest('[data-edit]');
+      const editId = editTrigger?.getAttribute('data-edit');
       if (editId) {
         openEditModal(Number(editId));
         return;
       }
 
-      const deactId = target.getAttribute('data-deactivate');
+      const deactivateTrigger = target.closest('[data-deactivate]');
+      const deactId = deactivateTrigger?.getAttribute('data-deactivate');
       if (deactId) {
         toggleStatus(Number(deactId), 'inactive');
         return;
       }
 
-      const reactId = target.getAttribute('data-reactivate');
+      const reactivateTrigger = target.closest('[data-reactivate]');
+      const reactId = reactivateTrigger?.getAttribute('data-reactivate');
       if (reactId) {
         toggleStatus(Number(reactId), 'active');
       }
@@ -582,7 +965,7 @@ export default function Community() {
 
         const maxSize = 2 * 1024 * 1024;
         if (file.size > maxSize) {
-          alert('Logo image must be less than 2MB');
+          showToast('Logo image must be less than 2MB.', 'error');
           target.value = '';
           return;
         }
@@ -590,7 +973,7 @@ export default function Community() {
         try {
           const imageUrl = await uploadSiteImage(file);
           if (!imageUrl) {
-            alert('Failed to upload logo image.');
+            showToast('Failed to upload logo image.', 'error');
             return;
           }
           const logoInput = section.querySelector('#siteLogo');
@@ -598,9 +981,42 @@ export default function Community() {
             logoInput.value = imageUrl;
           }
           updateLogoPreview(imageUrl);
+          showToast('Logo uploaded successfully.', 'success');
         } catch (err) {
           console.error('Logo upload failed:', err?.response?.data || err.message || err);
-          alert('Failed to upload logo image.');
+          showToast('Failed to upload logo image.', 'error');
+        } finally {
+          target.value = '';
+        }
+        return;
+      }
+
+      if (target.id === 'groupPhotoFile') {
+        const file = target.files?.[0];
+        if (!file) return;
+
+        const maxSize = 2 * 1024 * 1024;
+        if (file.size > maxSize) {
+          showToast('Group photo must be less than 2MB.', 'error');
+          target.value = '';
+          return;
+        }
+
+        try {
+          const imageUrl = await uploadSiteImage(file);
+          if (!imageUrl) {
+            showToast('Failed to upload group photo.', 'error');
+            return;
+          }
+          const groupPhotoInput = section.querySelector('#groupPhoto');
+          if (groupPhotoInput) {
+            groupPhotoInput.value = imageUrl;
+          }
+          updateGroupPhotoPreview(imageUrl);
+          showToast('Group photo uploaded successfully.', 'success');
+        } catch (err) {
+          console.error('Group photo upload failed:', err?.response?.data || err.message || err);
+          showToast('Failed to upload group photo.', 'error');
         } finally {
           target.value = '';
         }
@@ -619,7 +1035,7 @@ export default function Community() {
 
       const maxSize = 2 * 1024 * 1024; // 2MB
       if (file.size > maxSize) {
-        alert('Member image must be less than 2MB');
+        showToast('Member image must be less than 2MB.', 'error');
         target.value = '';
         return;
       }
@@ -630,14 +1046,15 @@ export default function Community() {
       try {
         const imageUrl = await uploadMemberImage(file);
         if (!imageUrl) {
-          alert('Failed to upload member image.');
+          showToast('Failed to upload member image.', 'error');
           return;
         }
         editingMembers[idx].image_profile = imageUrl;
         renderMembersEditor();
+        showToast('Member image uploaded successfully.', 'success');
       } catch (err) {
         console.error('Member image upload failed:', err?.response?.data || err.message || err);
-        alert('Failed to upload member image.');
+        showToast('Failed to upload member image.', 'error');
       } finally {
         activeMemberUploads = Math.max(0, activeMemberUploads - 1);
       }

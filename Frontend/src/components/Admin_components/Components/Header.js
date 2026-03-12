@@ -2,8 +2,9 @@ import "../../../styles/Admin_styles/Header.css";
 import { getAdminHeaders } from "./admin-sites.js";
 
 const API_BASE = (import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1").trim().replace(/\/$/, "");
-const POLL_MS = 15000;
+const POLL_MS = 5000;
 const READ_STORE_KEY = "admin_report_notif_reads_v1";
+const PENDING_SUGGESTIONS_KEY = "admin_pending_suggestions_v1";
 
 function buildApiUrl(path) {
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
@@ -14,6 +15,13 @@ function getAuthHeaders() {
     ...getAdminHeaders(),
     "Content-Type": "application/json",
   };
+}
+
+function getSuggestionHeaders() {
+  const headers = getAuthHeaders();
+  delete headers["x-site-slug"];
+  delete headers["x-community-type"];
+  return headers;
 }
 
 function escapeHtml(value) {
@@ -131,6 +139,23 @@ function loadReadMap() {
 function saveReadMap(map) {
   try {
     localStorage.setItem(READ_STORE_KEY, JSON.stringify(map));
+  } catch {
+    // ignore
+  }
+}
+
+function loadPendingSuggestions() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(PENDING_SUGGESTIONS_KEY) || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function savePendingSuggestions(items) {
+  try {
+    localStorage.setItem(PENDING_SUGGESTIONS_KEY, JSON.stringify(Array.isArray(items) ? items : []));
   } catch {
     // ignore
   }
@@ -258,7 +283,14 @@ export default function Header(root) {
         headers: getAuthHeaders(),
       });
       const payload = await res.json().catch(() => ({}));
-      return Boolean(res.ok && payload?.success !== false);
+      if (res.ok && payload?.success !== false) {
+        const pending = loadPendingSuggestions().filter(
+          (item) => String(item?.suggestion_id || "") !== String(id),
+        );
+        savePendingSuggestions(pending);
+        return true;
+      }
+      return false;
     } catch (error) {
       console.warn("Failed to mark suggestion read:", error);
       return false;
@@ -271,6 +303,7 @@ export default function Header(root) {
         method: "POST",
         headers: getAuthHeaders(),
       });
+      savePendingSuggestions([]);
     } catch (error) {
       console.warn("Failed to mark all suggestions read:", error);
     }
@@ -324,7 +357,7 @@ export default function Header(root) {
       const [usersRes, postsRes, suggestionsRes] = await Promise.allSettled([
         fetch(buildApiUrl("/admin/reports/users/reported"), { method: "GET", headers: getAuthHeaders() }),
         fetch(buildApiUrl("/admin/reports/posts/reported"), { method: "GET", headers: getAuthHeaders() }),
-        fetch(buildApiUrl("/admin/suggestions/notifications"), { method: "GET", headers: getAuthHeaders() }),
+        fetch(buildApiUrl("/admin/suggestions/notifications?community=all"), { method: "GET", headers: getSuggestionHeaders() }),
       ]);
 
       const usersStatus = usersRes.status === "fulfilled" ? usersRes.value.status : 0;
@@ -357,7 +390,18 @@ export default function Header(root) {
 
       const reportItems = [...normalizeRows(userRows, "message"), ...normalizeRows(postRows, "post")];
       const hydratedReports = applyReadState(await hydrateMissingReasons(reportItems));
-      const suggestionItems = normalizeSuggestionRows(suggestionRows);
+      const localSuggestionRows = loadPendingSuggestions();
+      const mergedSuggestionRows = [];
+      const seenSuggestionIds = new Set();
+
+      [...suggestionRows, ...localSuggestionRows].forEach((row) => {
+        const key = String(row?.suggestion_id || "").trim();
+        if (key && seenSuggestionIds.has(key)) return;
+        if (key) seenSuggestionIds.add(key);
+        mergedSuggestionRows.push(row);
+      });
+
+      const suggestionItems = normalizeSuggestionRows(mergedSuggestionRows);
       const merged = [...hydratedReports, ...suggestionItems].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
       notifItems = merged;
       updateBadge();
@@ -372,8 +416,9 @@ export default function Header(root) {
     notifModal.classList.toggle("hidden", !shouldOpen);
   }
 
-  notifBtn.addEventListener("click", (event) => {
+  notifBtn.addEventListener("click", async (event) => {
     event.stopPropagation();
+    await fetchNotifications();
     toggleModal();
   });
 
@@ -422,6 +467,12 @@ export default function Header(root) {
   }, POLL_MS);
 
   fetchNotifications();
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === PENDING_SUGGESTIONS_KEY && root.isConnected) {
+      fetchNotifications();
+    }
+  });
 }
 
 

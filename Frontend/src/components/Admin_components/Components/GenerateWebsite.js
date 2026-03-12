@@ -92,6 +92,20 @@ export default function GenerateWebsite() {
     .replace(/[_\s]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-|-$/g, '');
+  const getCanonicalTemplateKey = (value) => {
+    const normalized = toTemplateKey(value);
+    if (!normalized) return '';
+    if (normalized.includes('minimal')) return 'minimal';
+    if (normalized === 'bini' || normalized === 'bini-template') return 'bini';
+    if (normalized === 'modern' || normalized === 'modern-template') return 'modern';
+    return normalized;
+  };
+  const getTemplateDisplayName = (template) => {
+    const canonicalKey = getCanonicalTemplateKey(template?.key || template?.name);
+    if (canonicalKey === 'bini') return 'Bini Template';
+    if (canonicalKey === 'modern') return 'Modern Template';
+    return String(template?.name || 'Template').trim();
+  };
   const normalizeHex = (value, fallback = '#000000') => {
     const raw = String(value || '').trim();
     if (/^#([A-Fa-f0-9]{6})$/.test(raw)) return raw;
@@ -295,13 +309,31 @@ export default function GenerateWebsite() {
       const res = await api.get('/admin/generate/gettemplate', {
         headers: getAdminHeaders(),
       });
-        const data = res.data?.data || []; 
-      // Map backend template shape to what this component expects
-        templates = Array.isArray(data) ? data.map((t, idx) => ({
-          id: t.template_id || t._id || t.id || idx + 1,
-          name: t.template_name || `Template ${idx + 1}`,
-          key: toTemplateKey(t.template_key || t.template_name || t.name || `template-${idx + 1}`),
-        })) : [];
+      const data = res.data?.data || [];
+      const seenTemplateKeys = new Set();
+
+      templates = Array.isArray(data)
+        ? data
+          .map((t, idx) => {
+            const canonicalKey = getCanonicalTemplateKey(
+              t.template_key || t.template_name || t.name || `template-${idx + 1}`,
+            );
+            return {
+              id: t.template_id || t._id || t.id || idx + 1,
+              key: canonicalKey,
+              name: getTemplateDisplayName({
+                key: canonicalKey,
+                name: t.template_name || t.name || `Template ${idx + 1}`,
+              }),
+            };
+          })
+          .filter((template) => {
+            if (!template.key || template.key === 'minimal') return false;
+            if (seenTemplateKeys.has(template.key)) return false;
+            seenTemplateKeys.add(template.key);
+            return true;
+          })
+        : [];
     } catch (err) {
       console.error('Failed to fetch templates:', err?.response?.data || err.message || err);
       templates = [];
