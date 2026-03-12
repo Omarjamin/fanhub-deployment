@@ -6,6 +6,7 @@ import follow from '../../../services/bini_services/post/fetchFollow.js';
 import { renderThreadsSidebar } from '../threadsSidebar.js';
 import api from '../../../services/bini_services/api.js';
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from '../../../lib/site-context.js';
+import { showToast } from '../../../utils/toast.js';
 
 const DEFAULT_PROFILE_IMAGE = '/circle-user.png';
 
@@ -97,7 +98,7 @@ export default async function Search_(root, data = {}) {
   }
 
   if (!token) {
-    alert('Please login first.');
+    showToast('Please login first.', 'error');
     return;
   }
 
@@ -717,9 +718,12 @@ export default async function Search_(root, data = {}) {
         const userId = this.getAttribute('data-userid');
         const row = this.closest('.suggested-user-row');
         const fullname = row?.querySelector('.suggested-fullname')?.textContent || 'user';
+        const originalLabel = this.textContent;
         try {
+          this.disabled = true;
+          this.textContent = 'Following...';
           await follow(userId, token);
-          alert(`You are now following ${fullname}`);
+          showToast(`You are now following ${fullname}.`, 'success');
           row.remove();
           const next = await fetchSuggestedFollowers(token, 1, displayedOffset);
           if (next && next.length) {
@@ -733,7 +737,9 @@ export default async function Search_(root, data = {}) {
             }
           }
         } catch (err) {
-          alert('Failed to follow. Please try again.');
+          this.disabled = false;
+          this.textContent = originalLabel;
+          showToast('Failed to follow. Please try again.', 'error');
         }
       });
     });

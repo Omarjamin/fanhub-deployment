@@ -586,3 +586,71 @@
     border-radius: 20px;
   }
 }
+
+.auth-modal-card--otp {
+  width: min(520px, 100%);
+  padding: 28px;
+  border-radius: 28px;
+  border: 1px solid color-mix(in srgb, var(--auth-border) 72%, #f472b6 28%);
+  background:
+    radial-gradient(circle at top right, rgba(251, 207, 232, 0.48), transparent 38%),
+    linear-gradient(180deg, #fffdfd 0%, #fff5fa 100%);
+  box-shadow:
+    0 24px 48px rgba(101, 56, 84, 0.24),
+    0 10px 24px rgba(236, 72, 153, 0.12);
+}
+
+.auth-modal-card--otp .auth-badge {
+  margin-bottom: 8px;
+}
+
+.auth-modal-label {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 10px;
+  color: #7c2d5b;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.auth-modal-input--otp {
+  min-height: 60px;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-align: center;
+}
+
+.auth-modal-support {
+  margin: 14px 0 0;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(244, 114, 182, 0.18);
+  background: rgba(255, 255, 255, 0.72);
+  color: #6b4960;
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.auth-modal .auth-primary-btn {
+  min-height: 54px;
+  background: linear-gradient(135deg, #ec4899, #fb7185);
+  box-shadow: 0 14px 24px rgba(236, 72, 153, 0.2);
+}
+
+.auth-modal .auth-secondary-btn {
+  min-height: 54px;
+  border: 1px solid #f2bfd8;
+  background: rgba(255, 255, 255, 0.88);
+  color: #a21caf;
+  box-shadow: none;
+}
+
+.auth-modal .auth-secondary-btn:hover,
+.auth-modal .auth-secondary-btn:focus-visible {
+  background: #fff3f8;
+  color: #be185d;
+  border-color: #ec4899;
+}

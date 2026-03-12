@@ -6,6 +6,7 @@ import { buildPostMenuHtml, bindPostMenuActions } from "../post/post-menu.js";
 import api from "../../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../lib/site-context.js";
 import { formatUserTimestamp } from "../../../utils/user-time.js";
+import { showToast } from "../../../utils/toast.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
 
@@ -36,7 +37,7 @@ export default async function ProfileInfo(root, data = {}) {
         </div>
       </div>
       <div class="nav-container">
-        <button class="profile-nav-item" data-tab="threads">Bloomies</button>
+        <button class="profile-nav-item active" data-tab="threads">Bloomies</button>
         <button class="profile-nav-item" data-tab="reposts">Reposts</button>
       </div>
       <div class="feed"></div>
@@ -48,7 +49,7 @@ export default async function ProfileInfo(root, data = {}) {
   let currentUser = null;
 
   if (!token) {
-    alert("Please login first.");
+    showToast("Please login first.", "error");
     return;
   }
 
@@ -66,7 +67,7 @@ export default async function ProfileInfo(root, data = {}) {
           currentUser = fetched?.user || fetched;
         }
         if (!currentUser) {
-          alert("Profile data could not be fetched");
+          showToast("Profile data could not be fetched", "error");
           return;
         }
         showEditProfileModal(currentUser, token, (newFullname, newProfilePic) => {
@@ -81,7 +82,7 @@ export default async function ProfileInfo(root, data = {}) {
           }
         });
       } catch (error) {
-        alert("Error opening edit profile modal: " + (error?.message || error));
+        showToast("Error opening edit profile modal: " + (error?.message || error), "error");
       }
     });
   }
@@ -114,10 +115,10 @@ export default async function ProfileInfo(root, data = {}) {
         });
       });
     } else {
-      alert("Profile data could not be fetched");
+      showToast("Profile data could not be fetched", "error");
     }
   } catch (error) {
-    alert("Error fetching profile data: " + error.message);
+    showToast("Error fetching profile data: " + error.message, "error");
   }
 }
 // POSTS/REPOSTS RENDERING

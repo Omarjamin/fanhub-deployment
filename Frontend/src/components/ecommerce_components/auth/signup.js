@@ -248,14 +248,16 @@ export default function Signup(root, data = {}) {
     modal.id = 'signupOtpModal';
     modal.className = 'auth-modal';
     modal.innerHTML = `
-      <div class="auth-modal-card">
+      <div class="auth-modal-card auth-modal-card--otp">
         <span class="auth-badge">Email Verification</span>
         <h3 class="auth-modal-title">Verify your Gmail</h3>
         <p id="signupOtpEmailHint" class="auth-modal-hint"></p>
-        <input id="signupOtpInput" class="auth-modal-input" type="text" placeholder="Enter OTP code">
+        <label class="auth-modal-label" for="signupOtpInput">Verification code</label>
+        <input id="signupOtpInput" class="auth-modal-input auth-modal-input--otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="Enter OTP code">
+        <p class="auth-modal-support">Use the 6-digit code sent to your email to finish creating your account.</p>
         <div class="auth-modal-actions">
-          <button id="signupOtpVerifyBtn" class="mv-btn">Verify & Create</button>
-          <button id="signupOtpResendBtn" class="mv-btn auth-secondary-btn">Resend OTP</button>
+          <button id="signupOtpVerifyBtn" class="mv-btn auth-primary-btn" type="button">Verify & Create</button>
+          <button id="signupOtpResendBtn" class="mv-btn auth-secondary-btn" type="button">Resend OTP</button>
         </div>
         <button id="signupOtpCloseBtn" class="auth-modal-cancel" type="button">Cancel</button>
       </div>

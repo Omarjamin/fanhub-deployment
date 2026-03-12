@@ -1,5 +1,6 @@
 import '../../../styles/bini_styles/EditProfileModal.css';
 import api from '../../../services/bini_services/api.js';
+import { showToast } from '../../../utils/toast.js';
 
 export default function showEditProfileModal(user, token, onUpdate) {
   const existing = document.getElementById('editProfileModal');
@@ -88,7 +89,7 @@ export default function showEditProfileModal(user, token, onUpdate) {
         const uploadResult = uploadResponse.data;
         newProfilePic = uploadResult.url;
       } catch (err) {
-        alert('Failed to upload image: ' + err.message);
+        showToast('Failed to upload image: ' + err.message, 'error');
         return;
       }
     } else {
@@ -107,9 +108,9 @@ export default function showEditProfileModal(user, token, onUpdate) {
         onUpdate(newFullname, newProfilePic);
       }
       modal.remove();
-      alert('Profile updated successfully!');
+      showToast('Profile updated successfully!', 'success');
     } catch (error) {
-      alert("Error updating profile: " + error.message);
+      showToast("Error updating profile: " + error.message, 'error');
     }
   };
 }

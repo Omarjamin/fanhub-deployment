@@ -54,6 +54,26 @@ export function showToast(message, type = 'info') {
     ERROR_TOAST_PATTERNS.some((pattern) => normalizedMessage.includes(pattern))
       ? 'error'
       : type;
+  const themeMap = {
+    success: {
+      background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+      border: '1px solid rgba(255, 255, 255, 0.28)',
+    },
+    error: {
+      background: 'linear-gradient(135deg, #be123c, #ef4444)',
+      border: '1px solid rgba(255, 255, 255, 0.22)',
+    },
+    warning: {
+      background: 'linear-gradient(135deg, #d97706, #f59e0b)',
+      border: '1px solid rgba(255, 255, 255, 0.2)',
+    },
+    info: {
+      background: 'linear-gradient(135deg, #db2777, #fb7185)',
+      border: '1px solid rgba(255, 255, 255, 0.24)',
+    },
+  };
+  const resolvedTheme = themeMap[resolvedType] || themeMap.info;
+
   // Remove existing toast if any
   const existingToast = document.querySelector('.toast-notification');
   if (existingToast) {
@@ -68,20 +88,25 @@ export function showToast(message, type = 'info') {
   // Add styles
   toast.style.cssText = `
     position: fixed;
-    top: 80px;
+    top: 88px;
     left: 50%;
     transform: translateX(-50%);
-    background: ${resolvedType === 'error' ? '#dc2626' : resolvedType === 'warning' ? '#f59e0b' : resolvedType === 'success' ? '#22c55e' : '#3b82f6'};
+    background: ${resolvedTheme.background};
     color: white;
-    padding: 20px 30px;
-    border-radius: 12px;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    padding: 16px 22px;
+    border-radius: 20px;
+    border: ${resolvedTheme.border};
+    box-shadow: 0 18px 36px rgba(101, 56, 84, 0.28);
+    backdrop-filter: blur(10px);
     z-index: 10001;
-    font-family: system-ui, -apple-system, sans-serif;
-    font-size: 18px;
-    font-weight: 600;
-    max-width: 400px;
+    font-family: var(--theme-font-family, "Poppins", system-ui, sans-serif);
+    font-size: 0.98rem;
+    font-weight: 700;
+    line-height: 1.45;
+    letter-spacing: 0.01em;
+    max-width: min(420px, calc(100vw - 32px));
     text-align: center;
+    width: max-content;
     animation: slideDown 0.3s ease-out;
   `;
 
@@ -168,19 +193,21 @@ export function showConfirmToast(message, onConfirm, onCancel) {
   // Add styles
   toast.style.cssText = `
     position: fixed;
-    top: 80px;
+    top: 88px;
     left: 50%;
     transform: translateX(-50%);
-    background: #64748b;
+    background: linear-gradient(135deg, #7c3aed, #ec4899);
     color: white;
-    padding: 20px 30px;
-    border-radius: 12px;
-    box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+    padding: 18px 24px;
+    border-radius: 20px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    box-shadow: 0 18px 36px rgba(101, 56, 84, 0.28);
     z-index: 10001;
-    font-family: system-ui, -apple-system, sans-serif;
-    font-size: 18px;
-    font-weight: 600;
-    max-width: 400px;
+    font-family: var(--theme-font-family, "Poppins", system-ui, sans-serif);
+    font-size: 1rem;
+    font-weight: 700;
+    line-height: 1.45;
+    max-width: min(420px, calc(100vw - 32px));
     text-align: center;
     animation: slideDown 0.3s ease-out;
   `;

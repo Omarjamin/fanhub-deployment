@@ -2,6 +2,7 @@ import { socket, setupSocket } from "../../../hooks/bini_hooks/socket";
 import api from "../../../services/bini_services/api.js";
 import "../../../styles/bini_styles/MessagingModal.css";
 import { getActiveSiteSlug } from "../../../lib/site-context.js";
+import { showToast } from "../../../utils/toast.js";
 
 const DEFAULT_AVATAR = "/circle-user.png";
 const API_URL = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
@@ -207,15 +208,15 @@ export default class MessagingModal {
       const proofFile = proofInput.files?.[0] || null;
 
       if (!category) {
-        alert("Please choose a report category.");
+        showToast("Please choose a report category.", "error");
         return;
       }
       if (!reason) {
-        alert("Please enter the reason for this report.");
+        showToast("Please enter the reason for this report.", "error");
         return;
       }
       if (!proofFile) {
-        alert("Proof image is required.");
+        showToast("Proof image is required.", "error");
         return;
       }
 
@@ -232,9 +233,9 @@ export default class MessagingModal {
         }, messageId);
 
         modal.classList.remove("open");
-        alert("Report submitted. Thank you.");
+        showToast("Report submitted. Thank you.", "success");
       } catch (err) {
-        alert(err?.response?.data?.error || err?.message || "Failed to submit report.");
+        showToast(err?.response?.data?.error || err?.message || "Failed to submit report.", "error");
       }
     };
 

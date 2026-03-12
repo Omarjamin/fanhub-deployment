@@ -850,3 +850,47 @@
 .main-message-bubble.sent .main-message-time {
   color: rgba(255, 255, 255, 0.8);
 }
+
+/* Final readability guard for message text */
+#messaging-modal,
+.mini-chat-window {
+  color: #111827;
+}
+
+.messaging-title,
+.chat-user-name,
+.chat-preview,
+.chat-user-time,
+.mini-username,
+.mini-user-status,
+.mini-loading,
+.loading-state,
+.no-conversations {
+  color: #111827 !important;
+}
+
+.message-tab,
+.message-tab:hover,
+.message-tab.active {
+  color: #111827 !important;
+}
+
+.message-bubble.sent,
+.message-bubble.received,
+.main-message-bubble.sent,
+.main-message-bubble.received,
+.mini-message-bubble.sent,
+.mini-message-bubble.received,
+.mini-message.sent,
+.mini-message.received {
+  color: #111827 !important;
+}
+
+.message-bubble.sent .message-time,
+.message-bubble.received .message-time,
+.main-message-bubble.sent .main-message-time,
+.main-message-bubble.received .main-message-time,
+.mini-message-bubble.sent .mini-message-time,
+.mini-message-bubble.received .mini-message-time {
+  color: rgba(17, 24, 39, 0.72) !important;
+}

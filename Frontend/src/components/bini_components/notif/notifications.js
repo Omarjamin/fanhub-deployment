@@ -7,6 +7,7 @@ import { renderThreadsSidebar } from "../threadsSidebar.js";
 import api from "../../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../lib/site-context.js";
 import { formatUserTimestamp } from "../../../utils/user-time.js";
+import { showToast } from "../../../utils/toast.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
 
@@ -107,12 +108,18 @@ export default async function Notifications(root, data = {}) {
 }
 // Render notifications list
 async function renderNotifications(notifs, token, panel) {
-  panel.innerHTML = `<h3></h3><ul style="list-style:none;padding:0;" id="notif-list"></ul>`;
+  panel.innerHTML = `
+    <div class="notifications-panel-head">
+      <p class="notifications-panel-kicker">Recent Activity</p>
+      <h2 class="notifications-panel-title">Your notifications</h2>
+    </div>
+    <ul class="notif-list" id="notif-list"></ul>
+  `;
   const notifList = panel.querySelector("#notif-list");
   const list = Array.isArray(notifs) ? notifs : (Array.isArray(notifs?.notifications) ? notifs.notifications : []);
 
   if (list.length === 0) {
-    notifList.innerHTML = "<li>No notifications.</li>";
+    notifList.innerHTML = `<li class="notifications-empty">No notifications yet.</li>`;
     return;
   }
 
@@ -138,16 +145,16 @@ async function renderNotifications(notifs, token, panel) {
 
     const notifHtml = `
       <li 
-        class="notif-item" 
-        style="padding:8px 0;border-bottom:1px solid #eee;display:flex;align-items:center;gap:8px;cursor:${(notif.post_id || notif.comment_id) ? "pointer" : "default"};"
+        class="notif-item ${(notif.post_id || notif.comment_id) ? "notif-item--actionable" : ""}" 
         ${notif.post_id ? `data-postid="${notif.post_id}"` : ""}
         ${notif.comment_id ? `data-commentid="${notif.comment_id}"` : ""}
       >
-        <img src="${profilePic || DEFAULT_PROFILE_IMAGE}" alt="${fromUser}" style="width:32px;height:32px;border-radius:50%;" onerror="this.src='${DEFAULT_PROFILE_IMAGE}';">
-        <span>
-        ${getNotificationText(notif, fromUser)}
-        <span style="font-size:12px;color:#888;">${formatDate(notif.created_at)}</span>
-        </span>
+        <img src="${profilePic || DEFAULT_PROFILE_IMAGE}" alt="${fromUser}" class="notif-avatar" onerror="this.src='${DEFAULT_PROFILE_IMAGE}';">
+        <div class="notif-copy">
+          <div class="notif-message">${getNotificationText(notif, fromUser)}</div>
+          <div class="notif-time">${formatDate(notif.created_at)}</div>
+        </div>
+        ${(notif.post_id || notif.comment_id) ? '<span class="notif-arrow material-icons" aria-hidden="true">north_east</span>' : ""}
       </li>
     `;
     notifList.insertAdjacentHTML("beforeend", notifHtml);
@@ -163,7 +170,7 @@ async function renderNotifications(notifs, token, panel) {
           const post = await fetchPostById(postId, token);
           showPostModal(post, token);
         } catch (err) {
-          alert("Failed to load post.");
+          showToast("Failed to load post.", "error");
         }
       }
     });
@@ -207,44 +214,34 @@ async function showPostModal(post, token) {
 
   const modal = document.createElement("div");
   modal.className = "notif-post-modal";
-  modal.style.position = "fixed";
-  modal.style.top = "0";
-  modal.style.left = "0";
-  modal.style.width = "100vw";
-  modal.style.height = "100vh";
-  modal.style.background = "rgba(0,0,0,0.4)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = "9999";
 
   const tagsHtml =
     post.tags && post.tags.length > 0
       ? `<div class="post-tags">${Array.isArray(post.tags) ? post.tags.join(", ") : post.tags}</div>`
       : "";
   const imageHtml = post.img_url
-    ? `<img src="${post.img_url}" alt="Post Image" class="post-image" style="max-width:100%;margin-top:8px;" />`
+    ? `<img src="${post.img_url}" alt="Post Image" class="post-image notif-post-image" />`
     : "";
 
   modal.innerHTML = `
-    <div style="background:#fff;padding:24px;border-radius:8px;min-width:320px;max-width:90vw;max-height:80vh;overflow-y:auto;position:relative;">
-      <span style="position:absolute;top:8px;right:16px;cursor:pointer;font-size:24px;" id="closeModalBtn">&times;</span>
-      <div class="post-card">
-        <div class="post-meta1" style="display:flex;align-items:center;gap:12px;">
+    <div class="notif-post-dialog">
+      <button class="notif-post-close" id="closeModalBtn" aria-label="Close">&times;</button>
+      <div class="post-card notif-post-card">
+        <div class="post-meta1 notif-post-meta">
           <a href="#" class="profile-link" data-user-id="${post.user_id}">
-            <img src="${post.profile_picture || "/circle-user.png"}" class="profile-picture" style="width:40px;height:40px;border-radius:50%;object-fit:cover;" onerror="this.src='/circle-user.png';">
+            <img src="${post.profile_picture || "/circle-user.png"}" class="profile-picture notif-post-avatar" onerror="this.src='/circle-user.png';">
           </a>
           <a href="#" class="profile-link" data-user-id="${post.user_id}">
-            <span class="post-fullname" style="font-weight:bold;">${post.fullname || "Unknown User"}</span>
+            <span class="post-fullname">${post.fullname || "Unknown User"}</span>
           </a>
-          <span class="post-time" style="margin-left:auto;font-size:12px;color:#888;">${formatDate(post.created_at)}</span>
+          <span class="post-time">${formatDate(post.created_at)}</span>
         </div>
-        <div class="post-content" style="margin:12px 0;">${post.content || "No content available"}</div>
+        <div class="post-content notif-post-content">${post.content || "No content available"}</div>
         ${tagsHtml}
         ${imageHtml}
-        <div class="post-actions" style="margin-top:16px;display:flex;gap:24px;">
+        <div class="post-actions notif-post-actions">
           <button class="post-action like-button ${isLiked ? "liked" : ""}" data-post-id="${post.post_id}" data-like-type="post">
-            <span class="material-icons ${isLiked ? "liked" : ""}">favorite_border</span>
+            <span class="material-icons ${isLiked ? "liked" : ""}">${isLiked ? "favorite" : "favorite_border"}</span>
             <span class="like-count">${likeCount}</span>
           </button>
           <button class="post-action comment-button" data-post-id="${post.post_id}">
@@ -260,6 +257,11 @@ async function showPostModal(post, token) {
   document.body.appendChild(modal);
 
   modal.querySelector("#closeModalBtn").onclick = () => modal.remove();
+  modal.addEventListener("click", (event) => {
+    if (event.target === modal) {
+      modal.remove();
+    }
+  });
 
   // Profile link event
   modal.querySelectorAll(".profile-link").forEach((link) => {
@@ -268,7 +270,7 @@ async function showPostModal(post, token) {
       const userId = link.getAttribute("data-user-id");
       sessionStorage.setItem("selectedUserId", userId);
       const siteSlug = getActiveSiteSlug() || "bini";
-      window.history.pushState({}, "", `/fanhub/community-platform/${encodeURIComponent(siteSlug)}/others-profile`);
+      window.history.pushState({}, "", `/fanhub/community-platform/${encodeURIComponent(siteSlug)}/others-profile?userId=${encodeURIComponent(String(userId || ""))}`);
       window.dispatchEvent(new Event("popstate"));
       modal.remove();
     });
@@ -286,9 +288,10 @@ async function showPostModal(post, token) {
 
         likeCountElement.textContent = updatedLikeData.likes;
         likeIcon.classList.toggle("liked", updatedLikeData.isLiked);
+        likeIcon.textContent = updatedLikeData.isLiked ? "favorite" : "favorite_border";
         button.classList.toggle("liked", updatedLikeData.isLiked);
       } catch (error) {
-        alert("Error updating like: " + error.message);
+        showToast("Error updating like: " + error.message, "error");
       }
     });
   });
@@ -299,8 +302,9 @@ async function showPostModal(post, token) {
       const postId = button.getAttribute("data-post-id");
       try {
         await repost(postId, token);
+        showToast("Post reposted successfully!", "success");
       } catch (error) {
-        alert("Repost failed: " + error.message);
+        showToast("Repost failed: " + error.message, "error");
       }
     });
   });
@@ -312,7 +316,7 @@ async function showPostModal(post, token) {
       try {
         createCommentModal(postId);
       } catch (error) {
-        alert("Error opening comments: " + error.message);
+        showToast("Error opening comments: " + error.message, "error");
       }
     });
   });

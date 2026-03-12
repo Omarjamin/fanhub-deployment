@@ -6,6 +6,7 @@ import api from "../../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../lib/site-context.js";
 import { formatUserTimestamp } from "../../../utils/user-time.js";
 import { buildPostMenuHtml, bindPostMenuActions } from "../post/post-menu.js";
+import { showToast } from "../../../utils/toast.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
 
@@ -84,7 +85,7 @@ export default async function ProfileInfo(main, params) {
   const myUserId = getUserIdFromToken(token);
 
   if (!token) {
-    alert("Please login first.");
+    showToast("Please login first.", "error");
     return;
   }
 
@@ -115,6 +116,7 @@ export default async function ProfileInfo(main, params) {
       const fullname = main.querySelector("#fullname");
       const followBtn = main.querySelector("#followBtn");
       const editProfileBtn = main.querySelector("#editProfileBtn");
+      const displayName = user.user.fullname || user.user.username || "Anonymous";
 
       // Update profile picture and fullname
       if (profilePicture) {
@@ -125,8 +127,7 @@ export default async function ProfileInfo(main, params) {
         profilePicture.style.visibility = "visible";
       }
       if (fullname) {
-        const name = user.user.fullname || user.user.username || "Anonymous";
-        fullname.textContent = name;
+        fullname.textContent = displayName;
         fullname.style.display = "block";
         fullname.style.visibility = "visible";
       }
@@ -165,7 +166,7 @@ export default async function ProfileInfo(main, params) {
       if (profileContainer) {
         profileContainer.setAttribute(
           "style",
-          "display: block !important; visibility: visible !important; opacity: 1 !important; background-color: #ffffff !important;",
+          "display: block !important; visibility: visible !important; opacity: 1 !important;",
         );
       }
 
@@ -204,15 +205,21 @@ export default async function ProfileInfo(main, params) {
       followBtn.textContent = isFollowing ? "Unfollow" : "Follow";
 
       followBtn.addEventListener("click", async () => {
+        const nextStateLabel = isFollowing ? "Follow" : "Unfollow";
+        const loadingLabel = isFollowing ? "Updating..." : "Following...";
         try {
+          followBtn.disabled = true;
+          followBtn.textContent = loadingLabel;
           if (!isFollowing) {
             const res = await api.post(`/bini/users/${viewedUserId}/follow`);
             if (res.status >= 200 && res.status < 300) {
               isFollowing = true;
               followBtn.textContent = "Unfollow";
               await loadProfileStats(viewedUserId, main);
+              showToast(`You are now following ${displayName}.`, "success");
             } else {
-              alert("Failed to follow user.");
+              followBtn.textContent = nextStateLabel;
+              showToast("Failed to follow user.", "error");
             }
           } else {
             // Unfollow user
@@ -221,12 +228,17 @@ export default async function ProfileInfo(main, params) {
               isFollowing = false;
               followBtn.textContent = "Follow";
               await loadProfileStats(viewedUserId, main);
+              showToast(`You unfollowed ${displayName}.`, "info");
             } else {
-              alert("Failed to unfollow user.");
+              followBtn.textContent = nextStateLabel;
+              showToast("Failed to unfollow user.", "error");
             }
           }
         } catch (err) {
-          alert("Error updating follow status.");
+          followBtn.textContent = isFollowing ? "Unfollow" : "Follow";
+          showToast("Error updating follow status.", "error");
+        } finally {
+          followBtn.disabled = false;
         }
       });
 
@@ -268,10 +280,10 @@ export default async function ProfileInfo(main, params) {
         });
       });
     } else {
-      alert("Profile data could not be fetched");
+      showToast("Profile data could not be fetched", "error");
     }
   } catch (error) {
-    alert("Error fetching profile data: " + error.message);
+    showToast("Error fetching profile data: " + error.message, "error");
   }
 }
 
