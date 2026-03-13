@@ -109,7 +109,9 @@ export default function Navigation(root, data = {}) {
   root.innerHTML = `
     <nav class="bottom-nav">
       <div class="nav-logo">
-        <img src="${navLogo}" class="nav-logo-img" onerror="this.onerror=null;this.src='${DEFAULT_NAV_LOGO}';">
+        <a href="${homePath}" class="nav-logo-link" aria-label="Go to home">
+          <img src="${navLogo}" class="nav-logo-img" onerror="this.onerror=null;this.src='${DEFAULT_NAV_LOGO}';">
+        </a>
       </div>
       <div class="nav-links">
         <a href="${homePath}" id="homecon" class="nav-item">
@@ -183,5 +185,3 @@ export default function Navigation(root, data = {}) {
     });
   }
 }
-
-

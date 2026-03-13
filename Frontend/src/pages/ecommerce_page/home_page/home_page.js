@@ -18,6 +18,7 @@ import '../../../styles/ecommerce_styles/discography.css';
 import '../../../styles/ecommerce_styles/announcement.css';
 
 export default function HOMEPAGE(data = {}) {
+  document.body.classList.add('ec-home-page');
   const { navigation, main, footer} = Layouts(this.root);
   console.info('[Home Page Debug] render data payload', data);
   Navigation(navigation, data);
@@ -29,3 +30,4 @@ export default function HOMEPAGE(data = {}) {
   announcement(main, data);
   Footer(footer, data);  
 };
+

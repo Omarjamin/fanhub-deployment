@@ -1,8 +1,20 @@
+
 .fh-template-root:has(.ec-lead-image) #container,
 body:has(.ec-lead-image) #container {
   padding: 0 !important;
   margin: 0 !important;
   max-width: none !important;
+}
+
+body:has(.ec-lead-image) {
+  overflow-x: hidden;
+}
+
+/* Fallback for browsers without :has() support */
+body.ec-home-page,
+body.ec-home-page #container,
+body.ec-home-page #main {
+  overflow-x: hidden;
 }
 
 .fh-template-root:has(.ec-lead-image) #main,
@@ -371,10 +383,10 @@ body:has(.ec-lead-image) main {
   
   #navMenu {
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
+    inset: 0;
+    width: 100%;
+    height: auto;
+    min-height: 100%;
     background:
       linear-gradient(
         180deg,
@@ -386,10 +398,13 @@ body:has(.ec-lead-image) main {
     display: none;
     justify-content: flex-start;
     align-items: center;
-    padding-top: 80px;
+    padding: 80px 0 max(24px, env(safe-area-inset-bottom));
     z-index: 999;
     transform: translateX(-100%);
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    -webkit-overflow-scrolling: touch;
   }
   #navMenu.active {
     display: flex;
@@ -487,7 +502,7 @@ body:has(.ec-lead-image) main {
 @media (max-width: 480px) {
   .navbar {
     padding: clamp(0.4rem, 2vw, 0.6rem) clamp(0.6rem, 2vw, 1rem);
-    min-height: clamp(45px, 8vw, 55px);
+    min-height: clamp(54px, 11vw, 64px);
   }
   
   .navbar .logo {
@@ -501,23 +516,42 @@ body:has(.ec-lead-image) main {
   
   .navbar .nav-right a {
     font-size: clamp(0.8rem, 2vw, 0.9rem);
-    min-width: clamp(28px, 4.5vw, 30px);
-    min-height: clamp(28px, 4.5vw, 30px);
-    padding: clamp(0.3rem, 1vw, 0.35rem);
+    min-width: clamp(32px, 6vw, 36px);
+    min-height: clamp(32px, 6vw, 36px);
+    padding: clamp(0.4rem, 1.2vw, 0.45rem);
   }
 
   .navbar .nav-right .nav-icon {
-    width: clamp(30px, 4.5vw, 32px);
-    height: clamp(30px, 4.5vw, 32px);
-    min-width: clamp(30px, 4.5vw, 32px);
-    min-height: clamp(30px, 4.5vw, 32px);
+    width: clamp(34px, 6.2vw, 38px);
+    height: clamp(34px, 6.2vw, 38px);
+    min-width: clamp(34px, 6.2vw, 38px);
+    min-height: clamp(34px, 6.2vw, 38px);
     padding: 0 !important;
   }
   
   .navbar .menu-toggle {
-    font-size: clamp(1.1rem, 2.5vw, 1.3rem);
-    min-width: clamp(28px, 4.5vw, 32px);
-    min-height: clamp(28px, 4.5vw, 32px);
+    font-size: clamp(1.25rem, 4vw, 1.5rem);
+    min-width: clamp(34px, 6vw, 38px);
+    min-height: clamp(34px, 6vw, 38px);
+  }
+}
+
+/* Extra Small Mobile Responsive (<= 425px) */
+@media (max-width: 425px) {
+  .navbar {
+    padding-right: calc(clamp(0.6rem, 2vw, 1rem) + env(safe-area-inset-right));
+    padding-left: calc(clamp(0.6rem, 2vw, 1rem) + env(safe-area-inset-left));
+  }
+
+  #navMenu {
+    padding: 72px 0 max(20px, env(safe-area-inset-bottom));
+  }
+
+  #navMenu .nav-link {
+    max-width: 260px;
+    padding: 1.1rem 1.5rem;
+    margin: 0.4rem 0;
+    font-size: 1.05rem;
   }
 }
 

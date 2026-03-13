@@ -62,6 +62,11 @@ body.ec-shop-page .navbar nav a.active {
   color: #555555;
 }
 
+.binishop-banner .banner-title {
+  margin: 0 0 0.35rem;
+  color: #000000;
+}
+
 .binishop-banner .banner-text {
   margin: 0;
   font-size: 0.96rem;

@@ -180,6 +180,7 @@ export default function Navigation(root, data = {}) {
     navMenu.classList.toggle('active');
     menuToggle.textContent = navMenu.classList.contains('active') ? '\u2715' : '\u2630';
     menuToggle.setAttribute('aria-expanded', !isActive);
+    document.body.classList.toggle('ec-nav-open', navMenu.classList.contains('active'));
   });
 
   navCloseBtn?.addEventListener('click', () => {
@@ -189,6 +190,7 @@ export default function Navigation(root, data = {}) {
       menuToggle.textContent = '\u2630';
       menuToggle.setAttribute('aria-expanded', 'false');
     }
+    document.body.classList.remove('ec-nav-open');
   });
 
   navLinks.forEach((link) => {
@@ -235,6 +237,7 @@ export default function Navigation(root, data = {}) {
           menuToggle.textContent = '\u2630';
           menuToggle.setAttribute('aria-expanded', 'false');
         }
+        document.body.classList.remove('ec-nav-open');
         return;
       }
 
@@ -246,6 +249,7 @@ export default function Navigation(root, data = {}) {
 
       e.preventDefault();
       window.location.href = `${homePath}#${normalizedTargetId}`;
+      document.body.classList.remove('ec-nav-open');
     });
   });
 
@@ -255,6 +259,7 @@ export default function Navigation(root, data = {}) {
       const id = link.getAttribute('id') || '';
       if (id === 'logoutBtn') return;
       if (!isAuthenticated()) {
+        if (id === 'signinLink') return;
         e.preventDefault();
         showToast('You need an account to access this feature. Please sign in or sign up.', 'error');
         if (link.classList.contains('nav-auth-only')) {
@@ -296,6 +301,12 @@ export default function Navigation(root, data = {}) {
   }
 
   updateAuthLinks();
+
+  signinLink?.addEventListener('click', (e) => {
+    if (isAuthenticated()) return;
+    e.preventDefault();
+    window.location.href = signinPath;
+  });
 
   logoutBtn?.addEventListener('click', async (e) => {
     e.preventDefault();
