@@ -215,9 +215,9 @@ a:hover { color: var(--primary); }
    ========================================================= */
 
 .hero {
-  padding: calc(var(--header-height) + 6rem)
+  padding: calc(var(--header-height) + clamp(3rem, 6vw, 5rem))
            var(--container-padding)
-           5rem;
+           clamp(4rem, 7vw, 5.5rem);
   background: #0f0d12;
 }
 
@@ -225,29 +225,39 @@ a:hover { color: var(--primary); }
   max-width: var(--max-width);
   margin: 0 auto;
   display: grid;
-  gap: 3rem;
-  align-items: center;
+  gap: clamp(2.5rem, 6vw, 5rem);
+  align-items: start;
 }
 
-.hero-content { max-width: 600px; }
+.hero-content {
+  width: 100%;
+  max-width: 36rem;
+  display: grid;
+  align-content: start;
+  gap: 1.25rem;
+}
 
 .hero-title {
-  font-size: 2.5rem;
+  font-size: clamp(3rem, 8vw, 5rem);
   font-weight: 800;
   line-height: 1.1;
-  margin-bottom: 1.5rem;
+  letter-spacing: -0.05em;
+  max-width: 8.5ch;
+  margin-bottom: 0;
   color: #ff6aa7;
 }
 
 .hero-description {
   font-size: 1.125rem;
   line-height: 1.75;
-  margin-bottom: 2rem;
+  max-width: 33rem;
+  margin-bottom: 0;
 }
 
 .hero-note {
   font-size: 0.875rem;
   color: var(--muted-foreground);
+  max-width: 30rem;
 }
 
 /* =========================================================
@@ -256,7 +266,7 @@ a:hover { color: var(--primary); }
 
 .auth-container {
   width: 100%;
-  max-width: 420px;
+  max-width: 28rem;
   margin: 0 auto;
 }
 
@@ -294,7 +304,7 @@ a:hover { color: var(--primary); }
 }
 
 .admin-landing-section .auth-card {
-  background: #15131a;
+  background: #000000;
   border: 1px solid #2a2632;
   border-radius: var(--radius);
   padding: 1.5rem;
@@ -303,13 +313,16 @@ a:hover { color: var(--primary); }
 
 #admin-landing .suggestion-card {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background:
-    linear-gradient(180deg, rgba(30, 24, 36, 0.96) 0%, rgba(19, 17, 24, 0.98) 100%);
+  overflow: hidden;
+  width: 100%;
+  border: 1px solid rgba(18, 15, 20, 0.08);
+  border-radius: 1.5rem;
+  background: linear-gradient(180deg, #ffffff 0%, #fffafc 100%) !important;
   box-shadow:
-    0 22px 45px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  padding: 1.75rem;
+    0 28px 60px rgba(0, 0, 0, 0.18),
+    0 10px 24px rgba(255, 75, 141, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  padding: 1.9rem;
 }
 
 #admin-landing .suggestion-card::before {
@@ -321,44 +334,71 @@ a:hover { color: var(--primary); }
   background: linear-gradient(90deg, #ff4b8d, #ff8cc1);
 }
 
+#admin-landing .suggestion-card::after {
+  content: '';
+  position: absolute;
+  inset: auto -64px -72px auto;
+  width: 180px;
+  height: 180px;
+  border-radius: 999px;
+  background: radial-gradient(circle, rgba(255, 75, 141, 0.16) 0%, rgba(255, 75, 141, 0) 72%);
+  pointer-events: none;
+}
+
 #admin-landing .suggestion-form {
   display: grid;
-  gap: 1rem;
+  gap: 1.1rem;
+  position: relative;
+  z-index: 1;
 }
 
 #admin-landing .suggestion-eyebrow {
   display: inline-flex;
   align-items: center;
   align-self: flex-start;
-  padding: 0.35rem 0.7rem;
+  padding: 0.4rem 0.75rem;
   border-radius: 999px;
-  background: rgba(255, 75, 141, 0.12);
-  border: 1px solid rgba(255, 75, 141, 0.24);
-  color: #ff9bc5;
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  background: rgba(255, 75, 141, 0.08);
+  border: 1px solid rgba(255, 75, 141, 0.18);
+  color: #c92d71;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   margin-bottom: 0.75rem;
 }
 
 #admin-landing .suggestion-card .form-header {
-  margin-bottom: 0.25rem;
+  display: grid;
+  gap: 0.55rem;
+  margin-bottom: 0.15rem;
 }
 
 #admin-landing .suggestion-card .form-title {
-  color: #ffffff;
-  font-size: 1.75rem;
-  margin-bottom: 0.45rem;
+  color: #17131c !important;
+  font-size: clamp(1.7rem, 3vw, 2.15rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  margin-bottom: 0;
 }
 
 #admin-landing .suggestion-card .form-subtitle {
-  color: #c9c3d6;
+  color: #5c5568 !important;
+  font-size: 0.93rem;
   line-height: 1.65;
 }
 
 #admin-landing .suggestion-card .form-group {
+  display: grid;
+  gap: 0.45rem;
   margin-bottom: 0;
+}
+
+#admin-landing .suggestion-card .form-label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #17131c !important;
 }
 
 .auth-form { display: none; }
@@ -430,27 +470,40 @@ a:hover { color: var(--primary); }
 
 #admin-landing .suggestion-input {
   min-height: 3rem;
+  padding-inline: 0.95rem;
   border-radius: 0.95rem !important;
-  border: 1px solid rgba(255, 255, 255, 0.16) !important;
-  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid #d8d2df !important;
+  background: #ffffff !important;
   color: #111111 !important;
-  box-shadow: none;
+  box-shadow: 0 1px 2px rgba(18, 15, 20, 0.04);
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background-color 160ms ease,
+    transform 160ms ease;
 }
 
 #admin-landing .suggestion-input:focus {
   border-color: #ff6aa7 !important;
-  box-shadow: 0 0 0 4px rgba(255, 106, 167, 0.18) !important;
+  box-shadow:
+    0 0 0 4px rgba(255, 106, 167, 0.14) !important,
+    0 10px 22px rgba(255, 106, 167, 0.12) !important;
+  transform: translateY(-1px);
 }
 
 #admin-landing .suggestion-textarea {
-  min-height: 9rem;
+  min-height: 8.75rem;
   padding: 0.85rem 0.95rem !important;
   resize: vertical;
   line-height: 1.55;
 }
 
 #admin-landing .suggestion-helper {
-  color: #b9b6c2;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #f0d5e2;
+  border-radius: 1rem;
+  background: #fff4f9;
+  color: #6a6476;
   font-size: 0.82rem;
   line-height: 1.55;
 }
@@ -459,7 +512,9 @@ a:hover { color: var(--primary); }
   min-height: 3.1rem;
   border-radius: 1rem;
   font-size: 0.95rem;
-  letter-spacing: 0.02em;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  box-shadow: 0 14px 28px rgba(255, 75, 141, 0.24);
 }
 
 .form-row {
@@ -584,8 +639,6 @@ a:hover { color: var(--primary); }
 }
 
 #admin-landing .section-header .section-title,
-#admin-landing .form-header .form-title,
-#admin-landing .form-header .form-subtitle,
 #admin-landing .features .section-title,
 #admin-landing .templates-section .section-title,
 #admin-landing .success .section-title {
@@ -737,23 +790,23 @@ a:hover { color: var(--primary); }
 }
 
 .templates-grid {
+  display: grid;
   max-width: var(--max-width);
   margin: 0 auto;
+  gap: 1.5rem;
   grid-template-columns: 1fr;
-  justify-items: center;
-  justify-content: center;
+  align-items: stretch;
 }
 
 .templates-grid .template-card {
   min-height: 200px;
   width: 100%;
-  max-width: 420px;
-  margin: 0 auto;
+  max-width: none;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  align-items: center;
+  align-items: stretch;
   text-align: center;
   background: #15131a;
   border: 1px solid #2a2632;
@@ -995,13 +1048,21 @@ a:hover { color: var(--primary); }
   .nav-mobile { display: none; }
 
   .hero-container {
-    grid-template-columns: 1fr 1fr;
-    gap: 4rem;
+    grid-template-columns: minmax(0, 1.08fr) minmax(23rem, 27.5rem);
+    gap: clamp(3rem, 5vw, 6rem);
   }
 
-  .hero-title { font-size: 3.5rem; }
+  .hero-content {
+    padding-top: clamp(0.5rem, 2vw, 1.5rem);
+  }
+
+  .hero-title { font-size: clamp(3.6rem, 5.4vw, 5rem); }
   .section-title { font-size: 3rem; }
   .templates-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .auth-container {
+    margin: 0 0 0 auto;
+  }
 
   #admin-landing .suggestion-card {
     padding: 2rem;

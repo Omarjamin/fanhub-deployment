@@ -31,6 +31,18 @@ const Navbar = () => {
   const useHeroNav = isHomeRoute && !isScrolled;
   const desktopLinkColor = useHeroNav ? heroNavMuted : scrolledNavMuted;
   const desktopLinkHover = useHeroNav ? "var(--color-accent, #ff1493)" : "var(--color-accent, #ff1493)";
+  const brandShellStyle = {
+    padding: isDesktop ? "0.5rem 0.75rem" : "0.45rem 0.65rem",
+    borderRadius: "1.1rem",
+    border: useHeroNav ? "1px solid rgba(255,255,255,0.34)" : "1px solid color-mix(in srgb, var(--color-primary) 16%, white 84%)",
+    background: useHeroNav
+      ? "linear-gradient(180deg, rgba(255,255,255,0.82), rgba(255,255,255,0.6))"
+      : "linear-gradient(180deg, rgba(255,255,255,0.92), rgba(255,255,255,0.76))",
+    boxShadow: useHeroNav
+      ? "0 12px 26px rgba(0,0,0,0.18)"
+      : "0 10px 22px rgba(15,23,42,0.10)",
+    backdropFilter: "blur(12px)",
+  } as const;
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
@@ -104,12 +116,13 @@ const Navbar = () => {
         <button
           onClick={() => scrollTo("home")}
           className="modern-nav-button flex items-center gap-2"
+          style={showLogo ? brandShellStyle : undefined}
         >
           {showLogo ? (
             <img
               src={site.logo}
               alt={`${site.siteName} Logo`}
-              className="modern-nav-logo h-9 w-auto max-w-[120px] object-contain"
+              className="modern-nav-logo h-10 w-auto max-w-[132px] object-contain md:h-11 md:max-w-[148px]"
               onError={() => setLogoFailed(true)}
             />
           ) : (

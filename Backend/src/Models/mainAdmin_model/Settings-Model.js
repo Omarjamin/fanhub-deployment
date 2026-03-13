@@ -149,7 +149,8 @@ class SettingsModel {
     throw new Error(`Site DB not resolved for "${siteSlug}"`);
   }
 
-  async readEventRows(db, scopedCommunityId = null) {
+  async readEventRows(db, scopedCommunityId = null, options = {}) {
+    const includeEmpty = options?.includeEmpty === true;
     await this.ensureEventColumns(db);
     const columns = await this.getTableColumns(db, 'events');
     const hasEventName = Boolean(columns.event_name);
@@ -162,10 +163,13 @@ class SettingsModel {
     }
     const scopeWhere = scopeColumn && scopedCommunityId ? ` AND COALESCE(${scopeColumn}, 0) = ?` : '';
     const params = scopeWhere ? [scopedCommunityId] : [];
+    const visibilityWhere = includeEmpty
+      ? ''
+      : ` AND (COALESCE(ticket_link, '') <> '' OR COALESCE(image_url, '') <> '')`;
     const [rows] = await db.query(
       `SELECT event_id, ticket_link, image_url${nameSelect}
        FROM events
-       WHERE (COALESCE(ticket_link, '') <> '' OR COALESCE(image_url, '') <> '')${scopeWhere}
+       WHERE 1=1${visibilityWhere}${scopeWhere}
        ORDER BY event_id ASC`,
       params,
     );
@@ -304,7 +308,7 @@ class SettingsModel {
     return { saved: entries.length };
   }
 
-  async getEventPosters(communityType) {
+  async getEventPosters(communityType, options = {}) {
     const scoped = this.normalizeSiteSlug(communityType);
     if (!scoped || scoped === this.globalSlug) return [];
     const scopedCommunityId =
@@ -328,7 +332,7 @@ class SettingsModel {
         const db = await connect(candidate);
         const [dbRows] = await db.query('SELECT DATABASE() AS current_db');
         const currentDb = String(dbRows?.[0]?.current_db || '').trim();
-        const candidateRows = await this.readEventRows(db, scopedCommunityId);
+        const candidateRows = await this.readEventRows(db, scopedCommunityId, options);
         console.log('[settings-model] candidate read', {
           candidate,
           currentDb,
@@ -355,7 +359,7 @@ class SettingsModel {
         const defaultDb = await connect();
         const [dbRows] = await defaultDb.query('SELECT DATABASE() AS current_db');
         const currentDb = String(dbRows?.[0]?.current_db || '').trim();
-        const fallbackRows = await this.readEventRows(defaultDb, scopedCommunityId);
+        const fallbackRows = await this.readEventRows(defaultDb, scopedCommunityId, options);
         console.log('[settings-model] default db fallback read', {
           currentDb,
           rowCount: fallbackRows.length,
@@ -374,7 +378,7 @@ class SettingsModel {
     }
 
     return (rows || []).map((row, index) => ({
-      id: `event_${index + 1}`,
+      id: String(row?.event_id || index + 1),
       event_id: Number(row?.event_id || index + 1),
       title: String(row?.event_name || `Event ${index + 1}`).trim(),
       href: String(row?.ticket_link || '').trim(),

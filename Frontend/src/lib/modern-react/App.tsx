@@ -17,7 +17,13 @@ type ModernAppProps = {
 
 export default function ModernApp({ basename }: ModernAppProps) {
   return (
-    <BrowserRouter basename={basename}>
+    <BrowserRouter
+      basename={basename}
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/signin" element={<SignIn />} />
