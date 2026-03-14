@@ -1,5 +1,6 @@
 
 import { getCart, updateCartItem, removeFromCart } from '../cart/cart.js';
+import { calculateCheckoutSummary, saveCheckoutDraft } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
 import '../../../styles/ecommerce_styles/cart.css';
 
 const DEFAULT_API_V1 = 'https://fanhub-deployment-production.up.railway.app/v1';
@@ -220,27 +221,24 @@ async function loadCartItems(modal) {
                 [...selectedCheckboxes].some(cb => cb.dataset.variantId === String(item.variant_id))
             );
 
-            // Compute totals
-            let subtotal = 0;
-            let totalWeightGrams = 0;
-            checkoutItems.forEach(item => {
-                subtotal += (parseFloat(item.price) || 0) * item.quantity;
-                totalWeightGrams += resolveItemWeightGrams(item) * (Number(item.quantity) || 0);
-            });
+            const summary = calculateCheckoutSummary(checkoutItems, 0);
 
-            // Save checkout state (for thesis step flow)
-            const shippingFeeStored = sessionStorage.getItem('shippingFee');
-            const shippingFee = shippingFeeStored ? parseFloat(shippingFeeStored) : 0;
-
-            sessionStorage.setItem('checkoutStep', '1'); // Shipping step
-            sessionStorage.setItem('checkoutItems', JSON.stringify(checkoutItems));
-            sessionStorage.setItem('checkoutSummary', JSON.stringify({
-                subtotal: subtotal,
-                shipping_fee: shippingFee,
-                total: subtotal + shippingFee,
-                total_weight_grams: totalWeightGrams
-            }));
-            sessionStorage.setItem('checkoutWeightGrams', String(totalWeightGrams));
+            try {
+                await saveCheckoutDraft({
+                    current_step: 1,
+                    checkout_items: checkoutItems,
+                    summary_data: summary,
+                    shipping_address: null,
+                    payment_data: null,
+                    shipping_fee: null,
+                    shipping_region: '',
+                    checkout_weight_grams: summary.total_weight_grams
+                });
+            } catch (error) {
+                console.error('Failed to initialize checkout draft:', error);
+                alert(error.message || 'Unable to start checkout right now. Please try again.');
+                return;
+            }
 
             // Close cart modal
             modal.classList.remove('open');

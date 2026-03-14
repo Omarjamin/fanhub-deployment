@@ -10,6 +10,15 @@ function resolveItemWeightGrams(item) {
   return 0;
 }
 
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 export default function OrderHistory(payload = null) {
   const root = document.getElementById("app");
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
@@ -54,8 +63,8 @@ export default function OrderHistory(payload = null) {
                   <span class="stat-value" id="totalOrders">0</span>
                 </div>
                 <div class="stat-item">
-                  <span class="stat-label">Delivered</span>
-                  <span class="stat-value" id="deliveredOrders">0</span>
+                  <span class="stat-label">Completed</span>
+                  <span class="stat-value" id="completedOrders">0</span>
                 </div>
                 <div class="stat-item">
                   <span class="stat-label">Processing</span>
@@ -88,11 +97,11 @@ export default function OrderHistory(payload = null) {
             </div>
             <select id="statusFilter" class="status-select" onchange="applyFilters()">
               <option value="all">All Status</option>
-              <option value="Order Placed">Order Placed</option>
-              <option value="Processing">Processing</option>
-              <option value="Shipped">Shipped</option>
-              <option value="Delivered">Delivered</option>
-              <option value="Cancelled">Cancelled</option>
+              <option value="pending">Pending</option>
+              <option value="processing">Processing</option>
+              <option value="shipped">Shipped</option>
+              <option value="completed">Completed</option>
+              <option value="cancelled">Cancelled</option>
             </select>
             <button type="button" class="filter-clear-btn" onclick="clearFilters()">Clear Filters</button>
           </div>
@@ -145,8 +154,9 @@ export default function OrderHistory(payload = null) {
   function normalizeStatus(value) {
     const raw = String(value || '').trim().toLowerCase();
     if (!raw) return 'pending';
-    if (raw === 'order placed') return 'pending';
+    if (['order placed', 'placed', 'confirmed'].includes(raw)) return 'pending';
     if (raw === 'canceled') return 'cancelled';
+    if (raw === 'delivered') return 'completed';
     return raw;
   }
 
@@ -155,9 +165,24 @@ export default function OrderHistory(payload = null) {
     if (normalized === 'pending') return 'Pending';
     if (normalized === 'processing') return 'Processing';
     if (normalized === 'shipped') return 'Shipped';
-    if (normalized === 'delivered') return 'Delivered';
+    if (normalized === 'completed') return 'Completed';
     if (normalized === 'cancelled') return 'Cancelled';
     return String(value || 'Pending');
+  }
+
+  function getTrackingNumber(order) {
+    const trackingNumber = String(order?.tracking_number ?? order?.trackingNumber ?? '').trim();
+    return trackingNumber || '';
+  }
+
+  function getTrackingLabel(order) {
+    const trackingNumber = getTrackingNumber(order);
+    if (trackingNumber) return trackingNumber;
+    const normalizedStatus = normalizeStatus(order?.status);
+    if (normalizedStatus === 'shipped' || normalizedStatus === 'completed') {
+      return 'Not assigned yet';
+    }
+    return '';
   }
 
   function formatMoney(value) {
@@ -183,7 +208,11 @@ export default function OrderHistory(payload = null) {
       
       // Handle different response formats
       const orders = result.orders || result.data || result;
-      allOrders = Array.isArray(orders) ? orders : [];
+      allOrders = (Array.isArray(orders) ? orders : []).map(order => ({
+        ...order,
+        status: normalizeStatus(order.status),
+        tracking_number: getTrackingNumber(order),
+      }));
       
       // Add user sequence numbers to orders
       allOrders = addUserSequenceNumbers(allOrders);
@@ -213,7 +242,7 @@ export default function OrderHistory(payload = null) {
 
   function updateStats() {
     const totalOrders = allOrders.length;
-    const deliveredOrders = allOrders.filter(order => normalizeStatus(order.status) === 'delivered').length;
+    const completedOrders = allOrders.filter(order => normalizeStatus(order.status) === 'completed').length;
     const processingOrders = allOrders.filter(order => normalizeStatus(order.status) === 'processing').length;
     
     // Fix totalSpent calculation - ensure numbers are properly summed
@@ -223,7 +252,7 @@ export default function OrderHistory(payload = null) {
     }, 0);
 
     document.getElementById('totalOrders').textContent = totalOrders;
-    document.getElementById('deliveredOrders').textContent = deliveredOrders;
+    document.getElementById('completedOrders').textContent = completedOrders;
     document.getElementById('processingOrders').textContent = processingOrders;
     document.getElementById('totalSpent').textContent = formatMoney(totalSpent);
   }
@@ -282,6 +311,7 @@ export default function OrderHistory(payload = null) {
           </td>
           <td>
             <span class="status-badge status-${normalizeStatus(order.status)}">${formatStatus(order.status)}</span>
+            ${getTrackingLabel(order) ? `<div class="order-item-meta">Tracking: ${escapeHtml(getTrackingLabel(order))}</div>` : ''}
           </td>
           <td class="order-total">${formatMoney(order.total || order.total_amount || 0)}</td>
           <td>
@@ -320,6 +350,12 @@ export default function OrderHistory(payload = null) {
                     <span>Subtotal:</span>
                     <span>${formatMoney(order.subtotal || 0)}</span>
                   </div>
+                    ${getTrackingLabel(order) ? `
+                    <div class="summary-row">
+                      <span>Tracking Number:</span>
+                      <span>${escapeHtml(getTrackingLabel(order))}</span>
+                    </div>
+                    ` : ''}
                     <div class="summary-row">
                       <span>Shipping:</span>
                       <span>${formatMoney(order.shipping_fee || 0)}</span>
@@ -399,7 +435,10 @@ export default function OrderHistory(payload = null) {
           </div>
           
           <div class="order-card-footer">
-            <div class="order-total">Total: ${formatMoney(order.total || order.total_amount || 0)}</div>
+            <div>
+              <div class="order-total">Total: ${formatMoney(order.total || order.total_amount || 0)}</div>
+              ${getTrackingLabel(order) ? `<div class="order-item-meta">Tracking: ${escapeHtml(getTrackingLabel(order))}</div>` : ''}
+            </div>
             <div class="order-actions">
               <button class="btn btn-primary" onclick="viewOrderDetails('${order.order_id || order.id}')">View Details</button>
               <button class="btn btn-outline" onclick="reorderOrder('${order.order_id || order.id}')">Reorder</button>
@@ -584,7 +623,7 @@ export default function OrderHistory(payload = null) {
       },
       {
         icon: 'fas fa-truck',
-        text: 'Track Order',
+        text: getTrackingNumber(order) ? 'View Tracking' : 'Track Order',
         action: `trackOrder('${orderId}')`,
         role: 'menuitem'
       },
@@ -878,7 +917,19 @@ export default function OrderHistory(payload = null) {
 
   window.trackOrder = (orderId) => {
     console.log('Tracking order:', orderId);
-    // TODO: Implement order tracking
+    const order = allOrders.find(entry => String(entry.order_id || entry.id) === String(orderId));
+    const trackingNumber = getTrackingNumber(order);
+
+    if (!trackingNumber) {
+      alert('Tracking number is not available yet for this order.');
+      return;
+    }
+
+    if (navigator?.clipboard?.writeText) {
+      navigator.clipboard.writeText(trackingNumber).catch(() => {});
+    }
+
+    alert(`Tracking number for order #${orderId}: ${trackingNumber}`);
   };
 
   window.cancelOrder = async (orderId) => {

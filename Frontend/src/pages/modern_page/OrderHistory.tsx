@@ -12,6 +12,8 @@ type HistoryItem = {
   total: number;
   payment_method: string;
   status: string;
+  tracking_number?: string | null;
+  tracking_updated_at?: string | null;
   created_at: string;
   shipping_address?: Record<string, string>;
   items?: Array<{
@@ -21,6 +23,49 @@ type HistoryItem = {
     price?: number;
   }>;
 };
+
+function normalizeOrderStatus(value: string) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "pending";
+  if (["order placed", "placed", "confirmed"].includes(normalized)) return "pending";
+  if (normalized === "canceled") return "cancelled";
+  if (normalized === "delivered") return "completed";
+  return normalized;
+}
+
+function formatOrderStatus(value: string) {
+  const normalized = normalizeOrderStatus(value);
+  if (normalized === "pending") return "Pending";
+  if (normalized === "processing") return "Processing";
+  if (normalized === "shipped") return "Shipped";
+  if (normalized === "completed") return "Completed";
+  if (normalized === "cancelled") return "Cancelled";
+  return normalized;
+}
+
+function getStatusBadgeClasses(value: string) {
+  const normalized = normalizeOrderStatus(value);
+  if (normalized === "pending") return "border-amber-200 bg-amber-50 text-amber-700";
+  if (normalized === "processing") return "border-sky-200 bg-sky-50 text-sky-700";
+  if (normalized === "shipped") return "border-cyan-200 bg-cyan-50 text-cyan-700";
+  if (normalized === "completed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (normalized === "cancelled") return "border-rose-200 bg-rose-50 text-rose-700";
+  return "border-border/60 bg-background text-foreground";
+}
+
+function normalizeTrackingNumber(value: unknown) {
+  const normalized = String(value ?? "").trim();
+  return normalized || "";
+}
+
+function getTrackingDisplayValue(status: string, trackingNumber: string) {
+  if (trackingNumber) return trackingNumber;
+  const normalizedStatus = normalizeOrderStatus(status);
+  if (normalizedStatus === "shipped" || normalizedStatus === "completed") {
+    return "Not assigned yet";
+  }
+  return "";
+}
 
 function formatPeso(price: number) {
   if (!Number.isFinite(price) || price <= 0) return "Price unavailable";
@@ -119,6 +164,8 @@ const OrderHistory = () => {
                 const payment = String(order.payment_method || "cod").toLowerCase() === "cod"
                   ? "Cash on Delivery"
                   : String(order.payment_method || "N/A");
+                const trackingNumber = normalizeTrackingNumber(order.tracking_number);
+                const trackingDisplayValue = getTrackingDisplayValue(order.status, trackingNumber);
 
                 return (
                   <article
@@ -130,8 +177,8 @@ const OrderHistory = () => {
                         <p className="font-body font-semibold">Order #{order.order_id}</p>
                         <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
                       </div>
-                      <span className="text-xs rounded-full border border-border/60 bg-background px-3 py-1 uppercase tracking-wide">
-                        {order.status || "pending"}
+                      <span className={`text-xs rounded-full border px-3 py-1 uppercase tracking-wide ${getStatusBadgeClasses(order.status)}`}>
+                        {formatOrderStatus(order.status)}
                       </span>
                     </div>
 
@@ -150,6 +197,11 @@ const OrderHistory = () => {
                         <p>
                           Payment: <span className="font-semibold">{payment}</span>
                         </p>
+                        {trackingDisplayValue ? (
+                          <p>
+                            Tracking Number: <span className="font-semibold">{trackingDisplayValue}</span>
+                          </p>
+                        ) : null}
                         <p>
                           Subtotal: <span className="font-semibold">{formatPeso(order.subtotal)}</span>
                         </p>

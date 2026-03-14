@@ -149,6 +149,13 @@ td .btn-icon:hover {
   color: #1f2937;
 }
 
+td .btn-icon:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background-color: #f9fafb;
+  color: #9ca3af;
+}
+
 td .btn-icon.btn-danger {
   border-color: #ef4444;
   color: #ef4444;
@@ -157,6 +164,12 @@ td .btn-icon.btn-danger {
 td .btn-icon.btn-danger:hover {
   background-color: #fee2e2;
   color: #991b1b;
+}
+
+td .btn-icon.btn-danger:disabled {
+  border-color: #f3b5b5;
+  color: #f3b5b5;
+  background-color: #fff7f7;
 }
 
 /* Modal Styles */

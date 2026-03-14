@@ -1,4 +1,4 @@
-import ShippingForm from "../order/shipping_form";
+import { getCachedCheckoutDraft, getCheckoutDraftEventName } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
 
 export default async function CheckOutSteps(root) {
     root.innerHTML += `
@@ -21,39 +21,27 @@ export default async function CheckOutSteps(root) {
 
     `;
 
-    // Initialize steps display
-    let steps = root.querySelectorAll('.checkout-steps .step');
-    let sections = document.querySelectorAll('.checkout-section');
-    let currentStep = Number(sessionStorage.getItem('checkoutStep')) || 1;
-    sessionStorage.setItem('checkoutStep', currentStep);
-
-    let attempts = 0;
-    while (sections.length === 0 && attempts < 10) {
-        await new Promise(resolve => setTimeout(resolve, 100));
-        steps = root.querySelectorAll('.checkout-steps .step');
-        sections = document.querySelectorAll('.checkout-section');
-        attempts++;
-    }
-
-    updateStepDisplay();
-    console.log('Current step:', currentStep, 'Steps found:', steps.length);
-
-    // Listen for step changes from buttons
-    window.addEventListener('stepChanged', () => {
-        currentStep = Number(sessionStorage.getItem('checkoutStep'));
+    const steps = root.querySelectorAll('.checkout-steps .step');
+    const syncSteps = () => {
+        if (!document.body.contains(root)) {
+            window.removeEventListener('stepChanged', syncSteps);
+            window.removeEventListener(getCheckoutDraftEventName(), syncSteps);
+            return;
+        }
         updateStepDisplay();
-    });
+    };
+
+    syncSteps();
+    window.addEventListener('stepChanged', syncSteps);
+    window.addEventListener(getCheckoutDraftEventName(), syncSteps);
 
     function updateStepDisplay() {
+        const currentStep = Number(getCachedCheckoutDraft().current_step) || 1;
         steps.forEach(step => {
             const stepNum = Number(step.dataset.step);
             step.classList.remove('current', 'completed');
             if (stepNum === currentStep) step.classList.add('current');
             else if (stepNum < currentStep) step.classList.add('completed');
-        });
-
-        sections.forEach((section, idx) => {
-            section.style.display = (idx + 1 === currentStep) ? 'flex' : 'none';
         });
     }
 }

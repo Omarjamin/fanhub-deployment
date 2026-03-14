@@ -1,4 +1,5 @@
 import OrderModel from '../../../Models/ecommerce_model/order_model.js';
+import CheckoutDraftModel from '../../../Models/ecommerce_model/checkout_draft_model.js';
 import UserCommunityModel from '../../../Models/ecommerce_model/UserCommunityModel.js';
 import { resolveSiteSlug } from '../../../utils/site-scope.js';
 import { resolveCommunityContext } from '../../../core/database.js';
@@ -6,7 +7,17 @@ import { resolveCommunityContext } from '../../../core/database.js';
 class OrderController {
   constructor() {
     this.orderModel = OrderModel;
+    this.checkoutDraftModel = CheckoutDraftModel;
     this.userCommunity = UserCommunityModel;
+  }
+
+  normalizeOrderStatus(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    if (!raw) return 'pending';
+    if (['order placed', 'placed', 'confirmed'].includes(raw)) return 'pending';
+    if (raw === 'canceled') return 'cancelled';
+    if (raw === 'delivered') return 'completed';
+    return raw;
   }
 
   resolveSiteSlug(req = {}, res = {}) {
@@ -47,6 +58,12 @@ class OrderController {
       }
 
       const orderId = await this.orderModel.createOrder(userId, communityId, payload, siteSlug);
+
+      try {
+        await this.checkoutDraftModel.clearDraft(userId, communityId, siteSlug);
+      } catch (draftError) {
+        console.error('Checkout draft clear error:', draftError);
+      }
 
       return res.status(201).json({ success: true, order_id: orderId });
     } catch (err) {
@@ -96,7 +113,8 @@ class OrderController {
       }
 
       // Check if order can be cancelled (only pending or order placed)
-      if (order.status !== 'pending' && order.status !== 'Order Placed') {
+      const normalizedStatus = this.normalizeOrderStatus(order.status);
+      if (normalizedStatus !== 'pending') {
         return res.status(400).json({
           success: false,
           message: 'Order cannot be cancelled. Only pending orders can be cancelled.'
@@ -156,6 +174,14 @@ class OrderController {
       const order = await this.orderModel.getOrderById(orderId, userId, siteSlug);
       if (!order) {
         return res.status(404).json({ success: false, message: 'Order not found' });
+      }
+
+      const normalizedStatus = this.normalizeOrderStatus(order.status);
+      if (normalizedStatus !== 'cancelled') {
+        return res.status(409).json({
+          success: false,
+          message: 'Only cancelled orders can be deleted. Placed and completed orders are locked.',
+        });
       }
 
       // Delete order (cascade delete will handle order_items)

@@ -71,6 +71,7 @@ export default function createOrders() {
               <p><strong>Email:</strong> <span id="viewEmail"></span></p>
               <p><strong>Payment Method:</strong> <span id="viewPayment"></span></p>
               <p><strong>Status:</strong> <span id="viewStatus"></span></p>
+              <p><strong>Tracking Number:</strong> <span id="viewTracking"></span></p>
               <p><strong>Date:</strong> <span id="viewDate"></span></p>
             </div>
             <div class="order-items">
@@ -112,6 +113,11 @@ export default function createOrders() {
               <option value="completed">Completed</option>
             </select>
           </label>
+          <label class="orders-modal-group">
+            <span>Tracking Number</span>
+            <input id="editTrackingNumber" type="text" maxlength="120" placeholder="Required when order is shipped">
+            <small id="editTrackingHint">Required before an order can be marked as shipped.</small>
+          </label>
           <div class="orders-modal-actions">
             <button type="button" class="orders-btn cancel" id="cancelEditOrder">Cancel</button>
             <button type="submit" class="orders-btn save">Save</button>
@@ -123,15 +129,15 @@ export default function createOrders() {
     <div class="orders-modal hidden" id="deleteOrderModal" role="dialog" aria-modal="true" aria-labelledby="deleteOrderTitle">
       <div class="orders-modal-card orders-modal-card-sm">
         <div class="orders-modal-header">
-          <h3 id="deleteOrderTitle">Delete Order</h3>
+          <h3 id="deleteOrderTitle">Cancel Order</h3>
           <button type="button" class="orders-modal-close" id="closeDeleteOrderModal" aria-label="Close">x</button>
         </div>
         <div class="orders-modal-body">
-          <p id="deleteOrderLabel">Delete this order?</p>
+          <p id="deleteOrderLabel">Cancel this order?</p>
         </div>
         <div class="orders-modal-actions">
           <button type="button" class="orders-btn cancel" id="cancelDeleteOrder">Cancel</button>
-          <button type="button" class="orders-btn danger" id="confirmDeleteOrder">Yes</button>
+          <button type="button" class="orders-btn danger" id="confirmDeleteOrder">Yes, Cancel</button>
         </div>
       </div>
     </div>
@@ -145,6 +151,20 @@ export default function createOrders() {
     : String(sessionStorage.getItem('admin_selected_site') || 'all').trim().toLowerCase() || 'all';
   let editingOrderId = null;
   let deletingOrderId = null;
+
+  function normalizeStatusValue(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return 'pending';
+    if (['order placed', 'placed', 'confirmed'].includes(normalized)) return 'pending';
+    if (normalized === 'canceled') return 'cancelled';
+    if (normalized === 'delivered') return 'completed';
+    return normalized;
+  }
+
+  function normalizeTrackingNumber(value) {
+    const normalized = String(value ?? '').trim();
+    return normalized || '';
+  }
 
   function safeParseShippingAddress(value) {
     if (!value) return {};
@@ -161,6 +181,39 @@ export default function createOrders() {
     return orders.find(order => String(order.orderId) === String(orderId));
   }
 
+  function isOrderLocked(status) {
+    const normalized = normalizeStatusValue(status);
+    return normalized === 'completed' || normalized === 'cancelled';
+  }
+
+  function getAllowedStatusTransitions(status) {
+    const normalized = normalizeStatusValue(status);
+    if (normalized === 'pending') {
+      return ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
+    }
+    if (normalized === 'processing') {
+      return ['processing', 'shipped', 'completed', 'cancelled'];
+    }
+    if (normalized === 'shipped') {
+      return ['shipped', 'completed'];
+    }
+    if (normalized === 'completed') {
+      return ['completed'];
+    }
+    if (normalized === 'cancelled') {
+      return ['cancelled'];
+    }
+    return [normalized];
+  }
+
+  function formatStatusLabel(status) {
+    return normalizeStatusValue(status)
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
   function loadOrders() {
     const tbody = section.querySelector('#ordersTableBody');
     if (!tbody) return;
@@ -171,12 +224,12 @@ export default function createOrders() {
         <td>${order.customerName}</td>
         <td>${order.itemsCount} items</td>
         <td>${order.totalDisplay}</td>
-        <td><span class="badge badge-${order.status}">${order.status}</span></td>
+        <td><span class="badge badge-${order.status}">${formatStatusLabel(order.status)}</span></td>
         <td>${order.dateDisplay}</td>
         <td>
           <button class="btn-icon" title="View" type="button" data-action="view">&#128065;</button>
-          <button class="btn-icon" title="Edit" type="button" data-action="edit">&#9998;</button>
-          <button class="btn-icon btn-danger" title="Delete" type="button" data-action="delete">&#128465;</button>
+          <button class="btn-icon" title="${isOrderLocked(order.status) ? 'Finalized orders are locked' : 'Edit'}" type="button" data-action="edit"${isOrderLocked(order.status) ? ' disabled aria-disabled="true"' : ''}>&#9998;</button>
+          <button class="btn-icon btn-danger" title="${getAllowedStatusTransitions(order.status).includes('cancelled') && !isOrderLocked(order.status) ? 'Cancel' : 'This order can no longer be cancelled'}" type="button" data-action="delete"${getAllowedStatusTransitions(order.status).includes('cancelled') && !isOrderLocked(order.status) ? '' : ' disabled aria-disabled="true"'}>&#128465;</button>
         </td>
       </tr>
     `).join('');
@@ -230,7 +283,7 @@ export default function createOrders() {
       const rows = Array.isArray(payload.data) ? payload.data : [];
 
       orders = rows.map(row => {
-        const statusRaw = (row.status || 'pending').toLowerCase();
+        const statusRaw = normalizeStatusValue(row.status);
         const totalNum = Number(row.total || 0);
 
         return {
@@ -247,6 +300,8 @@ export default function createOrders() {
           total: totalNum,
           totalDisplay: `PHP ${totalNum.toLocaleString()}`,
           status: statusRaw,
+          trackingNumber: normalizeTrackingNumber(row.tracking_number),
+          trackingUpdatedAt: row.tracking_updated_at || '',
           createdAt: row.created_at || '',
           dateKey: formatAdminDateInput(row.created_at),
           dateDisplay: formatAdminDate(row.created_at, 'N/A'),
@@ -262,7 +317,7 @@ export default function createOrders() {
     }
   }
 
-  async function updateOrderStatusOnServer(order, nextStatus) {
+  async function updateOrderStatusOnServer(order, nextStatus, trackingNumber = '') {
     try {
       const candidateUrls = resolveAdminEndpointUrls(
         `orders/${order.orderId}/status`,
@@ -284,6 +339,7 @@ export default function createOrders() {
             body: JSON.stringify({
               db_name: order.db_name,
               status: nextStatus,
+              tracking_number: normalizeTrackingNumber(trackingNumber),
             }),
           });
           payload = await response.json().catch(() => ({}));
@@ -301,9 +357,15 @@ export default function createOrders() {
       }
       const updated = payload.data || {};
 
-      const statusRaw = (updated.status || nextStatus).toLowerCase();
+      const statusRaw = normalizeStatusValue(updated.status || nextStatus);
 
       order.status = statusRaw;
+      order.trackingNumber = normalizeTrackingNumber(
+        typeof updated.tracking_number !== 'undefined'
+          ? updated.tracking_number
+          : trackingNumber,
+      );
+      order.trackingUpdatedAt = updated.tracking_updated_at || order.trackingUpdatedAt || '';
       if (typeof updated.total !== 'undefined') {
         order.total = Number(updated.total || 0);
         order.totalDisplay = `PHP ${order.total.toLocaleString()}`;
@@ -338,7 +400,8 @@ export default function createOrders() {
       section.querySelector('#viewCustomer').textContent = order.customerName;
       section.querySelector('#viewEmail').textContent = order.customerEmail || 'N/A';
       section.querySelector('#viewPayment').textContent = order.paymentMethod;
-      section.querySelector('#viewStatus').innerHTML = `<span class="badge badge-${order.status}">${order.status}</span>`;
+      section.querySelector('#viewStatus').innerHTML = `<span class="badge badge-${order.status}">${formatStatusLabel(order.status)}</span>`;
+      section.querySelector('#viewTracking').textContent = order.trackingNumber || 'Not assigned';
       section.querySelector('#viewDate').textContent = order.dateDisplayLong;
 
       // Populate order items
@@ -399,6 +462,8 @@ export default function createOrders() {
     const cancelBtn = section.querySelector('#cancelEditOrder');
     const form = section.querySelector('#editOrderForm');
     const statusSelect = section.querySelector('#editOrderStatus');
+    const trackingInput = section.querySelector('#editTrackingNumber');
+    const trackingHint = section.querySelector('#editTrackingHint');
     const orderLabel = section.querySelector('#editOrderLabel');
 
     function closeModal() {
@@ -406,13 +471,33 @@ export default function createOrders() {
       modal.classList.add('hidden');
     }
 
+    function syncTrackingRequirement() {
+      const normalizedStatus = normalizeStatusValue(statusSelect.value);
+      const requiresTracking = normalizedStatus === 'shipped';
+      trackingInput.required = requiresTracking;
+      trackingInput.placeholder = requiresTracking
+        ? 'Enter tracking number'
+        : 'Optional unless the order is shipped';
+      trackingHint.textContent = requiresTracking
+        ? 'Required before an order can be marked as shipped.'
+        : 'This will be shown to the user in their order history once provided.';
+    }
+
     function openModal(orderId) {
       const order = findOrder(orderId);
       if (!order) return;
+      if (isOrderLocked(order.status)) return;
 
       editingOrderId = orderId;
       orderLabel.textContent = `Order: #ORD-${order.orderId}`;
-      statusSelect.value = order.status;
+      const allowedStatuses = getAllowedStatusTransitions(order.status);
+      statusSelect.innerHTML = allowedStatuses
+        .filter(status => status !== 'cancelled')
+        .map(status => `<option value="${status}">${formatStatusLabel(status)}</option>`)
+        .join('');
+      statusSelect.value = allowedStatuses.includes(order.status) ? order.status : allowedStatuses[0];
+      trackingInput.value = order.trackingNumber || '';
+      syncTrackingRequirement();
       modal.classList.remove('hidden');
     }
 
@@ -421,6 +506,7 @@ export default function createOrders() {
     modal.addEventListener('click', event => {
       if (event.target === modal) closeModal();
     });
+    statusSelect.addEventListener('change', syncTrackingRequirement);
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
@@ -430,9 +516,16 @@ export default function createOrders() {
       if (!order) return;
 
       const selectedStatus = statusSelect.value;
+      const trackingNumber = normalizeTrackingNumber(trackingInput.value);
+
+      if (normalizeStatusValue(selectedStatus) === 'shipped' && !trackingNumber) {
+        alert('Tracking number is required before marking an order as shipped.');
+        trackingInput.focus();
+        return;
+      }
 
       try {
-        await updateOrderStatusOnServer(order, selectedStatus);
+        await updateOrderStatusOnServer(order, selectedStatus, trackingNumber);
         loadOrders();
         filterOrders();
         closeModal();
@@ -459,9 +552,10 @@ export default function createOrders() {
     function openModal(orderId) {
       const order = findOrder(orderId);
       if (!order) return;
+      if (isOrderLocked(order.status) || !getAllowedStatusTransitions(order.status).includes('cancelled')) return;
 
       deletingOrderId = orderId;
-      orderLabel.textContent = `Cancel order #ORD-${order.orderId}?`;
+      orderLabel.textContent = `Cancel order #ORD-${order.orderId}? This will keep the record but lock further changes.`;
       modal.classList.remove('hidden');
     }
 

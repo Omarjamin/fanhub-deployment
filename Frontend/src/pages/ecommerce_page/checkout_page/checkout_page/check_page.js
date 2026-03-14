@@ -7,13 +7,14 @@ import ShippingForm from '../../../../components/ecommerce_components/order/ship
 import PaymentForm from '../../../../components/ecommerce_components/order/payment_form.js';
 import OrderReview from '../../../../components/ecommerce_components/order/order_review.js';
 import OrderSummary from '../../../../components/ecommerce_components/order/order_summary.js';
+import { fetchCheckoutDraft, getCachedCheckoutDraft, setCheckoutDraftStep } from '../../../../services/ecommerce_services/checkout/checkout_draft.js';
 
 import '../../../../styles/ecommerce_styles/global.css';
 import '../../../../styles/ecommerce_styles/checkout.css';
 
 import Layouts from '../../../../layouts/ecommerce_layout/default-home.js';
 
-let checkoutInitialized = false;
+let stepChangedHandler = null;
 
 export default async function Checkout() {
   const { navigation, main, footer} = Layouts(this.root);
@@ -27,10 +28,11 @@ export default async function Checkout() {
   Navigation(navigation, { community_type: communityType }); 
   Footer(footer, { community_type: communityType });
   main.classList.add('checkout-main');
-  
-  // Initialize checkout step if not set
-  if (!sessionStorage.getItem('checkoutStep')) {
-    sessionStorage.setItem('checkoutStep', '1');
+
+  try {
+    await fetchCheckoutDraft();
+  } catch (error) {
+    console.error('Failed to load checkout draft:', error);
   }
   
   // Add checkout title and back button
@@ -47,16 +49,6 @@ export default async function Checkout() {
       <h1 class="checkout-title">Checkout</h1>
     </div>
   `;
-
-  
-  // Only initialize once
-  if (checkoutInitialized) {
-    updateStepVisibility();
-    setupBackButton(shopPath);
-    return;
-  }
-
-  checkoutInitialized = true;
   
   // Add checkout steps at the top first
   CheckOutSteps(main);
@@ -123,9 +115,16 @@ export default async function Checkout() {
 
   // Show the current step
   updateStepVisibility();
-  
-  // Listen for step changes
-  window.addEventListener('stepChanged', updateStepVisibility);
+
+  if (stepChangedHandler) {
+    window.removeEventListener('stepChanged', stepChangedHandler);
+  }
+
+  stepChangedHandler = () => {
+    updateStepVisibility();
+  };
+
+  window.addEventListener('stepChanged', stepChangedHandler);
 
   // Setup back button
   setupBackButton(shopPath);
@@ -135,14 +134,16 @@ function setupBackButton(shopPath = '/shop') {
   const backBtn = document.getElementById('back-to-shop');
   if (backBtn && !backBtn.hasAttribute('data-handler-attached')) {
     backBtn.setAttribute('data-handler-attached', 'true');
-    backBtn.addEventListener('click', (e) => {
+    backBtn.addEventListener('click', async (e) => {
       e.preventDefault();
-      const currentStep = Number(sessionStorage.getItem('checkoutStep')) || 1;
+      const currentStep = Number(getCachedCheckoutDraft().current_step) || 1;
       if (currentStep > 1) {
         const newStep = currentStep - 1;
-        sessionStorage.setItem('checkoutStep', newStep);
-        updateStepVisibility();
-        window.dispatchEvent(new Event('stepChanged'));
+        try {
+          await setCheckoutDraftStep(newStep);
+        } catch (error) {
+          console.error('Failed to update checkout step:', error);
+        }
         // Scroll to top
         window.scrollTo({ top: 0, behavior: 'smooth' });
       } else {
@@ -154,7 +155,7 @@ function setupBackButton(shopPath = '/shop') {
 }
 
 function updateStepVisibility() {
-  const currentStep = Number(sessionStorage.getItem('checkoutStep')) || 1;
+  const currentStep = Number(getCachedCheckoutDraft().current_step) || 1;
   const steps = document.querySelectorAll('.checkout-step-content');
   
   steps.forEach(step => {

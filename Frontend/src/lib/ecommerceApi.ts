@@ -81,6 +81,39 @@ function parseJsonIfNeeded<T = unknown>(value: unknown): T | null {
   }
 }
 
+function normalizeOrderStatusValue(value: unknown) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "pending";
+  if (["order placed", "placed", "confirmed"].includes(normalized)) return "pending";
+  if (normalized === "canceled") return "cancelled";
+  if (normalized === "delivered") return "completed";
+  return normalized;
+}
+
+function normalizeTrackingNumberValue(value: unknown) {
+  const normalized = String(value ?? "").trim();
+  return normalized || "";
+}
+
+function normalizeShippingAddress(value: unknown) {
+  const parsed = parseJsonIfNeeded<Record<string, any>>(value);
+  return asRecord(value) || parsed || {};
+}
+
+function normalizeOrderRecord(row: GenericRecord) {
+  const record = asRecord(row) || {};
+  return {
+    ...record,
+    status: normalizeOrderStatusValue(record.status),
+    tracking_number: normalizeTrackingNumberValue(
+      record.tracking_number ?? record.trackingNumber,
+    ) || null,
+    shipping_address: normalizeShippingAddress(
+      record.shipping_address ?? record.shippingAddress,
+    ),
+  };
+}
+
 function pickArray(...candidates: unknown[]) {
   for (const candidate of candidates) {
     if (Array.isArray(candidate)) return candidate;
@@ -543,6 +576,24 @@ export async function createOrder(payload: GenericRecord) {
   return result?.data || result;
 }
 
+export async function fetchOrderById(orderId: string | number) {
+  const numericOrderId = Number(orderId || 0);
+  if (!Number.isFinite(numericOrderId) || numericOrderId <= 0) {
+    throw new Error("Valid order id is required");
+  }
+
+  const response = await fetch(apiUrl(`/orders/${encodeURIComponent(String(numericOrderId))}`), {
+    method: "GET",
+    headers: authHeaders(normalizeSlug()),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(result?.message || "Failed to load order");
+  }
+  const row = result?.order || result?.data || result || null;
+  return row ? normalizeOrderRecord(row) : null;
+}
+
 export async function fetchOrderHistory() {
   const response = await fetch(apiUrl("/orders/user"), {
     method: "GET",
@@ -552,7 +603,8 @@ export async function fetchOrderHistory() {
   if (!response.ok) {
     throw new Error(result?.message || "Failed to load order history");
   }
-  return result?.orders || result?.data || result || [];
+  const rows = result?.orders || result?.data || result || [];
+  return Array.isArray(rows) ? rows.map((row) => normalizeOrderRecord(row)) : [];
 }
 
 export function toExternalUrl(value: string, fallback = "") {

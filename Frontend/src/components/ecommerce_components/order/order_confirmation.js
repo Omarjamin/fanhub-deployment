@@ -44,17 +44,17 @@ function formatPaymentMethod(value) {
 
 function formatStatusTitle(value) {
   const status = String(value || '').trim().toLowerCase();
-  if (!status) return 'Order Placed';
-  if (['pending', 'order placed', 'placed', 'confirmed'].includes(status)) return 'Order Placed';
+  if (!status) return 'Pending';
+  if (['pending', 'order placed', 'placed', 'confirmed'].includes(status)) return 'Pending';
   if (['processing', 'preparing', 'in process'].includes(status)) return 'Processing';
   if (['shipped', 'in transit', 'out for delivery'].includes(status)) return 'Shipped';
-  if (['delivered', 'completed'].includes(status)) return 'Delivered';
+  if (['delivered', 'completed'].includes(status)) return 'Completed';
   return value;
 }
 
 function getStatusIndex(value) {
   const normalized = formatStatusTitle(value);
-  const statuses = ['Order Placed', 'Processing', 'Shipped', 'Delivered'];
+  const statuses = ['Pending', 'Processing', 'Shipped', 'Completed'];
   const index = statuses.indexOf(normalized);
   return index >= 0 ? index : 0;
 }
@@ -119,7 +119,7 @@ export default function OrderConfirmation(payload = null) {
               <span id="orderNumber" class="order-number-pill">Preparing your order reference</span>
             </p>
             <h2 class="section-title">Order Successful</h2>
-            <p class="order-message">Your order has been placed. We will process it and update the tracking steps below.</p>
+            <p class="order-message">Your order is now pending. We will process it and update the tracking steps below.</p>
           </div>
 
           <div id="orderSummary" class="order-summary">
@@ -162,6 +162,23 @@ export default function OrderConfirmation(payload = null) {
     window.location.href = shopPath;
   });
 
+  async function fetchCanonicalOrder(orderId) {
+    const numericOrderId = Number(orderId || 0);
+    if (!Number.isFinite(numericOrderId) || numericOrderId <= 0) return null;
+
+    try {
+      const response = await fetch(api(`/orders/${numericOrderId}`), {
+        method: 'GET',
+        headers: authHeaders(),
+      });
+      if (!response.ok) return null;
+      const result = await response.json().catch(() => ({}));
+      return result.order || result.data || result || null;
+    } catch (_) {
+      return null;
+    }
+  }
+
   function generateOrderNumber() {
     const timestamp = Date.now().toString().slice(-6);
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
@@ -171,13 +188,23 @@ export default function OrderConfirmation(payload = null) {
   async function loadOrderData() {
     try {
       let order = orderData;
+      const storedOrderId = Number(
+        orderData?.order_id ||
+        orderData?.id ||
+        sessionStorage.getItem('lastOrderId') ||
+        0,
+      );
+      const canonicalOrder = await fetchCanonicalOrder(storedOrderId);
+      if (canonicalOrder) {
+        order = canonicalOrder;
+      }
 
       const sessionOrderData = sessionStorage.getItem('lastOrderData');
       const localOrderData = localStorage.getItem('lastOrder');
 
-      if (sessionOrderData) {
+      if (!order && sessionOrderData) {
         order = JSON.parse(sessionOrderData);
-      } else if (localOrderData) {
+      } else if (!order && localOrderData) {
         order = JSON.parse(localOrderData);
       } else if (!order) {
         try {
@@ -210,7 +237,7 @@ export default function OrderConfirmation(payload = null) {
         }
 
         displayOrderSummary(order);
-        displayStatusTimeline(order.status || 'Order Placed');
+        displayStatusTimeline(order.status || 'Pending');
       } else {
         displayDemoOrder();
       }
@@ -259,6 +286,7 @@ export default function OrderConfirmation(payload = null) {
     const paymentMethod = formatPaymentMethod(order.payment_method || order.paymentMethod);
     const recipientName = shippingAddress.recipient_name || shippingAddress.recipientName || order.customer_name || '';
     const contactNumber = shippingAddress.phone || shippingAddress.contact_number || order.phone || '';
+    const trackingNumber = String(order.tracking_number || '').trim();
     const addressLines = buildAddressLines(shippingAddress);
 
     const itemMarkup = items.length
@@ -358,6 +386,7 @@ export default function OrderConfirmation(payload = null) {
               </div>
             </div>
             <div class="payment-pill">${escapeHtml(paymentMethod)}</div>
+            ${trackingNumber ? `<p class="payment-note">Tracking number: <strong>${escapeHtml(trackingNumber)}</strong></p>` : ''}
             <p class="payment-note">Payment is collected according to your selected checkout method.</p>
           </section>
         </aside>
@@ -369,10 +398,10 @@ export default function OrderConfirmation(payload = null) {
     const statusContainer = document.getElementById('statusTimelineContainer');
     const activeIndex = getStatusIndex(currentStatus);
     const steps = [
-      { badge: '01', title: 'Order Placed', desc: 'We received your order.' },
+      { badge: '01', title: 'Pending', desc: 'We received your order.' },
       { badge: '02', title: 'Processing', desc: 'We are preparing your items.' },
       { badge: '03', title: 'Shipped', desc: 'Your parcel is on the way.' },
-      { badge: '04', title: 'Delivered', desc: 'Your order is ready to enjoy.' },
+      { badge: '04', title: 'Completed', desc: 'Your order has been delivered successfully.' },
     ];
 
     statusContainer.innerHTML = steps.map((step, index) => {
@@ -400,7 +429,7 @@ export default function OrderConfirmation(payload = null) {
 
     const demoOrder = {
       id: 'BINI-230417',
-      status: 'Order Placed',
+      status: 'Pending',
       items: [
         {
           name: 'BINI logo hoodie',
