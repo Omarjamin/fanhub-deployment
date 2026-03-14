@@ -233,7 +233,7 @@ function loadCommunityFilter() {
           </div>
         </td>
             <td>${album.community_name || album.community || ''}</td>
-        <td>${album.songs}</td>
+        <td>${(album.songs ?? album.count_songs)} ${Number(album.songs ?? album.count_songs) === 1 ? 'song' : 'songs'}</td>
         <td>${album.year}</td>
         <td>
           <div class="dg-actions">

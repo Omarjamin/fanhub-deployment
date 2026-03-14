@@ -241,7 +241,7 @@ function renderAbout(root, groupInfo, membersData) {
         .trim()
         .toUpperCase() || 'MEMBER';
 
-    root.insertAdjacentHTML('beforeend', `
+    const aboutMarkup = `
         <section id="about" class="about-section">
             <div class="about-container">
                 <div class="about-column about-image-column">
@@ -295,7 +295,14 @@ function renderAbout(root, groupInfo, membersData) {
                 </div>
             </div>
         </section>
-    `);
+    `;
+
+    const bannerSection = root.querySelector('#home.banner');
+    if (bannerSection) {
+        bannerSection.insertAdjacentHTML('afterend', aboutMarkup);
+    } else {
+        root.insertAdjacentHTML('beforeend', aboutMarkup);
+    }
 
     root.__aboutState = {
         currentImage: 1,
