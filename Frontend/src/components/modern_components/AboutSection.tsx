@@ -60,7 +60,7 @@ const AboutSection = () => {
           initial={{ opacity: 0, x: -30 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          className="text-5xl md:text-7xl font-display text-gradient mb-4"
+          className="mb-4 text-4xl font-display text-gradient md:text-5xl lg:text-6xl"
         >
           ABOUT
         </motion.h2>

@@ -51,7 +51,7 @@ export const EventsSection = () => {
           initial={{ opacity: 0, x: -30 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          className="text-5xl md:text-7xl font-display text-gradient mb-4"
+          className="mb-4 text-4xl font-display text-gradient md:text-5xl lg:text-6xl"
         >
           EVENTS
         </motion.h2>
@@ -61,7 +61,7 @@ export const EventsSection = () => {
           viewport={{ once: true }}
           className="text-muted-foreground font-body mb-12 max-w-2xl"
         >
-          Catch BINI live - Get your tickets now!
+          Browse the latest event posters and ticket links for this community.
         </motion.p>
 
         {loading ? <p className="text-muted-foreground font-body">Loading events...</p> : null}
@@ -84,23 +84,24 @@ export const EventsSection = () => {
                 transition={{ delay: i * 0.15 }}
                 className="group block"
               >
-                <div className="relative overflow-hidden rounded-2xl bg-accent">
-                  {event.image ? (
-                    <img
-                      src={event.image}
-                      alt={event.name}
-                      className="w-full aspect-video object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  ) : (
-                    <div className="w-full aspect-video bg-accent" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/30 to-transparent" />
-                  <div className="absolute bottom-0 left-0 right-0 p-6">
-                    <h3 className="font-display text-2xl md:text-3xl text-foreground group-hover:text-primary transition-colors">
+                <div className="overflow-hidden rounded-2xl border border-border/50 bg-accent/20 p-4 md:p-5">
+                  <div className="flex min-h-[22rem] items-center justify-center overflow-hidden rounded-xl bg-background/35 p-3 md:min-h-[28rem] md:p-4">
+                    {event.image ? (
+                      <img
+                        src={event.image}
+                        alt={event.name}
+                        className="max-h-[20rem] w-full object-contain transition-transform duration-500 group-hover:scale-[1.02] md:max-h-[26rem]"
+                      />
+                    ) : (
+                      <div className="w-full aspect-[4/5] bg-accent" />
+                    )}
+                  </div>
+                  <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+                    <h3 className="font-display text-xl text-foreground transition-colors group-hover:text-primary md:text-2xl">
                       {event.name}
                     </h3>
-                    <div className="mt-3 flex items-center gap-2 text-primary">
-                      <Ticket size={18} />
+                    <div className="inline-flex shrink-0 items-center gap-2 self-start rounded-full border border-border/60 bg-card/80 px-3 py-2 text-foreground">
+                      <Ticket size={16} />
                       <span className="font-body text-sm">Get Tickets</span>
                       <ExternalLink size={14} className="ml-1" />
                     </div>

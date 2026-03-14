@@ -108,14 +108,21 @@ class OrdersController {
    * PATCH /v1/admin/orders/:orderId/status
    * Body:
    *  - db_name: target site database name
-   *  - status: new status string (e.g. 'pending', 'to_be_shipped', 'delivered')
+   *  - status: new status string (e.g. 'pending', 'processing', 'shipped', 'completed')
+   *  - tracking_number: required when marking an order as shipped
    */
   async updateOrderStatus(req, res) {
     try {
       const { orderId } = req.params;
-      const { db_name, status } = req.body || {};
+      const { db_name, status, tracking_number } = req.body || {};
       const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
-      debugLog('updateOrderStatus:start', { orderId, db_name, status, communityType });
+      debugLog('updateOrderStatus:start', {
+        orderId,
+        db_name,
+        status,
+        hasTrackingNumber: Boolean(String(tracking_number || '').trim()),
+        communityType,
+      });
 
       if (!orderId) {
         return res.status(400).json({
@@ -136,6 +143,7 @@ class OrdersController {
         orderId,
         status,
         communityType,
+        tracking_number,
       );
       debugLog('updateOrderStatus:done', { orderId, db_name: updatedOrder?.db_name, status: updatedOrder?.status });
 
@@ -147,13 +155,19 @@ class OrdersController {
     } catch (error) {
       console.error('Error updating order status:', error);
 
-      const statusCode = error.message?.includes('not found')
+      const message = String(error?.message || '');
+      const lowered = message.toLowerCase();
+      const statusCode = lowered.includes('not found')
         ? 404
-        : 500;
+        : lowered.includes('required')
+          ? 400
+        : (lowered.includes('locked') || lowered.includes('cannot change'))
+          ? 409
+          : 500;
 
       return res.status(statusCode).json({
         success: false,
-        error: error.message || 'Failed to update order status',
+        error: message || 'Failed to update order status',
         details:
           process.env.NODE_ENV === 'development'
             ? error.stack

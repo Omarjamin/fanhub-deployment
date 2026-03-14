@@ -1,44 +1,180 @@
 import { connect } from '../../core/database.js';
 
 class OrderModel {
-  async fetchOrderItems(pool, orderId) {
-    try {
-      const [items] = await pool.execute(
-        `
-        SELECT 
-          oi.*,
-          p.name as product_name,
-          p.image_url as product_image,
-          pv.variant_name,
-          pv.variant_values as size,
-          pv.weight_g
-        FROM order_items oi
-        LEFT JOIN products p ON oi.product_id = p.product_id
-        LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
-        WHERE oi.order_id = ?
-      `,
-        [orderId],
-      );
-      return items;
-    } catch (error) {
-      if (error?.code !== 'ER_BAD_FIELD_ERROR') throw error;
-      const [items] = await pool.execute(
-        `
-        SELECT 
-          oi.*,
-          p.name as product_name,
-          p.image_url as product_image,
-          pv.variant_name,
-          pv.variant_values as size
-        FROM order_items oi
-        LEFT JOIN products p ON oi.product_id = p.product_id
-        LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
-        WHERE oi.order_id = ?
-      `,
-        [orderId],
-      );
-      return (items || []).map((item) => ({ ...item, weight_g: 0 }));
+  normalizeOrderStatus(status) {
+    const normalized = String(status || '').trim().toLowerCase();
+    if (!normalized) return 'pending';
+    if (['order placed', 'placed', 'confirmed'].includes(normalized)) return 'pending';
+    if (normalized === 'canceled') return 'cancelled';
+    if (normalized === 'delivered') return 'completed';
+    return normalized;
+  }
+
+  async tableHasColumn(db, tableName, columnName) {
+    const [rows] = await db.query(`SHOW COLUMNS FROM ${tableName} LIKE ?`, [columnName]);
+    return Array.isArray(rows) && rows.length > 0;
+  }
+
+  async ensureOrderItemSnapshotColumns(db) {
+    const columns = [
+      ['product_name_snapshot', 'ALTER TABLE order_items ADD COLUMN product_name_snapshot VARCHAR(255) NULL AFTER total'],
+      ['product_image_snapshot', 'ALTER TABLE order_items ADD COLUMN product_image_snapshot TEXT NULL AFTER product_name_snapshot'],
+      ['variant_name_snapshot', 'ALTER TABLE order_items ADD COLUMN variant_name_snapshot VARCHAR(255) NULL AFTER product_image_snapshot'],
+      ['variant_values_snapshot', 'ALTER TABLE order_items ADD COLUMN variant_values_snapshot VARCHAR(255) NULL AFTER variant_name_snapshot'],
+      ['weight_g_snapshot', 'ALTER TABLE order_items ADD COLUMN weight_g_snapshot INT(11) NULL AFTER variant_values_snapshot'],
+    ];
+
+    for (const [columnName, statement] of columns) {
+      if (await this.tableHasColumn(db, 'order_items', columnName)) continue;
+      await db.query(statement);
     }
+  }
+
+  async ensureOrderTrackingColumns(db) {
+    const columns = [
+      ['tracking_number', 'ALTER TABLE orders ADD COLUMN tracking_number VARCHAR(120) NULL AFTER status'],
+      ['tracking_updated_at', 'ALTER TABLE orders ADD COLUMN tracking_updated_at DATETIME NULL AFTER tracking_number'],
+    ];
+
+    for (const [columnName, statement] of columns) {
+      if (await this.tableHasColumn(db, 'orders', columnName)) continue;
+      await db.query(statement);
+    }
+  }
+
+  async backfillOrderItemSnapshots(db, orderId = null) {
+    await this.ensureOrderItemSnapshotColumns(db);
+
+    const hasProductImage = await this.tableHasColumn(db, 'products', 'image_url');
+    const hasVariantWeight = await this.tableHasColumn(db, 'product_variants', 'weight_g');
+    const params = [];
+    const whereParts = [
+      '(',
+      'oi.product_name_snapshot IS NULL',
+      'OR oi.product_image_snapshot IS NULL',
+      'OR oi.variant_name_snapshot IS NULL',
+      'OR oi.variant_values_snapshot IS NULL',
+      'OR oi.weight_g_snapshot IS NULL',
+      ')',
+    ];
+
+    if (orderId) {
+      whereParts.push('AND oi.order_id = ?');
+      params.push(orderId);
+    }
+
+    const productImageExpr = hasProductImage ? 'p.image_url' : 'NULL';
+    const weightExpr = hasVariantWeight ? 'pv.weight_g' : '0';
+
+    await db.query(
+      `
+        UPDATE order_items oi
+        LEFT JOIN products p ON oi.product_id = p.product_id
+        LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
+        SET
+          oi.product_name_snapshot = COALESCE(oi.product_name_snapshot, p.name),
+          oi.product_image_snapshot = COALESCE(oi.product_image_snapshot, ${productImageExpr}),
+          oi.variant_name_snapshot = COALESCE(oi.variant_name_snapshot, pv.variant_name),
+          oi.variant_values_snapshot = COALESCE(oi.variant_values_snapshot, pv.variant_values),
+          oi.weight_g_snapshot = COALESCE(oi.weight_g_snapshot, ${weightExpr}, 0)
+        WHERE ${whereParts.join(' ')}
+      `,
+      params,
+    );
+  }
+
+  normalizeOrderItems(items = []) {
+    const grouped = new Map();
+
+    for (const item of Array.isArray(items) ? items : []) {
+      const productId = Number(item?.product_id || 0);
+      const variantId = Number(item?.variant_id || 0);
+      const quantity = Math.floor(Number(item?.quantity || 0));
+
+      if (!Number.isFinite(productId) || productId <= 0) {
+        throw new Error('Invalid product in order payload');
+      }
+      if (!Number.isFinite(variantId) || variantId <= 0) {
+        throw new Error('Invalid variant in order payload');
+      }
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        throw new Error('Invalid quantity in order payload');
+      }
+
+      const key = `${productId}:${variantId}`;
+      const current = grouped.get(key) || {
+        product_id: productId,
+        variant_id: variantId,
+        quantity: 0,
+      };
+
+      current.quantity += quantity;
+      grouped.set(key, current);
+    }
+
+    return Array.from(grouped.values());
+  }
+
+  async fetchVariantSnapshot(db, productId, variantId) {
+    const hasProductImage = await this.tableHasColumn(db, 'products', 'image_url');
+    const hasVariantWeight = await this.tableHasColumn(db, 'product_variants', 'weight_g');
+    const productImageSelect = hasProductImage ? ', p.image_url AS product_image' : ', NULL AS product_image';
+    const weightSelect = hasVariantWeight ? ', pv.weight_g AS weight_g' : ', 0 AS weight_g';
+
+    const [rows] = await db.execute(
+      `
+        SELECT
+          pv.variant_id,
+          pv.product_id,
+          pv.stock,
+          pv.price,
+          pv.variant_name,
+          pv.variant_values
+          ${weightSelect}
+          ,
+          p.name AS product_name
+          ${productImageSelect}
+        FROM product_variants pv
+        LEFT JOIN products p ON pv.product_id = p.product_id
+        WHERE pv.variant_id = ? AND pv.product_id = ?
+        FOR UPDATE
+      `,
+      [variantId, productId],
+    );
+
+    return Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  }
+
+  async fetchOrderItems(pool, orderId) {
+    await this.backfillOrderItemSnapshots(pool, orderId);
+
+    const hasProductImage = await this.tableHasColumn(pool, 'products', 'image_url');
+    const hasVariantWeight = await this.tableHasColumn(pool, 'product_variants', 'weight_g');
+    const productImageSelect = hasProductImage
+      ? 'COALESCE(oi.product_image_snapshot, p.image_url) AS product_image,'
+      : 'oi.product_image_snapshot AS product_image,';
+    const weightSelect = hasVariantWeight
+      ? 'COALESCE(oi.weight_g_snapshot, pv.weight_g, 0) AS weight_g'
+      : 'COALESCE(oi.weight_g_snapshot, 0) AS weight_g';
+
+    const [items] = await pool.execute(
+      `
+        SELECT
+          oi.*,
+          COALESCE(oi.product_name_snapshot, p.name) AS product_name,
+          ${productImageSelect}
+          COALESCE(oi.variant_name_snapshot, pv.variant_name) AS variant_name,
+          COALESCE(oi.variant_values_snapshot, pv.variant_values) AS size,
+          ${weightSelect}
+        FROM order_items oi
+        LEFT JOIN products p ON oi.product_id = p.product_id
+        LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
+        WHERE oi.order_id = ?
+      `,
+      [orderId],
+    );
+
+    return items;
   }
 
   async ensureConnection(community_type) {
@@ -53,11 +189,54 @@ class OrderModel {
     const pool = await this.ensureConnection(communityType);
     let conn;
     try {
+      await this.ensureOrderItemSnapshotColumns(pool);
+      await this.ensureOrderTrackingColumns(pool);
+
       // Get a single connection from the pool for transactions
       conn = await pool.getConnection();
       await conn.beginTransaction();
 
+      const normalizedItems = this.normalizeOrderItems(payload.items);
+      if (!normalizedItems.length) {
+        throw new Error('No order items provided');
+      }
+
+      const preparedItems = [];
+      let computedSubtotal = 0;
+
+      for (const item of normalizedItems) {
+        const variant = await this.fetchVariantSnapshot(conn, item.product_id, item.variant_id);
+        if (!variant) {
+          throw new Error(`Variant not found for product ${item.product_id}`);
+        }
+
+        const stock = Number(variant.stock || 0);
+        if (stock < item.quantity) {
+          throw new Error(`Insufficient stock for variant ${item.variant_id}. Available: ${stock}`);
+        }
+
+        const unitPrice = Number(variant.price || 0);
+        const lineTotal = unitPrice * item.quantity;
+        const weightG = Number(variant.weight_g || 0);
+
+        preparedItems.push({
+          ...item,
+          price: unitPrice,
+          total: lineTotal,
+          product_name_snapshot: String(variant.product_name || '').trim() || null,
+          product_image_snapshot: String(variant.product_image || '').trim() || null,
+          variant_name_snapshot: String(variant.variant_name || '').trim() || null,
+          variant_values_snapshot: String(variant.variant_values || '').trim() || null,
+          weight_g_snapshot: Number.isFinite(weightG) ? weightG : 0,
+        });
+
+        computedSubtotal += lineTotal;
+      }
+
+      const shippingFee = Math.max(0, Number(payload.shipping_fee || 0) || 0);
+      const computedTotal = computedSubtotal + shippingFee;
       const shippingAddress = JSON.stringify(payload.shipping_address || {});
+      const initialStatus = 'pending';
 
       let orderRes;
       if (communityId === null || typeof communityId === 'undefined') {
@@ -65,47 +244,58 @@ class OrderModel {
         [orderRes] = await conn.execute(
           `INSERT INTO orders (user_id, subtotal, shipping_fee, total, payment_method, shipping_address, status)
            VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [userId, payload.subtotal || 0, payload.shipping_fee || 0, payload.total || 0, payload.payment_method || null, shippingAddress, payload.status || 'pending']
+          [userId, computedSubtotal, shippingFee, computedTotal, payload.payment_method || null, shippingAddress, initialStatus]
         );
       } else {
         [orderRes] = await conn.execute(
           `INSERT INTO orders (user_id, community_id, subtotal, shipping_fee, total, payment_method, shipping_address, status)
            VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [userId, communityId, payload.subtotal || 0, payload.shipping_fee || 0, payload.total || 0, payload.payment_method || null, shippingAddress, payload.status || 'pending']
+          [userId, communityId, computedSubtotal, shippingFee, computedTotal, payload.payment_method || null, shippingAddress, initialStatus]
         );
       }
 
       const orderId = orderRes.insertId;
 
       // Insert order items and decrement stock
-      for (const item of payload.items) {
-        const qty = Number(item.quantity || 0);
-        const price = Number(item.price || 0);
-
-        // Insert order item
+      for (const item of preparedItems) {
         await conn.execute(
-          `INSERT INTO order_items (order_id, product_id, variant_id, quantity, price, total)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [orderId, item.product_id, item.variant_id, qty, price, qty * price]
+          `
+            INSERT INTO order_items (
+              order_id,
+              product_id,
+              variant_id,
+              quantity,
+              price,
+              total,
+              product_name_snapshot,
+              product_image_snapshot,
+              variant_name_snapshot,
+              variant_values_snapshot,
+              weight_g_snapshot
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          `,
+          [
+            orderId,
+            item.product_id,
+            item.variant_id,
+            item.quantity,
+            item.price,
+            item.total,
+            item.product_name_snapshot,
+            item.product_image_snapshot,
+            item.variant_name_snapshot,
+            item.variant_values_snapshot,
+            item.weight_g_snapshot,
+          ]
         );
 
-        // Check stock
-        const [variantRows] = await conn.execute(`SELECT stock FROM product_variants WHERE variant_id = ? FOR UPDATE`, [item.variant_id]);
-        if (!variantRows || variantRows.length === 0) {
-          throw new Error(`Variant not found: ${item.variant_id}`);
-        }
-        const stock = Number(variantRows[0].stock || 0);
-        if (stock < qty) {
-          throw new Error(`Insufficient stock for variant ${item.variant_id}. Available: ${stock}`);
-        }
-
-        // Decrement stock
-        await conn.execute(`UPDATE product_variants SET stock = stock - ? WHERE variant_id = ?`, [qty, item.variant_id]);
+        await conn.execute(`UPDATE product_variants SET stock = stock - ? WHERE variant_id = ?`, [item.quantity, item.variant_id]);
       }
 
       // Remove ordered variants from user's cart(s).
       // If communityId is present, scope to that cart. Otherwise remove from all user carts.
-      const variantIds = payload.items.map(i => i.variant_id).filter(Boolean);
+      const variantIds = preparedItems.map(i => i.variant_id).filter(Boolean);
       if (variantIds.length > 0) {
         const placeholders = variantIds.map(() => '?').join(',');
         if (communityId === null || typeof communityId === 'undefined') {
@@ -150,6 +340,7 @@ class OrderModel {
 
   async getOrdersByUser(userId, communityId = null, communityType = '') {
     const pool = await this.ensureConnection(communityType);
+    await this.ensureOrderTrackingColumns(pool);
     let query, params;
     
     if (communityId) {
@@ -166,6 +357,7 @@ class OrderModel {
     
     // Get order items for each order with product and variant details
     for (const order of rows) {
+      order.status = this.normalizeOrderStatus(order.status);
       order.items = await this.fetchOrderItems(pool, order.order_id);
     }
     
@@ -174,6 +366,7 @@ class OrderModel {
 
   async getOrderById(orderId, userId = null, communityType = '') {
     const pool = await this.ensureConnection(communityType);
+    await this.ensureOrderTrackingColumns(pool);
     const params = [orderId];
     let q = `SELECT * FROM orders WHERE order_id = ?`;
     if (userId) {
@@ -183,6 +376,7 @@ class OrderModel {
     const [orders] = await pool.execute(q, params);
     if (!orders || orders.length === 0) return null;
     const order = orders[0];
+    order.status = this.normalizeOrderStatus(order.status);
 
     order.items = await this.fetchOrderItems(pool, orderId);
     return order;
@@ -190,8 +384,9 @@ class OrderModel {
 
   async cancelOrderById(orderId, userId, communityType = '') {
     const pool = await this.ensureConnection(communityType);
+    await this.ensureOrderTrackingColumns(pool);
     const [result] = await pool.execute(
-      'UPDATE orders SET status = ? WHERE order_id = ? AND user_id = ?',
+      'UPDATE orders SET status = ?, tracking_number = NULL, tracking_updated_at = NULL WHERE order_id = ? AND user_id = ?',
       ['cancelled', orderId, userId],
     );
     return result;

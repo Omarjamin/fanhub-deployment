@@ -1,5 +1,10 @@
 import { api } from '../api.js';
 import { authHeaders } from '../auth/auth.js';
+import {
+  calculateCheckoutSummary,
+  clearCheckoutDraft,
+  fetchCheckoutDraft,
+} from '../checkout/checkout_draft.js';
 
 
 export async function placeOrder() {
@@ -9,12 +14,17 @@ export async function placeOrder() {
       return Number.isFinite(n) ? n : fallback;
     };
 
-    // Get order data from sessionStorage
-    const checkoutItems = JSON.parse(sessionStorage.getItem('checkoutItems') || '[]');
-    const shippingData = JSON.parse(sessionStorage.getItem('shippingData') || 'null');
-    const paymentData = JSON.parse(sessionStorage.getItem('paymentData') || 'null');
-    const checkoutSummary = JSON.parse(sessionStorage.getItem('checkoutSummary') || 'null');
-    const shippingFee = sessionStorage.getItem('shippingFee');
+    const draft = await fetchCheckoutDraft({ force: true });
+    const checkoutItems = Array.isArray(draft.checkout_items) ? draft.checkout_items : [];
+    const shippingData = draft.shipping_address;
+    const paymentData = draft.payment_data;
+    const shippingFee = draft.shipping_fee ?? 0;
+    const checkoutSummary = {
+      ...calculateCheckoutSummary(checkoutItems, shippingFee),
+      ...(draft.summary_data || {}),
+      shipping_fee: toNumber(draft.summary_data?.shipping_fee, toNumber(shippingFee, 0)),
+    };
+    checkoutSummary.total = toNumber(checkoutSummary.subtotal, 0) + toNumber(checkoutSummary.shipping_fee, 0);
 
     // Validate required data
     if (!checkoutItems || checkoutItems.length === 0) {
@@ -53,7 +63,7 @@ export async function placeOrder() {
       },
       payment_method: paymentData.method || 'cod',
       subtotal: toNumber(checkoutSummary?.subtotal, computedSubtotal),
-      shipping_fee: toNumber(shippingFee, 0),
+      shipping_fee: toNumber(checkoutSummary?.shipping_fee, toNumber(shippingFee, 0)),
       total: toNumber(checkoutSummary?.total, computedSubtotal),
       status: 'pending'
     };
@@ -90,9 +100,9 @@ export async function placeOrder() {
       shipping_address: shippingData,
       payment_method: paymentData.method || 'cod',
       subtotal: checkoutSummary?.subtotal || 0,
-      shipping_fee: parseFloat(shippingFee) || 0,
-      total: (checkoutSummary?.subtotal || 0) + (parseFloat(shippingFee) || 0),
-      status: 'Order Placed',
+      shipping_fee: toNumber(checkoutSummary?.shipping_fee, 0),
+      total: toNumber(checkoutSummary?.total, 0),
+      status: 'pending',
       created_at: new Date().toISOString()
     };
     
@@ -117,7 +127,13 @@ export async function placeOrder() {
       }
     } catch (_) {}
 
-    // Clear checkout-related session storage (but keep the order data)
+    try {
+      await clearCheckoutDraft();
+    } catch (draftError) {
+      console.error('Failed to clear checkout draft after order placement:', draftError);
+    }
+
+    // Clear legacy checkout-related browser storage (but keep the order data)
     clearCheckoutStorage();
 
     // Redirect to order confirmation or success page
@@ -146,6 +162,8 @@ export function clearCheckoutStorage() {
     'shippingData',
     'shippingInfo',
     'shippingFee',
+    'shippingRegion',
+    'checkoutWeightGrams',
     'selectedPayment',
     'paymentData',
     'paymentMethod',

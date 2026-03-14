@@ -1,21 +1,28 @@
+import { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { CheckCircle2, Cog, PackageCheck, Truck } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { fetchOrderById } from "@/lib/ecommerceApi";
 
 type ConfirmationItem = {
   name?: string;
+  product_name?: string;
   quantity?: number;
   price?: number;
 };
 
 type ShippingAddress = {
   region?: string;
+  region_name?: string;
   province?: string;
   cityMunicipality?: string;
+  city_municipality?: string;
   barangay?: string;
   zipCode?: string;
+  zip_code?: string;
   streetAddress?: string;
+  street_address?: string;
 };
 
 type ConfirmationState = {
@@ -32,6 +39,42 @@ type ConfirmationState = {
   shippingAddress?: ShippingAddress;
 };
 
+type OrderRecord = {
+  order_id?: number;
+  subtotal?: number;
+  shipping_fee?: number;
+  total?: number;
+  payment_method?: string;
+  status?: string;
+  tracking_number?: string | null;
+  shipping_address?: ShippingAddress;
+  items?: ConfirmationItem[];
+};
+
+function normalizeOrderStatus(value: string) {
+  const normalized = String(value || "").trim().toLowerCase();
+  if (!normalized) return "pending";
+  if (["order placed", "placed", "confirmed"].includes(normalized)) return "pending";
+  if (normalized === "canceled") return "cancelled";
+  if (normalized === "delivered") return "completed";
+  return normalized;
+}
+
+function formatOrderStatus(value: string) {
+  const normalized = normalizeOrderStatus(value);
+  if (normalized === "pending") return "Pending";
+  if (normalized === "processing") return "Processing";
+  if (normalized === "shipped") return "Shipped";
+  if (normalized === "completed") return "Completed";
+  if (normalized === "cancelled") return "Cancelled";
+  return normalized;
+}
+
+function normalizeTrackingNumber(value: unknown) {
+  const normalized = String(value ?? "").trim();
+  return normalized || "";
+}
+
 function formatPeso(price: number) {
   if (!Number.isFinite(price) || price <= 0) return "Price unavailable";
   return new Intl.NumberFormat("en-PH", {
@@ -45,19 +88,59 @@ const OrderConfirmation = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const state = (location.state || {}) as ConfirmationState;
+  const [resolvedOrder, setResolvedOrder] = useState<OrderRecord | null>(null);
 
-  const itemName = String(state.itemName || "Item");
-  const quantity = Number(state.quantity || 0);
-  const unitPrice = Number(state.unitPrice || 0);
-  const totalPrice = Number(state.totalPrice || 0);
+  useEffect(() => {
+    let active = true;
+    const numericOrderId = Number(state.orderId || 0);
+    if (!Number.isFinite(numericOrderId) || numericOrderId <= 0) return () => {
+      active = false;
+    };
+
+    fetchOrderById(numericOrderId)
+      .then((order) => {
+        if (!active) return;
+        setResolvedOrder(order);
+      })
+      .catch(() => {
+        if (!active) return;
+        setResolvedOrder(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [state.orderId]);
+
+  const activeOrder = resolvedOrder;
+  const items = Array.isArray(activeOrder?.items) && activeOrder.items.length
+    ? activeOrder.items
+    : (Array.isArray(state.items) ? state.items : []);
+  const itemName = String(activeOrder?.items?.[0]?.product_name || activeOrder?.items?.[0]?.name || state.itemName || "Item");
+  const quantity = Number(
+    state.quantity ||
+    items.reduce((sum, entry) => sum + Number(entry.quantity || 0), 0) ||
+    0,
+  );
+  const subtotal = Number(activeOrder?.subtotal ?? state.subtotal ?? state.totalPrice ?? 0);
+  const shippingFee = Number(activeOrder?.shipping_fee ?? state.shippingFee ?? 0);
+  const totalPrice = Number(activeOrder?.total ?? state.totalPrice ?? (subtotal + shippingFee));
+  const unitPrice = Number(state.unitPrice || (quantity > 0 ? subtotal / quantity : 0));
   const remainingStock = Number(state.remainingStock || 0);
-  const subtotal = Number(state.subtotal || totalPrice || 0);
-  const shippingFee = Number(state.shippingFee || 0);
-  const paymentMethod = String(state.paymentMethod || "cod").toLowerCase() === "cod"
+  const paymentMethod = String(activeOrder?.payment_method || state.paymentMethod || "cod").toLowerCase() === "cod"
     ? "Cash on Delivery"
-    : String(state.paymentMethod || "N/A");
-  const items = Array.isArray(state.items) ? state.items : [];
-  const shippingAddress = state.shippingAddress || {};
+    : String(activeOrder?.payment_method || state.paymentMethod || "N/A");
+  const shippingAddress = activeOrder?.shipping_address || state.shippingAddress || {};
+  const trackingNumber = normalizeTrackingNumber(activeOrder?.tracking_number);
+  const currentStatus = normalizeOrderStatus(activeOrder?.status || "pending");
+  const stepKeys = ["pending", "processing", "shipped", "completed"];
+  const currentStepIndex = Math.max(stepKeys.indexOf(currentStatus), 0);
+  const steps = [
+    { key: "pending", title: "Pending", desc: "Order received", Icon: CheckCircle2 },
+    { key: "processing", title: "Processing", desc: "Preparing items", Icon: Cog },
+    { key: "shipped", title: "Shipped", desc: "On its way", Icon: Truck },
+    { key: "completed", title: "Completed", desc: "Delivered successfully", Icon: PackageCheck },
+  ];
 
   return (
     <div className="min-h-screen bg-background text-foreground">
@@ -73,41 +156,35 @@ const OrderConfirmation = () => {
                 <div>
                   <h1 className="font-display text-3xl text-gradient">Order Successful</h1>
                   <p className="text-muted-foreground font-body mt-1">
-                    Your order is received. We will process it shortly.
+                    Current status: {formatOrderStatus(currentStatus)}.
                   </p>
                 </div>
               </div>
 
               <h2 className="mt-6 font-display text-2xl">What's Next?</h2>
               <div className="mt-4 grid md:grid-cols-2 xl:grid-cols-4 gap-3">
-                <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4">
-                  <div className="h-10 w-10 rounded-full bg-background inline-flex items-center justify-center text-primary">
-                    <CheckCircle2 size={18} />
-                  </div>
-                  <p className="font-body font-semibold mt-3">Order Placed</p>
-                  <p className="text-sm text-muted-foreground">Order received</p>
-                </div>
-                <div className="rounded-2xl border border-border/60 bg-background p-4">
-                  <div className="h-10 w-10 rounded-full bg-card inline-flex items-center justify-center text-muted-foreground">
-                    <Cog size={18} />
-                  </div>
-                  <p className="font-body font-semibold mt-3">Processing</p>
-                  <p className="text-sm text-muted-foreground">Preparing items</p>
-                </div>
-                <div className="rounded-2xl border border-border/60 bg-background p-4">
-                  <div className="h-10 w-10 rounded-full bg-card inline-flex items-center justify-center text-muted-foreground">
-                    <Truck size={18} />
-                  </div>
-                  <p className="font-body font-semibold mt-3">Shipped</p>
-                  <p className="text-sm text-muted-foreground">On its way</p>
-                </div>
-                <div className="rounded-2xl border border-border/60 bg-background p-4">
-                  <div className="h-10 w-10 rounded-full bg-card inline-flex items-center justify-center text-muted-foreground">
-                    <PackageCheck size={18} />
-                  </div>
-                  <p className="font-body font-semibold mt-3">Delivered</p>
-                  <p className="text-sm text-muted-foreground">Enjoy your merch</p>
-                </div>
+                {steps.map((step, index) => {
+                  const isReached = index <= currentStepIndex;
+                  const Icon = step.Icon;
+
+                  return (
+                    <div
+                      key={step.key}
+                      className={isReached
+                        ? "rounded-2xl border border-primary/30 bg-primary/10 p-4"
+                        : "rounded-2xl border border-border/60 bg-background p-4"}
+                    >
+                      <div className={isReached
+                        ? "h-10 w-10 rounded-full bg-background inline-flex items-center justify-center text-primary"
+                        : "h-10 w-10 rounded-full bg-card inline-flex items-center justify-center text-muted-foreground"}
+                      >
+                        <Icon size={18} />
+                      </div>
+                      <p className="font-body font-semibold mt-3">{step.title}</p>
+                      <p className="text-sm text-muted-foreground">{step.desc}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -116,16 +193,21 @@ const OrderConfirmation = () => {
                 <h3 className="font-body font-semibold">Order Details</h3>
                 <div className="mt-3 space-y-2 text-sm font-body">
                   <p>
-                    Order ID: <span className="font-semibold">{state.orderId || "N/A"}</span>
+                    Order ID: <span className="font-semibold">{activeOrder?.order_id || state.orderId || "N/A"}</span>
                   </p>
                   <p>
                     Payment Method: <span className="font-semibold">{paymentMethod}</span>
                   </p>
+                  {trackingNumber ? (
+                    <p>
+                      Tracking Number: <span className="font-semibold">{trackingNumber}</span>
+                    </p>
+                  ) : null}
                   {items.length ? (
                     <div className="mt-3 space-y-1">
                       {items.map((entry, index) => (
-                        <p key={`${entry.name || "item"}-${index}`}>
-                          {entry.name || itemName} x {Number(entry.quantity || 0)} -{" "}
+                        <p key={`${entry.product_name || entry.name || "item"}-${index}`}>
+                          {entry.product_name || entry.name || itemName} x {Number(entry.quantity || 0)} -{" "}
                           <span className="font-semibold">{formatPeso(Number(entry.price || 0))}</span>
                         </p>
                       ))}
@@ -161,13 +243,13 @@ const OrderConfirmation = () => {
               <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
                 <h3 className="font-body font-semibold">Shipping Address</h3>
                 <div className="mt-3 space-y-1 text-sm font-body text-muted-foreground">
-                  <p>{shippingAddress.streetAddress || "N/A"}</p>
+                  <p>{shippingAddress.streetAddress || shippingAddress.street_address || "N/A"}</p>
                   <p>{shippingAddress.barangay || "N/A"}</p>
                   <p>
-                    {shippingAddress.cityMunicipality || "N/A"}, {shippingAddress.province || "N/A"}
+                    {shippingAddress.cityMunicipality || shippingAddress.city_municipality || "N/A"}, {shippingAddress.province || "N/A"}
                   </p>
-                  <p>{shippingAddress.region || "N/A"}</p>
-                  <p>{shippingAddress.zipCode || "N/A"}</p>
+                  <p>{shippingAddress.region || shippingAddress.region_name || "N/A"}</p>
+                  <p>{shippingAddress.zipCode || shippingAddress.zip_code || "N/A"}</p>
                 </div>
               </div>
             </div>

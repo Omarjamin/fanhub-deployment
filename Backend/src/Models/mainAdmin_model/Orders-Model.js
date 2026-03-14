@@ -9,7 +9,42 @@ const debugLog = (scope, payload) => {
 
 class OrdersModel {
   normalizeStatus(status) {
-    return String(status || '').trim().toLowerCase();
+    const normalized = String(status || '').trim().toLowerCase();
+    if (!normalized) return 'pending';
+    if (['order placed', 'placed', 'confirmed'].includes(normalized)) return 'pending';
+    if (normalized === 'canceled') return 'cancelled';
+    if (normalized === 'delivered') return 'completed';
+    return normalized;
+  }
+
+  normalizeTrackingNumber(value) {
+    const normalized = String(value ?? '').trim();
+    return normalized || null;
+  }
+
+  isLockedStatus(status) {
+    const normalized = this.normalizeStatus(status);
+    return normalized === 'completed' || normalized === 'cancelled';
+  }
+
+  getAllowedStatusTransitions(status) {
+    const normalized = this.normalizeStatus(status);
+    if (normalized === 'pending' || normalized === 'order placed') {
+      return new Set(['pending', 'processing', 'shipped', 'completed', 'cancelled']);
+    }
+    if (normalized === 'processing') {
+      return new Set(['processing', 'shipped', 'completed', 'cancelled']);
+    }
+    if (normalized === 'shipped') {
+      return new Set(['shipped', 'completed']);
+    }
+    if (normalized === 'completed') {
+      return new Set(['completed']);
+    }
+    if (normalized === 'cancelled') {
+      return new Set(['cancelled']);
+    }
+    return new Set([normalized || 'pending', 'processing', 'shipped', 'completed', 'cancelled']);
   }
 
   normalizeCommunityType(communityType = 'all') {
@@ -25,6 +60,127 @@ class OrdersModel {
     if (!await this.hasAdminTable(db, tableName)) return new Set();
     const [rows] = await db.query(`SHOW COLUMNS FROM ${tableName}`);
     return new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
+  }
+
+  hasDisplayValue(value) {
+    return String(value ?? '').trim().length > 0;
+  }
+
+  async fetchUserDirectory(db, userIds = []) {
+    const uniqueUserIds = Array.from(
+      new Set(
+        (Array.isArray(userIds) ? userIds : [])
+          .map((value) => Number(value || 0))
+          .filter((value) => Number.isFinite(value) && value > 0),
+      ),
+    );
+    if (!uniqueUserIds.length) return new Map();
+    if (!await this.hasAdminTable(db, 'users')) return new Map();
+
+    const userColumns = await this.getAdminTableColumns(db, 'users');
+    if (!userColumns.has('user_id')) return new Map();
+
+    const nameCandidates = [];
+    if (userColumns.has('fullname')) nameCandidates.push(`NULLIF(TRIM(fullname), '')`);
+    if (userColumns.has('name')) nameCandidates.push(`NULLIF(TRIM(name), '')`);
+    if (userColumns.has('username')) nameCandidates.push(`NULLIF(TRIM(username), '')`);
+    if (userColumns.has('email')) nameCandidates.push(`NULLIF(TRIM(email), '')`);
+
+    const emailExpr = userColumns.has('email')
+      ? `NULLIF(TRIM(email), '') AS email`
+      : `NULL AS email`;
+    const displayNameExpr = nameCandidates.length
+      ? `COALESCE(${nameCandidates.join(', ')}) AS customer_name`
+      : `NULL AS customer_name`;
+
+    const placeholders = uniqueUserIds.map(() => '?').join(', ');
+    const [rows] = await db.query(
+      `
+        SELECT
+          user_id,
+          ${displayNameExpr},
+          ${emailExpr}
+        FROM users
+        WHERE user_id IN (${placeholders})
+      `,
+      uniqueUserIds,
+    );
+
+    return new Map(
+      (rows || []).map((row) => [
+        String(row?.user_id || ''),
+        {
+          customer_name: String(row?.customer_name || '').trim(),
+          customer_email: String(row?.email || '').trim(),
+        },
+      ]),
+    );
+  }
+
+  async hydrateOrderCustomerDetails(siteDB, orders = []) {
+    const rows = Array.isArray(orders) ? orders : [];
+    const unresolvedUserIds = rows
+      .filter((order) => (
+        !this.hasDisplayValue(order?.customer_name) ||
+        !this.hasDisplayValue(order?.customer_email)
+      ))
+      .map((order) => Number(order?.user_id || 0))
+      .filter((value) => Number.isFinite(value) && value > 0);
+
+    if (!unresolvedUserIds.length) {
+      rows.forEach((order) => {
+        if (!this.hasDisplayValue(order?.customer_name)) {
+          order.customer_name = `User #${order?.user_id}`;
+        }
+      });
+      return rows;
+    }
+
+    const lookupPools = [];
+    const pushPool = (pool) => {
+      if (!pool || lookupPools.includes(pool)) return;
+      lookupPools.push(pool);
+    };
+
+    pushPool(siteDB);
+    try {
+      pushPool(await connect(''));
+    } catch (_) {}
+    try {
+      pushPool(await connectAdmin());
+    } catch (_) {}
+
+    for (const pool of lookupPools) {
+      let directory = new Map();
+      try {
+        directory = await this.fetchUserDirectory(pool, unresolvedUserIds);
+      } catch (_) {
+        directory = new Map();
+      }
+      if (!directory.size) continue;
+
+      rows.forEach((order) => {
+        const entry = directory.get(String(order?.user_id || ''));
+        if (!entry) return;
+        if (!this.hasDisplayValue(order?.customer_name) && this.hasDisplayValue(entry.customer_name)) {
+          order.customer_name = entry.customer_name;
+        }
+        if (!this.hasDisplayValue(order?.customer_email) && this.hasDisplayValue(entry.customer_email)) {
+          order.customer_email = entry.customer_email;
+        }
+      });
+    }
+
+    rows.forEach((order) => {
+      if (!this.hasDisplayValue(order?.customer_name) && this.hasDisplayValue(order?.customer_email)) {
+        order.customer_name = order.customer_email;
+      }
+      if (!this.hasDisplayValue(order?.customer_name)) {
+        order.customer_name = `User #${order?.user_id}`;
+      }
+    });
+
+    return rows;
   }
 
   async resolveScopedCommunityId(communityType = 'all') {
@@ -97,6 +253,62 @@ class OrdersModel {
       [tableName, columnName],
     );
     return Number(rows?.[0]?.count || 0) > 0;
+  }
+
+  async ensureOrderItemSnapshotColumns(db) {
+    const columns = [
+      ['product_name_snapshot', 'ALTER TABLE order_items ADD COLUMN product_name_snapshot VARCHAR(255) NULL AFTER total'],
+      ['product_image_snapshot', 'ALTER TABLE order_items ADD COLUMN product_image_snapshot TEXT NULL AFTER product_name_snapshot'],
+      ['variant_name_snapshot', 'ALTER TABLE order_items ADD COLUMN variant_name_snapshot VARCHAR(255) NULL AFTER product_image_snapshot'],
+      ['variant_values_snapshot', 'ALTER TABLE order_items ADD COLUMN variant_values_snapshot VARCHAR(255) NULL AFTER variant_name_snapshot'],
+      ['weight_g_snapshot', 'ALTER TABLE order_items ADD COLUMN weight_g_snapshot INT(11) NULL AFTER variant_values_snapshot'],
+    ];
+
+    for (const [columnName, statement] of columns) {
+      if (await this.tableHasColumn(db, 'order_items', columnName)) continue;
+      await db.query(statement);
+    }
+  }
+
+  async ensureOrderTrackingColumns(db) {
+    const columns = [
+      ['tracking_number', 'ALTER TABLE orders ADD COLUMN tracking_number VARCHAR(120) NULL AFTER status'],
+      ['tracking_updated_at', 'ALTER TABLE orders ADD COLUMN tracking_updated_at DATETIME NULL AFTER tracking_number'],
+    ];
+
+    for (const [columnName, statement] of columns) {
+      if (await this.tableHasColumn(db, 'orders', columnName)) continue;
+      await db.query(statement);
+    }
+  }
+
+  async backfillOrderItemSnapshots(db) {
+    await this.ensureOrderItemSnapshotColumns(db);
+
+    const hasProductImage = await this.tableHasColumn(db, 'products', 'image_url');
+    const hasVariantWeight = await this.tableHasColumn(db, 'product_variants', 'weight_g');
+    const productImageExpr = hasProductImage ? 'p.image_url' : 'NULL';
+    const weightExpr = hasVariantWeight ? 'pv.weight_g' : '0';
+
+    await db.query(
+      `
+        UPDATE order_items oi
+        LEFT JOIN products p ON oi.product_id = p.product_id
+        LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
+        SET
+          oi.product_name_snapshot = COALESCE(oi.product_name_snapshot, p.name),
+          oi.product_image_snapshot = COALESCE(oi.product_image_snapshot, ${productImageExpr}),
+          oi.variant_name_snapshot = COALESCE(oi.variant_name_snapshot, pv.variant_name),
+          oi.variant_values_snapshot = COALESCE(oi.variant_values_snapshot, pv.variant_values),
+          oi.weight_g_snapshot = COALESCE(oi.weight_g_snapshot, ${weightExpr}, 0)
+        WHERE
+          oi.product_name_snapshot IS NULL
+          OR oi.product_image_snapshot IS NULL
+          OR oi.variant_name_snapshot IS NULL
+          OR oi.variant_values_snapshot IS NULL
+          OR oi.weight_g_snapshot IS NULL
+      `,
+    );
   }
 
   async ensureDailyRevenueSchema(siteDB) {
@@ -295,11 +507,21 @@ class OrdersModel {
         let siteDB;
         try {
           siteDB = await connect(dbName === '__default__' ? '' : dbName);
+          await this.backfillOrderItemSnapshots(siteDB);
+          await this.ensureOrderTrackingColumns(siteDB);
           const hasCommunityId = await this.tableHasColumn(
             siteDB,
             'orders',
             'community_id',
           );
+          const hasProductImage = await this.tableHasColumn(siteDB, 'products', 'image_url');
+          const hasVariantWeight = await this.tableHasColumn(siteDB, 'product_variants', 'weight_g');
+          const productImageSelect = hasProductImage
+            ? 'COALESCE(oi.product_image_snapshot, p.image_url) AS product_image,'
+            : 'oi.product_image_snapshot AS product_image,';
+          const weightSelect = hasVariantWeight
+            ? 'COALESCE(oi.weight_g_snapshot, pv.weight_g, 0) AS weight_g'
+            : 'COALESCE(oi.weight_g_snapshot, 0) AS weight_g';
 
           const params = [];
           const whereParts = [];
@@ -328,6 +550,8 @@ class OrdersModel {
                 o.payment_method,
                 o.shipping_address,
                 o.status,
+                o.tracking_number,
+                o.tracking_updated_at,
                 o.created_at
               FROM orders o
               LEFT JOIN users u ON u.user_id = o.user_id
@@ -365,6 +589,8 @@ class OrdersModel {
                   o.payment_method,
                   o.shipping_address,
                   o.status,
+                  o.tracking_number,
+                  o.tracking_updated_at,
                   o.created_at
                 FROM orders o
                 LEFT JOIN users u ON u.user_id = o.user_id
@@ -375,10 +601,14 @@ class OrdersModel {
             );
           }
 
+          await this.hydrateOrderCustomerDetails(siteDB, rows);
+
           for (const row of rows) {
             allOrders.push({
               db_name: dbName,
               ...row,
+              status: this.normalizeStatus(row.status),
+              tracking_number: this.normalizeTrackingNumber(row.tracking_number),
             });
           }
         } catch (err) {
@@ -445,11 +675,21 @@ class OrdersModel {
         let siteDB;
         try {
           siteDB = await connect(dbName === '__default__' ? '' : dbName);
+          await this.backfillOrderItemSnapshots(siteDB);
+          await this.ensureOrderTrackingColumns(siteDB);
           const hasCommunityId = await this.tableHasColumn(
             siteDB,
             'orders',
             'community_id',
           );
+          const hasProductImage = await this.tableHasColumn(siteDB, 'products', 'image_url');
+          const hasVariantWeight = await this.tableHasColumn(siteDB, 'product_variants', 'weight_g');
+          const productImageSelect = hasProductImage
+            ? 'COALESCE(oi.product_image_snapshot, p.image_url) AS product_image,'
+            : 'oi.product_image_snapshot AS product_image,';
+          const weightSelect = hasVariantWeight
+            ? 'COALESCE(oi.weight_g_snapshot, pv.weight_g, 0) AS weight_g'
+            : 'COALESCE(oi.weight_g_snapshot, 0) AS weight_g';
 
           const params = [];
           const whereParts = [];
@@ -479,6 +719,8 @@ class OrdersModel {
                 o.payment_method,
                 o.shipping_address,
                 o.status,
+                o.tracking_number,
+                o.tracking_updated_at,
                 o.created_at
               FROM orders o
               LEFT JOIN users u ON u.user_id = o.user_id
@@ -517,6 +759,8 @@ class OrdersModel {
                   o.payment_method,
                   o.shipping_address,
                   o.status,
+                  o.tracking_number,
+                  o.tracking_updated_at,
                   o.created_at
                 FROM orders o
                 LEFT JOIN users u ON u.user_id = o.user_id
@@ -527,15 +771,18 @@ class OrdersModel {
             );
           }
 
+          await this.hydrateOrderCustomerDetails(siteDB, rows);
+
           for (const order of rows) {
             // Get order items for each order
             const [items] = await siteDB.query(`
               SELECT 
                 oi.*,
-                p.name as product_name,
-                p.image_url as product_image,
-                pv.variant_name,
-                pv.variant_values as size
+                COALESCE(oi.product_name_snapshot, p.name) AS product_name,
+                ${productImageSelect}
+                COALESCE(oi.variant_name_snapshot, pv.variant_name) AS variant_name,
+                COALESCE(oi.variant_values_snapshot, pv.variant_values) AS size,
+                ${weightSelect}
               FROM order_items oi
               LEFT JOIN products p ON oi.product_id = p.product_id
               LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
@@ -545,6 +792,8 @@ class OrdersModel {
             allOrders.push({
               db_name: dbName,
               ...order,
+              status: this.normalizeStatus(order.status),
+              tracking_number: this.normalizeTrackingNumber(order.tracking_number),
               items: items
             });
           }
@@ -625,7 +874,7 @@ class OrdersModel {
     );
   }
 
-  async updateOrderStatus(dbName, orderId, status, communityType = 'all') {
+  async updateOrderStatus(dbName, orderId, status, communityType = 'all', trackingNumber = null) {
     if (!orderId) {
       throw new Error('orderId is required to update order status');
     }
@@ -635,11 +884,13 @@ class OrdersModel {
 
     const resolvedDbName = await this.resolveOrderDbName(dbName, communityType, orderId);
     const siteDB = await connect(resolvedDbName);
+    await this.ensureOrderTrackingColumns(siteDB);
     const normalizedNextStatus = this.normalizeStatus(status);
+    const normalizedTrackingNumber = this.normalizeTrackingNumber(trackingNumber);
 
     const [beforeRows] = await siteDB.query(
       `
-        SELECT order_id, total, status
+        SELECT order_id, total, status, tracking_number, tracking_updated_at
         FROM orders
         WHERE order_id = ?
         LIMIT 1
@@ -651,14 +902,88 @@ class OrdersModel {
       throw new Error('Order not found');
     }
     const previousStatus = this.normalizeStatus(beforeOrder.status);
+    const currentTrackingNumber = this.normalizeTrackingNumber(beforeOrder.tracking_number);
 
+    let nextTrackingNumber = currentTrackingNumber;
+    if (normalizedNextStatus === 'shipped') {
+      nextTrackingNumber = normalizedTrackingNumber || currentTrackingNumber;
+    } else if (normalizedNextStatus === 'completed') {
+      nextTrackingNumber = normalizedTrackingNumber || currentTrackingNumber;
+    } else if (['pending', 'processing', 'cancelled'].includes(normalizedNextStatus)) {
+      nextTrackingNumber = null;
+    }
+
+    if (normalizedNextStatus === 'shipped' && !nextTrackingNumber) {
+      throw new Error('Tracking number is required before marking an order as shipped');
+    }
+
+    if (previousStatus === normalizedNextStatus && nextTrackingNumber === currentTrackingNumber) {
+      const [currentRows] = await siteDB.query(
+        `
+          SELECT
+            order_id,
+            user_id,
+            subtotal,
+            shipping_fee,
+            total,
+            payment_method,
+            shipping_address,
+            status,
+            tracking_number,
+            tracking_updated_at,
+            created_at
+          FROM orders
+          WHERE order_id = ?
+          LIMIT 1
+        `,
+        [orderId],
+      );
+
+      return {
+        db_name: resolvedDbName,
+        ...(currentRows?.[0] || beforeOrder),
+        status: this.normalizeStatus(currentRows?.[0]?.status || beforeOrder.status),
+        tracking_number: this.normalizeTrackingNumber(currentRows?.[0]?.tracking_number || beforeOrder.tracking_number),
+      };
+    }
+
+    if (this.isLockedStatus(previousStatus)) {
+      throw new Error(`Order with status "${previousStatus}" is locked and can no longer be modified`);
+    }
+
+    const allowedTransitions = this.getAllowedStatusTransitions(previousStatus);
+    if (!allowedTransitions.has(normalizedNextStatus)) {
+      throw new Error(`Cannot change order status from "${previousStatus}" to "${normalizedNextStatus}"`);
+    }
+
+    const updateFields = ['status = ?'];
+    const updateParams = [normalizedNextStatus];
+    const shouldPersistTracking =
+      normalizedNextStatus === 'shipped' ||
+      normalizedNextStatus === 'completed' ||
+      previousStatus === 'shipped' ||
+      currentTrackingNumber !== null ||
+      normalizedTrackingNumber !== null;
+
+    if (shouldPersistTracking) {
+      updateFields.push('tracking_number = ?');
+      updateParams.push(nextTrackingNumber);
+
+      if (!nextTrackingNumber) {
+        updateFields.push('tracking_updated_at = NULL');
+      } else if (nextTrackingNumber !== currentTrackingNumber) {
+        updateFields.push('tracking_updated_at = NOW()');
+      }
+    }
+
+    updateParams.push(orderId);
     const [result] = await siteDB.query(
       `
         UPDATE orders 
-        SET status = ?
+        SET ${updateFields.join(', ')}
         WHERE order_id = ?
       `,
-      [normalizedNextStatus, orderId],
+      updateParams,
     );
 
     if (!result.affectedRows) {
@@ -676,6 +1001,8 @@ class OrdersModel {
           payment_method,
           shipping_address,
           status,
+          tracking_number,
+          tracking_updated_at,
           created_at
         FROM orders
         WHERE order_id = ?
@@ -695,6 +1022,8 @@ class OrdersModel {
     return {
       db_name: resolvedDbName,
       ...updated,
+      status: this.normalizeStatus(updated?.status),
+      tracking_number: this.normalizeTrackingNumber(updated?.tracking_number),
     };
   }
 }

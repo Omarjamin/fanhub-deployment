@@ -64,28 +64,67 @@ export default function createOrders() {
         </div>
         <div class="orders-modal-body">
           <div class="order-details">
-            <div class="order-info">
-              <h4>Order Information</h4>
-              <p><strong>Order ID:</strong> <span id="viewOrderId"></span></p>
-              <p><strong>Customer:</strong> <span id="viewCustomer"></span></p>
-              <p><strong>Email:</strong> <span id="viewEmail"></span></p>
-              <p><strong>Payment Method:</strong> <span id="viewPayment"></span></p>
-              <p><strong>Status:</strong> <span id="viewStatus"></span></p>
-              <p><strong>Date:</strong> <span id="viewDate"></span></p>
+            <div class="order-details-main">
+              <div class="order-info order-detail-card">
+                <h4>Order Information</h4>
+                <div class="order-detail-grid">
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Order ID</span>
+                    <span class="order-detail-value" id="viewOrderId"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Customer</span>
+                    <span class="order-detail-value" id="viewCustomer"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Email</span>
+                    <span class="order-detail-value" id="viewEmail"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Payment Method</span>
+                    <span class="order-detail-value" id="viewPayment"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Status</span>
+                    <span class="order-detail-value" id="viewStatus"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Tracking Number</span>
+                    <span class="order-detail-value order-detail-value-mono" id="viewTracking"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Date</span>
+                    <span class="order-detail-value" id="viewDate"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="order-items order-detail-card">
+                <h4>Order Items</h4>
+                <div id="viewOrderItems" class="order-items-list"></div>
+              </div>
             </div>
-            <div class="order-items">
-              <h4>Order Items</h4>
-              <div id="viewOrderItems"></div>
-            </div>
-            <div class="order-totals">
-              <h4>Order Totals</h4>
-              <p><strong>Subtotal:</strong> <span id="viewSubtotal"></span></p>
-              <p><strong>Shipping Fee:</strong> <span id="viewShipping"></span></p>
-              <p><strong>Total:</strong> <span id="viewTotal"></span></p>
-            </div>
-            <div class="order-address">
-              <h4>Shipping Address</h4>
-              <div id="viewAddress"></div>
+            <div class="order-details-side">
+              <div class="order-totals order-detail-card">
+                <h4>Order Totals</h4>
+                <div class="order-summary-rows">
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Subtotal</span>
+                    <span class="order-detail-value" id="viewSubtotal"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Shipping Fee</span>
+                    <span class="order-detail-value" id="viewShipping"></span>
+                  </div>
+                  <div class="order-detail-row order-detail-row-total">
+                    <span class="order-detail-label">Total</span>
+                    <span class="order-detail-value" id="viewTotal"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="order-address order-detail-card">
+                <h4>Shipping Address</h4>
+                <div id="viewAddress" class="order-address-lines"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -112,6 +151,11 @@ export default function createOrders() {
               <option value="completed">Completed</option>
             </select>
           </label>
+          <label class="orders-modal-group">
+            <span>Tracking Number</span>
+            <input id="editTrackingNumber" type="text" maxlength="120" placeholder="Required when order is shipped">
+            <small id="editTrackingHint">Required before an order can be marked as shipped.</small>
+          </label>
           <div class="orders-modal-actions">
             <button type="button" class="orders-btn cancel" id="cancelEditOrder">Cancel</button>
             <button type="submit" class="orders-btn save">Save</button>
@@ -123,15 +167,15 @@ export default function createOrders() {
     <div class="orders-modal hidden" id="deleteOrderModal" role="dialog" aria-modal="true" aria-labelledby="deleteOrderTitle">
       <div class="orders-modal-card orders-modal-card-sm">
         <div class="orders-modal-header">
-          <h3 id="deleteOrderTitle">Delete Order</h3>
+          <h3 id="deleteOrderTitle">Cancel Order</h3>
           <button type="button" class="orders-modal-close" id="closeDeleteOrderModal" aria-label="Close">x</button>
         </div>
         <div class="orders-modal-body">
-          <p id="deleteOrderLabel">Delete this order?</p>
+          <p id="deleteOrderLabel">Cancel this order?</p>
         </div>
         <div class="orders-modal-actions">
           <button type="button" class="orders-btn cancel" id="cancelDeleteOrder">Cancel</button>
-          <button type="button" class="orders-btn danger" id="confirmDeleteOrder">Yes</button>
+          <button type="button" class="orders-btn danger" id="confirmDeleteOrder">Yes, Cancel</button>
         </div>
       </div>
     </div>
@@ -145,6 +189,20 @@ export default function createOrders() {
     : String(sessionStorage.getItem('admin_selected_site') || 'all').trim().toLowerCase() || 'all';
   let editingOrderId = null;
   let deletingOrderId = null;
+
+  function normalizeStatusValue(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (!normalized) return 'pending';
+    if (['order placed', 'placed', 'confirmed'].includes(normalized)) return 'pending';
+    if (normalized === 'canceled') return 'cancelled';
+    if (normalized === 'delivered') return 'completed';
+    return normalized;
+  }
+
+  function normalizeTrackingNumber(value) {
+    const normalized = String(value ?? '').trim();
+    return normalized || '';
+  }
 
   function safeParseShippingAddress(value) {
     if (!value) return {};
@@ -161,6 +219,54 @@ export default function createOrders() {
     return orders.find(order => String(order.orderId) === String(orderId));
   }
 
+  function isOrderLocked(status) {
+    const normalized = normalizeStatusValue(status);
+    return normalized === 'completed' || normalized === 'cancelled';
+  }
+
+  function getAllowedStatusTransitions(status) {
+    const normalized = normalizeStatusValue(status);
+    if (normalized === 'pending') {
+      return ['pending', 'processing', 'shipped', 'completed', 'cancelled'];
+    }
+    if (normalized === 'processing') {
+      return ['processing', 'shipped', 'completed', 'cancelled'];
+    }
+    if (normalized === 'shipped') {
+      return ['shipped', 'completed'];
+    }
+    if (normalized === 'completed') {
+      return ['completed'];
+    }
+    if (normalized === 'cancelled') {
+      return ['cancelled'];
+    }
+    return [normalized];
+  }
+
+  function formatStatusLabel(status) {
+    return normalizeStatusValue(status)
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  function formatCurrency(value) {
+    return `PHP ${Number(value || 0).toLocaleString()}`;
+  }
+
+  function formatPaymentMethodLabel(value) {
+    const normalized = String(value || '').trim();
+    if (!normalized) return 'N/A';
+    if (normalized.toLowerCase() === 'cod') return 'Cash on Delivery';
+    return normalized
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
   function loadOrders() {
     const tbody = section.querySelector('#ordersTableBody');
     if (!tbody) return;
@@ -171,12 +277,12 @@ export default function createOrders() {
         <td>${order.customerName}</td>
         <td>${order.itemsCount} items</td>
         <td>${order.totalDisplay}</td>
-        <td><span class="badge badge-${order.status}">${order.status}</span></td>
+        <td><span class="badge badge-${order.status}">${formatStatusLabel(order.status)}</span></td>
         <td>${order.dateDisplay}</td>
         <td>
           <button class="btn-icon" title="View" type="button" data-action="view">&#128065;</button>
-          <button class="btn-icon" title="Edit" type="button" data-action="edit">&#9998;</button>
-          <button class="btn-icon btn-danger" title="Delete" type="button" data-action="delete">&#128465;</button>
+          <button class="btn-icon" title="${isOrderLocked(order.status) ? 'Finalized orders are locked' : 'Edit'}" type="button" data-action="edit"${isOrderLocked(order.status) ? ' disabled aria-disabled="true"' : ''}>&#9998;</button>
+          <button class="btn-icon btn-danger" title="${getAllowedStatusTransitions(order.status).includes('cancelled') && !isOrderLocked(order.status) ? 'Cancel' : 'This order can no longer be cancelled'}" type="button" data-action="delete"${getAllowedStatusTransitions(order.status).includes('cancelled') && !isOrderLocked(order.status) ? '' : ' disabled aria-disabled="true"'}>&#128465;</button>
         </td>
       </tr>
     `).join('');
@@ -230,7 +336,7 @@ export default function createOrders() {
       const rows = Array.isArray(payload.data) ? payload.data : [];
 
       orders = rows.map(row => {
-        const statusRaw = (row.status || 'pending').toLowerCase();
+        const statusRaw = normalizeStatusValue(row.status);
         const totalNum = Number(row.total || 0);
 
         return {
@@ -247,6 +353,8 @@ export default function createOrders() {
           total: totalNum,
           totalDisplay: `PHP ${totalNum.toLocaleString()}`,
           status: statusRaw,
+          trackingNumber: normalizeTrackingNumber(row.tracking_number),
+          trackingUpdatedAt: row.tracking_updated_at || '',
           createdAt: row.created_at || '',
           dateKey: formatAdminDateInput(row.created_at),
           dateDisplay: formatAdminDate(row.created_at, 'N/A'),
@@ -262,7 +370,7 @@ export default function createOrders() {
     }
   }
 
-  async function updateOrderStatusOnServer(order, nextStatus) {
+  async function updateOrderStatusOnServer(order, nextStatus, trackingNumber = '') {
     try {
       const candidateUrls = resolveAdminEndpointUrls(
         `orders/${order.orderId}/status`,
@@ -284,6 +392,7 @@ export default function createOrders() {
             body: JSON.stringify({
               db_name: order.db_name,
               status: nextStatus,
+              tracking_number: normalizeTrackingNumber(trackingNumber),
             }),
           });
           payload = await response.json().catch(() => ({}));
@@ -301,9 +410,15 @@ export default function createOrders() {
       }
       const updated = payload.data || {};
 
-      const statusRaw = (updated.status || nextStatus).toLowerCase();
+      const statusRaw = normalizeStatusValue(updated.status || nextStatus);
 
       order.status = statusRaw;
+      order.trackingNumber = normalizeTrackingNumber(
+        typeof updated.tracking_number !== 'undefined'
+          ? updated.tracking_number
+          : trackingNumber,
+      );
+      order.trackingUpdatedAt = updated.tracking_updated_at || order.trackingUpdatedAt || '';
       if (typeof updated.total !== 'undefined') {
         order.total = Number(updated.total || 0);
         order.totalDisplay = `PHP ${order.total.toLocaleString()}`;
@@ -337,8 +452,9 @@ export default function createOrders() {
       section.querySelector('#viewOrderId').textContent = `#ORD-${order.orderId}`;
       section.querySelector('#viewCustomer').textContent = order.customerName;
       section.querySelector('#viewEmail').textContent = order.customerEmail || 'N/A';
-      section.querySelector('#viewPayment').textContent = order.paymentMethod;
-      section.querySelector('#viewStatus').innerHTML = `<span class="badge badge-${order.status}">${order.status}</span>`;
+      section.querySelector('#viewPayment').textContent = formatPaymentMethodLabel(order.paymentMethod);
+      section.querySelector('#viewStatus').innerHTML = `<span class="badge badge-${order.status}">${formatStatusLabel(order.status)}</span>`;
+      section.querySelector('#viewTracking').textContent = order.trackingNumber || 'Not assigned';
       section.querySelector('#viewDate').textContent = order.dateDisplayLong;
 
       // Populate order items
@@ -347,38 +463,54 @@ export default function createOrders() {
         itemsContainer.innerHTML = order.items.map(item => `
           <div class="order-item">
             <div class="item-info">
-              <strong>${item.product_name || 'Unknown Product'}</strong>
-              ${item.variant_name ? `<br><small>${item.variant_name}</small>` : ''}
-              ${item.size ? `<br><small>Size: ${item.size}</small>` : ''}
+              <div class="item-title">${item.product_name || 'Unknown Product'}</div>
+              <div class="item-meta">
+                ${item.variant_name ? `<span class="item-chip">${item.variant_name}</span>` : ''}
+                ${item.size ? `<span class="item-chip">Size: ${item.size}</span>` : ''}
+              </div>
             </div>
             <div class="item-details">
-              <span>Qty: ${item.quantity}</span>
-              <span>Price: PHP ${Number(item.price || 0).toLocaleString()}</span>
-              <span>Total: PHP ${Number(item.total || 0).toLocaleString()}</span>
+              <div class="item-detail-row">
+                <span>Qty</span>
+                <strong>${item.quantity}</strong>
+              </div>
+              <div class="item-detail-row">
+                <span>Price</span>
+                <strong>${formatCurrency(item.price)}</strong>
+              </div>
+              <div class="item-detail-row">
+                <span>Total</span>
+                <strong>${formatCurrency(item.total)}</strong>
+              </div>
             </div>
           </div>
         `).join('');
       } else {
-        itemsContainer.innerHTML = '<p>No items found</p>';
+        itemsContainer.innerHTML = '<p class="order-empty-text">No items found.</p>';
       }
 
       // Populate totals
-      section.querySelector('#viewSubtotal').textContent = `PHP ${order.subtotal.toLocaleString()}`;
-      section.querySelector('#viewShipping').textContent = `PHP ${order.shippingFee.toLocaleString()}`;
-      section.querySelector('#viewTotal').textContent = `PHP ${order.total.toLocaleString()}`;
+      section.querySelector('#viewSubtotal').textContent = formatCurrency(order.subtotal);
+      section.querySelector('#viewShipping').textContent = formatCurrency(order.shippingFee);
+      section.querySelector('#viewTotal').textContent = formatCurrency(order.total);
 
       // Populate shipping address
       const addressContainer = section.querySelector('#viewAddress');
       if (order.shippingAddress && Object.keys(order.shippingAddress).length > 0) {
         const addr = order.shippingAddress;
+        const addressLines = [
+          addr.recipient_name ? `Recipient: ${addr.recipient_name}` : '',
+          addr.phone ? `Contact: ${addr.phone}` : '',
+          addr.street || '',
+          [addr.barangay || '', addr.city || ''].filter(Boolean).join(', '),
+          [addr.province || '', addr.region || ''].filter(Boolean).join(', '),
+          addr.zip ? `ZIP: ${addr.zip}` : '',
+        ].filter(Boolean);
         addressContainer.innerHTML = `
-          <p>${addr.street || ''}</p>
-          <p>${addr.barangay || ''} ${addr.city || ''}</p>
-          <p>${addr.province || ''} ${addr.region || ''}</p>
-          <p>${addr.zip || ''}</p>
-        `.replace(/<p>\s*<\/p>/g, '');
+          ${addressLines.map(line => `<div class="order-address-line">${line}</div>`).join('')}
+        `;
       } else {
-        addressContainer.innerHTML = '<p>No shipping address provided</p>';
+        addressContainer.innerHTML = '<p class="order-empty-text">No shipping address provided.</p>';
       }
 
       modal.classList.remove('hidden');
@@ -399,6 +531,8 @@ export default function createOrders() {
     const cancelBtn = section.querySelector('#cancelEditOrder');
     const form = section.querySelector('#editOrderForm');
     const statusSelect = section.querySelector('#editOrderStatus');
+    const trackingInput = section.querySelector('#editTrackingNumber');
+    const trackingHint = section.querySelector('#editTrackingHint');
     const orderLabel = section.querySelector('#editOrderLabel');
 
     function closeModal() {
@@ -406,13 +540,33 @@ export default function createOrders() {
       modal.classList.add('hidden');
     }
 
+    function syncTrackingRequirement() {
+      const normalizedStatus = normalizeStatusValue(statusSelect.value);
+      const requiresTracking = normalizedStatus === 'shipped';
+      trackingInput.required = requiresTracking;
+      trackingInput.placeholder = requiresTracking
+        ? 'Enter tracking number'
+        : 'Optional unless the order is shipped';
+      trackingHint.textContent = requiresTracking
+        ? 'Required before an order can be marked as shipped.'
+        : 'This will be shown to the user in their order history once provided.';
+    }
+
     function openModal(orderId) {
       const order = findOrder(orderId);
       if (!order) return;
+      if (isOrderLocked(order.status)) return;
 
       editingOrderId = orderId;
       orderLabel.textContent = `Order: #ORD-${order.orderId}`;
-      statusSelect.value = order.status;
+      const allowedStatuses = getAllowedStatusTransitions(order.status);
+      statusSelect.innerHTML = allowedStatuses
+        .filter(status => status !== 'cancelled')
+        .map(status => `<option value="${status}">${formatStatusLabel(status)}</option>`)
+        .join('');
+      statusSelect.value = allowedStatuses.includes(order.status) ? order.status : allowedStatuses[0];
+      trackingInput.value = order.trackingNumber || '';
+      syncTrackingRequirement();
       modal.classList.remove('hidden');
     }
 
@@ -421,6 +575,7 @@ export default function createOrders() {
     modal.addEventListener('click', event => {
       if (event.target === modal) closeModal();
     });
+    statusSelect.addEventListener('change', syncTrackingRequirement);
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
@@ -430,9 +585,16 @@ export default function createOrders() {
       if (!order) return;
 
       const selectedStatus = statusSelect.value;
+      const trackingNumber = normalizeTrackingNumber(trackingInput.value);
+
+      if (normalizeStatusValue(selectedStatus) === 'shipped' && !trackingNumber) {
+        alert('Tracking number is required before marking an order as shipped.');
+        trackingInput.focus();
+        return;
+      }
 
       try {
-        await updateOrderStatusOnServer(order, selectedStatus);
+        await updateOrderStatusOnServer(order, selectedStatus, trackingNumber);
         loadOrders();
         filterOrders();
         closeModal();
@@ -459,9 +621,10 @@ export default function createOrders() {
     function openModal(orderId) {
       const order = findOrder(orderId);
       if (!order) return;
+      if (isOrderLocked(order.status) || !getAllowedStatusTransitions(order.status).includes('cancelled')) return;
 
       deletingOrderId = orderId;
-      orderLabel.textContent = `Cancel order #ORD-${order.orderId}?`;
+      orderLabel.textContent = `Cancel order #ORD-${order.orderId}? This will keep the record but lock further changes.`;
       modal.classList.remove('hidden');
     }
 

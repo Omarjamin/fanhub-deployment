@@ -11,6 +11,17 @@ class SettingsController {
     this.settingsModel = new SettingsModel();
   }
 
+  resolvePreferredCommunityId(req) {
+    const numericCommunityId = Number(
+      req.body?.community_id ??
+      req.query?.community_id ??
+      0,
+    );
+    return Number.isFinite(numericCommunityId) && numericCommunityId > 0
+      ? numericCommunityId
+      : null;
+  }
+
   resolveCommunity(req, res) {
     const raw =
       req.body?.community ||
@@ -104,8 +115,12 @@ class SettingsController {
   async getEventPosters(req, res) {
     try {
       const community = this.resolveCommunity(req, res);
+      const preferredCommunityId = this.resolvePreferredCommunityId(req);
       debugLog('getEventPosters:start', { community });
-      const data = await this.settingsModel.getEventPosters(community, { includeEmpty: true });
+      const data = await this.settingsModel.getEventPosters(community, {
+        includeEmpty: true,
+        preferredCommunityId,
+      });
       debugLog('getEventPosters:done', { community, count: Array.isArray(data) ? data.length : 0 });
       return res.status(200).json({
         success: true,
@@ -117,7 +132,7 @@ class SettingsController {
       return res.status(500).json({
         success: false,
         error: 'Failed to fetch event posters',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        details: error?.message || 'Unknown error',
       });
     }
   }
@@ -125,9 +140,12 @@ class SettingsController {
   async saveEventPosters(req, res) {
     try {
       const community = this.resolveCommunity(req, res);
+      const preferredCommunityId = this.resolvePreferredCommunityId(req);
       const posters = req.body?.posters || req.body?.events || [];
       debugLog('saveEventPosters:start', { community, count: posters.length });
-      const data = await this.settingsModel.saveEventPosters(community, posters);
+      const data = await this.settingsModel.saveEventPosters(community, posters, {
+        preferredCommunityId,
+      });
       debugLog('saveEventPosters:done', { community, saved: data?.saved });
       return res.status(200).json({
         success: true,
@@ -139,7 +157,7 @@ class SettingsController {
       return res.status(500).json({
         success: false,
         error: 'Failed to save event posters',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        details: error?.message || 'Unknown error',
       });
     }
   }

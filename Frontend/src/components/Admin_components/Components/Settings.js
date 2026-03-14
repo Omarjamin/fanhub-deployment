@@ -13,7 +13,68 @@ const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-produ
 const ADMIN_API_BASE = getAdminApiBase();
 const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
 
-const defaultEventPosters = [];
+const DEFAULT_EVENT_POSTER_SLOTS = 3;
+const BINI_EVENT_POSTER_SLOTS = 1;
+const EVENT_POSTER_PLACEHOLDER = `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><rect width="320" height="180" rx="18" fill="#f3f4f6"/><rect x="24" y="24" width="272" height="132" rx="14" fill="#e5e7eb"/><circle cx="110" cy="78" r="18" fill="#cbd5e1"/><path d="M54 138l48-42 30 24 38-36 60 54H54z" fill="#94a3b8"/><text x="160" y="90" fill="#6b7280" font-family="Arial, sans-serif" font-size="16" text-anchor="middle">No poster yet</text></svg>',
+)}`;
+
+function createDefaultEventPoster(index) {
+  const slotId = index + 1;
+  return {
+    id: String(slotId),
+    event_id: null,
+    title: `Event ${slotId}`,
+    href: '',
+    image: '',
+  };
+}
+
+function getEventPosterSlotLimit(siteSlug = '') {
+  return String(siteSlug || '').trim().toLowerCase() === 'bini'
+    ? BINI_EVENT_POSTER_SLOTS
+    : DEFAULT_EVENT_POSTER_SLOTS;
+}
+
+function getDefaultEventPosters(siteSlug = '') {
+  return Array.from(
+    { length: getEventPosterSlotLimit(siteSlug) },
+    (_, index) => createDefaultEventPoster(index),
+  );
+}
+
+function normalizeEventPoster(rawPoster = {}, index = 0) {
+  const slotId = index + 1;
+  const actualEventId = Number(rawPoster?.event_id || 0);
+  const safeEventId = Number.isFinite(actualEventId) && actualEventId > 0
+    ? actualEventId
+    : null;
+
+  return {
+    id: String(slotId),
+    event_id: safeEventId,
+    title: String(rawPoster?.title || `Event ${slotId}`).trim() || `Event ${slotId}`,
+    href: String(rawPoster?.href || rawPoster?.ticket_link || '').trim(),
+    image: String(rawPoster?.image || rawPoster?.image_url || '').trim(),
+  };
+}
+
+function buildEventPosterRows(savedRows = [], siteSlug = '') {
+  const slotLimit = getEventPosterSlotLimit(siteSlug);
+  const normalizedSavedRows = Array.isArray(savedRows) ? savedRows : [];
+  const mergedRows = getDefaultEventPosters(siteSlug).map((row) => ({ ...row }));
+
+  for (let index = 0; index < slotLimit; index += 1) {
+    const savedRow = normalizedSavedRows[index];
+    if (!savedRow) continue;
+    mergedRows[index] = {
+      ...mergedRows[index],
+      ...normalizeEventPoster(savedRow, index),
+    };
+  }
+
+  return mergedRows;
+}
 
 function getAuthHeaders() {
   const siteScopedToken = getSessionToken(getActiveSiteSlug());
@@ -35,6 +96,97 @@ function getAuthHeaders() {
   return headers;
 }
 
+function getUploadedImageUrl(payload = {}) {
+  return (
+    payload?.url ||
+    payload?.data?.url ||
+    payload?.secure_url ||
+    payload?.data?.secure_url ||
+    payload?.image_url ||
+    payload?.data?.image_url ||
+    null
+  );
+}
+
+function loadImageElement(file) {
+  return new Promise((resolve, reject) => {
+    const objectUrl = URL.createObjectURL(file);
+    const image = new Image();
+
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      resolve(image);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl);
+      reject(new Error('Invalid image file'));
+    };
+    image.src = objectUrl;
+  });
+}
+
+function canvasToFile(canvas, type, quality, originalName) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error('Failed to process image'));
+          return;
+        }
+
+        const safeName = String(originalName || 'event-poster.jpg').replace(/\.[^.]+$/, '');
+        resolve(
+          new File([blob], `${safeName}.jpg`, {
+            type,
+            lastModified: Date.now(),
+          }),
+        );
+      },
+      type,
+      quality,
+    );
+  });
+}
+
+async function prepareEventPosterImage(file) {
+  if (!file) return null;
+  if (!String(file.type || '').toLowerCase().startsWith('image/')) {
+    throw new Error('Please choose an image file.');
+  }
+
+  const maxWidth = 1600;
+  const maxHeight = 2000;
+  const outputType = 'image/jpeg';
+  const outputQuality = 0.88;
+  const image = await loadImageElement(file);
+  const widthRatio = maxWidth / image.width;
+  const heightRatio = maxHeight / image.height;
+  const resizeRatio = Math.min(1, widthRatio, heightRatio);
+  const targetWidth = Math.max(1, Math.round(image.width * resizeRatio));
+  const targetHeight = Math.max(1, Math.round(image.height * resizeRatio));
+
+  const canvas = document.createElement('canvas');
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+  const context = canvas.getContext('2d', { alpha: false });
+  if (!context) {
+    throw new Error('Image processing is not supported in this browser.');
+  }
+
+  context.fillStyle = '#ffffff';
+  context.fillRect(0, 0, targetWidth, targetHeight);
+  context.drawImage(image, 0, 0, targetWidth, targetHeight);
+
+  const resizedFile = await canvasToFile(canvas, outputType, outputQuality, file.name);
+  return {
+    file: resizedFile,
+    width: targetWidth,
+    height: targetHeight,
+    originalWidth: image.width,
+    originalHeight: image.height,
+  };
+}
+
 async function uploadImage(file) {
   if (!file) return null;
   const formData = new FormData();
@@ -46,10 +198,11 @@ async function uploadImage(file) {
     body: formData,
   });
   const payload = await res.json().catch(() => ({}));
-  if (!res.ok || !payload?.url) {
-    throw new Error(payload?.message || 'Image upload failed');
+  const uploadedUrl = getUploadedImageUrl(payload);
+  if (!res.ok || !uploadedUrl) {
+    throw new Error(payload?.error || payload?.message || 'Image upload failed');
   }
-  return payload.url;
+  return uploadedUrl;
 }
 
 async function fetchShippingRegionOverrides() {
@@ -99,7 +252,7 @@ async function saveShippingRegionOverrides(provinceRegions, shippingRates) {
 
 async function fetchEventPosters(siteSlug = '', communityId = null) {
   const community = String(siteSlug || '').trim().toLowerCase();
-  if (!community) return [...defaultEventPosters];
+  if (!community) return buildEventPosterRows([], community);
 
   const payload = await fetchAdminJsonWithFallback(
     'settings/event-posters',
@@ -111,13 +264,7 @@ async function fetchEventPosters(siteSlug = '', communityId = null) {
   );
 
   const saved = Array.isArray(payload?.data) ? payload.data : [];
-  if (!saved.length) return [...defaultEventPosters];
-  if (!defaultEventPosters.length) return saved;
-
-  return defaultEventPosters.map((event) => {
-    const found = saved.find((x) => String(x?.id || '').toLowerCase() === String(event.id).toLowerCase());
-    return found ? { ...event, ...found } : event;
-  });
+  return buildEventPosterRows(saved, community);
 }
 
 async function saveEventPosters(siteSlug = '', posters = [], communityId = null) {
@@ -155,7 +302,9 @@ async function saveEventPosters(siteSlug = '', posters = [], communityId = null)
   }
 
   if (!response) throw (lastError || new Error('Failed to reach event poster endpoint.'));
-  if (!response.ok) throw new Error(payload?.error || payload?.message || `HTTP ${response.status}`);
+  if (!response.ok) {
+    throw new Error(payload?.details || payload?.error || payload?.message || `HTTP ${response.status}`);
+  }
   return payload;
 }
 
@@ -196,19 +345,28 @@ export default function createSettings() {
     sessionStorage.getItem('admin_selected_site') || getActiveSiteSlug() || '',
   ).trim().toLowerCase();
   let selectedCommunityId = null;
-  let eventPosters = [...defaultEventPosters];
+  let eventPosters = buildEventPosterRows([], selectedSite);
 
   function eventRowsTemplate() {
     return eventPosters
       .map((event) => `
         <div class="event-poster-row" data-event-id="${event.id}">
-          <img class="event-poster-preview" src="${event.image}" alt="${event.title}">
+          <button
+            type="button"
+            class="event-poster-preview-button event-replace-btn"
+            data-event-id="${event.id}"
+            aria-label="${event.image ? 'Change event poster' : 'Upload event poster'}"
+          >
+            <img class="event-poster-preview" src="${event.image || EVENT_POSTER_PLACEHOLDER}" alt="${event.title}">
+            <span class="event-poster-preview-badge">${event.image ? 'Change Poster' : 'Upload Poster'}</span>
+          </button>
           <div class="event-poster-meta">
             <strong>${event.title}</strong>
-            <small>Poster and ticket link are saved per site in DB.</small>
+            <small>${event.image ? 'Poster and ticket link are saved per site in DB.' : 'This event slot is ready for poster upload and ticket link.'}</small>
             <div class="event-poster-actions">
               <input class="event-file-input" type="file" accept="image/*" data-event-id="${event.id}">
-              <button type="button" class="btn btn-secondary event-replace-btn" data-event-id="${event.id}">Replace Poster</button>
+              <button type="button" class="btn btn-secondary event-replace-btn" data-event-id="${event.id}">${event.image ? 'Choose New Poster' : 'Choose Poster'}</button>
+              <span class="event-poster-hint">Click the image or button to select a file.</span>
             </div>
             <label class="event-link-label">
               <span>Ticket Link</span>
@@ -337,7 +495,7 @@ export default function createSettings() {
     section.querySelector('#shippingProvinceWrapper').innerHTML = `<p class="shipping-empty">Select a region to show provinces.</p>`;
     Object.keys(provinceShippingCategory).forEach((province) => delete provinceShippingCategory[province]);
 
-    eventPosters = [...defaultEventPosters];
+    eventPosters = buildEventPosterRows([], selectedSite);
     refreshEventPosterManager();
   }
 
@@ -357,7 +515,11 @@ export default function createSettings() {
     try {
       await saveShippingRegionOverrides(provinceShippingCategory, shippingRates);
       if (selectedSite) {
-        await saveEventPosters(selectedSite, eventPosters, selectedCommunityId);
+        await saveEventPosters(
+          selectedSite,
+          eventPosters.slice(0, getEventPosterSlotLimit(selectedSite)),
+          selectedCommunityId,
+        );
       }
       console.log('[Settings] Saved:', { selectedSite, shippingRates, provinceShipping, eventPosters });
       if (selectedSite) {
@@ -394,14 +556,21 @@ export default function createSettings() {
         if (!file || !eventId) return;
 
         try {
-          if (status) status.textContent = 'Uploading...';
-          const url = await uploadImage(file);
+          if (status) status.textContent = 'Resizing image...';
+          const prepared = await prepareEventPosterImage(file);
+          if (status) {
+            status.textContent =
+              prepared.originalWidth !== prepared.width || prepared.originalHeight !== prepared.height
+                ? `Uploading resized image (${prepared.width}x${prepared.height})...`
+                : 'Uploading image...';
+          }
+          const url = await uploadImage(prepared.file);
           const idx = eventPosters.findIndex((x) => x.id === eventId);
           if (idx >= 0) {
             eventPosters[idx] = { ...eventPosters[idx], image: url };
           }
           if (preview) preview.src = url;
-          if (status) status.textContent = 'Poster replaced successfully.';
+          if (status) status.textContent = 'Poster uploaded successfully.';
         } catch (error) {
           if (status) status.textContent = `Upload failed: ${error.message || 'Unknown error'}`;
         } finally {
@@ -495,7 +664,7 @@ export default function createSettings() {
     Object.keys(provinceShippingCategory).forEach((province) => delete provinceShippingCategory[province]);
     if (!selectedSite) {
       section.querySelector('#shippingProvinceWrapper').innerHTML = `<p class="shipping-empty">Select a region to show provinces.</p>`;
-      eventPosters = [...defaultEventPosters];
+      eventPosters = buildEventPosterRows([], selectedSite);
       await refreshEventPosterManager();
       return;
     }

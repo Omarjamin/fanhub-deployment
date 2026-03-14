@@ -53,7 +53,7 @@ const MusicSection = () => {
           initial={{ opacity: 0, x: -30 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          className="text-5xl md:text-7xl font-display text-gradient mb-12"
+          className="mb-12 text-4xl font-display text-gradient md:text-5xl lg:text-6xl"
         >
           DISCOGRAPHY
         </motion.h2>
@@ -78,12 +78,12 @@ const MusicSection = () => {
                 transition={{ delay: i * 0.1 }}
                 className="group relative"
               >
-                <div className="relative overflow-hidden rounded-lg">
+                <div className="relative overflow-hidden rounded-lg border border-border/50 bg-card/70 p-3">
                   {album.cover ? (
                     <img
                       src={album.cover}
                       alt={album.title}
-                      className="w-full aspect-square object-cover transition-transform duration-300 group-hover:scale-105"
+                      className="aspect-square w-full object-contain transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
                     <div className="w-full aspect-square bg-accent" />

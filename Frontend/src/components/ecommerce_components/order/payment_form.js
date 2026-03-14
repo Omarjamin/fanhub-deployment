@@ -1,4 +1,20 @@
 import { showToast } from '../../../utils/toast.js';
+import {
+    fetchCheckoutDraft,
+    getCachedCheckoutDraft,
+    saveCheckoutDraft,
+    setCheckoutDraftStep,
+} from '../../../services/ecommerce_services/checkout/checkout_draft.js';
+
+function getSelectedPaymentData(root) {
+    const paymentMethod = root.querySelector('input[name="paymentMethod"]:checked');
+    if (!paymentMethod) return null;
+
+    return {
+        method: paymentMethod.value,
+        methodText: paymentMethod.value === 'cod' ? 'Cash on Delivery' : paymentMethod.value,
+    };
+}
 
 export default async function PaymentForm(root) {
     root.innerHTML = `
@@ -32,21 +48,18 @@ export default async function PaymentForm(root) {
         </div>
     `;
 
-    // Load previously saved data if available
-    const savedPaymentData = sessionStorage.getItem('paymentData');
-    if (savedPaymentData) {
-        try {
-            const data = JSON.parse(savedPaymentData);
-            if (data.method) {
-                const matchingInput = root.querySelector(`input[name="paymentMethod"][value="${data.method}"]`);
-                if (matchingInput) matchingInput.checked = true;
-            }
-        } catch (e) {
-            console.error('Error loading saved payment data:', e);
-        }
+    try {
+        await fetchCheckoutDraft();
+    } catch (error) {
+        console.error('Failed to fetch checkout draft for payment form:', error);
     }
 
-    // Setup event listener to save payment data to sessionStorage
+    const savedPaymentData = getCachedCheckoutDraft().payment_data;
+    if (savedPaymentData?.method) {
+        const matchingInput = root.querySelector(`input[name="paymentMethod"][value="${savedPaymentData.method}"]`);
+        if (matchingInput) matchingInput.checked = true;
+    }
+
     const cards = Array.from(root.querySelectorAll('.payment-card'));
     const updateCardState = () => {
         cards.forEach((card) => {
@@ -59,74 +72,61 @@ export default async function PaymentForm(root) {
     };
 
     root.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
-        input.addEventListener('change', () => {
+        input.addEventListener('change', async () => {
             updateCardState();
-            const paymentMethodSelect = root.querySelector('input[name="paymentMethod"]:checked');
-            if (!paymentMethodSelect) return;
-            const paymentData = {
-                method: paymentMethodSelect.value,
-                methodText: paymentMethodSelect.value === 'cod' ? 'Cash on Delivery' : paymentMethodSelect.value
-            };
-            sessionStorage.setItem('paymentData', JSON.stringify(paymentData));
+            const paymentData = getSelectedPaymentData(root);
+            if (!paymentData) return;
+
+            try {
+                await saveCheckoutDraft({ payment_data: paymentData });
+            } catch (error) {
+                console.error('Failed to save payment draft:', error);
+            }
         });
     });
 
     updateCardState();
 
-    // Setup next button functionality
-    setTimeout(() => {
-        const nextBtn = document.getElementById('paymentNextBtn');
-        if (nextBtn && !nextBtn.hasAttribute('data-payment-handler')) {
-            nextBtn.setAttribute('data-payment-handler', 'true');
-            nextBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                
-                // Show loading state
-                const origText = nextBtn.textContent;
-                nextBtn.disabled = true;
-                nextBtn.textContent = 'Processing...';
-                
-                try {
-                    // Validate payment method is selected
-                    const paymentMethod = root.querySelector('input[name="paymentMethod"]:checked');
-                    const paymentCard = root.querySelector('label[for="paymentMethodCod"]');
-                    if (!paymentMethod || !paymentMethod.value) {
-                        if (paymentCard) paymentCard.style.borderColor = '#dc2626';
-                        root.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
-                            input.addEventListener('change', () => {
-                                if (paymentCard) paymentCard.style.borderColor = '#d1d5db';
-                            }, { once: true });
-                        });
-                        showToast('Please select a payment method.', 'error');
-                        nextBtn.disabled = false;
-                        nextBtn.textContent = origText;
-                        return;
-                    }
+    const nextBtn = document.getElementById('paymentNextBtn');
+    if (nextBtn && !nextBtn.hasAttribute('data-payment-handler')) {
+        nextBtn.setAttribute('data-payment-handler', 'true');
+        nextBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
 
-                    // Save payment data
-                    const paymentData = {
-                        method: paymentMethod.value,
-                        methodText: paymentMethod.value === 'cod' ? 'Cash on Delivery' : paymentMethod.value
-                    };
-                    sessionStorage.setItem('paymentMethod', paymentMethod.value);
-                    sessionStorage.setItem('paymentData', JSON.stringify(paymentData));
+            const originalText = nextBtn.textContent;
+            nextBtn.disabled = true;
+            nextBtn.textContent = 'Processing...';
 
-                    // Small delay for smooth transition
-                    await new Promise(resolve => setTimeout(resolve, 300));
+            try {
+                const paymentData = getSelectedPaymentData(root);
+                const paymentCard = root.querySelector('label[for="paymentMethodCod"]');
 
-                    // Update step in sessionStorage
-                    sessionStorage.setItem('checkoutStep', '3');
-                    
-                    // Trigger step change event
-                    window.dispatchEvent(new Event('stepChanged'));
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                } catch (error) {
-                    console.error('Error in payment form:', error);
-                    showToast('An error occurred. Please try again.', 'error');
+                if (!paymentData) {
+                    if (paymentCard) paymentCard.style.borderColor = '#dc2626';
+                    root.querySelectorAll('input[name="paymentMethod"]').forEach((input) => {
+                        input.addEventListener('change', () => {
+                            if (paymentCard) paymentCard.style.borderColor = '#d1d5db';
+                        }, { once: true });
+                    });
+                    showToast('Please select a payment method.', 'error');
                     nextBtn.disabled = false;
-                    nextBtn.textContent = origText;
+                    nextBtn.textContent = originalText;
+                    return;
                 }
-            });
-        }
-    }, 100);
+
+                await saveCheckoutDraft({ payment_data: paymentData });
+                await setCheckoutDraftStep(3);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (error) {
+                console.error('Error in payment form:', error);
+                showToast(error.message || 'An error occurred. Please try again.', 'error');
+                nextBtn.disabled = false;
+                nextBtn.textContent = originalText;
+                return;
+            }
+
+            nextBtn.disabled = false;
+            nextBtn.textContent = originalText;
+        });
+    }
 }

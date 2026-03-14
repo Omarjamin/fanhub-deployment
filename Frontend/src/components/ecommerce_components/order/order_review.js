@@ -1,175 +1,65 @@
 import { placeOrder } from '../../../services/ecommerce_services/order/place_order.js';
+import {
+    calculateCheckoutSummary,
+    fetchCheckoutDraft,
+    getCachedCheckoutDraft,
+    getCheckoutDraftEventName,
+    resolveItemWeightGrams,
+    setCheckoutDraftStep,
+} from '../../../services/ecommerce_services/checkout/checkout_draft.js';
 
 const peso = '\u20B1';
-
-function resolveItemWeightGrams(item) {
-    const explicitWeight = Number(item?.weight_g ?? item?.weightG ?? item?.weight_grams ?? item?.weight);
-    if (Number.isFinite(explicitWeight) && explicitWeight > 0) return explicitWeight;
-    return 0;
-}
 
 function formatPeso(value) {
     return `${peso}${Number(value || 0).toFixed(2)}`;
 }
 
-export default function OrderReview(root) {
-    try {
-        const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
-        const communityType =
-            pathParts[0] === 'fanhub'
-                ? (pathParts[1] === 'community-platform' ? (pathParts[2] || '') : (pathParts[1] || ''))
-                : '';
-
-        /* =========================
-           1. READ SESSION DATA
-        ========================= */
-        const readJSON = (key, fallback = null) =>
-            JSON.parse(sessionStorage.getItem(key) || JSON.stringify(fallback));
-
-        const selectedAddress = readJSON('selectedAddress');
-        const selectedPayment = readJSON('selectedPayment');
-        const checkoutItems = readJSON('checkoutItems', []);
-        const cartItems = readJSON('cartItems', []);
-
-        const legacyShipping = readJSON('shippingData');
-        const legacyPayment = readJSON('paymentData');
-
-        const checkoutSummary = readJSON('checkoutSummary');
-        const computedTotals = readJSON('computedTotals');
-        const orderData = readJSON('orderData');
-
-        const shippingFeeStored = sessionStorage.getItem('shippingFee');
-
-        /* =========================
-           2. RESOLVE FINAL DATA
-        ========================= */
-        const address = selectedAddress || legacyShipping;
-        const payment = selectedPayment || legacyPayment;
-        const items = checkoutItems.length ? checkoutItems : cartItems;
-
-        const rawTotals = checkoutSummary || computedTotals || orderData;
-
-        // Prefer real-time shipping fee from sessionStorage over checkoutSummary.
-        const shippingFeeVal = shippingFeeStored
-            ? Number(shippingFeeStored)
-            : (rawTotals?.shippingFee ?? rawTotals?.shipping_fee ?? 0);
-
-        const totals = rawTotals
-            ? {
-                  ...rawTotals,
-                  shippingFee: shippingFeeVal,
-              }
-            : null;
-
-        const hasAddress = Boolean(address);
-        const hasPayment = Boolean(payment);
-        const hasItems = items.length > 0;
-
-        const disablePlaceOrder = !(hasAddress && hasPayment && hasItems);
-        const summaryTotal = (() => {
-            if (!totals) return 0;
-            const subtotalVal = Number(totals.subtotal ?? totals.sub_total ?? 0);
-            const shippingFeeAmount = Number(totals.shippingFee ?? totals.shipping_fee ?? totals.shipping ?? 0);
-            const codFeeVal = Number(totals.codFee ?? totals.cod_fee ?? 0) || 0;
-            return subtotalVal + shippingFeeAmount + codFeeVal;
-        })();
-
-        /* =========================
-           3. RENDER UI
-        ========================= */
-        root.className = 'form-container form-container--review';
-        root.innerHTML = `
-            <div class="order-review-card">
-                <div class="order-review-header">
-                    <h3 class="order-review-title">Order Review</h3>
-                    <p class="order-review-subtitle">Please review your order details before placing</p>
-                </div>
-
-                <div class="review-sections">
-                    ${renderAddress(address)}
-                    ${renderPayment(payment)}
-                    ${renderItems(items)}
-                    ${renderTotals(totals, disablePlaceOrder)}
-                </div>
-                <div class="review-mobile-bar">
-                    <div class="review-mobile-total">
-                        <span>Total</span>
-                        <strong>${formatPeso(summaryTotal)}</strong>
-                    </div>
-                    <button id="mobilePlaceOrderBtn" class="review-mobile-button" ${disablePlaceOrder ? 'disabled' : ''}>
-                        Place Order
-                    </button>
-                </div>
-            </div>
-        `;
-
-        createHiddenForms(root, address || {}, payment || {});
-        bindEditLinks(root);
-
-        const placeOrderBtn = document.getElementById('placeOrderBtn');
-        if (placeOrderBtn) {
-            placeOrderBtn.addEventListener('click', async () => {
-                if (disablePlaceOrder) {
-                    alert('Please complete all required information before placing order.');
-                    return;
-                }
-
-                placeOrderBtn.disabled = true;
-                const origText = placeOrderBtn.textContent;
-                placeOrderBtn.textContent = 'Placing order...';
-
-                try {
-                    const result = await placeOrder();
-                    if (result && result.success) {
-                        const id = result.orderId || sessionStorage.getItem('lastOrderId');
-                        const confirmationPath = communityType
-                            ? `/fanhub/${communityType}/order-confirmation`
-                            : '/order-confirmation';
-                        window.location.href = id
-                            ? `${confirmationPath}?orderId=${id}`
-                            : confirmationPath;
-                    } else {
-                        alert('Order placed (no confirmation).');
-                    }
-                } catch (err) {
-                    console.error('Place order failed:', err);
-                    alert(`Failed to place order: ${err.message || 'Server error'}`);
-                } finally {
-                    placeOrderBtn.disabled = false;
-                    placeOrderBtn.textContent = origText;
-                }
-            });
-        }
-
-        const mobilePlaceOrderBtn = document.getElementById('mobilePlaceOrderBtn');
-        if (mobilePlaceOrderBtn) {
-            mobilePlaceOrderBtn.addEventListener('click', event => {
-                event.preventDefault();
-                placeOrderBtn?.click();
-            });
-        }
-    } catch (err) {
-        console.error('OrderReview error:', err);
-        root.innerHTML = '<p>Error loading order review.</p>';
-    }
+function getCommunityTypeFromPath() {
+    const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
+    return pathParts[0] === 'fanhub'
+        ? (pathParts[1] === 'community-platform' ? (pathParts[2] || '') : (pathParts[1] || ''))
+        : '';
 }
 
-/* =========================
-   RENDER HELPERS
-========================= */
+function getReviewState() {
+    const draft = getCachedCheckoutDraft();
+    const address = draft.shipping_address;
+    const payment = draft.payment_data;
+    const items = Array.isArray(draft.checkout_items) ? draft.checkout_items : [];
+    const shippingFee = draft.shipping_fee ?? draft.summary_data?.shipping_fee ?? 0;
+    const summary = {
+        ...calculateCheckoutSummary(items, shippingFee),
+        ...(draft.summary_data || {}),
+        shipping_fee: shippingFee,
+        total_weight_grams: Number(
+            draft.checkout_weight_grams
+            ?? draft.summary_data?.total_weight_grams
+            ?? calculateCheckoutSummary(items, shippingFee).total_weight_grams,
+        ) || 0,
+    };
+    summary.total = Number(summary.subtotal || 0) + Number(summary.shipping_fee || 0);
+
+    return {
+        draft,
+        address,
+        payment,
+        items,
+        summary,
+        disablePlaceOrder: !(address && payment && items.length > 0),
+    };
+}
+
 function renderAddress(address) {
     const fullAddress = address
-        ? (address.fullAddress ||
-           [
-               address.street,
-               address.barangayText || address.barangay,
-               address.cityText || address.city,
-               address.provinceText || address.province,
-               address.regionText || address.region,
-               address.zip,
-           ]
-               .filter(Boolean)
-               .join(', '))
+        ? (address.fullAddress
+            || [
+                address.street,
+                address.barangayText || address.barangay,
+                address.cityText || address.city,
+                address.provinceText || address.province,
+                address.regionText || address.region,
+                address.zip,
+            ].filter(Boolean).join(', '))
         : null;
 
     return `
@@ -187,28 +77,26 @@ function renderAddress(address) {
                 </a>
             </div>
             <div class="section-content">
-                ${
-                    fullAddress
-                        ? `
+                ${fullAddress
+                    ? `
+                        <div class="info-item">
+                            <span class="info-label">Delivery Address</span>
+                            <span class="info-value">${fullAddress}</span>
+                        </div>
+                        ${address.recipient_name ? `
                             <div class="info-item">
-                                <span class="info-label">Delivery Address</span>
-                                <span class="info-value">${fullAddress}</span>
+                                <span class="info-label">Recipient</span>
+                                <span class="info-value">${address.recipient_name}</span>
                             </div>
-                            ${address.recipient_name ? `
-                                <div class="info-item">
-                                    <span class="info-label">Recipient</span>
-                                    <span class="info-value">${address.recipient_name}</span>
-                                </div>
-                            ` : ''}
-                            ${address.phone ? `
-                                <div class="info-item">
-                                    <span class="info-label">Contact</span>
-                                    <span class="info-value">${address.phone}</span>
-                                </div>
-                            ` : ''}
-                          `
-                        : '<div class="info-empty">No shipping address selected.</div>'
-                }
+                        ` : ''}
+                        ${address.phone ? `
+                            <div class="info-item">
+                                <span class="info-label">Contact</span>
+                                <span class="info-value">${address.phone}</span>
+                            </div>
+                        ` : ''}
+                    `
+                    : '<div class="info-empty">No shipping address selected.</div>'}
             </div>
         </div>
     `;
@@ -234,20 +122,18 @@ function renderPayment(payment) {
                 </a>
             </div>
             <div class="section-content">
-                ${
-                    paymentMethod
-                        ? `
-                            <div class="info-item">
-                                <span class="info-label">Payment Method</span>
-                                <span class="info-value payment-method">${paymentMethod}</span>
-                            </div>
-                            <div class="payment-note">
-                                <span class="note-icon">Info</span>
-                                <span>Payment will be collected upon delivery</span>
-                            </div>
-                          `
-                        : '<div class="info-empty">No payment method selected.</div>'
-                }
+                ${paymentMethod
+                    ? `
+                        <div class="info-item">
+                            <span class="info-label">Payment Method</span>
+                            <span class="info-value payment-method">${paymentMethod}</span>
+                        </div>
+                        <div class="payment-note">
+                            <span class="note-icon">Info</span>
+                            <span>Payment will be collected upon delivery</span>
+                        </div>
+                    `
+                    : '<div class="info-empty">No payment method selected.</div>'}
             </div>
         </div>
     `;
@@ -263,64 +149,51 @@ function renderItems(items) {
                 <span class="item-count">${items.length} ${items.length === 1 ? 'item' : 'items'}</span>
             </div>
             <div class="section-content">
-                ${
-                    items.length === 0
-                        ? '<div class="info-empty">No items in cart.</div>'
-                        : `
-                            <div class="items-table">
-                                <table>
-                                    <thead>
-                                        <tr>
-                                            <th>Product</th>
-                                            <th>Quantity</th>
-                                            <th>Price</th>
-                                            <th>Subtotal</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${items
-                                            .map(item => {
-                                                const productName = item.product_name || item.name || 'Unknown Product';
-                                                const quantity = item.quantity || item.qty || 1;
-                                                const price = parseFloat(item.display_price || item.price || 0);
-                                                const subtotal = price * quantity;
-                                                return `
-                                                    <tr>
-                                                        <td class="product-name">${productName}<br><small>${(resolveItemWeightGrams(item) * Number(quantity || 0)).toLocaleString()}g total</small></td>
-                                                        <td class="quantity">${quantity}</td>
-                                                        <td class="price">${formatPeso(price)}</td>
-                                                        <td class="subtotal">${formatPeso(subtotal)}</td>
-                                                    </tr>
-                                                `;
-                                            })
-                                            .join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                          `
-                }
+                ${items.length === 0
+                    ? '<div class="info-empty">No items in cart.</div>'
+                    : `
+                        <div class="items-table">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Product</th>
+                                        <th>Quantity</th>
+                                        <th>Price</th>
+                                        <th>Subtotal</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.map((item) => {
+                                        const productName = item.product_name || item.name || 'Unknown Product';
+                                        const quantity = Number(item.quantity || item.qty || 1);
+                                        const price = parseFloat(item.display_price || item.price || 0);
+                                        const subtotal = price * quantity;
+                                        return `
+                                            <tr>
+                                                <td class="product-name">${productName}<br><small>${(resolveItemWeightGrams(item) * quantity).toLocaleString()}g total</small></td>
+                                                <td class="quantity">${quantity}</td>
+                                                <td class="price">${formatPeso(price)}</td>
+                                                <td class="subtotal">${formatPeso(subtotal)}</td>
+                                            </tr>
+                                        `;
+                                    }).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    `}
             </div>
         </div>
     `;
 }
 
-function renderTotals(totals, disablePlaceOrder = false) {
-    if (!totals) {
+function renderTotals(summary, disablePlaceOrder = false) {
+    if (!summary) {
         return `
             <div class="review-section totals-section">
                 <div class="info-empty">Order totals are not available.</div>
             </div>
         `;
     }
-
-    const subtotalVal = Number(totals.subtotal ?? totals.sub_total ?? 0);
-    const shippingFeeVal = Number(totals.shippingFee ?? totals.shipping_fee ?? totals.shipping ?? 0);
-    const codFeeVal = Number(totals.codFee ?? totals.cod_fee ?? 0) || 0;
-    const checkoutItems = JSON.parse(sessionStorage.getItem('checkoutItems') || '[]');
-    const totalWeightGrams = Array.isArray(checkoutItems) && checkoutItems.length > 0
-        ? checkoutItems.reduce((sum, item) => sum + (resolveItemWeightGrams(item) * Number(item?.quantity || 0)), 0)
-        : Number(totals.total_weight_grams ?? sessionStorage.getItem('checkoutWeightGrams') ?? 0);
-    const totalVal = subtotalVal + shippingFeeVal + codFeeVal;
 
     return `
         <div class="review-section totals-section">
@@ -333,30 +206,20 @@ function renderTotals(totals, disablePlaceOrder = false) {
                 <div class="totals-list">
                     <div class="total-row">
                         <span class="total-label">Subtotal</span>
-                        <span class="total-value">${formatPeso(subtotalVal)}</span>
+                        <span class="total-value">${formatPeso(summary.subtotal)}</span>
                     </div>
                     <div class="total-row">
                         <span class="total-label">Shipping Fee</span>
-                        <span class="total-value">${formatPeso(shippingFeeVal)}</span>
+                        <span class="total-value">${formatPeso(summary.shipping_fee)}</span>
                     </div>
                     <div class="total-row">
                         <span class="total-label">Total Weight</span>
-                        <span class="total-value">${Number(totalWeightGrams || 0).toLocaleString()}g</span>
+                        <span class="total-value">${Number(summary.total_weight_grams || 0).toLocaleString()}g</span>
                     </div>
-                    ${
-                        codFeeVal > 0
-                            ? `
-                                <div class="total-row">
-                                    <span class="total-label">COD Fee</span>
-                                    <span class="total-value">${formatPeso(codFeeVal)}</span>
-                                </div>
-                              `
-                            : ''
-                    }
                     <div class="total-divider"></div>
                     <div class="total-row total-final">
                         <span class="total-label">Total Amount</span>
-                        <span class="total-value final-amount">${formatPeso(totalVal)}</span>
+                        <span class="total-value final-amount">${formatPeso(summary.total)}</span>
                     </div>
                 </div>
                 <div class="order-actions">
@@ -369,40 +232,123 @@ function renderTotals(totals, disablePlaceOrder = false) {
     `;
 }
 
-/* =========================
-   EVENTS
-========================= */
-function bindEditLinks(root) {
-    root.querySelectorAll('.edit-link').forEach(link => {
-        link.addEventListener('click', event => {
+async function bindEditLinks(root) {
+    root.querySelectorAll('.edit-link').forEach((link) => {
+        link.addEventListener('click', async (event) => {
             event.preventDefault();
-            sessionStorage.setItem('checkoutStep', link.dataset.step);
-            window.dispatchEvent(new Event('stepChanged'));
+            try {
+                await setCheckoutDraftStep(link.dataset.step);
+            } catch (error) {
+                console.error('Failed to switch checkout step:', error);
+            }
         });
     });
 }
 
-/* =========================
-   HIDDEN FORMS
-========================= */
-function createHiddenForms(root, address = {}, payment = {}) {
-    const holder = document.createElement('div');
-    holder.style.display = 'none';
+function bindPlaceOrderButtons(root, communityType, disablePlaceOrder) {
+    const placeOrderBtn = root.querySelector('#placeOrderBtn');
+    const mobilePlaceOrderBtn = root.querySelector('#mobilePlaceOrderBtn');
 
-    holder.innerHTML = `
-        <form id="shippingForm">
-            <input type="hidden" id="street" value="${address.street || ''}">
-            <input type="hidden" id="region" value="${address.region || ''}">
-            <input type="hidden" id="province" value="${address.province || ''}">
-            <input type="hidden" id="city" value="${address.city || ''}">
-            <input type="hidden" id="barangay" value="${address.barangay || ''}">
-            <input type="hidden" id="zip" value="${address.zip || ''}">
-        </form>
+    const handlePlaceOrder = async () => {
+        if (disablePlaceOrder) {
+            alert('Please complete all required information before placing order.');
+            return;
+        }
 
-        <form id="paymentForm">
-            <input type="hidden" id="paymentMethod" value="${payment.method || ''}">
-        </form>
+        if (placeOrderBtn) {
+            placeOrderBtn.disabled = true;
+            placeOrderBtn.textContent = 'Placing order...';
+        }
+        if (mobilePlaceOrderBtn) {
+            mobilePlaceOrderBtn.disabled = true;
+            mobilePlaceOrderBtn.textContent = 'Placing...';
+        }
+
+        try {
+            const result = await placeOrder();
+            if (result && result.success) {
+                const confirmationPath = communityType
+                    ? `/fanhub/${communityType}/order-confirmation`
+                    : '/order-confirmation';
+                window.location.href = result.orderId
+                    ? `${confirmationPath}?orderId=${result.orderId}`
+                    : confirmationPath;
+                return;
+            }
+
+            alert('Order placed (no confirmation).');
+        } catch (error) {
+            console.error('Place order failed:', error);
+            alert(`Failed to place order: ${error.message || 'Server error'}`);
+        } finally {
+            if (placeOrderBtn) {
+                placeOrderBtn.disabled = disablePlaceOrder;
+                placeOrderBtn.innerHTML = '<span>Place Order</span>';
+            }
+            if (mobilePlaceOrderBtn) {
+                mobilePlaceOrderBtn.disabled = disablePlaceOrder;
+                mobilePlaceOrderBtn.textContent = 'Place Order';
+            }
+        }
+    };
+
+    placeOrderBtn?.addEventListener('click', handlePlaceOrder);
+    mobilePlaceOrderBtn?.addEventListener('click', (event) => {
+        event.preventDefault();
+        handlePlaceOrder();
+    });
+}
+
+async function renderReview(root) {
+    const communityType = getCommunityTypeFromPath();
+    const { address, payment, items, summary, disablePlaceOrder } = getReviewState();
+
+    root.className = 'form-container form-container--review';
+    root.innerHTML = `
+        <div class="order-review-card">
+            <div class="order-review-header">
+                <h3 class="order-review-title">Order Review</h3>
+                <p class="order-review-subtitle">Please review your order details before placing</p>
+            </div>
+
+            <div class="review-sections">
+                ${renderAddress(address)}
+                ${renderPayment(payment)}
+                ${renderItems(items)}
+                ${renderTotals(summary, disablePlaceOrder)}
+            </div>
+            <div class="review-mobile-bar">
+                <div class="review-mobile-total">
+                    <span>Total</span>
+                    <strong>${formatPeso(summary?.total || 0)}</strong>
+                </div>
+                <button id="mobilePlaceOrderBtn" class="review-mobile-button" ${disablePlaceOrder ? 'disabled' : ''}>
+                    Place Order
+                </button>
+            </div>
+        </div>
     `;
 
-    root.appendChild(holder);
+    await bindEditLinks(root);
+    bindPlaceOrderButtons(root, communityType, disablePlaceOrder);
+}
+
+export default async function OrderReview(root) {
+    try {
+        await fetchCheckoutDraft();
+        await renderReview(root);
+
+        const rerender = async () => {
+            if (!document.body.contains(root)) {
+                window.removeEventListener(getCheckoutDraftEventName(), rerender);
+                return;
+            }
+            await renderReview(root);
+        };
+
+        window.addEventListener(getCheckoutDraftEventName(), rerender);
+    } catch (error) {
+        console.error('OrderReview error:', error);
+        root.innerHTML = '<p>Error loading order review.</p>';
+    }
 }

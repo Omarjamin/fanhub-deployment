@@ -1,36 +1,469 @@
 import Address_Api from '../../../services/ecommerce_services/address/api_address.js';
 import ShippingRates from '../../../services/ecommerce_services/shipping/shipping_rates.js';
+import {
+    calculateCheckoutSummary,
+    fetchCheckoutDraft,
+    getCachedCheckoutDraft,
+    saveCheckoutDraft,
+    setCheckoutDraftStep,
+} from '../../../services/ecommerce_services/checkout/checkout_draft.js';
 
-function resolveItemWeightGrams(item) {
-    const explicitWeight = Number(item?.weight_g ?? item?.weightG ?? item?.weight_grams ?? item?.weight);
-    if (Number.isFinite(explicitWeight) && explicitWeight >= 0) return explicitWeight;
-    return 0;
+function getAddressElements() {
+    return {
+        street: document.getElementById('street'),
+        region: document.getElementById('region'),
+        province: document.getElementById('province'),
+        city: document.getElementById('city'),
+        barangay: document.getElementById('barangay'),
+        zip: document.getElementById('zip'),
+        provinceGroup: document.getElementById('provinceGroup'),
+        nextBtn: document.getElementById('nextbtn'),
+    };
 }
 
-function computeCheckoutWeightGrams() {
+function selectOption(select, candidates = []) {
+    if (!select) return null;
+
+    const normalizedCandidates = candidates
+        .map((value) => String(value || '').trim().toLowerCase())
+        .filter(Boolean);
+
+    if (!normalizedCandidates.length) return null;
+
+    const option = Array.from(select.options).find((entry) => {
+        const optionValue = String(entry.value || '').trim().toLowerCase();
+        const optionLabel = String(entry.textContent || '').trim().toLowerCase();
+        return normalizedCandidates.includes(optionValue) || normalizedCandidates.includes(optionLabel);
+    });
+
+    if (!option) return null;
+    select.value = option.value;
+    return option;
+}
+
+function resetZipField(zipInput, placeholder = 'Auto-filled after selecting a city') {
+    if (!zipInput) return;
+    zipInput.value = '';
+    zipInput.placeholder = placeholder;
+    zipInput.readOnly = true;
+}
+
+function buildShippingDataFromForm() {
+    const { street, region, province, city, barangay, zip } = getAddressElements();
+
+    return {
+        street: street?.value || '',
+        region: region?.value || '',
+        regionText: region?.options?.[region.selectedIndex]?.text || '',
+        province: province?.value || '',
+        provinceText: province?.options?.[province.selectedIndex]?.text || '',
+        city: city?.value || '',
+        cityText: city?.options?.[city.selectedIndex]?.text || '',
+        barangay: barangay?.value || '',
+        barangayText: barangay?.options?.[barangay.selectedIndex]?.text || '',
+        zip: zip?.value || '',
+    };
+}
+
+function getCheckoutWeightGrams() {
+    const draft = getCachedCheckoutDraft();
+    const summaryWeight = Number(draft?.summary_data?.total_weight_grams ?? 0);
+    const storedWeight = Number(draft?.checkout_weight_grams ?? 0);
+    return Math.max(0, Math.round(summaryWeight || storedWeight || 0));
+}
+
+function buildSummaryPatch(shippingFee = null, checkoutWeightGrams = 0) {
+    const draft = getCachedCheckoutDraft();
+    const summary = calculateCheckoutSummary(draft.checkout_items || [], shippingFee ?? 0);
+    summary.total_weight_grams = Math.max(0, Math.round(checkoutWeightGrams || summary.total_weight_grams || 0));
+    return summary;
+}
+
+async function syncDraftFromForm(overrides = {}) {
+    const patch = {
+        shipping_address: buildShippingDataFromForm(),
+        ...overrides,
+    };
+    return saveCheckoutDraft(patch);
+}
+
+async function clearShippingRate() {
+    const checkoutWeightGrams = getCheckoutWeightGrams();
+    return syncDraftFromForm({
+        shipping_fee: null,
+        shipping_region: '',
+        checkout_weight_grams: checkoutWeightGrams,
+        summary_data: buildSummaryPatch(null, checkoutWeightGrams),
+    });
+}
+
+async function updateShippingRate(locationLabel = '') {
+    const location = String(locationLabel || '').trim();
+    if (!location) {
+        await clearShippingRate();
+        return;
+    }
+
+    const checkoutWeightGrams = getCheckoutWeightGrams();
+    const result = await ShippingRates(location, checkoutWeightGrams);
+
+    if (!result.success) {
+        console.error('ShippingRates error:', result.message || result.raw);
+        await clearShippingRate();
+        return;
+    }
+
+    await syncDraftFromForm({
+        shipping_fee: Number(result.fee || 0),
+        shipping_region: String(result.region || '').trim(),
+        checkout_weight_grams: checkoutWeightGrams,
+        summary_data: buildSummaryPatch(Number(result.fee || 0), checkoutWeightGrams),
+    });
+}
+
+async function loadRegions(api) {
+    const { region } = getAddressElements();
+    if (!region) return;
+
+    const regions = await api.getRegions();
+    (regions || []).forEach((entry) => {
+        const option = document.createElement('option');
+        option.value = entry.code;
+        option.textContent = entry.name;
+        region.appendChild(option);
+    });
+}
+
+async function loadProvinces(api, regionName = '') {
+    const { province } = getAddressElements();
+    if (!province) return;
+
+    province.innerHTML = '<option value="">Select Province</option>';
+    const provinces = await api.getProvinces(regionName);
+
+    (provinces || []).forEach((entry) => {
+        const option = document.createElement('option');
+        option.textContent = entry.name;
+        option.value = entry.name;
+        option.dataset.code = String(entry.code || entry.id || '');
+        province.appendChild(option);
+    });
+}
+
+async function loadCities(api, regionName = '', provinceName = '') {
+    const { city } = getAddressElements();
+    if (!city) return;
+
+    city.innerHTML = '<option value="">Select City/Municipality</option>';
+    const cities = await api.getCities(regionName, provinceName);
+
+    (cities || []).forEach((entry) => {
+        const option = document.createElement('option');
+        option.textContent = entry.name;
+        option.value = entry.name;
+        option.dataset.code = String(entry.code || entry.id || '');
+        option.dataset.type = String(entry.type || '');
+        city.appendChild(option);
+    });
+}
+
+async function loadBarangays(api, regionName = '', provinceName = '', cityName = '') {
+    const { barangay } = getAddressElements();
+    if (!barangay) return;
+
+    barangay.innerHTML = '<option value="">Select Barangay</option>';
+    const barangays = await api.getBarangays(regionName, provinceName, cityName);
+
+    (barangays || []).forEach((entry) => {
+        const option = document.createElement('option');
+        option.textContent = entry.name;
+        option.value = entry.name;
+        barangay.appendChild(option);
+    });
+}
+
+async function autoFillZipCode(api, state) {
+    const { city, zip } = getAddressElements();
+    if (!city || !zip) return '';
+
+    const selectedOption = city.options[city.selectedIndex];
+    resetZipField(zip, 'Loading ZIP code...');
+
     try {
-        const checkoutItems = JSON.parse(sessionStorage.getItem('checkoutItems') || '[]');
-        const items = Array.isArray(checkoutItems) ? checkoutItems : [];
+        const detectedZip = await api.getZipCode({
+            name: city.value,
+            code: selectedOption?.dataset?.code || '',
+            type: selectedOption?.dataset?.type || '',
+            regionCode: state.regionCode || '',
+            provinceCode: state.provinceCode || '',
+        });
 
-        const computedFromItems = items.reduce((sum, item) => {
-            const qty = Number(item?.quantity || 0);
-            const weight = resolveItemWeightGrams(item);
-            if (!Number.isFinite(qty) || qty <= 0) return sum;
-            return sum + (weight * qty);
-        }, 0);
+        if (String(detectedZip || '').trim()) {
+            zip.value = String(detectedZip).trim();
+            zip.placeholder = 'ZIP code detected';
+            zip.readOnly = true;
+            return zip.value;
+        }
+    } catch (error) {
+        console.error('Error auto-filling ZIP code:', error);
+    }
 
-        if (computedFromItems > 0) return computedFromItems;
+    zip.placeholder = 'ZIP not found, enter manually';
+    zip.readOnly = false;
+    return '';
+}
 
-        const summary = JSON.parse(sessionStorage.getItem('checkoutSummary') || '{}');
-        const summaryWeight = Number(summary?.total_weight_grams);
-        if (Number.isFinite(summaryWeight) && summaryWeight > 0) return summaryWeight;
+async function hydrateShippingForm(api, state) {
+    let draft = getCachedCheckoutDraft();
+    if (!draft.checkout_items?.length && !draft.shipping_address) {
+        try {
+            draft = await fetchCheckoutDraft();
+        } catch (_) {
+            draft = getCachedCheckoutDraft();
+        }
+    }
 
-        const storedWeight = Number(sessionStorage.getItem('checkoutWeightGrams') || 0);
-        if (Number.isFinite(storedWeight) && storedWeight > 0) return storedWeight;
+    const address = draft.shipping_address;
+    if (!address) return;
 
-        return 0;
-    } catch (_) {
-        return 0;
+    const { street, region, province, city, barangay, zip, provinceGroup } = getAddressElements();
+    if (street) street.value = address.street || '';
+    if (zip) {
+        zip.value = address.zip || '';
+        zip.placeholder = zip.value ? 'ZIP code saved' : 'Auto-filled after selecting a city';
+        zip.readOnly = true;
+    }
+
+    const regionOption = selectOption(region, [address.region, address.regionText]);
+    if (!regionOption) return;
+
+    state.regionCode = region.value;
+    state.regionName = regionOption.textContent;
+    const isNcr = state.regionName.includes('NCR');
+
+    if (provinceGroup) {
+        provinceGroup.style.display = isNcr ? 'none' : 'block';
+    }
+
+    if (isNcr) {
+        if (province) {
+            province.innerHTML = '<option value="">Select Province</option>';
+            province.disabled = true;
+        }
+        await loadCities(api, state.regionName, '');
+        if (city) city.disabled = false;
+    } else {
+        await loadProvinces(api, state.regionName);
+        if (province) {
+            province.disabled = false;
+            const provinceOption = selectOption(province, [address.province, address.provinceText]);
+            state.provinceCode = provinceOption?.dataset?.code || '';
+            state.provinceName = province?.value || '';
+        }
+        await loadCities(api, state.regionName, state.provinceName);
+        if (city) city.disabled = false;
+    }
+
+    const cityOption = selectOption(city, [address.city, address.cityText]);
+    state.cityName = cityOption?.value || address.city || '';
+
+    if (state.cityName) {
+        await loadBarangays(api, state.regionName, state.provinceName, state.cityName);
+        if (barangay) barangay.disabled = false;
+        const barangayOption = selectOption(barangay, [address.barangay, address.barangayText]);
+        if (!barangayOption && barangay && address.barangay) {
+            const option = document.createElement('option');
+            option.value = address.barangay;
+            option.textContent = address.barangayText || address.barangay;
+            barangay.appendChild(option);
+            barangay.value = option.value;
+        }
+    }
+}
+
+function setupEvents(api, state) {
+    const { street, region, province, city, barangay, zip, provinceGroup, nextBtn } = getAddressElements();
+    if (!region || !province || !city || !barangay || !zip || !provinceGroup || !nextBtn) return;
+
+    const savePartialAddress = () => {
+        syncDraftFromForm().catch((error) => {
+            console.error('Failed to save shipping draft:', error);
+        });
+    };
+
+    if (street && !street.hasAttribute('data-draft-handler')) {
+        street.setAttribute('data-draft-handler', 'true');
+        street.addEventListener('blur', savePartialAddress);
+    }
+
+    if (zip && !zip.hasAttribute('data-draft-handler')) {
+        zip.setAttribute('data-draft-handler', 'true');
+        zip.addEventListener('blur', savePartialAddress);
+    }
+
+    if (region && !region.hasAttribute('data-shipping-handler')) {
+        region.setAttribute('data-shipping-handler', 'true');
+        region.addEventListener('change', async () => {
+            state.regionCode = region.value;
+            state.regionName = region.options[region.selectedIndex]?.text || '';
+            state.provinceCode = '';
+            state.provinceName = '';
+            state.cityName = '';
+
+            province.innerHTML = '<option value="">Select Province</option>';
+            city.innerHTML = '<option value="">Select City/Municipality</option>';
+            barangay.innerHTML = '<option value="">Select Barangay</option>';
+            province.disabled = true;
+            city.disabled = true;
+            barangay.disabled = true;
+            resetZipField(zip);
+
+            if (state.regionName.includes('NCR')) {
+                provinceGroup.style.display = 'none';
+                await loadCities(api, state.regionName, '');
+                city.disabled = false;
+            } else if (state.regionName) {
+                provinceGroup.style.display = 'block';
+                await loadProvinces(api, state.regionName);
+                province.disabled = false;
+            } else {
+                provinceGroup.style.display = 'block';
+            }
+
+            try {
+                await clearShippingRate();
+            } catch (error) {
+                console.error('Failed to clear shipping rate draft:', error);
+            }
+        });
+    }
+
+    if (province && !province.hasAttribute('data-shipping-handler')) {
+        province.setAttribute('data-shipping-handler', 'true');
+        province.addEventListener('change', async () => {
+            state.provinceCode = province.options[province.selectedIndex]?.dataset?.code || '';
+            state.provinceName = province.value;
+            state.cityName = '';
+
+            city.innerHTML = '<option value="">Select City/Municipality</option>';
+            barangay.innerHTML = '<option value="">Select Barangay</option>';
+            city.disabled = true;
+            barangay.disabled = true;
+            resetZipField(zip);
+
+            if (!state.provinceName) {
+                try {
+                    await clearShippingRate();
+                } catch (error) {
+                    console.error('Failed to clear shipping rate draft:', error);
+                }
+                return;
+            }
+
+            await loadCities(api, state.regionName, state.provinceName);
+            city.disabled = false;
+            try {
+                await updateShippingRate(state.provinceName);
+            } catch (error) {
+                console.error('Failed to update shipping rate draft:', error);
+            }
+        });
+    }
+
+    if (city && !city.hasAttribute('data-shipping-handler')) {
+        city.setAttribute('data-shipping-handler', 'true');
+        city.addEventListener('change', async () => {
+            state.cityName = city.value;
+            barangay.innerHTML = '<option value="">Select Barangay</option>';
+            barangay.disabled = true;
+            resetZipField(zip);
+
+            if (!state.cityName) {
+                try {
+                    await clearShippingRate();
+                } catch (error) {
+                    console.error('Failed to clear shipping rate draft:', error);
+                }
+                return;
+            }
+
+            await Promise.all([
+                loadBarangays(api, state.regionName, state.provinceName, state.cityName),
+                autoFillZipCode(api, state),
+            ]);
+
+            barangay.disabled = false;
+            try {
+                await updateShippingRate(state.provinceName || state.cityName);
+            } catch (error) {
+                console.error('Failed to update shipping rate draft:', error);
+            }
+        });
+    }
+
+    if (barangay && !barangay.hasAttribute('data-draft-handler')) {
+        barangay.setAttribute('data-draft-handler', 'true');
+        barangay.addEventListener('change', savePartialAddress);
+    }
+
+    if (nextBtn && !nextBtn.hasAttribute('data-shipping-handler')) {
+        nextBtn.setAttribute('data-shipping-handler', 'true');
+        nextBtn.addEventListener('click', async (event) => {
+            event.preventDefault();
+
+            const originalText = nextBtn.textContent;
+            nextBtn.disabled = true;
+            nextBtn.textContent = 'Validating...';
+
+            try {
+                const inputs = document.querySelectorAll('#shippingSection input, #shippingSection select, #shippingSection textarea');
+                const missingFields = [];
+
+                inputs.forEach((input) => {
+                    if (input.disabled || input.style.display === 'none') return;
+                    const value = String(input.value || '').trim();
+                    if (input.required && !value) {
+                        const label = input.closest('.form-group')?.querySelector('label')?.textContent || input.id;
+                        missingFields.push(label.replace(':', '').trim());
+                        input.style.borderColor = '#ff3d8b';
+                        input.addEventListener('input', function resetBorder() {
+                            this.style.borderColor = '';
+                        }, { once: true });
+                    }
+                });
+
+                if (missingFields.length > 0) {
+                    alert(`Please fill in the following fields:\n${missingFields.join('\n')}`);
+                    nextBtn.disabled = false;
+                    nextBtn.textContent = originalText;
+                    return;
+                }
+
+                const shippingData = buildShippingDataFromForm();
+                const checkoutWeightGrams = getCheckoutWeightGrams();
+                const draft = getCachedCheckoutDraft();
+                const shippingFee = draft.shipping_fee;
+
+                await saveCheckoutDraft({
+                    shipping_address: shippingData,
+                    checkout_weight_grams: checkoutWeightGrams,
+                    summary_data: buildSummaryPatch(shippingFee, checkoutWeightGrams),
+                });
+
+                nextBtn.textContent = 'Processing...';
+                await setCheckoutDraftStep(2);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            } catch (error) {
+                console.error('Error in shipping form:', error);
+                alert(error.message || 'An error occurred. Please try again.');
+                nextBtn.disabled = false;
+                nextBtn.textContent = originalText;
+                return;
+            }
+
+            nextBtn.disabled = false;
+            nextBtn.textContent = originalText;
+        });
     }
 }
 
@@ -38,7 +471,7 @@ export default async function ShippingForm(root) {
     const formDiv = document.createElement('div');
     formDiv.className = 'form-container';
     formDiv.innerHTML = `
-        <section id="shippingSection" class="checkout-section shipping-form">
+        <section id="shippingSection" class="shipping-form" style="display: flex; flex-direction: column;">
             <h3>Shipping Address</h3>
             <form id="shippingForm">
                 <div class="form-group">
@@ -92,7 +525,7 @@ export default async function ShippingForm(root) {
             </form>
         </section>
     `;
-    
+
     root.appendChild(formDiv);
 
     const api = new Address_Api();
@@ -101,370 +534,16 @@ export default async function ShippingForm(root) {
         regionName: '',
         provinceCode: '',
         provinceName: '',
-        cityName: ''
+        cityName: '',
     };
+
+    try {
+        await fetchCheckoutDraft();
+    } catch (error) {
+        console.error('Failed to fetch checkout draft for shipping form:', error);
+    }
 
     await loadRegions(api);
+    await hydrateShippingForm(api, state);
     setupEvents(api, state);
 }
-
-/* ================= LOADERS ================= */
-
-async function loadRegions(api) {
-    const regionSelect = document.getElementById('region');
-    console.log('Loading regions...');
-    
-    try {
-        const regions = await api.getRegions();
-        console.log('Regions loaded:', regions);
-        
-        if (regions && regions.length > 0) {
-            regions.forEach(region => {
-                const option = document.createElement('option');
-                option.value = region.code;
-                option.textContent = region.name;
-                regionSelect.appendChild(option);
-            });
-            console.log('Regions added to dropdown');
-        } else {
-            console.log('No regions found');
-        }
-    } catch (error) {
-        console.error('Error loading regions:', error);
-    }
-}
-
-async function loadProvinces(api, regionName) {
-    const provinceSelect = document.getElementById('province');
-    provinceSelect.innerHTML = '<option value="">Select Province</option>';
-
-    try {
-        const provinces = await api.getProvinces(regionName);
-        console.log('Provinces loaded:', provinces);
-        if (provinces && provinces.length > 0) {
-            provinces.forEach(p => {
-                const option = document.createElement('option');
-                option.textContent = p.name;
-                option.value = p.name;
-                option.dataset.code = String(p.code || p.id || '');
-                provinceSelect.appendChild(option);
-            });
-            console.log('Provinces added to dropdown');
-        } else {
-            console.log('No provinces found for region:', regionName);
-        }
-    } catch (error) {
-        console.error('Error loading provinces:', error);
-    }
-}
-
-async function loadCities(api, regionName, provinceName) {
-    const citySelect = document.getElementById('city');
-    citySelect.innerHTML = '<option value="">Select City/Municipality</option>';
-
-    try {
-        const cities = await api.getCities(regionName, provinceName);
-        console.log('Cities loaded:', cities);
-        if (cities && cities.length > 0) {
-            cities.forEach(c => {
-                const option = document.createElement('option');
-                option.textContent = c.name;
-                option.value = c.name;
-                option.dataset.code = String(c.code || c.id || '');
-                option.dataset.type = String(c.type || '');
-                citySelect.appendChild(option);
-            });
-            console.log('Cities added to dropdown');
-        } else {
-            console.log('No cities found');
-        }
-    } catch (error) {
-        console.error('Error loading cities:', error);
-    }
-}
-
-async function loadBarangays(api, regionName, provinceName, cityName) {
-    const barangaySelect = document.getElementById('barangay');
-    barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-
-    const barangays = await api.getBarangays(regionName, provinceName, cityName);
-    barangays.forEach(b => {
-        const option = document.createElement('option');
-        option.textContent = b.name;
-        barangaySelect.appendChild(option);
-    });
-}
-
-function resetZipField(zipInput, placeholder = 'Auto-filled after selecting a city') {
-    if (!zipInput) return;
-    zipInput.value = '';
-    zipInput.placeholder = placeholder;
-    zipInput.readOnly = true;
-}
-
-async function autoFillZipCode(api, citySelect, zipInput, state) {
-    if (!citySelect || !zipInput) return '';
-
-    const selectedOption = citySelect.options[citySelect.selectedIndex];
-    const locality = {
-        name: citySelect.value,
-        code: selectedOption?.dataset?.code || '',
-        type: selectedOption?.dataset?.type || '',
-        regionCode: state?.regionCode || '',
-        provinceCode: state?.provinceCode || '',
-    };
-
-    resetZipField(zipInput, 'Loading ZIP code...');
-
-    try {
-        const detectedZip = await api.getZipCode(locality);
-        if (String(detectedZip || '').trim()) {
-            zipInput.value = String(detectedZip).trim();
-            zipInput.placeholder = 'ZIP code detected';
-            zipInput.readOnly = true;
-            return zipInput.value;
-        }
-
-        zipInput.placeholder = 'ZIP not found, enter manually';
-        zipInput.readOnly = false;
-        return '';
-    } catch (error) {
-        console.error('Error auto-filling ZIP code:', error);
-        zipInput.placeholder = 'ZIP not found, enter manually';
-        zipInput.readOnly = false;
-        return '';
-    }
-}
-
-
-async function getBarangayswithNcr(cityname) {
-    const barangaySelect = document.getElementById('barangay');
-    barangaySelect.innerHTML = '<option value="">Select Barangay</option>';
-
-    const barangays = await api.getBarangayswithNcr(cityname);
-    barangays.forEach(b => {
-        const option = document.createElement('option');
-        option.textContent = b.name;
-        barangaySelect.appendChild(option);
-    });
-    
-}
-
-/* ================= EVENTS ================= */
-
-function setupEvents(api, state) {
-    console.log('Setting up events for shipping form');
-    
-    // Use a small delay to ensure DOM is ready
-    setTimeout(() => {
-        const region = document.getElementById('region');
-        const province = document.getElementById('province');
-        const city = document.getElementById('city');
-        const barangay = document.getElementById('barangay');
-        const zip = document.getElementById('zip');
-        const provinceGroup = document.getElementById('provinceGroup');
-
-        console.log('Elements found:', { region: !!region, province: !!province, city: !!city, barangay: !!barangay });
-
-        if (region) {
-            region.addEventListener('change', async () => {
-                state.regionCode = region.value;
-                state.regionName = region.options[region.selectedIndex].text;
-                state.provinceCode = '';
-                state.provinceName = '';
-                state.cityName = '';
-                console.log('Region selected:', state.regionName);
-
-                // RESET
-                province.innerHTML = '<option value="">Select Province</option>';
-                city.innerHTML = '<option value="">Select City/Municipality</option>';
-                barangay.innerHTML = '<option value="">Select Barangay</option>';
-                resetZipField(zip);
-
-                province.disabled = true;
-                city.disabled = true;
-                barangay.disabled = true;
-
-                // NCR CHECKw
-                if (state.regionName.includes('NCR')) {
-                    console.log('NCR detected, loading cities directly');
-                    provinceGroup.style.display = 'none';
-                    await loadCities(api, state.regionName, null);
-                    city.disabled = false;
-                } else {
-                    console.log('Non-NCR region, loading provinces');
-                    provinceGroup.style.display = 'block';
-                    await loadProvinces(api, state.regionName);
-                    province.disabled = false;
-                }
-            });
-            console.log('Region event listener attached');
-        }
-
-        if (province) {
-            province.addEventListener('change', async () => {
-                state.provinceCode = province.options[province.selectedIndex]?.dataset?.code || '';
-                state.provinceName = province.value;
-                state.cityName = '';
-
-                city.innerHTML = '<option value="">Select City/Municipality</option>';
-                barangay.innerHTML = '<option value="">Select Barangay</option>';
-                city.disabled = true;
-
-                barangay.disabled = true;
-                resetZipField(zip);
-
-                if (!state.provinceName) {
-                    sessionStorage.removeItem('shippingFee');
-                    sessionStorage.removeItem('shippingRegion');
-                    window.dispatchEvent(new Event('shippingFeeUpdated'));
-                    return;
-                }
-
-                await loadCities(api, state.regionName, state.provinceName);
-                city.disabled = false;
-
-                    if (state.provinceName) {
-                        console.log('Fetching shipping fee for province:', state.provinceName);
-                        const totalWeightGrams = computeCheckoutWeightGrams();
-                        const res = await ShippingRates(state.provinceName, totalWeightGrams);
-                    if (res.success) {
-                        sessionStorage.setItem('shippingFee', (res.fee || 0).toString());
-                        if (res.region) sessionStorage.setItem('shippingRegion', res.region);
-                        sessionStorage.setItem('checkoutWeightGrams', String(totalWeightGrams || 0));
-                        window.dispatchEvent(new Event('shippingFeeUpdated'));
-                    } else {
-                        console.error('ShippingRates error:', res.message || res.raw);
-                        sessionStorage.removeItem('shippingFee');
-                        sessionStorage.removeItem('shippingRegion');
-                        window.dispatchEvent(new Event('shippingFeeUpdated'));
-                    }
-                } else {
-                    sessionStorage.removeItem('shippingFee');
-                    sessionStorage.removeItem('shippingRegion');
-                    window.dispatchEvent(new Event('shippingFeeUpdated'));
-                }
-            });
-        }
-
-        if (city) {
-            city.addEventListener('change', async () => {
-                state.cityName = city.value;
-                barangay.innerHTML = '<option value="">Select Barangay</option>';
-                barangay.disabled = true;
-                resetZipField(zip);
-
-                if (!state.cityName) {
-                    sessionStorage.removeItem('shippingFee');
-                    sessionStorage.removeItem('shippingRegion');
-                    window.dispatchEvent(new Event('shippingFeeUpdated'));
-                    return;
-                }
-                
-                await Promise.all([
-                    loadBarangays(api, state.regionName, state.provinceName, state.cityName),
-                    autoFillZipCode(api, city, zip, state),
-                ]);
-
-                barangay.disabled = false;
-
-                const rateProvince = state.provinceName || state.cityName;
-                if (rateProvince) {
-                    const totalWeightGrams = computeCheckoutWeightGrams();
-                    const res = await ShippingRates(rateProvince, totalWeightGrams);
-                    if (res.success) {
-                        sessionStorage.setItem('shippingFee', (res.fee || 0).toString());
-                        if (res.region) sessionStorage.setItem('shippingRegion', res.region);
-                        sessionStorage.setItem('checkoutWeightGrams', String(totalWeightGrams || 0));
-                    } else {
-                        sessionStorage.removeItem('shippingFee');
-                        sessionStorage.removeItem('shippingRegion');
-                    }
-                    window.dispatchEvent(new Event('shippingFeeUpdated'));
-                }
-            });
-        }
-
-        // Next button handler
-        const nextBtn = document.getElementById('nextbtn');
-        if (nextBtn && !nextBtn.hasAttribute('data-shipping-handler')) {
-            nextBtn.setAttribute('data-shipping-handler', 'true');
-            nextBtn.addEventListener('click', async (e) => {
-                e.preventDefault();
-                
-                // Show loading state
-                const origText = nextBtn.textContent;
-                nextBtn.disabled = true;
-                nextBtn.textContent = 'Validating...';
-                
-                try {
-                    // Validate all required fields
-                    let selector = '#shippingSection input, #shippingSection select, #shippingSection textarea';
-                    if (!document.querySelector('#shippingSection')) {
-                        selector = '.shipping-form input, .shipping-form select, .shipping-form textarea';
-                    }
-
-                    const inputs = document.querySelectorAll(selector);
-                    const missingFields = [];
-                    
-                    for (let input of inputs) {
-                        // Ignore disabled or hidden fields (province may be disabled for NCR)
-                        if (input.disabled || input.style.display === 'none') continue;
-                        const val = (input.value || '').toString().trim();
-                        if (input.required && !val) {
-                            const label = input.closest('.form-group')?.querySelector('label')?.textContent || input.id;
-                            missingFields.push(label.replace(':', '').trim());
-                            input.style.borderColor = '#ff3d8b';
-                            input.addEventListener('input', function() {
-                                this.style.borderColor = '';
-                            }, { once: true });
-                        }
-                    }
-
-                    if (missingFields.length > 0) {
-                        alert(`Please fill in the following fields:\n${missingFields.join('\n')}`);
-                        nextBtn.disabled = false;
-                        nextBtn.textContent = origText;
-                        return;
-                    }
-
-                    // Save shipping data
-                    const data = {};
-                    inputs.forEach(input => {
-                        data[input.name || input.id] = input.value;
-                    });
-                    
-                    const shippingData = {
-                        street: document.getElementById('street')?.value || '',
-                        region: document.getElementById('region')?.value || '',
-                        regionText: document.getElementById('region')?.options[document.getElementById('region')?.selectedIndex]?.text || '',
-                        province: document.getElementById('province')?.value || '',
-                        provinceText: document.getElementById('province')?.options[document.getElementById('province')?.selectedIndex]?.text || '',
-                        city: document.getElementById('city')?.value || '',
-                        cityText: document.getElementById('city')?.options[document.getElementById('city')?.selectedIndex]?.text || '',
-                        barangay: document.getElementById('barangay')?.value || '',
-                        barangayText: document.getElementById('barangay')?.options[document.getElementById('barangay')?.selectedIndex]?.text || '',
-                        zip: document.getElementById('zip')?.value || ''
-                    };
-                    
-                    sessionStorage.setItem('shippingInfo', JSON.stringify(data));
-                    sessionStorage.setItem('shippingData', JSON.stringify(shippingData));
-
-                    // Move to next step
-                    nextBtn.textContent = 'Processing...';
-                    await new Promise(resolve => setTimeout(resolve, 300));
-                    
-                    sessionStorage.setItem('checkoutStep', '2');
-                    window.dispatchEvent(new Event('stepChanged'));
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                } catch (error) {
-                    console.error('Error in shipping form:', error);
-                    alert('An error occurred. Please try again.');
-                    nextBtn.disabled = false;
-                    nextBtn.textContent = origText;
-                }
-            });
-        }
-    }, 100);
-}
-
