@@ -303,9 +303,8 @@ a:hover { color: var(--primary); }
 
 #admin-landing .suggestion-card {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background:
-    linear-gradient(180deg, rgba(30, 24, 36, 0.96) 0%, rgba(19, 17, 24, 0.98) 100%);
+  border: 1px solid #3a3a3a !important;
+  background: #2b2b2b !important;
   box-shadow:
     0 22px 45px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
@@ -313,12 +312,7 @@ a:hover { color: var(--primary); }
 }
 
 #admin-landing .suggestion-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 3px;
-  border-radius: var(--radius) var(--radius) 0 0;
-  background: linear-gradient(90deg, #ff4b8d, #ff8cc1);
+  content: none;
 }
 
 #admin-landing .suggestion-form {
@@ -739,22 +733,28 @@ a:hover { color: var(--primary); }
 .templates-grid {
   max-width: var(--max-width);
   margin: 0 auto;
-  grid-template-columns: 1fr;
-  justify-items: center;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(260px, 320px);
+  gap: 1.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
   justify-content: center;
+  scroll-snap-type: x proximity;
 }
 
 .templates-grid .template-card {
   min-height: 200px;
   width: 100%;
-  max-width: 420px;
-  margin: 0 auto;
+  max-width: 320px;
+  margin: 0;
   padding: 1rem;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
   text-align: center;
+  scroll-snap-align: start;
   background: #15131a;
   border: 1px solid #2a2632;
   border-radius: calc(var(--radius) - 0.25rem);
@@ -1001,7 +1001,7 @@ a:hover { color: var(--primary); }
 
   .hero-title { font-size: 3.5rem; }
   .section-title { font-size: 3rem; }
-  .templates-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .templates-grid { grid-auto-columns: minmax(260px, 320px); }
 
   #admin-landing .suggestion-card {
     padding: 2rem;
@@ -1012,7 +1012,7 @@ a:hover { color: var(--primary); }
   :root { --container-padding: 2rem; }
 
   .features-grid { grid-template-columns: repeat(3, 1fr); }
-  .templates-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .templates-grid { grid-auto-columns: minmax(260px, 320px); }
   .footer-grid { grid-template-columns: 2fr 1fr; }
 
   .features-grid {
