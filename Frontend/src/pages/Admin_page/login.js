@@ -84,6 +84,14 @@ export default function AdminLoginPage() {
   
   loginContainer.innerHTML = `
     <div class="admin-login-card">
+      <div class="admin-login-brand" aria-label="FanHub">
+        <span class="admin-login-logo" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" focusable="false" aria-hidden="true">
+            <path fill="#ff4b8d" d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 6 3.99 4 6.5 4c1.74 0 3.41.81 4.5 2.09C12.09 4.81 13.76 4 15.5 4 18.01 4 20 6 20 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/>
+          </svg>
+        </span>
+        <span>FanHub</span>
+      </div>
       <div class="admin-login-header">
         <h1>Admin Panel</h1>
         <p>Please login to access the admin dashboard</p>
