@@ -471,7 +471,7 @@ export default async function ShippingForm(root) {
     const formDiv = document.createElement('div');
     formDiv.className = 'form-container';
     formDiv.innerHTML = `
-        <section id="shippingSection" class="checkout-section shipping-form">
+        <section id="shippingSection" class="shipping-form" style="display: flex; flex-direction: column;">
             <h3>Shipping Address</h3>
             <form id="shippingForm">
                 <div class="form-group">

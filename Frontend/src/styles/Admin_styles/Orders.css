@@ -202,7 +202,7 @@ td .btn-icon.btn-danger:disabled {
 }
 
 .orders-modal-card-lg {
-  max-width: 800px;
+  max-width: 1040px;
 }
 
 .orders-modal-card-sm {
@@ -239,6 +239,7 @@ td .btn-icon.btn-danger:disabled {
 
 .orders-modal-body {
   padding: 1.5rem;
+  background: #f8fafc;
 }
 
 .orders-modal-form {
@@ -322,65 +323,186 @@ td .btn-icon.btn-danger:disabled {
 /* Order Details Styles */
 .order-details {
   display: grid;
-  gap: 1.5rem;
+  grid-template-columns: minmax(0, 1.5fr) minmax(280px, 360px);
+  gap: 1.25rem;
+  align-items: start;
+}
+
+.order-details-main,
+.order-details-side {
+  display: grid;
+  gap: 1.25rem;
 }
 
 .order-info,
 .order-items,
 .order-totals,
 .order-address {
-  padding: 1rem;
-  background-color: #f9fafb;
-  border-radius: 8px;
+  padding: 1.25rem;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 16px;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 6%);
 }
 
 .order-info h4,
 .order-items h4,
 .order-totals h4,
 .order-address h4 {
-  margin: 0 0 0.75rem 0;
+  margin: 0 0 1rem;
   font-size: 1rem;
+  font-weight: 700;
   color: #1f2937;
 }
 
-.order-info p {
-  margin: 0.5rem 0;
+.order-detail-grid,
+.order-summary-rows {
+  display: grid;
+  gap: 0.85rem;
+}
+
+.order-detail-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.order-detail-row {
+  min-width: 0;
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.9rem 1rem;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #ffffff;
+}
+
+.order-detail-row-total {
+  background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+  border-color: #bfdbfe;
+}
+
+.order-detail-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.order-detail-value {
+  min-width: 0;
+  color: #0f172a;
+  font-size: 0.98rem;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.order-detail-value-mono {
+  font-family: "Consolas", "Courier New", monospace;
+}
+
+#viewStatus .badge {
+  width: fit-content;
 }
 
 .order-item {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(170px, 220px);
+  gap: 1rem;
   align-items: flex-start;
-  padding: 0.75rem;
+  padding: 1rem;
   background: white;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+}
+
+.order-items-list {
+  display: grid;
+  gap: 0.85rem;
 }
 
 .item-info {
-  flex: 1;
+  min-width: 0;
 }
 
-.item-details {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.25rem;
-  font-size: 0.9rem;
+.item-title {
+  color: #0f172a;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
-.order-totals p {
-  margin: 0.5rem 0;
+.item-meta {
   display: flex;
-  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.7rem;
+}
+
+.item-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
-.order-address p {
-  margin: 0.25rem 0;
-  color: #4b5563;
+.item-details {
+  display: grid;
+  gap: 0.45rem;
+  font-size: 0.9rem;
+  min-width: 0;
+}
+
+.item-detail-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: #475569;
+}
+
+.item-detail-row strong {
+  color: #0f172a;
+  font-weight: 700;
+  text-align: right;
+}
+
+.order-summary-rows .order-detail-value {
+  font-size: 1rem;
+}
+
+.order-summary-rows .order-detail-row-total .order-detail-value {
+  font-size: 1.15rem;
+  color: #1d4ed8;
+}
+
+.order-address-lines {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.order-address-line {
+  padding: 0.9rem 1rem;
+  background: #ffffff;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  color: #334155;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.order-empty-text {
+  margin: 0;
+  padding: 1rem;
+  border: 1px dashed #cbd5e1;
+  border-radius: 12px;
+  color: #64748b;
+  background: #ffffff;
 }
 
 @media (width <= 1024px) {
@@ -421,15 +543,20 @@ td .btn-icon.btn-danger:disabled {
   }
 
   .order-details {
+    grid-template-columns: 1fr;
     gap: 1rem;
   }
 
   .order-item {
-    flex-direction: column;
+    grid-template-columns: 1fr;
     gap: 0.5rem;
   }
 
   .item-details {
-    align-items: flex-start;
+    width: 100%;
+  }
+
+  .order-detail-grid {
+    grid-template-columns: 1fr;
   }
 }

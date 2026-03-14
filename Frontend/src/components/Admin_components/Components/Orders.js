@@ -64,29 +64,67 @@ export default function createOrders() {
         </div>
         <div class="orders-modal-body">
           <div class="order-details">
-            <div class="order-info">
-              <h4>Order Information</h4>
-              <p><strong>Order ID:</strong> <span id="viewOrderId"></span></p>
-              <p><strong>Customer:</strong> <span id="viewCustomer"></span></p>
-              <p><strong>Email:</strong> <span id="viewEmail"></span></p>
-              <p><strong>Payment Method:</strong> <span id="viewPayment"></span></p>
-              <p><strong>Status:</strong> <span id="viewStatus"></span></p>
-              <p><strong>Tracking Number:</strong> <span id="viewTracking"></span></p>
-              <p><strong>Date:</strong> <span id="viewDate"></span></p>
+            <div class="order-details-main">
+              <div class="order-info order-detail-card">
+                <h4>Order Information</h4>
+                <div class="order-detail-grid">
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Order ID</span>
+                    <span class="order-detail-value" id="viewOrderId"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Customer</span>
+                    <span class="order-detail-value" id="viewCustomer"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Email</span>
+                    <span class="order-detail-value" id="viewEmail"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Payment Method</span>
+                    <span class="order-detail-value" id="viewPayment"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Status</span>
+                    <span class="order-detail-value" id="viewStatus"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Tracking Number</span>
+                    <span class="order-detail-value order-detail-value-mono" id="viewTracking"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Date</span>
+                    <span class="order-detail-value" id="viewDate"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="order-items order-detail-card">
+                <h4>Order Items</h4>
+                <div id="viewOrderItems" class="order-items-list"></div>
+              </div>
             </div>
-            <div class="order-items">
-              <h4>Order Items</h4>
-              <div id="viewOrderItems"></div>
-            </div>
-            <div class="order-totals">
-              <h4>Order Totals</h4>
-              <p><strong>Subtotal:</strong> <span id="viewSubtotal"></span></p>
-              <p><strong>Shipping Fee:</strong> <span id="viewShipping"></span></p>
-              <p><strong>Total:</strong> <span id="viewTotal"></span></p>
-            </div>
-            <div class="order-address">
-              <h4>Shipping Address</h4>
-              <div id="viewAddress"></div>
+            <div class="order-details-side">
+              <div class="order-totals order-detail-card">
+                <h4>Order Totals</h4>
+                <div class="order-summary-rows">
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Subtotal</span>
+                    <span class="order-detail-value" id="viewSubtotal"></span>
+                  </div>
+                  <div class="order-detail-row">
+                    <span class="order-detail-label">Shipping Fee</span>
+                    <span class="order-detail-value" id="viewShipping"></span>
+                  </div>
+                  <div class="order-detail-row order-detail-row-total">
+                    <span class="order-detail-label">Total</span>
+                    <span class="order-detail-value" id="viewTotal"></span>
+                  </div>
+                </div>
+              </div>
+              <div class="order-address order-detail-card">
+                <h4>Shipping Address</h4>
+                <div id="viewAddress" class="order-address-lines"></div>
+              </div>
             </div>
           </div>
         </div>
@@ -208,6 +246,21 @@ export default function createOrders() {
 
   function formatStatusLabel(status) {
     return normalizeStatusValue(status)
+      .split(/[_\s-]+/)
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  function formatCurrency(value) {
+    return `PHP ${Number(value || 0).toLocaleString()}`;
+  }
+
+  function formatPaymentMethodLabel(value) {
+    const normalized = String(value || '').trim();
+    if (!normalized) return 'N/A';
+    if (normalized.toLowerCase() === 'cod') return 'Cash on Delivery';
+    return normalized
       .split(/[_\s-]+/)
       .filter(Boolean)
       .map(part => part.charAt(0).toUpperCase() + part.slice(1))
@@ -399,7 +452,7 @@ export default function createOrders() {
       section.querySelector('#viewOrderId').textContent = `#ORD-${order.orderId}`;
       section.querySelector('#viewCustomer').textContent = order.customerName;
       section.querySelector('#viewEmail').textContent = order.customerEmail || 'N/A';
-      section.querySelector('#viewPayment').textContent = order.paymentMethod;
+      section.querySelector('#viewPayment').textContent = formatPaymentMethodLabel(order.paymentMethod);
       section.querySelector('#viewStatus').innerHTML = `<span class="badge badge-${order.status}">${formatStatusLabel(order.status)}</span>`;
       section.querySelector('#viewTracking').textContent = order.trackingNumber || 'Not assigned';
       section.querySelector('#viewDate').textContent = order.dateDisplayLong;
@@ -410,38 +463,54 @@ export default function createOrders() {
         itemsContainer.innerHTML = order.items.map(item => `
           <div class="order-item">
             <div class="item-info">
-              <strong>${item.product_name || 'Unknown Product'}</strong>
-              ${item.variant_name ? `<br><small>${item.variant_name}</small>` : ''}
-              ${item.size ? `<br><small>Size: ${item.size}</small>` : ''}
+              <div class="item-title">${item.product_name || 'Unknown Product'}</div>
+              <div class="item-meta">
+                ${item.variant_name ? `<span class="item-chip">${item.variant_name}</span>` : ''}
+                ${item.size ? `<span class="item-chip">Size: ${item.size}</span>` : ''}
+              </div>
             </div>
             <div class="item-details">
-              <span>Qty: ${item.quantity}</span>
-              <span>Price: PHP ${Number(item.price || 0).toLocaleString()}</span>
-              <span>Total: PHP ${Number(item.total || 0).toLocaleString()}</span>
+              <div class="item-detail-row">
+                <span>Qty</span>
+                <strong>${item.quantity}</strong>
+              </div>
+              <div class="item-detail-row">
+                <span>Price</span>
+                <strong>${formatCurrency(item.price)}</strong>
+              </div>
+              <div class="item-detail-row">
+                <span>Total</span>
+                <strong>${formatCurrency(item.total)}</strong>
+              </div>
             </div>
           </div>
         `).join('');
       } else {
-        itemsContainer.innerHTML = '<p>No items found</p>';
+        itemsContainer.innerHTML = '<p class="order-empty-text">No items found.</p>';
       }
 
       // Populate totals
-      section.querySelector('#viewSubtotal').textContent = `PHP ${order.subtotal.toLocaleString()}`;
-      section.querySelector('#viewShipping').textContent = `PHP ${order.shippingFee.toLocaleString()}`;
-      section.querySelector('#viewTotal').textContent = `PHP ${order.total.toLocaleString()}`;
+      section.querySelector('#viewSubtotal').textContent = formatCurrency(order.subtotal);
+      section.querySelector('#viewShipping').textContent = formatCurrency(order.shippingFee);
+      section.querySelector('#viewTotal').textContent = formatCurrency(order.total);
 
       // Populate shipping address
       const addressContainer = section.querySelector('#viewAddress');
       if (order.shippingAddress && Object.keys(order.shippingAddress).length > 0) {
         const addr = order.shippingAddress;
+        const addressLines = [
+          addr.recipient_name ? `Recipient: ${addr.recipient_name}` : '',
+          addr.phone ? `Contact: ${addr.phone}` : '',
+          addr.street || '',
+          [addr.barangay || '', addr.city || ''].filter(Boolean).join(', '),
+          [addr.province || '', addr.region || ''].filter(Boolean).join(', '),
+          addr.zip ? `ZIP: ${addr.zip}` : '',
+        ].filter(Boolean);
         addressContainer.innerHTML = `
-          <p>${addr.street || ''}</p>
-          <p>${addr.barangay || ''} ${addr.city || ''}</p>
-          <p>${addr.province || ''} ${addr.region || ''}</p>
-          <p>${addr.zip || ''}</p>
-        `.replace(/<p>\s*<\/p>/g, '');
+          ${addressLines.map(line => `<div class="order-address-line">${line}</div>`).join('')}
+        `;
       } else {
-        addressContainer.innerHTML = '<p>No shipping address provided</p>';
+        addressContainer.innerHTML = '<p class="order-empty-text">No shipping address provided.</p>';
       }
 
       modal.classList.remove('hidden');
