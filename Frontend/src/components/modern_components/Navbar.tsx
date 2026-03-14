@@ -32,8 +32,8 @@ const Navbar = () => {
   const desktopLinkColor = useHeroNav ? heroNavMuted : scrolledNavMuted;
   const desktopLinkHover = useHeroNav ? "var(--color-accent, #ff1493)" : "var(--color-accent, #ff1493)";
   const brandShellStyle = {
-    padding: isDesktop ? "0.5rem 0.75rem" : "0.45rem 0.65rem",
-    borderRadius: "1.1rem",
+    padding: isDesktop ? "0.7rem 1rem" : "0.55rem 0.8rem",
+    borderRadius: "1.25rem",
     border: useHeroNav ? "1px solid rgba(255,255,255,0.34)" : "1px solid color-mix(in srgb, var(--color-primary) 16%, white 84%)",
     background: useHeroNav
       ? "linear-gradient(180deg, rgba(255,255,255,0.82), rgba(255,255,255,0.6))"
@@ -75,7 +75,7 @@ const Navbar = () => {
   const desktopNavStyle = {
     display: "flex",
     alignItems: "center",
-    gap: "2rem",
+    gap: "2.35rem",
     listStyle: "none",
     margin: 0,
     padding: 0,
@@ -91,9 +91,9 @@ const Navbar = () => {
     padding: 0,
     minWidth: "fit-content",
     lineHeight: 1,
-    fontSize: "0.84rem",
+    fontSize: "0.96rem",
     fontWeight: 700,
-    letterSpacing: "0.28em",
+    letterSpacing: "0.3em",
     textTransform: "uppercase",
     textDecoration: "none",
     textShadow: isScrolled ? "none" : "0 1px 10px rgba(0,0,0,0.22)",
@@ -112,7 +112,7 @@ const Navbar = () => {
           : "1px solid color-mix(in srgb, var(--color-primary) 22%, white 78%)",
       }}
     >
-      <nav className="container mx-auto px-4 h-16 flex items-center justify-between gap-6">
+      <nav className="container mx-auto px-4 min-h-[5rem] md:min-h-[5.5rem] flex items-center justify-between gap-6">
         <button
           onClick={() => scrollTo("home")}
           className="modern-nav-button flex items-center gap-2"
@@ -122,12 +122,12 @@ const Navbar = () => {
             <img
               src={site.logo}
               alt={`${site.siteName} Logo`}
-              className="modern-nav-logo h-10 w-auto max-w-[132px] object-contain md:h-11 md:max-w-[148px]"
+              className="modern-nav-logo h-12 w-auto max-w-[152px] object-contain md:h-14 md:max-w-[176px]"
               onError={() => setLogoFailed(true)}
             />
           ) : (
             <span
-              className="font-display text-xl uppercase tracking-[0.22em]"
+              className="font-display text-2xl uppercase tracking-[0.24em] md:text-[1.75rem]"
               style={{ color: useHeroNav ? heroNavText : scrolledNavText }}
             >
               {site.siteName}
@@ -169,7 +169,7 @@ const Navbar = () => {
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
           >
-            {mobileOpen ? <X size={24} /> : <Menu size={24} />}
+            {mobileOpen ? <X size={28} /> : <Menu size={28} />}
           </button>
         ) : null}
       </nav>

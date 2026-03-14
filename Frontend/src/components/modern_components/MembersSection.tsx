@@ -51,7 +51,7 @@ const MembersSection = () => {
           initial={{ opacity: 0, x: -30 }}
           whileInView={{ opacity: 1, x: 0 }}
           viewport={{ once: true }}
-          className="text-5xl md:text-7xl font-display text-gradient mb-4"
+          className="mb-4 text-4xl font-display text-gradient md:text-5xl lg:text-6xl"
         >
           MEMBERS
         </motion.h2>
@@ -81,18 +81,18 @@ const MembersSection = () => {
                 transition={{ delay: i * 0.1 }}
                 className="group cursor-pointer"
               >
-                <div className="relative overflow-hidden rounded-2xl bg-accent aspect-[3/4]">
+                <div className="relative aspect-[3/4] overflow-hidden rounded-2xl border border-border/50 bg-accent/25 p-3 md:p-4">
                   {member.image ? (
                     <img
                       src={member.image}
                       alt={member.name}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      className="h-full w-full object-contain object-top transition-transform duration-500 group-hover:scale-[1.03]"
                     />
                   ) : (
                     <div className="w-full h-full bg-accent" />
                   )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  <div className="absolute bottom-0 left-0 right-0 p-4 translate-y-full group-hover:translate-y-0 transition-transform duration-300">
+                  <div className="absolute inset-0 bg-gradient-to-t from-background/92 via-background/18 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  <div className="absolute bottom-0 left-0 right-0 translate-y-full p-4 transition-transform duration-300 group-hover:translate-y-0">
                     <p className="text-sm text-primary font-body">{member.role}</p>
                     <p className="text-xs text-muted-foreground font-body mt-1 line-clamp-2">
                       {member.description}
