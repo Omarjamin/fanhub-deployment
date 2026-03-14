@@ -4,6 +4,7 @@ import { authHeaders, getAuthToken } from "@/services/ecommerce_services/auth/au
 import { addToCart, getCart, removeFromCart, updateCartItem } from "@/components/ecommerce_components/cart/cart.js";
 import { fetchProductDetails } from "@/services/ecommerce_services/shop/product_details.js";
 import { getModernSiteData, getModernSiteSlug } from "@/lib/modern-react/context";
+import { getActiveSiteSlug } from "@/lib/site-context.js";
 import { api as apiUrl } from "@/services/ecommerce_services/config.js";
 
 type GenericRecord = Record<string, any>;
@@ -14,8 +15,49 @@ function resolveApiV1() {
   return String(import.meta.env.VITE_API_URL || DEFAULT_API_V1).trim().replace(/\/$/, "");
 }
 
-function normalizeSlug() {
-  return String(getModernSiteSlug() || "").trim().toLowerCase();
+function normalizeSlug(preferred = "") {
+  const fromPreferred = String(preferred || "").trim().toLowerCase();
+  if (fromPreferred) return fromPreferred;
+
+  const fromModernContext = String(getModernSiteSlug() || "").trim().toLowerCase();
+  if (fromModernContext) return fromModernContext;
+
+  const fromSharedContext = String(getActiveSiteSlug() || "").trim().toLowerCase();
+  if (fromSharedContext) return fromSharedContext;
+
+  const parts = String(window.location.pathname || "").split("/").filter(Boolean);
+  if (parts[0] === "fanhub" && parts[1] === "community-platform" && parts[2]) {
+    return String(parts[2] || "").trim().toLowerCase();
+  }
+  if (parts[0] === "fanhub" && parts[1] && parts[1] !== "community-platform") {
+    return String(parts[1] || "").trim().toLowerCase();
+  }
+
+  return "";
+}
+
+function normalizeRedirectPath(value: string, siteSlug = "") {
+  const slug = normalizeSlug(siteSlug);
+  const raw = String(value || "").trim() || "/";
+  let resolved = raw;
+
+  if (/^https?:\/\//i.test(resolved)) {
+    try {
+      const url = new URL(resolved);
+      resolved = `${url.pathname}${url.search}${url.hash}`;
+    } catch (_) {}
+  }
+
+  const basePath = slug ? `/fanhub/${slug}` : "";
+  if (basePath && resolved.startsWith(basePath)) {
+    resolved = resolved.slice(basePath.length) || "/";
+  }
+
+  if (!resolved.startsWith("/")) {
+    resolved = `/${resolved}`;
+  }
+
+  return resolved || "/";
 }
 
 function getSiteData() {
@@ -118,6 +160,98 @@ function formatDisplayDate(value: unknown) {
   }).format(parsed);
 }
 
+function normalizeExternalLink(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw || raw === "#") return "";
+  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^www\./i.test(raw)) return `https://${raw}`;
+  if (/^[a-z0-9-]+(\.[a-z0-9-]+)+/i.test(raw)) return `https://${raw}`;
+  return raw.startsWith("/") ? raw : "";
+}
+
+function parseReleaseYear(value: unknown) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  if (/^\d{4}$/.test(raw)) return raw;
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return String(parsed.getUTCFullYear());
+  }
+  return raw.slice(0, 4);
+}
+
+function normalizeDiscographyAlbum(row: GenericRecord, index: number) {
+  return {
+    id: String(row.album_id || row.id || index + 1),
+    title: String(row.title || row.album_name || row.name || "Release"),
+    year: parseReleaseYear(row.year || row.release_year || row.release_date),
+    songs: Number(row.count_songs || row.song_count || row.total_tracks || row.songs || 0),
+    cover: toAbsoluteMediaUrl(
+      String(row.cover_image || row.img_url || row.image || row.album_cover || ""),
+      "",
+    ),
+    link: normalizeExternalLink(
+      row.album_link || row.spotify_link || row.apple_music_link || row.url || "",
+    ) || "#",
+  };
+}
+
+function normalizeEventPoster(row: GenericRecord, index: number) {
+  return {
+    id: String(row.id || row.event_id || index + 1),
+    name: String(row.title || row.event_name || row.name || `Event ${index + 1}`),
+    image: toAbsoluteMediaUrl(
+      row.poster_url || row.poster || row.image || row.image_url || row.banner || "",
+      "",
+    ),
+    ticketLink: normalizeExternalLink(
+      row.ticket_link || row.href || row.link || row.url || "",
+    ) || "#",
+  };
+}
+
+async function fetchScopedDiscographyAlbums(siteSlug: string) {
+  if (!siteSlug) return [];
+
+  const response = await fetch(
+    apiUrl(`/discography/albums?community=${encodeURIComponent(siteSlug)}`),
+    {
+      method: "GET",
+      headers: authHeaders(siteSlug),
+    },
+  );
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.success === false) {
+    return [];
+  }
+
+  const rows = Array.isArray(payload?.data) ? payload.data : [];
+  return rows.map((album: GenericRecord, index: number) =>
+    normalizeDiscographyAlbum(album, index),
+  );
+}
+
+async function fetchScopedEventPosters(siteSlug: string) {
+  if (!siteSlug) return [];
+
+  const response = await fetch(
+    apiUrl(`/events/posters?community=${encodeURIComponent(siteSlug)}`),
+    {
+      method: "GET",
+      headers: authHeaders(siteSlug),
+    },
+  );
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || payload?.success === false) {
+    return [];
+  }
+
+  const rows = Array.isArray(payload?.data) ? payload.data : [];
+  return rows.map((event: GenericRecord, index: number) =>
+    normalizeEventPoster(event, index),
+  );
+}
+
 async function fetchGeneratedSiteData() {
   const slug = normalizeSlug();
   if (!slug) return null;
@@ -200,30 +334,28 @@ export async function fetchSiteMembers() {
 }
 
 export async function fetchDiscographyAlbums() {
+  const slug = normalizeSlug();
+  const apiAlbums = await fetchScopedDiscographyAlbums(slug).catch(() => []);
+  if (apiAlbums.length) return apiAlbums;
+
   const site = getNormalizedSitePayload(await ensureSiteData());
   const rows = pickArray(site?.discography, site?.music);
-  return rows.map((album: GenericRecord, index: number) => ({
-    id: String(album.id || album.album_id || index + 1),
-    title: String(album.title || album.album_name || "Release"),
-    year: String(album.release_year || album.year || ""),
-    songs: Number(album.song_count || album.total_tracks || 0),
-    cover: toAbsoluteMediaUrl(album.cover_image || album.image || album.album_cover || "", ""),
-    link: String(album.spotify_link || album.apple_music_link || album.url || "#"),
-  }));
+  return rows.map((album: GenericRecord, index: number) =>
+    normalizeDiscographyAlbum(album, index),
+  );
 }
 
 export async function fetchEventPosters() {
+  const slug = normalizeSlug();
+  if (slug) {
+    return await fetchScopedEventPosters(slug).catch(() => []);
+  }
+
   const site = getNormalizedSitePayload(await ensureSiteData());
   const rows = pickArray(site?.events, site?.event_posters);
-  return rows.map((event: GenericRecord, index: number) => ({
-    id: String(event.id || event.event_id || index + 1),
-    name: String(event.title || event.event_name || "Event"),
-    image: toAbsoluteMediaUrl(
-      event.poster_url || event.poster || event.image || event.image_url || event.banner || "",
-      "",
-    ),
-    ticketLink: String(event.ticket_link || event.link || "#"),
-  }));
+  return rows.map((event: GenericRecord, index: number) =>
+    normalizeEventPoster(event, index),
+  );
 }
 
 export async function fetchShopCollections() {
@@ -273,15 +405,33 @@ export async function fetchProductWithVariants(productId: string) {
   };
 }
 
-export function buildEcommerceLoginUrl(_siteSlug?: string, redirectPath = "/") {
-  const slug = normalizeSlug();
-  const base = slug ? `/fanhub/${slug}/signin` : "/signin";
-  const rawRedirect = String(redirectPath || "/").trim() || "/";
-  const redirect =
-    slug && rawRedirect.startsWith("/") && !rawRedirect.startsWith(`/fanhub/${slug}`)
-      ? `/fanhub/${slug}${rawRedirect === "/" ? "" : rawRedirect}`
-      : rawRedirect;
-  return redirect ? `${base}?redirect=${encodeURIComponent(redirect)}` : base;
+export function setEcommercePostLoginRedirect(redirectPath = "/", siteSlug = "") {
+  const normalizedPath = normalizeRedirectPath(redirectPath, siteSlug);
+  try {
+    sessionStorage.setItem("postLoginRedirect", normalizedPath);
+  } catch (_) {}
+  return normalizedPath;
+}
+
+export function getEcommercePostLoginRedirect(defaultPath = "/", siteSlug = "") {
+  try {
+    const stored = String(sessionStorage.getItem("postLoginRedirect") || "").trim();
+    if (stored) {
+      return normalizeRedirectPath(stored, siteSlug);
+    }
+  } catch (_) {}
+  return normalizeRedirectPath(defaultPath, siteSlug);
+}
+
+export function clearEcommercePostLoginRedirect() {
+  try {
+    sessionStorage.removeItem("postLoginRedirect");
+  } catch (_) {}
+}
+
+export function buildEcommerceLoginUrl(_siteSlug?: string) {
+  const slug = normalizeSlug(_siteSlug);
+  return slug ? `/fanhub/${slug}/signin` : "/signin";
 }
 
 export function isEcommerceLoggedIn() {

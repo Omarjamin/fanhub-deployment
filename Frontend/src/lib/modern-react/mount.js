@@ -1,7 +1,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import ModernApp from "./App";
-import { setModernTemplateContext } from "./context";
+import { resolveModernSiteSlug, setModernTemplateContext } from "./context";
 import "../../styles/modern-react.css";
 
 const THEME_VARIABLE_KEYS = [
@@ -79,14 +79,14 @@ export function mountModernReactApp(root, payload = {}) {
       ? payload.siteData
       : (payload && typeof payload === "object" ? payload : null);
 
-  const siteSlug = String(
+  const siteSlug = resolveModernSiteSlug(
     payload?.siteSlug ||
       normalizedSiteData?.community_type ||
+      normalizedSiteData?.site_slug ||
       normalizedSiteData?.domain ||
-      ""
-  )
-    .trim()
-    .toLowerCase();
+      "",
+    normalizedSiteData,
+  );
 
   setModernTemplateContext({
     siteSlug,

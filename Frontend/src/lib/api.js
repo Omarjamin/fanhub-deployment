@@ -36,8 +36,6 @@ function shouldPrefixEcommerce(url = "") {
 
 const API_BASE_URL = resolveBaseUrl();
 
-console.log("API Config:", { API_BASE_URL, API_KEY });
-
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {

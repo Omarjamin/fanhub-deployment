@@ -1,27 +1,23 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "@/components/modern_components/AuthShell";
 import { loginUser } from "@/services/ecommerce_services/auth/signin.js";
 import { getAuthToken } from "@/services/ecommerce_services/auth/auth.js";
 import { getModernSiteSlug } from "@/lib/modern-react/context";
+import { clearEcommercePostLoginRedirect, getEcommercePostLoginRedirect } from "@/lib/ecommerceApi";
 import { toast } from "@/hooks/use-toast";
-
-function resolveRedirect(search: string) {
-  const params = new URLSearchParams(search);
-  return String(params.get("redirect") || "/").trim() || "/";
-}
 
 const SignIn = () => {
   const navigate = useNavigate();
-  const location = useLocation();
   const siteSlug = useMemo(() => getModernSiteSlug(), []);
-  const redirectTo = useMemo(() => resolveRedirect(location.search), [location.search]);
+  const redirectTo = useMemo(() => getEcommercePostLoginRedirect("/", siteSlug), [siteSlug]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     if (getAuthToken(siteSlug)) {
+      clearEcommercePostLoginRedirect();
       navigate(redirectTo, { replace: true });
     }
   }, [navigate, redirectTo, siteSlug]);
@@ -48,6 +44,7 @@ const SignIn = () => {
         title: "Login successful",
         description: "Welcome back.",
       });
+      clearEcommercePostLoginRedirect();
       navigate(redirectTo, { replace: true });
     } catch (err: unknown) {
       const message =

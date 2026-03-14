@@ -4,6 +4,17 @@ import { applyTypographyConfig } from "./theme/font-loader.js";
 
 const DEFAULT_API_V1 = "https://fanhub-deployment-production.up.railway.app/v1";
 const DEFAULT_API_KEY = "thread";
+const ENABLE_RUNTIME_DEBUG = String(import.meta.env.VITE_DEBUG_RUNTIME || "").trim().toLowerCase() === "true";
+
+function runtimeDebugLog(...args) {
+  if (!ENABLE_RUNTIME_DEBUG) return;
+  console.info(...args);
+}
+
+function runtimeDebugWarn(...args) {
+  if (!ENABLE_RUNTIME_DEBUG) return;
+  console.warn(...args);
+}
 
 export function setupRuntimeApiConfig() {
   if (typeof window === "undefined") return;
@@ -1006,7 +1017,7 @@ export async function fetchSiteBySlug(siteSlug) {
     throw new Error("Invalid site slug");
   }
 
-  console.info("[Runtime Debug] fetchSiteBySlug:start", {
+  runtimeDebugLog("[Runtime Debug] fetchSiteBySlug:start", {
     requestSlug: slug,
     cachedKey: `site_data:${slug}`,
   });
@@ -1029,7 +1040,7 @@ export async function fetchSiteBySlug(siteSlug) {
           ...(parsed.theme && typeof parsed.theme === "object" ? parsed.theme : {}),
           ...normalizeThemeData(parsed),
         };
-        console.info("[Runtime Debug] using cached site payload", {
+        runtimeDebugLog("[Runtime Debug] using cached site payload", {
           requestSlug: slug,
           resolvedSlug: parsed?.community_type || parsed?.domain || slug,
           siteId: parsed?.site_id,
@@ -1063,7 +1074,7 @@ export async function fetchSiteBySlug(siteSlug) {
     `${adminApiBase}/admin`,
   ]));
 
-  console.info("[Runtime Debug] fetchSiteBySlug:lookup-plan", {
+  runtimeDebugLog("[Runtime Debug] fetchSiteBySlug:lookup-plan", {
     requestSlug: slug,
     slugVariants,
     baseVariants,
@@ -1086,7 +1097,7 @@ export async function fetchSiteBySlug(siteSlug) {
         });
 
         const json = await res.json().catch(() => ({}));
-        console.info("[Runtime Debug] fetchSiteBySlug:response", {
+        runtimeDebugLog("[Runtime Debug] fetchSiteBySlug:response", {
           requestSlug: slug,
           candidate,
           requestUrl,
@@ -1102,7 +1113,7 @@ export async function fetchSiteBySlug(siteSlug) {
         });
         if (res.ok && json?.success && json?.data) {
           payload = json.data;
-          console.info("[Runtime Debug] fetched site payload", {
+          runtimeDebugLog("[Runtime Debug] fetched site payload", {
             requestSlug: candidate,
             siteId: payload?.site_id,
             domain: payload?.domain,
@@ -1114,7 +1125,7 @@ export async function fetchSiteBySlug(siteSlug) {
         }
         lastError = new Error(json?.message || `Failed to fetch website (${res.status})`);
       } catch (err) {
-        console.warn("[Runtime Debug] fetchSiteBySlug:error", {
+        runtimeDebugWarn("[Runtime Debug] fetchSiteBySlug:error", {
           requestSlug: slug,
           candidate,
           base,
@@ -1150,7 +1161,7 @@ export async function fetchSiteBySlug(siteSlug) {
     localStorage.setItem("active_site_slug", resolvedSlug);
   } catch (_) {}
 
-  console.info("[Runtime Debug] fetchSiteBySlug:final-payload", {
+  runtimeDebugLog("[Runtime Debug] fetchSiteBySlug:final-payload", {
     requestSlug: slug,
     resolvedSlug,
     siteId: payload?.site_id,
@@ -1241,7 +1252,7 @@ export async function renderEcommerceTemplatePage({ root, siteSlug, page, passMo
   const payload = (passMode === "raw" && !shouldForceObjectPayload)
     ? siteData
     : { siteSlug, siteData };
-  console.info("[Runtime Debug] renderEcommerceTemplatePage", {
+  runtimeDebugLog("[Runtime Debug] renderEcommerceTemplatePage", {
     siteSlug,
     page,
     templateKey,
