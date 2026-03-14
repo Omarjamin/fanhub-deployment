@@ -149,7 +149,9 @@ export default function Discography(root, data = {}) {
     }
 
     detailTitle.textContent = active.title;
-    detailMeta.textContent = `${active.description} • ${active.year} • ${active.count_songs} Songs`;
+    const songsCount = Number(active.count_songs ?? active.songs ?? 0);
+    const songsLabel = songsCount === 1 ? "Song" : "Songs";
+    detailMeta.textContent = `${active.description} • ${active.year} • ${songsCount} ${songsLabel}`;
 
     if (active.album_link) {
       detailCta.style.display = "inline-flex";
