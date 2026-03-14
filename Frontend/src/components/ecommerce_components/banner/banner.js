@@ -1,115 +1,118 @@
-const FALLBACK_VIDEO = {
-  videoId: 'wufUX5P2Ds8',
-  title: 'Cherry On Top',
-  url: 'https://www.youtube.com/watch?v=wufUX5P2Ds8',
-};
+import { normalizeBannerGallery } from '../../../lib/banner-gallery.js';
 
-const DEFAULT_API_V1 = 'https://fanhub-deployment-production.up.railway.app/v1';
-
-function getVideoUrl(video = {}) {
-  if (video?.url) return String(video.url).trim();
-  if (video?.videoUrl) return String(video.videoUrl).trim();
-  if (video?.link) return String(video.link).trim();
-  if (video?.videoId) return `https://www.youtube.com/watch?v=${encodeURIComponent(video.videoId)}`;
-  return FALLBACK_VIDEO.url;
+function escapeHtml(value) {
+  return String(value || '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
-function getEmbedUrl(videoId) {
-  return `https://www.youtube.com/embed/${videoId}?controls=1&modestbranding=1&rel=0`;
+function getPayloadSource(data = {}) {
+  if (data?.siteData && typeof data.siteData === 'object') {
+    return data.siteData;
+  }
+  return data && typeof data === 'object' ? data : {};
 }
 
-function normalizeVideo(video = {}) {
-  const videoId = String(video?.videoId || video?.id || '').trim();
-  if (!videoId) return null;
-
-  return {
-    videoId,
-    title: String(video?.title || 'Latest Release').trim(),
-    url: getVideoUrl(video),
-  };
+function buildPlaceholderImage(siteName, label, palette = ['#f4d03f', '#5dade2', '#1f2937']) {
+  const [primary = '#f4d03f', accent = '#5dade2', depth = '#1f2937'] = palette;
+  const svg = `
+    <svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200" viewBox="0 0 900 1200">
+      <defs>
+        <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${primary}" />
+          <stop offset="100%" stop-color="${accent}" />
+        </linearGradient>
+      </defs>
+      <rect width="900" height="1200" rx="48" fill="url(#g)" />
+      <circle cx="170" cy="180" r="120" fill="${depth}" opacity="0.12" />
+      <circle cx="730" cy="980" r="150" fill="#ffffff" opacity="0.14" />
+      <text x="50%" y="45%" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="74" font-weight="700">${escapeHtml(siteName)}</text>
+      <text x="50%" y="56%" text-anchor="middle" fill="#ffffff" font-family="Arial, sans-serif" font-size="36" opacity="0.92">${escapeHtml(label)}</text>
+    </svg>
+  `;
+  return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
-function updateBannerVideo(root, video) {
-  const iframe = root.querySelector('#bannerIframe');
-  const button = root.querySelector('#watchLatestBtn');
+function resolvePalette(payload = {}) {
+  const source = payload?.theme?.palette || payload?.palette || [];
+  const colors = Array.isArray(source) ? source.filter(Boolean) : [];
+  return colors.length ? colors : ['#f4d03f', '#5dade2', '#1f2937'];
+}
 
-  if (iframe) {
-    iframe.src = getEmbedUrl(video.videoId);
-    iframe.title = video.title;
+function resolveBannerImages(payload = {}) {
+  const directImages = normalizeBannerGallery(
+    payload?.banner_gallery,
+    payload?.banner,
+  );
+
+  if (directImages.length) {
+    return directImages;
   }
 
-  if (button) {
-    button.disabled = false;
-    button.dataset.videoUrl = video.url;
-    button.textContent = 'Watch on YouTube';
+  const fallbackImages = normalizeBannerGallery(
+    payload?.group_photo,
+    payload?.lead_image,
+    payload?.logo,
+  );
+
+  if (fallbackImages.length) {
+    return fallbackImages;
   }
+
+  const siteName = String(
+    payload?.site_name || payload?.community_name || payload?.name || 'Community',
+  ).trim() || 'Community';
+  const palette = resolvePalette(payload);
+  return Array.from({ length: 10 }, (_, index) => (
+    buildPlaceholderImage(siteName, `Gallery Card ${String(index + 1).padStart(2, '0')}`, palette)
+  ));
+}
+
+function renderGalleryCards(images = [], siteName = '') {
+  return images.map((image, index) => {
+    const isFeatured = index === 0 && images.length > 2;
+    const label = isFeatured ? 'Gallery Highlight' : `Gallery Card ${String(index + 1).padStart(2, '0')}`;
+
+    return `
+      <article class="banner-card ${isFeatured ? 'banner-card-featured' : ''}">
+        <div class="banner-card-media">
+          <img src="${escapeHtml(image)}" alt="${escapeHtml(siteName)} gallery image ${index + 1}" loading="lazy">
+        </div>
+        <div class="banner-card-copy">
+          <span class="banner-card-index">${escapeHtml(label)}</span>
+          <strong class="banner-card-label">${escapeHtml(siteName)}</strong>
+        </div>
+      </article>
+    `;
+  }).join('');
 }
 
 export default function Banner(root, data = {}) {
-  let latestVideo = FALLBACK_VIDEO;
-  const adminVideoUrl = data?.banner || '';
-  const baseV1 = String(import.meta.env.VITE_API_URL || DEFAULT_API_V1).trim().replace(/\/$/, '');
-  const endpoint = adminVideoUrl
-    ? `${baseV1}/youtube/videos?videoUrl=${encodeURIComponent(adminVideoUrl)}`
-    : `${baseV1}/youtube/videos`;
+  const payload = getPayloadSource(data);
+  const siteName = String(
+    payload?.site_name || payload?.community_name || payload?.name || 'Community',
+  ).trim() || 'Community';
+  const images = resolveBannerImages(payload);
 
   root.innerHTML += `
     <section id="home" class="banner">
-      <div class="banner-video-wrap">
-        <iframe
-          id="bannerIframe"
-          src="${getEmbedUrl(latestVideo.videoId)}"
-          frameborder="0"
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-          allowfullscreen
-          title="${latestVideo.title}"
-          class="banner-iframe">
-        </iframe>
-
-        <button type="button" class="watch-latest-btn" id="watchLatestBtn" data-video-url="${latestVideo.url}">
-          Watch on YouTube
-        </button>
+      <div class="banner-shell">
+        <div class="banner-header">
+          <div class="banner-copy-block">
+            <span class="banner-kicker">Gallery</span>
+            <h2 class="banner-title">Gallery</h2>
+            <p class="banner-description">
+              Explore the homepage gallery through responsive image cards sized to keep every uploaded visual clear and balanced, including sets with 10 images or more.
+            </p>
+          </div>
+        </div>
+        <div class="banner-gallery-grid">
+          ${renderGalleryCards(images, siteName)}
+        </div>
       </div>
     </section>
   `;
-
-  const section = root.querySelector('#home.banner');
-  if (!section) return;
-
-  section.addEventListener('click', (event) => {
-    const watchButton = event.target.closest('#watchLatestBtn');
-    if (!watchButton) return;
-
-    const url = String(watchButton.dataset.videoUrl || '').trim();
-    if (url) {
-      window.open(url, '_blank', 'noopener,noreferrer');
-    }
-  });
-
-  fetch(endpoint)
-    .then((response) => {
-      if (response.ok) return response.json();
-      return response.json()
-        .then((payload) => {
-          throw new Error(payload?.message || `API response not ok (${response.status})`);
-        })
-        .catch(() => {
-          throw new Error(`API response not ok (${response.status})`);
-        });
-    })
-    .then((payload) => {
-      const rawVideos = Array.isArray(payload) ? payload : (payload?.data || []);
-      const videos = rawVideos.map((video) => normalizeVideo(video)).filter(Boolean);
-      if (!videos.length) return;
-
-      latestVideo = videos[0];
-      updateBannerVideo(root, latestVideo);
-    })
-    .catch((error) => {
-      console.error('Using fallback video due to API error:', {
-        endpoint,
-        message: error?.message || String(error),
-      });
-      updateBannerVideo(root, latestVideo);
-    });
 }

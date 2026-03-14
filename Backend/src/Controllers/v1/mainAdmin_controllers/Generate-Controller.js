@@ -70,6 +70,78 @@ class GenerateController {
     return uploadedMembers;
   }
 
+  normalizeBannerUrls(...values) {
+    const urls = [];
+    const push = (value) => {
+      const raw = String(value || '').trim();
+      if (!raw) return;
+      const lowered = raw.toLowerCase();
+      if (lowered.includes('youtube.com') || lowered.includes('youtu.be')) return;
+      if (!urls.includes(raw)) {
+        urls.push(raw);
+      }
+    };
+
+    const append = (value) => {
+      if (!value) return;
+
+      if (Array.isArray(value)) {
+        value.forEach((entry) => append(entry));
+        return;
+      }
+
+      if (typeof value === 'object') {
+        append(value.url || value.src || value.image || value.image_url || value.secure_url || value.path || '');
+        return;
+      }
+
+      if (typeof value !== 'string') return;
+      const raw = value.trim();
+      if (!raw) return;
+
+      if ((raw.startsWith('[') && raw.endsWith(']')) || (raw.startsWith('{') && raw.endsWith('}'))) {
+        try {
+          append(JSON.parse(raw));
+          return;
+        } catch (_) {}
+      }
+
+      push(raw);
+    };
+
+    values.forEach((value) => append(value));
+    return urls;
+  }
+
+  serializeBannerValue(...values) {
+    const urls = this.normalizeBannerUrls(...values);
+    if (!urls.length) return null;
+    if (urls.length === 1) return urls[0];
+    return JSON.stringify(urls);
+  }
+
+  getUploadedFiles(fileField) {
+    if (!fileField) return [];
+    return Array.isArray(fileField) ? fileField.filter(Boolean) : [fileField];
+  }
+
+  async uploadBannerGalleryFiles(fileField, cloudinaryReady, folder = 'websites') {
+    const files = this.getUploadedFiles(fileField);
+    if (!files.length || !cloudinaryReady) return [];
+
+    const urls = [];
+    for (const file of files) {
+      const uploadedUrl = await this.uploadToCloudinary(
+        file.tempFilePath || file.path,
+        folder,
+      );
+      if (uploadedUrl) {
+        urls.push(uploadedUrl);
+      }
+    }
+    return urls;
+  }
+
   // POST /generate-website
   async generateWebsite(req, res) {
     try {
@@ -109,7 +181,10 @@ class GenerateController {
         accentColor,
         buttonStyle,
         fontStyle,
+        banner,
         bannerLink,
+        banner_gallery,
+        bannerGallery,
         groupPhoto,
         group_photo,
         lead_image,
@@ -153,7 +228,7 @@ class GenerateController {
 
       // Handle file uploads
       let logoUrl = null;
-      let bannerUrl = bannerLink || null;
+      let bannerValue = this.serializeBannerValue(banner_gallery, bannerGallery, banner, bannerLink);
       let groupPhotoUrl = String(groupPhoto || group_photo || '').trim() || null;
       let leadImageUrl = String(lead_image || '').trim() || null;
       let resolvedFontUrl = fontUrl || null;
@@ -191,15 +266,23 @@ class GenerateController {
             );
           }
         }
-        if (req.files.banner) {
+        if (req.files.bannerGallery) {
+          if (!cloudinaryReady) {
+            console.warn('[GenerateController] Cloudinary not configured. Skipping banner gallery upload.');
+          } else {
+            const galleryUrls = await this.uploadBannerGalleryFiles(req.files.bannerGallery, cloudinaryReady, 'websites');
+            bannerValue = this.serializeBannerValue(galleryUrls);
+          }
+        } else if (req.files.banner) {
           if (!cloudinaryReady) {
             console.warn('[GenerateController] Cloudinary not configured. Skipping banner upload.');
           } else {
             const bannerFile = req.files.banner;
-            bannerUrl = await this.uploadToCloudinary(
+            const uploadedBanner = await this.uploadToCloudinary(
               bannerFile.tempFilePath || bannerFile.path,
               'websites'
             );
+            bannerValue = this.serializeBannerValue(uploadedBanner);
           }
         }
         if (req.files.groupPhoto) {
@@ -379,7 +462,7 @@ class GenerateController {
         buttonStyle,
         fontStyle,
         logo: logoUrl,
-        banner: bannerUrl,
+        banner: bannerValue,
         group_photo: groupPhotoUrl,
         lead_image: leadImageUrl,
         instagram_url,
@@ -663,6 +746,8 @@ class GenerateController {
         logo,
         banner,
         bannerLink,
+        banner_gallery,
+        bannerGallery,
         group_photo,
         lead_image,
         instagram_url,
@@ -673,6 +758,11 @@ class GenerateController {
         youtube_url,
         members,
       } = req.body || {};
+      const hasBannerPayload =
+        banner !== undefined ||
+        bannerLink !== undefined ||
+        banner_gallery !== undefined ||
+        bannerGallery !== undefined;
       const updated = await this.model.updateGeneratedWebsite(Number(id), {
         site_name,
         community_type,
@@ -701,7 +791,9 @@ class GenerateController {
         theme,
         nav_position,
         logo,
-        banner: banner ?? bannerLink,
+        banner: hasBannerPayload
+          ? this.serializeBannerValue(banner_gallery, bannerGallery, banner, bannerLink)
+          : undefined,
         group_photo,
         lead_image,
         instagram_url,

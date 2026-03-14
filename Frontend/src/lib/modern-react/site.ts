@@ -2,6 +2,45 @@ import { getModernSiteData } from "./context";
 
 type GenericRecord = Record<string, any>;
 
+function normalizeModernBannerImage(value: unknown) {
+  const append = (images: string[], entry: unknown): string[] => {
+    if (!entry) return images;
+
+    if (Array.isArray(entry)) {
+      return entry.reduce((acc, item) => append(acc, item), images);
+    }
+
+    if (typeof entry === "object") {
+      const record = entry as GenericRecord;
+      return append(images, record.url || record.src || record.image || record.image_url || "");
+    }
+
+    if (typeof entry !== "string") return images;
+    const raw = String(entry || "").trim();
+    if (!raw) return images;
+
+    if ((raw.startsWith("[") && raw.endsWith("]")) || (raw.startsWith("{") && raw.endsWith("}"))) {
+      try {
+        return append(images, JSON.parse(raw));
+      } catch {
+        return images;
+      }
+    }
+
+    const lowered = raw.toLowerCase();
+    if (lowered.includes("youtube.com") || lowered.includes("youtu.be")) {
+      return images;
+    }
+
+    if (!images.includes(raw)) {
+      images.push(raw);
+    }
+    return images;
+  };
+
+  return append([], value)[0] || "";
+}
+
 function resolveApiOrigin() {
   const raw =
     String((window as any).__API_ORIGIN__ || import.meta.env.VITE_API_URL || "").trim();
@@ -40,7 +79,7 @@ export function getModernResolvedSite() {
       "",
     ),
     leadImage: toAbsoluteModernMediaUrl(
-      site.lead_image || site.hero_image || site.banner || site.group_photo || "",
+      site.lead_image || site.hero_image || normalizeModernBannerImage(site.banner) || site.group_photo || "",
       "",
     ),
     groupPhoto: toAbsoluteModernMediaUrl(site.group_photo || "", ""),

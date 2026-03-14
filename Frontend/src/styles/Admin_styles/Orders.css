@@ -481,6 +481,21 @@ td .btn-icon.btn-danger:disabled {
   color: #1d4ed8;
 }
 
+.orders-modal .order-totals {
+  display: block;
+  margin-top: 0;
+}
+
+.orders-modal .order-summary-rows {
+  display: grid;
+  grid-template-columns: 1fr;
+  width: 100%;
+}
+
+.orders-modal .order-totals h4 {
+  white-space: normal;
+}
+
 .order-address-lines {
   display: grid;
   gap: 0.75rem;

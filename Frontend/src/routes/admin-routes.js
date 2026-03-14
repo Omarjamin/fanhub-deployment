@@ -13,6 +13,7 @@ export default function registerAdminRoutes(app, deps) {
     SubAdminDiscography,
     SubAdminCommunity,
     SubAdminGenerateWebsite,
+    SubAdminGenerateWebsitePreview,
     SubAdminReports,
     SubAdminThreads,
   } = deps;
@@ -47,6 +48,7 @@ export default function registerAdminRoutes(app, deps) {
   app.add("/subadmin/settings", SubAdminSettings);
   app.add("/subadmin/discography", SubAdminDiscography);
   app.add("/subadmin/community", SubAdminCommunity);
+  app.add("/subadmin/generate-website/preview", SubAdminGenerateWebsitePreview);
   app.add("/subadmin/generate-website", SubAdminGenerateWebsite);
   app.add("/subadmin/reports", SubAdminReports);
   app.add("/subadmin/threads", SubAdminThreads);

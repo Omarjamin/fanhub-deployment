@@ -33,6 +33,7 @@ import SubAdminSettings from "./pages/Admin_page/Settings.js";
 import SubAdminDiscography from "./pages/Admin_page/Discography.js";
 import SubAdminCommunity from "./pages/Admin_page/Community.js";
 import SubAdminGenerateWebsite from "./pages/Admin_page/GenerateWebsite.js";
+import SubAdminGenerateWebsitePreview from "./pages/Admin_page/GenerateWebsitePreview.js";
 import SubAdminReports from "./pages/Admin_page/Reports.js";
 import SubAdminThreads from "./pages/Admin_page/Threads.js";
 import SubAdminLogin from "./pages/Admin_page/login.js";
@@ -58,6 +59,7 @@ registerAdminRoutes(app, {
   SubAdminDiscography,
   SubAdminCommunity,
   SubAdminGenerateWebsite,
+  SubAdminGenerateWebsitePreview,
   SubAdminReports,
   SubAdminThreads,
 });

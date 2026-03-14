@@ -208,22 +208,18 @@ export default function createMarketplace() {
   }
 
   function normalizeVariantForForm(variant) {
+    const variantName = String(
+      variant.variant_name ?? variant.variantName ?? 'Variant'
+    ).trim() || 'Variant';
+    const variantValue = String(
+      variant.variant_values ?? variant.variantValue ?? variant.label ?? ''
+    ).trim();
     const weightG = Number(
       variant.weight_g ?? variant.weightG ?? variant.weight ?? 0,
     );
-    if (variant.variantName || variant.variantValue) {
-      return {
-        variantName: variant.variantName || 'Variant',
-        variantValue: variant.variantValue || '',
-        stock: Number(variant.stock) || 0,
-        price: Number(variant.price) || 0,
-        weight_g: Number.isFinite(weightG) && weightG >= 0 ? weightG : 0,
-      };
-    }
-
     return {
-      variantName: 'Variant',
-      variantValue: variant.label || '',
+      variantName,
+      variantValue,
       stock: Number(variant.stock) || 0,
       price: Number(variant.price) || 0,
       weight_g: Number.isFinite(weightG) && weightG >= 0 ? weightG : 0,
@@ -491,11 +487,17 @@ export default function createMarketplace() {
     const grid = section.querySelector('#productsGrid');
     grid.innerHTML = products.map(product => `
       <div class="product-card" data-product-id="${product.id}" data-community="${product.communityKey}">
-        <img src="${product.image}" alt="${product.name || 'Untitled Product'}" class="product-image" onerror="this.onerror=null;this.src='/placeholder.svg?height=200&width=200'">
+        <div class="product-image-frame">
+          <img src="${product.image}" alt="${product.name || 'Untitled Product'}" class="product-image" onerror="this.onerror=null;this.src='/placeholder.svg?height=200&width=200'">
+        </div>
         <div class="product-info">
-          <h4 class="product-name">${product.name || 'Untitled Product'}</h4>
-          <p class="product-meta">Collection: ${product.collectionName || 'General'}</p>
-          <p class="product-meta">Category: ${product.productCategory || 'Apparel'}</p>
+          <div class="product-copy">
+            <h4 class="product-name">${product.name || 'Untitled Product'}</h4>
+            <div class="product-meta-row">
+              <span class="product-chip">Collection: ${product.collectionName || 'General'}</span>
+              <span class="product-chip">Category: ${product.productCategory || 'Apparel'}</span>
+            </div>
+          </div>
           <ul class="product-variants">
             ${renderVariantRows(product.variants)}
           </ul>

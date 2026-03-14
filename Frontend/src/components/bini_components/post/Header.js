@@ -4,6 +4,7 @@ import { getActiveSiteSlug, getSessionToken } from "../../../lib/site-context.js
 import { showToast } from "../../../utils/toast.js";
 import CreatePostModal from "./create-post-modal.js";
 import setupThreadsFab from "../threads-fab.js";
+import { isTemplatePreviewMode } from "../../../lib/template-preview.js";
 
 function sanitizePostContent(value) {
   const html = String(value || "");
@@ -14,7 +15,58 @@ function sanitizePostContent(value) {
     .trim();
 }
 
-export default async function Header(root) {
+export default async function Header(root, data = {}) {
+  if (isTemplatePreviewMode(data)) {
+    const previewSite = data?.siteData || {};
+    const previewMember = Array.isArray(previewSite?.members) ? previewSite.members[0] : null;
+    const previewAvatar =
+      previewMember?.image ||
+      previewMember?.image_profile ||
+      previewSite?.logo ||
+      previewSite?.logo_url ||
+      "/circle-user.png";
+    const previewLabel = String(
+      previewSite?.site_name ||
+      previewSite?.domain ||
+      "Community preview",
+    ).trim();
+
+    root.innerHTML = `
+      <div class="whats-new-bar">
+        <div style="padding:0 4px 12px;color:#64748b;font-size:12px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;">
+          Live homepage preview for ${previewLabel}
+        </div>
+        <form id="create-post-form">
+          <div class="post-input-container">
+            <img src="${previewAvatar}" alt="Preview profile" class="profile-pic" onerror="this.src='/circle-user.png';"/>
+            <textarea
+              id="content"
+              name="content"
+              placeholder="Post composer preview only"
+              class="post-textarea"
+              rows="1"
+              readonly
+              disabled
+            ></textarea>
+            <label for="image_file" class="image-icon" title="Preview only"></label>
+            <input
+              type="file"
+              id="image_file"
+              name="image_file"
+              accept="image/*"
+              style="display:none"
+              disabled
+            />
+            <button type="button" id="submit-post" class="btn-primary" disabled>
+              Preview Only
+            </button>
+          </div>
+        </form>
+      </div>
+    `;
+    return;
+  }
+
   let profilePicUrl = "";
   let currentUser = null;
 

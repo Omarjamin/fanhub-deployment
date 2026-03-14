@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { authHeaders } from '../auth/auth.js';
+import { toSafeNumber } from '../../../lib/number-format.js';
 
 const CHECKOUT_DRAFT_EVENT = 'checkoutDraftUpdated';
 const CHECKOUT_DRAFT_ENDPOINT = '/checkout-draft';
@@ -14,8 +15,7 @@ function clone(value) {
 }
 
 function toNumber(value, fallback = 0) {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return toSafeNumber(value, fallback);
 }
 
 function clampStep(value) {

@@ -1,16 +1,21 @@
 import fetchProductDetails from '../../../services/ecommerce_services/shop/product_details.js';
 import { addToCart } from '../cart/cart.js';
+import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
 import { showToast } from '../../../utils/toast.js';
 
 function resolveVariantWeight(variant) {
-  const explicitWeight = Number(variant?.weight_g ?? variant?.weightG ?? variant?.weight_grams ?? variant?.weight);
+  const explicitWeight = toSafeNumber(variant?.weight_g ?? variant?.weightG ?? variant?.weight_grams ?? variant?.weight);
   if (Number.isFinite(explicitWeight) && explicitWeight >= 0) return explicitWeight;
   return 0;
 }
 
 function resolveVariantStock(variant) {
-  const stock = Number(variant?.stock ?? variant?.inventory ?? variant?.quantity);
+  const stock = toSafeNumber(variant?.stock ?? variant?.inventory ?? variant?.quantity);
   return Number.isFinite(stock) && stock >= 0 ? stock : 0;
+}
+
+function resolveDisplayPrice(product, variant) {
+  return toSafeNumber(variant?.price ?? product?.price, 0);
 }
 
 export default async function ProductDetail(root, productId, explicitCommunityType = '') {
@@ -50,7 +55,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
           </div>
           <div class="product-meta">
             <h1 class="product-title">${product.name || ''}</h1>
-            <p class="product-price">₱${product.price || selectedVariant?.price || ''}.00 PHP</p>
+            <p class="product-price">${formatPHP(resolveDisplayPrice(product, selectedVariant))}</p>
             <p class="product-shipping-note"><span>Shipping</span> calculated at checkout.</p>
 
             <h4 class="product-option-title">Size</h4>
@@ -104,13 +109,13 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
                   const id = p.product_id;
                   const name = p.name || '';
                   const imgUrl = p.image_url || '';
-                  const priceVal = Number(p.price || 0);
+                  const priceVal = toSafeNumber(p.price, 0);
                   return `
                     <button class="related-card" data-product-id="${id}">
                       <img src="${imgUrl}" alt="${name}" />
                       <div class="related-card-copy">
                         <div class="related-name">${name}</div>
-                        <div class="related-price">PHP ${priceVal.toFixed(2)}</div>
+                        <div class="related-price">${formatPHP(priceVal)}</div>
                       </div>
                     </button>
                   `;
@@ -145,7 +150,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
         selectedVariant = variants[idx];
 
         const priceEl = root.querySelector('.product-price');
-        if (priceEl) priceEl.textContent = `PHP ${selectedVariant.price || product.price}`;
+        if (priceEl) priceEl.textContent = formatPHP(resolveDisplayPrice(product, selectedVariant));
       });
     });
 

@@ -25,16 +25,39 @@ function resolveTemplateKey(data = {}) {
 
 export default function Layout(root, data = {}) {
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
+  const slugFromData = String(
+    data?.siteSlug ||
+    data?.siteData?.community_type ||
+    data?.siteData?.site_slug ||
+    data?.siteData?.domain ||
+    data?.community_type ||
+    data?.site_slug ||
+    data?.domain ||
+    ''
+  ).trim().toLowerCase();
   const slugFromPath = pathParts[0] === 'fanhub' && pathParts[1] === 'community-platform' && pathParts[2]
     ? pathParts[2]
     : '';
   const slugFromStorage = String(
     sessionStorage.getItem('community_type') || localStorage.getItem('community_type') || ''
   ).trim().toLowerCase();
-  const siteSlug = String(slugFromPath || slugFromStorage || '').trim().toLowerCase();
+  const siteSlug = String(slugFromData || slugFromPath || slugFromStorage || '').trim().toLowerCase();
   let siteLabel = siteSlug ? siteSlug.replace(/-/g, ' ') : 'FanHub';
 
   try {
+    const fromPayload = String(
+      data?.siteData?.site_name ||
+      data?.siteData?.name ||
+      data?.siteData?.domain ||
+      data?.site_name ||
+      data?.name ||
+      data?.domain ||
+      ''
+    ).trim();
+    if (fromPayload) {
+      siteLabel = fromPayload;
+    }
+
     const rawSiteData =
       sessionStorage.getItem(`site_data:${siteSlug}`) ||
       sessionStorage.getItem('active_site_data') ||

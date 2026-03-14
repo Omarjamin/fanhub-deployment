@@ -29,4 +29,3 @@ export default function HOMEPAGE(data = {}) {
   announcement(main, data);
   Footer(footer, data);  
 };
-

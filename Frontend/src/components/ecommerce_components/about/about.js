@@ -1,4 +1,5 @@
 import api from '../../../lib/api.js';
+import { hasBannerGallery, resolvePrimaryBannerImage } from '../../../lib/banner-gallery.js';
 import { getActiveSiteSlug } from '../../../lib/site-context.js';
 
 function getPayloadSource(data = {}) {
@@ -92,15 +93,16 @@ function buildGroupInfo(payload = {}, fallbackGroupInfo) {
     ).trim();
     const shortBio = String(payload?.short_bio || payload?.shortBio || '').trim();
     const description = String(payload?.description || payload?.about || '').trim();
-    const photo = String(
+    const photo = resolvePrimaryBannerImage(
         payload?.group_photo ||
-        payload?.banner ||
-        payload?.image_cover ||
-        payload?.cover_photo ||
-        payload?.logo ||
-        payload?.image_profile ||
-        fallbackGroupInfo.photo
-    ).trim();
+        '',
+        payload?.banner,
+        payload?.image_cover,
+        payload?.cover_photo,
+        payload?.logo,
+        payload?.image_profile,
+        fallbackGroupInfo.photo,
+    );
 
     return {
         title: siteName ? `About ${siteName}` : fallbackGroupInfo.title,
@@ -374,7 +376,7 @@ export default function About(root, data = {}) {
         const hasUsefulGroupInfo =
             Boolean(String(payload?.site_name || payload?.community_name || payload?.name || '').trim()) ||
             Boolean(String(payload?.description || payload?.about || payload?.short_bio || payload?.shortBio || '').trim()) ||
-            Boolean(String(payload?.group_photo || payload?.banner || payload?.logo || '').trim());
+            hasBannerGallery(payload?.group_photo, payload?.banner, payload?.logo);
 
         if ((!membersData.length || !hasUsefulGroupInfo) && initialSiteId) {
             const websiteById = await fetchWebsiteById(initialSiteId);

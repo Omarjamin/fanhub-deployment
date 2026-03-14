@@ -193,6 +193,28 @@ function formatDisplayDate(value: unknown) {
   }).format(parsed);
 }
 
+function normalizeNumericValue(value: unknown, fallback = 0) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+
+  const negative = raw.startsWith("-");
+  const unsigned = raw.replace(/,/g, "").replace(/[^\d.]/g, "");
+  if (!unsigned) return fallback;
+
+  const firstDotIndex = unsigned.indexOf(".");
+  const normalized = firstDotIndex === -1
+    ? unsigned
+    : `${unsigned.slice(0, firstDotIndex).replace(/\./g, "") || "0"}.${unsigned
+        .slice(firstDotIndex + 1)
+        .replace(/\./g, "")}`;
+  const parsed = Number(`${negative ? "-" : ""}${normalized}`);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
 function normalizeExternalLink(value: unknown) {
   const raw = String(value || "").trim();
   if (!raw || raw === "#") return "";
@@ -327,7 +349,7 @@ function normalizeProduct(row: GenericRecord) {
   return {
     id: String(row.product_id || row.id || ""),
     name: String(row.name || "Product"),
-    price: Number(row.price || 0),
+    price: normalizeNumericValue(row.price, 0),
     image: toAbsoluteMediaUrl(row.img_url || row.image_url || row.image || "", ""),
     description: String(row.description || ""),
     category: String(row.category_name || row.category || ""),
@@ -355,13 +377,15 @@ export async function fetchSiteMembers() {
   return rows.map((member: GenericRecord, index: number) => ({
     id: String(member.member_id || member.id || index + 1),
     name: String(member.name || "Member"),
-    role: String(member.role || member.position || member.title || ""),
-    description: String(
-      member.description ||
-        member.bio ||
-        formatDisplayDate(member.birthdate) ||
+    birthdate: String(formatDisplayDate(member.birthdate) || ""),
+    role: String(
+      formatDisplayDate(member.birthdate) ||
+        member.role ||
+        member.position ||
+        member.title ||
         "",
     ),
+    description: "",
     image: toAbsoluteMediaUrl(member.image_profile || member.image || member.photo || "", ""),
   }));
 }
@@ -498,9 +522,9 @@ export async function fetchCartItems() {
     image: toAbsoluteMediaUrl(item.product_image || item.image || item.img_url || "", ""),
     category: String(item.category_name || item.category || ""),
     variant: String(item.variant_values || item.variant_name || item.variant || ""),
-    quantity: Number(item.quantity || 0),
-    price: Number(item.price || 0),
-    weight: Number(item.weight || item.weight_g || item.weight_in_grams || 0),
+    quantity: normalizeNumericValue(item.quantity, 0),
+    price: normalizeNumericValue(item.price, 0),
+    weight: normalizeNumericValue(item.weight || item.weight_g || item.weight_in_grams, 0),
   }));
 }
 

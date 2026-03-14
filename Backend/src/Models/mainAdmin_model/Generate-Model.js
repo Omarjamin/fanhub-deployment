@@ -85,6 +85,17 @@ class GenerateModel {
     return this.siteColumns;
   }
 
+  normalizeBirthdate(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return null;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return null;
+
+    return parsed.toISOString().slice(0, 10);
+  }
+
   async resolveCommunityId(siteName = '', domain = '', communityType = '') {
     const hasCommunities = await this.hasTable('communities');
     if (!hasCommunities) return null;
@@ -621,9 +632,11 @@ class GenerateModel {
         const name = String(member?.name || '').trim();
         const role = String(member?.role || '').trim();
         const memberDescription = String(member?.description || '').trim();
+        const birthdate = this.normalizeBirthdate(member?.birthdate);
+        const storageRole = role || birthdate || null;
         const imageProfile = String(member?.image || member?.image_profile || '').trim() || null;
 
-        if (!name || !role) continue;
+        if (!name || (!birthdate && !storageRole)) continue;
 
         const memberColumns = [];
         const memberValues = [];
@@ -638,8 +651,9 @@ class GenerateModel {
 
         addMemberValue('site_id', siteId);
         addMemberValue('name', name);
-        addMemberValue('role', role);
-        addMemberValue('description', memberDescription);
+        addMemberValue('birthdate', birthdate);
+        addMemberValue('role', storageRole);
+        addMemberValue('description', memberDescription || null);
         addMemberValue('image_profile', imageProfile);
 
         if (memberCols.has('created_at')) {
@@ -1459,8 +1473,10 @@ class GenerateModel {
           const name = String(member?.name || '').trim();
           const role = String(member?.role || '').trim();
           const memberDescription = String(member?.description || '').trim();
+          const birthdate = this.normalizeBirthdate(member?.birthdate);
+          const storageRole = role || birthdate || null;
           const imageProfile = String(member?.image_profile || member?.image || '').trim();
-          if (!name || !role) continue;
+          if (!name || (!birthdate && !storageRole)) continue;
 
           const memberColumns = [];
           const memberValues = [];
@@ -1475,8 +1491,9 @@ class GenerateModel {
 
           addMemberValue('site_id', Number(siteId));
           addMemberValue('name', name);
-          addMemberValue('role', role);
-          addMemberValue('description', memberDescription);
+          addMemberValue('birthdate', birthdate);
+          addMemberValue('role', storageRole);
+          addMemberValue('description', memberDescription || null);
           addMemberValue('image_profile', imageProfile || null);
 
           if (memberCols.has('created_at')) {

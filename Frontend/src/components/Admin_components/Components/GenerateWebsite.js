@@ -2,11 +2,18 @@
 import api from '../../../services/bini_services/api.js';
 import { getAdminHeaders } from './admin-sites.js';
 import { applyTypographyConfig } from '../../../lib/theme/font-loader.js';
+import { normalizeBannerGallery } from '../../../lib/banner-gallery.js';
+import { clearTemplatePreviewDraft, writeTemplatePreviewDraft } from '../../../lib/template-preview.js';
 
 export default function GenerateWebsite() {
   const section = document.createElement('section');
   section.id = 'generate-website';
   section.className = 'gw-section';
+  const GALLERY_IMAGE_LIMIT = 10;
+  const BUILTIN_TEMPLATES = [
+    { id: 1, key: 'bini', name: 'Bini Template' },
+    { id: 2, key: 'modern', name: 'Modern Template' },
+  ];
 
   const defaultPalettes = [
     { id: 'sunrise', name: 'Sunrise Pop', colors: ['#f4d03f', '#5dade2', '#5b6ee1', '#1a237e', '#ffffff'] },
@@ -338,6 +345,11 @@ export default function GenerateWebsite() {
       console.error('Failed to fetch templates:', err?.response?.data || err.message || err);
       templates = [];
     }
+
+    if (!templates.length) {
+      templates = BUILTIN_TEMPLATES.map((template) => ({ ...template }));
+    }
+
     renderTemplates();
   };
 
@@ -452,8 +464,268 @@ export default function GenerateWebsite() {
     spotifyUrl: '',
     xUrl: '',
     youtubeUrl: '',
-    bannerLink: '',
+    bannerGallery: [],
     members: []
+  };
+  const previewMediaUrls = {
+    logo: '',
+    leadImage: '',
+    groupPhoto: '',
+    bannerGallery: [],
+  };
+  let previewSyncTimer = null;
+  const normalizeCommunitySlug = (value, fallback = 'preview-community') => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+    return normalized || fallback;
+  };
+  const revokePreviewMediaUrl = (key) => {
+    const currentValue = previewMediaUrls[key];
+    if (Array.isArray(currentValue)) {
+      currentValue.forEach((url) => {
+        if (url) URL.revokeObjectURL(url);
+      });
+      previewMediaUrls[key] = [];
+      return;
+    }
+    if (!currentValue) return;
+    URL.revokeObjectURL(currentValue);
+    previewMediaUrls[key] = '';
+  };
+  const setPreviewMediaFile = (key, file) => {
+    revokePreviewMediaUrl(key);
+    if (!file) return '';
+    previewMediaUrls[key] = URL.createObjectURL(file);
+    return previewMediaUrls[key];
+  };
+  const setPreviewMediaFiles = (key, files = []) => {
+    revokePreviewMediaUrl(key);
+    const safeFiles = Array.isArray(files) ? files.filter(Boolean) : [];
+    if (!safeFiles.length) {
+      previewMediaUrls[key] = [];
+      return [];
+    }
+    previewMediaUrls[key] = safeFiles.map((file) => URL.createObjectURL(file));
+    return [...previewMediaUrls[key]];
+  };
+  const getGalleryFileSignature = (file) => {
+    if (!file) return '';
+    return [file.name, file.size, file.lastModified].join('::');
+  };
+  const syncBannerGalleryFiles = (files = [], input = null) => {
+    const safeFiles = Array.isArray(files) ? files.filter(Boolean).slice(0, GALLERY_IMAGE_LIMIT) : [];
+    formData.bannerGallery = safeFiles;
+    setPreviewMediaFiles('bannerGallery', safeFiles);
+
+    const bannerGalleryInput = input || section.querySelector('#bannerGallery');
+    if (bannerGalleryInput) {
+      bannerGalleryInput.value = '';
+      updateFileInput(bannerGalleryInput);
+    }
+
+    renderBannerGalleryBoard();
+    applyTypographyPreview();
+  };
+  const appendBannerGalleryFiles = (files = [], input = null) => {
+    const incomingFiles = Array.isArray(files) ? files.filter(Boolean) : [];
+    if (!incomingFiles.length) return;
+
+    const currentFiles = Array.isArray(formData.bannerGallery) ? [...formData.bannerGallery] : [];
+    const existingSignatures = new Set(currentFiles.map((file) => getGalleryFileSignature(file)));
+    const nextFiles = [...currentFiles];
+    let duplicateCount = 0;
+
+    incomingFiles.forEach((file) => {
+      const signature = getGalleryFileSignature(file);
+      if (!signature || existingSignatures.has(signature)) {
+        duplicateCount += 1;
+        return;
+      }
+
+      if (nextFiles.length >= GALLERY_IMAGE_LIMIT) {
+        return;
+      }
+
+      existingSignatures.add(signature);
+      nextFiles.push(file);
+    });
+
+    if (currentFiles.length >= GALLERY_IMAGE_LIMIT) {
+      alert(`You can only upload up to ${GALLERY_IMAGE_LIMIT} gallery images.`);
+      syncBannerGalleryFiles(currentFiles, input);
+      return;
+    }
+
+    if (incomingFiles.length && nextFiles.length === currentFiles.length && duplicateCount === incomingFiles.length) {
+      alert('Those gallery images are already selected.');
+      syncBannerGalleryFiles(currentFiles, input);
+      return;
+    }
+
+    if ((currentFiles.length + incomingFiles.length) > GALLERY_IMAGE_LIMIT) {
+      const remainingSlots = Math.max(GALLERY_IMAGE_LIMIT - currentFiles.length, 0);
+      alert(`Only ${remainingSlots} more gallery image${remainingSlots === 1 ? '' : 's'} can be added. The rest were skipped.`);
+    } else if (duplicateCount > 0) {
+      alert(`${duplicateCount} duplicate gallery image${duplicateCount === 1 ? ' was' : 's were'} skipped.`);
+    }
+
+    syncBannerGalleryFiles(nextFiles, input);
+  };
+  const removeBannerGalleryFile = (index) => {
+    const currentFiles = Array.isArray(formData.bannerGallery) ? [...formData.bannerGallery] : [];
+    if (index < 0 || index >= currentFiles.length) return;
+    currentFiles.splice(index, 1);
+    syncBannerGalleryFiles(currentFiles);
+  };
+  const renderBannerGalleryBoard = () => {
+    const board = section.querySelector('#bannerGalleryBoard');
+    const count = section.querySelector('#bannerGalleryCount');
+    if (!board) return;
+
+    const previewUrls = Array.isArray(previewMediaUrls.bannerGallery)
+      ? previewMediaUrls.bannerGallery
+      : [];
+    const galleryFiles = Array.isArray(formData.bannerGallery)
+      ? formData.bannerGallery
+      : [];
+    const totalImages = galleryFiles.length;
+
+    if (count) {
+      count.textContent = `${totalImages}/${GALLERY_IMAGE_LIMIT} images selected`;
+    }
+
+    board.innerHTML = Array.from({ length: GALLERY_IMAGE_LIMIT }, (_, index) => {
+      const imageUrl = previewUrls[index] || '';
+      const slotNumber = String(index + 1).padStart(2, '0');
+
+      if (imageUrl) {
+        return `
+          <div class="gw-gallery-slot is-filled">
+            <img src="${imageUrl}" alt="Gallery image ${index + 1}" class="gw-gallery-slot-image">
+            <span class="gw-gallery-slot-badge">Image ${slotNumber}</span>
+            <button type="button" class="gw-gallery-slot-remove" data-gallery-action="remove" data-index="${index}" aria-label="Remove gallery image ${index + 1}">Remove</button>
+          </div>
+        `;
+      }
+
+      return `
+        <button type="button" class="gw-gallery-slot gw-gallery-slot-add" data-gallery-action="pick">
+          <span class="gw-gallery-slot-badge">Slot ${slotNumber}</span>
+          <strong class="gw-gallery-slot-title">Add Image</strong>
+          <small class="gw-gallery-slot-copy">Click to upload gallery image</small>
+        </button>
+      `;
+    }).join('');
+  };
+  const getSelectedTemplateData = () => (
+    templates.find((template) => Number(template.id) === Number(selectedTemplate)) || null
+  );
+  const buildTemplatePreviewDraft = () => {
+    const selectedTemplateData = getSelectedTemplateData();
+    if (!selectedTemplateData?.key) {
+      return null;
+    }
+
+    const typographyPayload = getTypographyPayload();
+    const bodyFont = typographyPayload.body || {};
+    const headingFont = typographyPayload.heading || {};
+    const siteSlug = normalizeCommunitySlug(
+      formData.domain || formData.siteName || `${selectedTemplateData.key}-preview`,
+      `${selectedTemplateData.key}-preview`,
+    );
+    const siteName = String(formData.siteName || selectedTemplateData.name || 'Preview Community').trim() || 'Preview Community';
+    const logoUrl = previewMediaUrls.logo || '';
+    const leadImageUrl = previewMediaUrls.leadImage || String(formData.leadImage || '').trim();
+    const groupPhotoUrl = previewMediaUrls.groupPhoto || '';
+    const bannerGallery = normalizeBannerGallery(previewMediaUrls.bannerGallery).slice(0, GALLERY_IMAGE_LIMIT);
+    const safeMembers = members.map((member, index) => ({
+      id: member?.id || `preview-member-${index + 1}`,
+      name: String(member?.name || '').trim(),
+      fullname: String(member?.name || '').trim(),
+      birthdate: String(member?.birthdate || '').trim(),
+      role: '',
+      description: '',
+      image: member?.image || '',
+      image_profile: member?.image || '',
+    }));
+
+    return {
+      updatedAt: Date.now(),
+      templateKey: selectedTemplateData.key,
+      templateName: selectedTemplateData.name || 'Template',
+      siteSlug,
+      siteData: {
+        previewMode: true,
+        site_name: siteName,
+        name: siteName,
+        domain: siteSlug,
+        community_type: siteSlug,
+        site_slug: siteSlug,
+        template: selectedTemplateData.key,
+        template_key: selectedTemplateData.key,
+        template_name: selectedTemplateData.name || selectedTemplateData.key,
+        short_bio: String(formData.shortBio || '').trim(),
+        description: String(formData.description || '').trim(),
+        logo: logoUrl,
+        logo_url: logoUrl,
+        lead_image: leadImageUrl,
+        group_photo: groupPhotoUrl,
+        banner: bannerGallery,
+        banner_gallery: bannerGallery,
+        instagram_url: String(formData.instagramUrl || '').trim(),
+        facebook_url: String(formData.facebookUrl || '').trim(),
+        tiktok_url: String(formData.tiktokUrl || '').trim(),
+        spotify_url: String(formData.spotifyUrl || '').trim(),
+        x_url: String(formData.xUrl || '').trim(),
+        youtube_url: String(formData.youtubeUrl || '').trim(),
+        palette: [...(formData.palette || [])],
+        primaryColor: formData.primaryColor,
+        secondaryColor: formData.secondaryColor,
+        accentColor: formData.accentColor,
+        buttonStyle: formData.buttonStyle,
+        typography: typographyPayload,
+        font: {
+          type: bodyFont.type || formData.fontType,
+          name: bodyFont.name || formData.fontName,
+          url: bodyFont.url || formData.fontUrl || '',
+        },
+        font_heading: headingFont.name || '',
+        font_body: bodyFont.name || '',
+        members: safeMembers,
+        theme: {
+          palette: [...(formData.palette || [])],
+          primaryColor: formData.primaryColor,
+          secondaryColor: formData.secondaryColor,
+          accentColor: formData.accentColor,
+          buttonStyle: formData.buttonStyle,
+          fontStyle: bodyFont.name || formData.fontStyle,
+          font: {
+            type: bodyFont.type || formData.fontType,
+            name: bodyFont.name || formData.fontName,
+            url: bodyFont.url || formData.fontUrl || '',
+          },
+          typography: typographyPayload,
+        },
+      },
+    };
+  };
+  const queueTemplatePreviewSync = () => {
+    if (previewSyncTimer) {
+      window.clearTimeout(previewSyncTimer);
+    }
+
+    previewSyncTimer = window.setTimeout(() => {
+      const draft = buildTemplatePreviewDraft();
+      if (!draft) {
+        clearTemplatePreviewDraft();
+        return;
+      }
+      writeTemplatePreviewDraft(draft);
+    }, 180);
   };
 
   // API call to create website
@@ -512,7 +784,6 @@ export default function GenerateWebsite() {
       submitData.append('line_height', typographyPayload.line_height);
       submitData.append('letter_spacing', typographyPayload.letter_spacing);
       submitData.append('typography', JSON.stringify(typographyPayload));
-      submitData.append('bannerLink', formData.bannerLink);
       if (formData.leadImage) {
         submitData.append('lead_image', formData.leadImage);
       }
@@ -536,8 +807,9 @@ export default function GenerateWebsite() {
         },
         typography: typographyPayload,
       }));
-      
+
       if (formData.logo) submitData.append('logo', formData.logo);
+      (formData.bannerGallery || []).forEach((file) => submitData.append('bannerGallery', file));
       if (formData.leadImageFile) submitData.append('leadImage', formData.leadImageFile);
       if (formData.groupPhoto) submitData.append('groupPhoto', formData.groupPhoto);
       if (formData.typography?.heading?.file) submitData.append('headingFontFile', formData.typography.heading.file);
@@ -588,6 +860,12 @@ export default function GenerateWebsite() {
 
   // Reset form to initial state
   const resetForm = () => {
+    if (previewSyncTimer) {
+      window.clearTimeout(previewSyncTimer);
+      previewSyncTimer = null;
+    }
+    Object.keys(previewMediaUrls).forEach((key) => revokePreviewMediaUrl(key));
+    clearTemplatePreviewDraft();
     if (customFontObjectUrl) {
       URL.revokeObjectURL(customFontObjectUrl);
       customFontObjectUrl = '';
@@ -652,7 +930,7 @@ export default function GenerateWebsite() {
       spotifyUrl: '',
       xUrl: '',
       youtubeUrl: '',
-      bannerLink: '',
+      bannerGallery: [],
       members: []
     };
     syncLegacyFontFields();
@@ -718,8 +996,16 @@ export default function GenerateWebsite() {
 
             <div class="gw-form-row">
               <div class="gw-form-group">
-                <label for="bannerLink">YouTube Banner Link</label>
-                <input type="url" id="bannerLink" placeholder="https://www.youtube.com/watch?v=...">
+                <label for="bannerGallery">Gallery Images</label>
+                <small class="gw-field-hint">Purpose: shown as resized image cards in the homepage gallery. Upload up to ${GALLERY_IMAGE_LIMIT} polished images for a cleaner, professional layout.</small>
+                <div class="gw-upload-inline gw-upload-inline-gallery">
+                  <input type="file" id="bannerGallery" accept="image/*" multiple>
+                  <button type="button" class="gw-file-action-btn" id="bannerGalleryBrowseBtn">Choose Up To ${GALLERY_IMAGE_LIMIT} Gallery Images</button>
+                  <button type="button" class="gw-file-action-btn gw-file-action-btn-secondary" id="bannerGalleryClearBtn">Clear Gallery</button>
+                  <span class="gw-upload-file-name" id="bannerGalleryFileLabel">No gallery images selected</span>
+                  <span class="gw-gallery-upload-count" id="bannerGalleryCount">0/${GALLERY_IMAGE_LIMIT} images selected</span>
+                </div>
+                <div class="gw-gallery-board" id="bannerGalleryBoard"></div>
               </div>
             </div>
 
@@ -817,10 +1103,36 @@ export default function GenerateWebsite() {
           <h2 class="gw-section-title">Live Preview</h2>
           <div class="gw-admin-live-preview" id="typographyPreview">
             <div class="gw-admin-preview-header">
-              <span class="gw-admin-preview-eyebrow">Sample Site Preview</span>
-              <button type="button" class="gw-admin-preview-cta">Join Community</button>
+              <div class="gw-admin-preview-brand">
+                <span class="gw-admin-preview-eyebrow">Homepage Preview Pipeline</span>
+                <strong class="gw-admin-preview-headline" id="previewTemplateName">Select a template to preview the ecommerce homepage</strong>
+                <span class="gw-admin-preview-chip" id="previewStatusChip">Layout preview -> progressive render -> full preview</span>
+              </div>
+              <a href="/subadmin/generate-website/preview" target="_blank" rel="noopener noreferrer" class="gw-admin-preview-cta">Open Full Preview</a>
             </div>
-            <div class="gw-admin-preview-palette" id="combinedPalettePreview"></div>
+            <div class="gw-admin-preview-toolbar">
+              <article class="gw-admin-preview-summary-card">
+                <span>Site</span>
+                <strong id="previewSiteMeta">Your homepage sections, members, and uploads will appear here.</strong>
+              </article>
+              <article class="gw-admin-preview-summary-card">
+                <span>Typography</span>
+                <strong id="previewTypographyMeta">Poppins / Inter</strong>
+              </article>
+              <article class="gw-admin-preview-summary-card">
+                <span>Preview</span>
+                <strong id="previewPaletteMeta">Template layout -> sections -> final homepage preview</strong>
+              </article>
+            </div>
+            <div class="gw-admin-preview-swatches" id="previewPaletteSwatches"></div>
+            <div class="gw-admin-preview-frame-wrap">
+              <iframe
+                id="templateLivePreviewFrame"
+                class="gw-admin-preview-frame"
+                title="Generated website live preview"
+                src="/subadmin/generate-website/preview"
+              ></iframe>
+            </div>
           </div>
         </div>
 
@@ -874,7 +1186,7 @@ export default function GenerateWebsite() {
   const renderTemplates = () => {
     const container = section.querySelector('#templatesContainer');
     if (!templates || templates.length === 0) {
-      container.innerHTML = '<p class="gw-empty-state">No templates available. Loading or none found.</p>';
+      container.innerHTML = '<p class="gw-empty-state">No templates available right now.</p>';
       return;
     }
 
@@ -905,6 +1217,7 @@ export default function GenerateWebsite() {
         const templateId = parseInt(btn.dataset.templateId);
         selectedTemplate = selectedTemplate === templateId ? null : templateId;
         renderTemplates();
+        applyTypographyPreview();
       });
     });
   };
@@ -921,32 +1234,79 @@ export default function GenerateWebsite() {
     if (!preview) return;
 
     const typographyPayload = getTypographyPayload();
-    const palettePreview = section.querySelector('#combinedPalettePreview');
-    const safePalette = (formData.palette || defaultPalettes[0].colors).slice(0, 5);
+    const safePalette = [...(formData.palette || defaultPalettes[0].colors)].slice(0, 5);
+    while (safePalette.length < 5) {
+      safePalette.push('#ffffff');
+    }
     const [primary, accent, support, depth, surface] = safePalette;
-    const border = normalizeHex(support);
-    const backgroundColor = normalizeHex(surface);
-    const cardColor = normalizeHex(support);
-    const textColor = normalizeHex(depth);
-    const buttonColor = normalizeHex(primary);
+    const border = normalizeHex(support, '#dbe2ea');
+    const backgroundColor = normalizeHex(surface, '#ffffff');
+    const textColor = normalizeHex(depth, '#111827');
+    const buttonColor = normalizeHex(primary, '#3b82f6');
     const hoverColor = shiftHexColor(buttonColor, getBrightness(buttonColor) > 150 ? -24 : 24);
-    const secondaryButtonColor = normalizeHex(accent);
+    const secondaryButtonColor = normalizeHex(accent, '#111827');
+    const selectedTemplateData = getSelectedTemplateData();
+    const cardColor = normalizeHex(support, '#dbe2ea');
+    const palettePreview = null;
 
     applyTypographyConfig(typographyPayload, { root: preview });
     preview.style.background = `linear-gradient(180deg, ${backgroundColor} 0%, ${shiftHexColor(backgroundColor, -10)} 100%)`;
     preview.style.color = textColor;
-    preview.style.setProperty('--preview-accent', formData.accentColor);
+    preview.style.setProperty('--preview-accent', secondaryButtonColor);
     preview.style.setProperty('--preview-primary', textColor);
     preview.style.setProperty('--preview-surface', backgroundColor);
     preview.style.setProperty('--preview-border', border);
     preview.style.setProperty('--preview-muted', buttonColor);
-    preview.style.setProperty('--preview-text-on-accent', getContrastColor(formData.accentColor));
+    preview.style.setProperty('--preview-text-on-accent', getContrastColor(secondaryButtonColor));
     preview.style.setProperty('--preview-button', buttonColor);
     preview.style.setProperty('--preview-button-text', getContrastColor(buttonColor));
     preview.style.setProperty('--preview-button-hover', hoverColor);
     preview.style.setProperty('--preview-button-hover-text', getContrastColor(hoverColor));
     preview.style.setProperty('--preview-secondary-button', secondaryButtonColor);
     preview.style.setProperty('--preview-secondary-button-text', getContrastColor(secondaryButtonColor));
+
+    const previewTemplateName = section.querySelector('#previewTemplateName');
+    const previewStatusChip = section.querySelector('#previewStatusChip');
+    const previewSiteMeta = section.querySelector('#previewSiteMeta');
+    const previewTypographyMeta = section.querySelector('#previewTypographyMeta');
+    const previewPaletteMeta = section.querySelector('#previewPaletteMeta');
+    const previewPaletteSwatches = section.querySelector('#previewPaletteSwatches');
+    const siteLabel = String(formData.siteName || '').trim() || 'Preview Community';
+    const metaParts = [];
+
+    if (String(formData.domain || '').trim()) {
+      metaParts.push(String(formData.domain || '').trim());
+    }
+    metaParts.push(`${members.length} member${members.length === 1 ? '' : 's'}`);
+
+    if (previewTemplateName) {
+      previewTemplateName.textContent = selectedTemplateData
+        ? `${selectedTemplateData.name} • Homepage preview pipeline`
+        : 'Select a template to preview the ecommerce homepage';
+    }
+    if (previewStatusChip) {
+      previewStatusChip.textContent = selectedTemplateData
+        ? 'Layout preview -> progressive render -> full preview'
+        : 'Choose a template first';
+    }
+    if (previewSiteMeta) {
+      previewSiteMeta.textContent = `${siteLabel} • ${metaParts.join(' • ')}`;
+    }
+    if (previewTypographyMeta) {
+      previewTypographyMeta.textContent = `${typographyPayload.heading?.name || 'Heading'} / ${typographyPayload.body?.name || 'Body'} • ${typographyPayload.font_size_base}`;
+      previewTypographyMeta.style.fontFamily = typographyPayload.heading?.name ? `'${typographyPayload.heading.name}', sans-serif` : 'inherit';
+    }
+    if (previewPaletteMeta) {
+      previewPaletteMeta.textContent = 'Template layout -> sections -> final homepage preview';
+    }
+    if (previewPaletteSwatches) {
+      previewPaletteSwatches.innerHTML = safePalette
+        .map((color) => `<span class="gw-admin-preview-swatch" style="background:${normalizeHex(color)}"></span>`)
+        .join('');
+    }
+
+    queueTemplatePreviewSync();
+    return;
 
     if (palettePreview) {
       palettePreview.innerHTML = `
@@ -1224,6 +1584,19 @@ export default function GenerateWebsite() {
     .map((color) => `<span style="background:${normalizeHex(color)}"></span>`)
     .join('');
 
+  const formatMemberBirthdate = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return 'No birthdate';
+    const parsed = new Date(`${raw}T00:00:00Z`);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+    }).format(parsed);
+  };
+
   const openPaletteModal = (palette, paletteId = 'custom') => {
     paletteEditorTargetId = paletteId;
     paletteDraft = [...(Array.isArray(palette) ? palette : formData.palette || defaultPalettes[0].colors)];
@@ -1335,8 +1708,8 @@ export default function GenerateWebsite() {
         </div>
         <div class="gw-member-info">
           <h4>${member.name || 'Unnamed'}</h4>
-          <p class="gw-member-role">${member.role || 'No role'}</p>
-          <p class="gw-member-description">${member.description || 'No description'}</p>
+          <p class="gw-member-role">Birthdate</p>
+          <p class="gw-member-description">${formatMemberBirthdate(member.birthdate)}</p>
         </div>
         <button class="gw-member-remove" type="button" data-idx="${idx}">Remove</button>
       </div>
@@ -1346,6 +1719,7 @@ export default function GenerateWebsite() {
       btn.addEventListener('click', () => {
         members.splice(parseInt(btn.dataset.idx), 1);
         renderMembers();
+        applyTypographyPreview();
       });
     });
   };
@@ -1353,8 +1727,7 @@ export default function GenerateWebsite() {
   const addMember = () => {
     const member = {
       name: '',
-      role: '',
-      description: '',
+      birthdate: '',
       image: null
     };
     members.push(member);
@@ -1382,12 +1755,8 @@ export default function GenerateWebsite() {
                 <input type="text" class="gw-member-name" value="${member.name}" placeholder="Enter member name" required>
               </div>
               <div class="gw-form-group">
-                <label>Role</label>
-                <input type="text" class="gw-member-role" value="${member.role}" placeholder="e.g., Manager, Designer" required>
-              </div>
-              <div class="gw-form-group">
-                <label>Description</label>
-                <textarea class="gw-member-description" placeholder="Enter member description" rows="4">${member.description}</textarea>
+                <label>Birthdate</label>
+                <input type="date" class="gw-member-birthdate" value="${member.birthdate || ''}" required>
               </div>
               <div class="gw-form-group">
                 <label>Member Image</label>
@@ -1438,18 +1807,17 @@ export default function GenerateWebsite() {
 
     modal.querySelector('.gw-btn-save-member').addEventListener('click', () => {
       const name = modal.querySelector('.gw-member-name').value?.trim();
-      const role = modal.querySelector('.gw-member-role').value?.trim();
-      const description = modal.querySelector('.gw-member-description').value?.trim();
+      const birthdate = modal.querySelector('.gw-member-birthdate').value?.trim();
 
-      if (!name || !role) {
-        alert('Member name and role are required');
+      if (!name || !birthdate) {
+        alert('Member name and birthdate are required');
         return;
       }
 
       member.name = name;
-      member.role = role;
-      member.description = description;
+      member.birthdate = birthdate;
       renderMembers();
+      applyTypographyPreview();
       modal.remove();
     });
   };
@@ -1457,18 +1825,22 @@ export default function GenerateWebsite() {
   const setupFormListeners = () => {
     section.querySelector('#siteName')?.addEventListener('input', (e) => {
       formData.siteName = e.target.value;
+      applyTypographyPreview();
     });
 
     section.querySelector('#domain')?.addEventListener('input', (e) => {
       formData.domain = e.target.value;
+      applyTypographyPreview();
     });
 
-    section.querySelector('#shortBio')?.addEventListener('change', (e) => {
+    section.querySelector('#shortBio')?.addEventListener('input', (e) => {
       formData.shortBio = e.target.value;
+      applyTypographyPreview();
     });
 
-    section.querySelector('#description')?.addEventListener('change', (e) => {
+    section.querySelector('#description')?.addEventListener('input', (e) => {
       formData.description = e.target.value;
+      applyTypographyPreview();
     });
 
     section.querySelector('#buttonStyle')?.addEventListener('change', (e) => {
@@ -1664,6 +2036,12 @@ export default function GenerateWebsite() {
         leadImageInput.click();
       }
     };
+    const triggerBannerGalleryPicker = () => {
+      const bannerGalleryInput = section.querySelector('#bannerGallery');
+      if (bannerGalleryInput) {
+        bannerGalleryInput.click();
+      }
+    };
 
     section.querySelector('#logoBrowseBtn')?.addEventListener('click', () => {
       triggerLogoPicker();
@@ -1671,6 +2049,13 @@ export default function GenerateWebsite() {
 
     section.querySelector('#leadImageBrowseBtn')?.addEventListener('click', () => {
       triggerLeadImagePicker();
+    });
+
+    section.querySelector('#bannerGalleryBrowseBtn')?.addEventListener('click', () => {
+      triggerBannerGalleryPicker();
+    });
+    section.querySelector('#bannerGalleryClearBtn')?.addEventListener('click', () => {
+      syncBannerGalleryFiles([]);
     });
 
     section.querySelector('#groupPhotoBrowseBtn')?.addEventListener('click', () => {
@@ -1689,7 +2074,9 @@ export default function GenerateWebsite() {
           return;
         }
         formData.logo = e.target.files[0];
+        setPreviewMediaFile('logo', formData.logo);
         updateFileInput(e.target);
+        applyTypographyPreview();
       }
     });
 
@@ -1702,7 +2089,9 @@ export default function GenerateWebsite() {
           return;
         }
         formData.leadImageFile = e.target.files[0];
+        setPreviewMediaFile('leadImage', formData.leadImageFile);
         updateFileInput(e.target);
+        applyTypographyPreview();
       }
     });
 
@@ -1715,36 +2104,80 @@ export default function GenerateWebsite() {
           return;
         }
         formData.groupPhoto = e.target.files[0];
+        setPreviewMediaFile('groupPhoto', formData.groupPhoto);
         updateFileInput(e.target);
+        applyTypographyPreview();
       }
     });
 
-    section.querySelector('#bannerLink')?.addEventListener('input', (e) => {
-      formData.bannerLink = e.target.value.trim();
+    section.querySelector('#bannerGallery')?.addEventListener('change', (e) => {
+      const files = Array.from(e.target.files || []);
+      if (!files.length) {
+        return;
+      }
+
+      const maxSize = 5 * 1024 * 1024;
+      const nonImageFile = files.find((file) => !String(file.type || '').startsWith('image/'));
+      if (nonImageFile) {
+        alert('Only image files can be uploaded to the gallery.');
+        e.target.value = '';
+        return;
+      }
+
+      const oversizedFile = files.find((file) => file.size > maxSize);
+      if (oversizedFile) {
+        alert('Each gallery image must be less than 5MB');
+        e.target.value = '';
+        return;
+      }
+
+      appendBannerGalleryFiles(files, e.target);
+    });
+
+    section.querySelector('#bannerGalleryBoard')?.addEventListener('click', (e) => {
+      const removeButton = e.target.closest('[data-gallery-action="remove"]');
+      if (removeButton) {
+        const index = Number(removeButton.dataset.index);
+        if (!Number.isNaN(index)) {
+          removeBannerGalleryFile(index);
+        }
+        return;
+      }
+
+      const addButton = e.target.closest('[data-gallery-action="pick"]');
+      if (addButton) {
+        triggerBannerGalleryPicker();
+      }
     });
 
     section.querySelector('#instagramUrl')?.addEventListener('input', (e) => {
       formData.instagramUrl = e.target.value.trim();
+      applyTypographyPreview();
     });
 
     section.querySelector('#facebookUrl')?.addEventListener('input', (e) => {
       formData.facebookUrl = e.target.value.trim();
+      applyTypographyPreview();
     });
 
     section.querySelector('#tiktokUrl')?.addEventListener('input', (e) => {
       formData.tiktokUrl = e.target.value.trim();
+      applyTypographyPreview();
     });
 
     section.querySelector('#spotifyUrl')?.addEventListener('input', (e) => {
       formData.spotifyUrl = e.target.value.trim();
+      applyTypographyPreview();
     });
 
     section.querySelector('#xUrl')?.addEventListener('input', (e) => {
       formData.xUrl = e.target.value.trim();
+      applyTypographyPreview();
     });
 
     section.querySelector('#youtubeUrl')?.addEventListener('input', (e) => {
       formData.youtubeUrl = e.target.value.trim();
+      applyTypographyPreview();
     });
 
     section.querySelector('#addMemberBtn')?.addEventListener('click', () => {
@@ -1756,7 +2189,18 @@ export default function GenerateWebsite() {
     const inline = input.closest('.gw-upload-inline') || input.parentElement;
     const label = inline?.querySelector('.gw-upload-file-name, .gw-file-label');
     if (!label) return;
+    if (input.id === 'bannerGallery') {
+      const safeCount = Array.isArray(formData.bannerGallery) ? formData.bannerGallery.length : 0;
+      label.textContent = safeCount > 0
+        ? `${safeCount} gallery image${safeCount === 1 ? '' : 's'} ready`
+        : 'No gallery images selected';
+      return;
+    }
     if (input.files.length > 0) {
+      if (input.multiple && input.files.length > 1) {
+        label.textContent = `${input.files.length} images selected`;
+        return;
+      }
       label.textContent = input.files[0].name;
       return;
     }
@@ -1786,9 +2230,6 @@ export default function GenerateWebsite() {
     }
     if (!formData.domain?.trim()) {
       errors.push('Domain is required');
-    }
-    if (formData.bannerLink && !/^https?:\/\/(www\.)?(youtube\.com|youtu\.be)\//i.test(formData.bannerLink)) {
-      errors.push('Banner link must be a valid YouTube URL');
     }
     
     return errors;
@@ -1839,6 +2280,7 @@ export default function GenerateWebsite() {
     });
   };
 
+  clearTemplatePreviewDraft();
   renderTemplates();
   // load templates from backend
   fetchTemplates();
@@ -1855,6 +2297,7 @@ export default function GenerateWebsite() {
   setupBackButton();
   setupPaletteModal();
   syncLegacyFontFields();
+  renderBannerGalleryBoard();
   applyTypographyPreview();
 
   return section;
