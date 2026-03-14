@@ -79,6 +79,25 @@ class SettingsModel {
     }
   }
 
+  resolvePreferredCommunityId(options = {}) {
+    const preferredCommunityId = Number(options?.preferredCommunityId || 0);
+    return Number.isFinite(preferredCommunityId) && preferredCommunityId > 0
+      ? preferredCommunityId
+      : null;
+  }
+
+  async resolveScopedCommunityId(siteSlug = '', options = {}) {
+    const scoped = this.normalizeSiteSlug(siteSlug);
+    if (!scoped || scoped === this.globalSlug) return null;
+
+    return (
+      this.resolvePreferredCommunityId(options) ||
+      await this.resolveCommunityIdByTable(scoped) ||
+      Number((await resolveCommunityContext(scoped))?.community_id || 0) ||
+      null
+    );
+  }
+
   async ensureProvinceRegionTable(db) {
     await db.query(`
       CREATE TABLE IF NOT EXISTS ${this.tableName} (
@@ -149,6 +168,18 @@ class SettingsModel {
     throw new Error(`Site DB not resolved for "${siteSlug}"`);
   }
 
+  async resolveWritableEventDb(siteSlug) {
+    try {
+      return await this.resolveStrictSiteDb(siteSlug);
+    } catch (strictError) {
+      try {
+        return await connect();
+      } catch (_) {
+        throw strictError;
+      }
+    }
+  }
+
   async readEventRows(db, scopedCommunityId = null, options = {}) {
     const includeEmpty = options?.includeEmpty === true;
     await this.ensureEventColumns(db);
@@ -197,12 +228,15 @@ class SettingsModel {
   }
 
   normalizePosterPayload(rawPoster = {}, index = 0) {
-    const rawId = String(rawPoster?.id ?? rawPoster?.event_id ?? '').trim();
-    const matchedId = rawId.match(/(\d+)/);
-    const event_id = matchedId ? Number(matchedId[1]) : index + 1;
+    const rawEventId = Number(rawPoster?.event_id || 0);
+    const rawSlotId = String(rawPoster?.id ?? '').trim();
+    const matchedSlotId = rawSlotId.match(/(\d+)/);
+    const slot_id = matchedSlotId ? Number(matchedSlotId[1]) : index + 1;
+    const event_id = Number.isFinite(rawEventId) && rawEventId > 0 ? rawEventId : null;
 
     return {
-      event_id: Number.isFinite(event_id) && event_id > 0 ? event_id : index + 1,
+      event_id,
+      slot_id: Number.isFinite(slot_id) && slot_id > 0 ? slot_id : index + 1,
       title: String(rawPoster?.title || `Event ${index + 1}`).trim() || `Event ${index + 1}`,
       ticket_link: String(rawPoster?.href ?? rawPoster?.ticket_link ?? '').trim(),
       image_url: String(rawPoster?.image ?? rawPoster?.image_url ?? '').trim(),
@@ -311,10 +345,7 @@ class SettingsModel {
   async getEventPosters(communityType, options = {}) {
     const scoped = this.normalizeSiteSlug(communityType);
     if (!scoped || scoped === this.globalSlug) return [];
-    const scopedCommunityId =
-      await this.resolveCommunityIdByTable(scoped) ||
-      Number((await resolveCommunityContext(scoped))?.community_id || 0) ||
-      null;
+    const scopedCommunityId = await this.resolveScopedCommunityId(scoped, options);
     if (!scopedCommunityId) {
       return [];
     }
@@ -386,25 +417,23 @@ class SettingsModel {
     }));
   }
 
-  async saveEventPosters(communityType, posters = []) {
+  async saveEventPosters(communityType, posters = [], options = {}) {
     const scoped = this.normalizeSiteSlug(communityType);
     if (!scoped || scoped === this.globalSlug) {
       throw new Error('site/community is required');
     }
-    const scopedCommunityId =
-      await this.resolveCommunityIdByTable(scoped) ||
-      Number((await resolveCommunityContext(scoped))?.community_id || 0) ||
-      null;
+    const scopedCommunityId = await this.resolveScopedCommunityId(scoped, options);
     if (!scopedCommunityId) {
       throw new Error('site/community scope is required');
     }
 
-    const db = await this.resolveStrictSiteDb(scoped);
+    const db = await this.resolveWritableEventDb(scoped);
     await this.ensureEventColumns(db);
     const columns = await this.getTableColumns(db, 'events');
     const hasGroupCommunityId = Boolean(columns.group_community_id);
     const hasCommunityId = Boolean(columns.community_id);
     const scopeColumn = hasGroupCommunityId ? 'group_community_id' : (hasCommunityId ? 'community_id' : null);
+    const existingRows = await this.readEventRows(db, scopedCommunityId, { includeEmpty: true });
 
     const normalized = (Array.isArray(posters) ? posters : [])
       .map((item, index) => this.normalizePosterPayload(item, index))
@@ -412,6 +441,8 @@ class SettingsModel {
 
     for (let index = 0; index < normalized.length; index += 1) {
       const poster = normalized[index];
+      const fallbackRow = existingRows[index] || null;
+      const resolvedEventId = poster.event_id || Number(fallbackRow?.event_id || 0) || null;
       const updateParams = [
         poster.ticket_link,
         poster.image_url || null,
@@ -424,18 +455,19 @@ class SettingsModel {
         updateSql += `, event_name = COALESCE(NULLIF(event_name, ''), ?)`;
         updateParams.push(poster.title);
       }
-      updateSql += ` WHERE event_id = ?`;
-      updateParams.push(poster.event_id);
-      if (scopeColumn && scopedCommunityId) {
-        updateSql += ` AND COALESCE(${scopeColumn}, 0) = ?`;
-        updateParams.push(scopedCommunityId);
+      if (resolvedEventId) {
+        updateSql += ` WHERE event_id = ?`;
+        updateParams.push(resolvedEventId);
+        if (scopeColumn && scopedCommunityId) {
+          updateSql += ` AND COALESCE(${scopeColumn}, 0) = ?`;
+          updateParams.push(scopedCommunityId);
+        }
+
+        const [updated] = await db.query(updateSql, updateParams);
+        if (Number(updated?.affectedRows || 0) > 0) continue;
       }
-
-      const [updated] = await db.query(updateSql, updateParams);
-      if (Number(updated?.affectedRows || 0) > 0) continue;
-
-      const insertCols = ['event_id', 'ticket_link', 'image_url'];
-      const insertVals = [poster.event_id, poster.ticket_link, poster.image_url || null];
+      const insertCols = ['ticket_link', 'image_url'];
+      const insertVals = [poster.ticket_link, poster.image_url || null];
 
       if (columns.event_name) {
         insertCols.push('event_name');
@@ -459,6 +491,11 @@ class SettingsModel {
       } else if (columns.community_id) {
         insertCols.push('community_id');
         insertVals.push(scopedCommunityId);
+      }
+
+      if (resolvedEventId && !scopeColumn) {
+        insertCols.unshift('event_id');
+        insertVals.unshift(resolvedEventId);
       }
 
       const placeholders = insertCols.map(() => '?').join(', ');
