@@ -7,6 +7,7 @@ import {
   buildEcommerceLoginUrl,
   fetchCartItems,
   removeCartItem,
+  setEcommercePostLoginRedirect,
   updateCartItemQuantity,
 } from "@/lib/ecommerceApi";
 import { toast } from "@/hooks/use-toast";
@@ -136,7 +137,8 @@ const Cart = () => {
               <p className="text-muted-foreground font-body">{error}</p>
               {loginRequired ? (
                 <a
-                  href={buildEcommerceLoginUrl(undefined, "/cart")}
+                  href={buildEcommerceLoginUrl()}
+                  onClick={() => setEcommercePostLoginRedirect("/cart")}
                   className="inline-block mt-4 rounded-full bg-primary px-5 py-2.5 text-primary-foreground text-sm font-body font-semibold hover:opacity-90 transition"
                 >
                   Sign in to view cart

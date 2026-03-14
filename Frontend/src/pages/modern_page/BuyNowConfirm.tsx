@@ -7,6 +7,7 @@ import {
   buildEcommerceLoginUrl,
   fetchProductWithVariants,
   isEcommerceLoggedIn,
+  setEcommercePostLoginRedirect,
   toExternalUrl,
 } from "@/lib/ecommerceApi";
 import { toast } from "@/hooks/use-toast";
@@ -107,7 +108,8 @@ const BuyNowConfirm = () => {
         description: "Please sign in first to continue.",
       });
       window.setTimeout(() => {
-        window.location.href = buildEcommerceLoginUrl(undefined, `/shop/product/${productId}`);
+        setEcommercePostLoginRedirect(`/shop/product/${productId}`);
+        window.location.href = buildEcommerceLoginUrl();
       }, 450);
       return;
     }
@@ -153,7 +155,8 @@ const BuyNowConfirm = () => {
           description: "Please sign in first to continue.",
         });
         window.setTimeout(() => {
-          window.location.href = buildEcommerceLoginUrl(undefined, `/shop/product/${productId}`);
+          setEcommercePostLoginRedirect(`/shop/product/${productId}`);
+          window.location.href = buildEcommerceLoginUrl();
         }, 450);
         return;
       }

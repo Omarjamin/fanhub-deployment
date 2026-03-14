@@ -12,20 +12,25 @@ class SettingsController {
   }
 
   resolveCommunity(req, res) {
-    const numericCommunityId = Number(
-      req.query?.community_id ?? req.body?.community_id ?? 0,
-    );
-    if (Number.isFinite(numericCommunityId) && numericCommunityId > 0) {
-      return String(numericCommunityId);
-    }
     const raw =
       req.body?.community ||
       req.query?.community ||
       req.headers['x-site-slug'] ||
       req.headers['x-community-type'] ||
       res.locals?.siteSlug ||
-      'global';
-    return String(raw || '').trim().toLowerCase();
+      '';
+    const normalizedRaw = String(raw || '').trim().toLowerCase();
+    if (normalizedRaw && normalizedRaw !== 'global') {
+      return normalizedRaw;
+    }
+
+    const numericCommunityId = Number(
+      req.query?.community_id ?? req.body?.community_id ?? 0,
+    );
+    if (Number.isFinite(numericCommunityId) && numericCommunityId > 0) {
+      return String(numericCommunityId);
+    }
+    return 'global';
   }
 
   resolveShippingScope() {
@@ -100,7 +105,7 @@ class SettingsController {
     try {
       const community = this.resolveCommunity(req, res);
       debugLog('getEventPosters:start', { community });
-      const data = await this.settingsModel.getEventPosters(community);
+      const data = await this.settingsModel.getEventPosters(community, { includeEmpty: true });
       debugLog('getEventPosters:done', { community, count: Array.isArray(data) ? data.length : 0 });
       return res.status(200).json({
         success: true,

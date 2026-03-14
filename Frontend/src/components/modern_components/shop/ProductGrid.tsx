@@ -1,7 +1,12 @@
 import { motion } from "framer-motion";
 import { ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { addProductToCart, buildEcommerceLoginUrl, isEcommerceLoggedIn } from "@/lib/ecommerceApi";
+import {
+  addProductToCart,
+  buildEcommerceLoginUrl,
+  isEcommerceLoggedIn,
+  setEcommercePostLoginRedirect,
+} from "@/lib/ecommerceApi";
 import { toast } from "@/hooks/use-toast";
 
 type Product = {
@@ -35,7 +40,8 @@ const ProductGrid = ({ products }: ProductGridProps) => {
         description: "Please sign in first to add items to cart.",
       });
       window.setTimeout(() => {
-        window.location.href = buildEcommerceLoginUrl(undefined, "/shop");
+        setEcommercePostLoginRedirect("/shop");
+        window.location.href = buildEcommerceLoginUrl();
       }, 450);
       return;
     }
@@ -57,7 +63,8 @@ const ProductGrid = ({ products }: ProductGridProps) => {
           description: "Please sign in to continue.",
         });
         window.setTimeout(() => {
-          window.location.href = buildEcommerceLoginUrl(undefined, "/shop");
+          setEcommercePostLoginRedirect("/shop");
+          window.location.href = buildEcommerceLoginUrl();
         }, 450);
         return;
       }
