@@ -491,11 +491,10 @@ export default function Community() {
     container.innerHTML = editingMembers.map((member, index) => `
       <div class="cm-member-row" data-member-index="${index}">
         <input type="text" class="cm-member-name" placeholder="Name" value="${String(member?.name || '').replace(/"/g, '&quot;')}">
-        <input type="text" class="cm-member-role" placeholder="Role" value="${String(member?.role || '').replace(/"/g, '&quot;')}">
+        <input type="date" class="cm-member-birthdate" value="${String(member?.birthdate || '').replace(/"/g, '&quot;')}">
         <input type="file" class="cm-member-image-file" accept="image/*">
         <small class="cm-member-image-hint">${member?.image_profile || member?.image ? 'Image selected' : 'No image selected'}</small>
         ${member?.image_profile || member?.image ? `<img src="${String(member?.image_profile || member?.image).replace(/"/g, '&quot;')}" alt="member preview" class="cm-member-image-preview">` : ''}
-        <textarea class="cm-member-description" placeholder="Description" rows="2">${String(member?.description || '')}</textarea>
         <button type="button" class="cm-action-btn cm-btn-deactivate cm-remove-member" data-remove-member="${index}">Remove Member</button>
       </div>
     `).join('');
@@ -508,8 +507,7 @@ export default function Community() {
     editingMembers = Array.from(memberRows).map((row, idx) => ({
       ...editingMembers[idx],
       name: String(row.querySelector('.cm-member-name')?.value || '').trim(),
-      role: String(row.querySelector('.cm-member-role')?.value || '').trim(),
-      description: String(row.querySelector('.cm-member-description')?.value || '').trim(),
+      birthdate: String(row.querySelector('.cm-member-birthdate')?.value || '').trim(),
       image_profile: String(editingMembers[idx]?.image_profile || editingMembers[idx]?.image || '').trim(),
     }));
   }
@@ -795,12 +793,11 @@ export default function Community() {
     const memberRows = section.querySelectorAll('.cm-member-row');
     editingMembers = Array.from(memberRows).map((row, idx) => ({
       name: String(row.querySelector('.cm-member-name')?.value || '').trim(),
-      role: String(row.querySelector('.cm-member-role')?.value || '').trim(),
-      description: String(row.querySelector('.cm-member-description')?.value || '').trim(),
+      birthdate: String(row.querySelector('.cm-member-birthdate')?.value || '').trim(),
       image_profile: sanitizeMemberImage(
         String(editingMembers[idx]?.image_profile || editingMembers[idx]?.image || '').trim(),
       ),
-    })).filter((m) => m.name && m.role);
+    })).filter((m) => m.name && m.birthdate);
 
     try {
       await updateSite(editingId, {
@@ -929,7 +926,7 @@ export default function Community() {
 
       if (target.id === 'addMemberBtn') {
         syncMembersFromEditor();
-        editingMembers.push({ name: '', role: '', description: '', image_profile: '' });
+        editingMembers.push({ name: '', birthdate: '', image_profile: '' });
         renderMembersEditor();
         return;
       }

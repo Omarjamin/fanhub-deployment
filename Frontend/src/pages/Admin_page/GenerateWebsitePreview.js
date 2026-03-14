@@ -18,10 +18,10 @@ import {
 } from "../../lib/template-preview.js";
 
 const DEFAULT_MEMBERS = [
-  { name: "Member One", role: "Lead Performer", description: "Preview member content." },
-  { name: "Member Two", role: "Main Vocal", description: "Used for card spacing and image layout." },
-  { name: "Member Three", role: "Main Dancer", description: "Shows type hierarchy and details." },
-  { name: "Member Four", role: "Rapper", description: "Sample content for homepage preview." },
+  { name: "Member One", birthdate: "2000-01-15" },
+  { name: "Member Two", birthdate: "2001-03-22" },
+  { name: "Member Three", birthdate: "2002-06-09" },
+  { name: "Member Four", birthdate: "2003-11-30" },
 ];
 
 const DEFAULT_ALBUMS = [
@@ -157,12 +157,26 @@ function previewImage(label, payload, width = 1200, height = 800, subtitle = "")
   return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
 }
 
+function formatBirthdate(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return "";
+  const parsed = /^\d{4}-\d{2}-\d{2}$/.test(raw)
+    ? new Date(`${raw}T00:00:00Z`)
+    : new Date(raw);
+  if (Number.isNaN(parsed.getTime())) return raw;
+  return new Intl.DateTimeFormat("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC",
+  }).format(parsed);
+}
+
 function resolveMembers(payload) {
   const rows = Array.isArray(payload?.siteData?.members) && payload.siteData.members.length ? payload.siteData.members : DEFAULT_MEMBERS;
   return rows.slice(0, 4).map((member, index) => ({
     name: String(member?.name || `Member ${index + 1}`).trim() || `Member ${index + 1}`,
-    role: String(member?.role || "Performer").trim() || "Performer",
-    description: String(member?.description || "Generated preview content for the homepage.").trim() || "Generated preview content for the homepage.",
+    birthdate: formatBirthdate(member?.birthdate) || `January ${index + 10}, 200${index}`,
     image: String(member?.image || member?.image_profile || "").trim() || previewImage(String(member?.name || `Member ${index + 1}`), payload, 860, 1080, "Member Card"),
   }));
 }
@@ -240,7 +254,7 @@ function renderBiniAbout(payload) {
   const members = resolveMembers(payload);
   const groupPhoto = String(payload?.siteData?.group_photo || payload?.siteData?.lead_image || "").trim() || previewImage(siteName(payload), payload, 980, 1180, "Group Photo");
   const description = String(payload?.siteData?.description || payload?.siteData?.short_bio || "").trim() || "This generated preview shows how the About section, stacked gallery, member details, and navigation list will look after the site is generated.";
-  return `<section id="about" class="about-section"><div class="about-container"><div class="about-column about-image-column"><div class="carousel-container"><div class="image-stack"><img src="${members[1]?.image || groupPhoto}" alt="Member photo" class="carousel-image back-2"><img src="${members[0]?.image || groupPhoto}" alt="Member photo" class="carousel-image back-1"><img src="${groupPhoto}" alt="Group photo" class="carousel-image main"></div><div class="carousel-controls"><button class="carousel-arrow" type="button">&#8249;</button><div class="pagination-indicator">1 / ${members.length + 1}</div><button class="carousel-arrow" type="button">&#8250;</button></div></div></div><div class="about-column about-text-column"><div class="info-container"><div class="group-info"><h2 class="about-title">About ${escapeHtml(siteName(payload))}</h2><div class="about-content"><p class="about-description">${escapeHtml(description)}</p></div></div><div class="member-info-container"><div class="member-title"><span class="bini-label">Featured Member</span><span class="member-name-display">${escapeHtml(members[0].name)}</span></div><div class="member-details"><div class="detail-row"><span class="detail-label">Role</span><span class="detail-value">${escapeHtml(members[0].role)}</span></div><div class="detail-row"><span class="detail-label">Description</span><span class="detail-value">${escapeHtml(members[0].description)}</span></div></div></div></div></div><div class="about-column about-members-column"><div class="members-list"><button class="member-name active" type="button">ALL</button>${members.map((member) => `<button class="member-name" type="button">${escapeHtml(member.name)}</button>`).join("")}</div></div></div></section>`;
+  return `<section id="about" class="about-section"><div class="about-container"><div class="about-column about-image-column"><div class="carousel-container"><div class="image-stack"><img src="${members[1]?.image || groupPhoto}" alt="Member photo" class="carousel-image back-2"><img src="${members[0]?.image || groupPhoto}" alt="Member photo" class="carousel-image back-1"><img src="${groupPhoto}" alt="Group photo" class="carousel-image main"></div><div class="carousel-controls"><button class="carousel-arrow" type="button">&#8249;</button><div class="pagination-indicator">1 / ${members.length + 1}</div><button class="carousel-arrow" type="button">&#8250;</button></div></div></div><div class="about-column about-text-column"><div class="info-container"><div class="group-info"><h2 class="about-title">About ${escapeHtml(siteName(payload))}</h2><div class="about-content"><p class="about-description">${escapeHtml(description)}</p></div></div><div class="member-info-container"><div class="member-title"><span class="bini-label">Featured Member</span><span class="member-name-display">${escapeHtml(members[0].name)}</span></div><div class="member-details"><div class="detail-row"><span class="detail-label">Full Name</span><span class="detail-value">${escapeHtml(members[0].name)}</span></div><div class="detail-row"><span class="detail-label">Date of Birth</span><span class="detail-value">${escapeHtml(members[0].birthdate)}</span></div></div></div></div></div><div class="about-column about-members-column"><div class="members-list"><button class="member-name active" type="button">ALL</button>${members.map((member) => `<button class="member-name" type="button">${escapeHtml(member.name)}</button>`).join("")}</div></div></div></section>`;
 }
 
 function renderBiniMusic(payload) {
@@ -279,7 +293,7 @@ function renderModernAbout(payload) {
 }
 
 function renderModernMembers(payload) {
-  return `<section id="members" class="py-24 px-4 bg-card/40"><div class="container mx-auto"><h2 class="mb-4 text-4xl font-display text-gradient md:text-5xl lg:text-6xl">MEMBERS</h2><p class="text-muted-foreground font-body mb-12 max-w-2xl">Meet the members</p><div class="grid grid-cols-2 md:grid-cols-4 gap-6">${resolveMembers(payload).map((member) => `<div class="group cursor-pointer"><div class="relative aspect-[3/4] overflow-hidden rounded-2xl border border-border/50 bg-accent/25 p-3 md:p-4 preview-panel"><img src="${member.image}" alt="${escapeHtml(member.name)}" class="h-full w-full object-contain object-top"><div class="absolute bottom-0 left-0 right-0 p-4"><p class="text-sm text-primary font-body">${escapeHtml(member.role)}</p><p class="text-xs text-muted-foreground font-body mt-1 line-clamp-2">${escapeHtml(member.description)}</p></div></div><h3 class="mt-3 font-display text-xl text-foreground text-center">${escapeHtml(member.name)}</h3></div>`).join("")}</div></div></section>`;
+  return `<section id="members" class="py-24 px-4 bg-card/40"><div class="container mx-auto"><h2 class="mb-4 text-4xl font-display text-gradient md:text-5xl lg:text-6xl">MEMBERS</h2><p class="text-muted-foreground font-body mb-12 max-w-2xl">Meet the members</p><div class="grid grid-cols-2 md:grid-cols-4 gap-6">${resolveMembers(payload).map((member) => `<div class="group cursor-pointer"><div class="relative aspect-[3/4] overflow-hidden rounded-2xl border border-border/50 bg-accent/25 p-3 md:p-4 preview-panel"><img src="${member.image}" alt="${escapeHtml(member.name)}" class="h-full w-full object-contain object-top"><div class="absolute bottom-0 left-0 right-0 p-4"><p class="text-sm text-primary font-body">Date of Birth</p><p class="text-xs text-muted-foreground font-body mt-1 line-clamp-2">${escapeHtml(member.birthdate)}</p></div></div><h3 class="mt-3 font-display text-xl text-foreground text-center">${escapeHtml(member.name)}</h3></div>`).join("")}</div></div></section>`;
 }
 
 function renderModernMusic(payload) {

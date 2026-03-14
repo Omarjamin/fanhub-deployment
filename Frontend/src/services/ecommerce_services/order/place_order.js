@@ -1,5 +1,6 @@
 import { api } from '../api.js';
 import { authHeaders } from '../auth/auth.js';
+import { toSafeNumber } from '../../../lib/number-format.js';
 import {
   calculateCheckoutSummary,
   clearCheckoutDraft,
@@ -10,8 +11,7 @@ import {
 export async function placeOrder() {
   try {
     const toNumber = (value, fallback = 0) => {
-      const n = Number(value);
-      return Number.isFinite(n) ? n : fallback;
+      return toSafeNumber(value, fallback);
     };
 
     const draft = await fetchCheckoutDraft({ force: true });

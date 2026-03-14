@@ -7,12 +7,7 @@ import {
     resolveItemWeightGrams,
     setCheckoutDraftStep,
 } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
-
-const peso = '\u20B1';
-
-function formatPeso(value) {
-    return `${peso}${Number(value || 0).toFixed(2)}`;
-}
+import { formatPeso, toSafeNumber } from '../../../lib/number-format.js';
 
 function getCommunityTypeFromPath() {
     const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
@@ -37,7 +32,7 @@ function getReviewState() {
             ?? calculateCheckoutSummary(items, shippingFee).total_weight_grams,
         ) || 0,
     };
-    summary.total = Number(summary.subtotal || 0) + Number(summary.shipping_fee || 0);
+    summary.total = toSafeNumber(summary.subtotal, 0) + toSafeNumber(summary.shipping_fee, 0);
 
     return {
         draft,
@@ -166,7 +161,7 @@ function renderItems(items) {
                                     ${items.map((item) => {
                                         const productName = item.product_name || item.name || 'Unknown Product';
                                         const quantity = Number(item.quantity || item.qty || 1);
-                                        const price = parseFloat(item.display_price || item.price || 0);
+                                        const price = toSafeNumber(item.display_price || item.price, 0);
                                         const subtotal = price * quantity;
                                         return `
                                             <tr>

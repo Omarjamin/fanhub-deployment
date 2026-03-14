@@ -2,6 +2,7 @@ import Navigation from '../navigation.js';
 import Footer from '../footer.js';
 import { api } from '../../../services/ecommerce_services/config.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
+import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
 import '../../../styles/ecommerce_styles/order_history.css';
 
 function resolveItemWeightGrams(item) {
@@ -186,8 +187,7 @@ export default function OrderHistory(payload = null) {
   }
 
   function formatMoney(value) {
-    const amount = Number(value || 0);
-    return `PHP ${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return formatPHP(value);
   }
 
   // Fetch order history
@@ -247,7 +247,7 @@ export default function OrderHistory(payload = null) {
     
     // Fix totalSpent calculation - ensure numbers are properly summed
     const totalSpent = allOrders.reduce((sum, order) => {
-      const orderTotal = parseFloat(order.total || order.total_amount || 0);
+      const orderTotal = toSafeNumber(order.total || order.total_amount, 0);
       return sum + orderTotal;
     }, 0);
 

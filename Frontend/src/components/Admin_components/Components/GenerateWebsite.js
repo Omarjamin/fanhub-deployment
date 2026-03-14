@@ -646,8 +646,9 @@ export default function GenerateWebsite() {
       id: member?.id || `preview-member-${index + 1}`,
       name: String(member?.name || '').trim(),
       fullname: String(member?.name || '').trim(),
-      role: String(member?.role || '').trim(),
-      description: String(member?.description || '').trim(),
+      birthdate: String(member?.birthdate || '').trim(),
+      role: '',
+      description: '',
       image: member?.image || '',
       image_profile: member?.image || '',
     }));
@@ -1583,6 +1584,19 @@ export default function GenerateWebsite() {
     .map((color) => `<span style="background:${normalizeHex(color)}"></span>`)
     .join('');
 
+  const formatMemberBirthdate = (value) => {
+    const raw = String(value || '').trim();
+    if (!raw) return 'No birthdate';
+    const parsed = new Date(`${raw}T00:00:00Z`);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return new Intl.DateTimeFormat('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      timeZone: 'UTC',
+    }).format(parsed);
+  };
+
   const openPaletteModal = (palette, paletteId = 'custom') => {
     paletteEditorTargetId = paletteId;
     paletteDraft = [...(Array.isArray(palette) ? palette : formData.palette || defaultPalettes[0].colors)];
@@ -1694,8 +1708,8 @@ export default function GenerateWebsite() {
         </div>
         <div class="gw-member-info">
           <h4>${member.name || 'Unnamed'}</h4>
-          <p class="gw-member-role">${member.role || 'No role'}</p>
-          <p class="gw-member-description">${member.description || 'No description'}</p>
+          <p class="gw-member-role">Birthdate</p>
+          <p class="gw-member-description">${formatMemberBirthdate(member.birthdate)}</p>
         </div>
         <button class="gw-member-remove" type="button" data-idx="${idx}">Remove</button>
       </div>
@@ -1713,8 +1727,7 @@ export default function GenerateWebsite() {
   const addMember = () => {
     const member = {
       name: '',
-      role: '',
-      description: '',
+      birthdate: '',
       image: null
     };
     members.push(member);
@@ -1742,12 +1755,8 @@ export default function GenerateWebsite() {
                 <input type="text" class="gw-member-name" value="${member.name}" placeholder="Enter member name" required>
               </div>
               <div class="gw-form-group">
-                <label>Role</label>
-                <input type="text" class="gw-member-role" value="${member.role}" placeholder="e.g., Manager, Designer" required>
-              </div>
-              <div class="gw-form-group">
-                <label>Description</label>
-                <textarea class="gw-member-description" placeholder="Enter member description" rows="4">${member.description}</textarea>
+                <label>Birthdate</label>
+                <input type="date" class="gw-member-birthdate" value="${member.birthdate || ''}" required>
               </div>
               <div class="gw-form-group">
                 <label>Member Image</label>
@@ -1798,17 +1807,15 @@ export default function GenerateWebsite() {
 
     modal.querySelector('.gw-btn-save-member').addEventListener('click', () => {
       const name = modal.querySelector('.gw-member-name').value?.trim();
-      const role = modal.querySelector('.gw-member-role').value?.trim();
-      const description = modal.querySelector('.gw-member-description').value?.trim();
+      const birthdate = modal.querySelector('.gw-member-birthdate').value?.trim();
 
-      if (!name || !role) {
-        alert('Member name and role are required');
+      if (!name || !birthdate) {
+        alert('Member name and birthdate are required');
         return;
       }
 
       member.name = name;
-      member.role = role;
-      member.description = description;
+      member.birthdate = birthdate;
       renderMembers();
       applyTypographyPreview();
       modal.remove();

@@ -5,6 +5,7 @@ import { fetchSiteMembers } from "@/lib/ecommerceApi";
 type Member = {
   id: string;
   name: string;
+  birthdate: string;
   role: string;
   description: string;
   image: string;
@@ -93,9 +94,9 @@ const MembersSection = () => {
                   )}
                   <div className="absolute inset-0 bg-gradient-to-t from-background/92 via-background/18 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                   <div className="absolute bottom-0 left-0 right-0 translate-y-full p-4 transition-transform duration-300 group-hover:translate-y-0">
-                    <p className="text-sm text-primary font-body">{member.role}</p>
+                    <p className="text-sm text-primary font-body">Date of Birth</p>
                     <p className="text-xs text-muted-foreground font-body mt-1 line-clamp-2">
-                      {member.description}
+                      {member.birthdate || member.role || "No birthdate"}
                     </p>
                   </div>
                 </div>

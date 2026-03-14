@@ -1,6 +1,7 @@
 
 import { getCart, updateCartItem, removeFromCart } from '../cart/cart.js';
 import { calculateCheckoutSummary, saveCheckoutDraft } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
+import { formatPHP, toSafeInteger, toSafeNumber } from '../../../lib/number-format.js';
 import '../../../styles/ecommerce_styles/cart.css';
 
 const DEFAULT_API_V1 = 'https://fanhub-deployment-production.up.railway.app/v1';
@@ -8,7 +9,7 @@ const RESOLVED_API_V1 = String(import.meta.env.VITE_API_URL || DEFAULT_API_V1).t
 const API_ORIGIN = RESOLVED_API_V1 ? new URL(RESOLVED_API_V1).origin : '';
 
 function resolveItemWeightGrams(item) {
-    const explicitWeight = Number(item?.weight_g ?? item?.weightG ?? item?.weight_grams ?? item?.weight);
+    const explicitWeight = toSafeNumber(item?.weight_g ?? item?.weightG ?? item?.weight_grams ?? item?.weight);
     if (Number.isFinite(explicitWeight) && explicitWeight >= 0) return explicitWeight;
     return 0;
 }
@@ -63,7 +64,7 @@ async function loadCartItems(modal) {
 
         if (!cartItems || cartItems.length === 0) {
             cartItemsContainer.innerHTML = '<p>Your cart is empty.</p>';
-            selectedTotalElement.textContent = 'PHP 0.00';
+            selectedTotalElement.textContent = formatPHP(0);
             return;
         }
 
@@ -73,15 +74,15 @@ async function loadCartItems(modal) {
         const selectedItems = JSON.parse(sessionStorage.getItem('selectedCartItems') || '{}');
 
         cartItems.forEach(item => {
-            const price = parseFloat(item.price) || 0;
-            const itemTotal = price * item.quantity;
+            const price = toSafeNumber(item.price, 0);
             const productName =
                 item.product_name ||
                 item.name ||
                 item.title ||
                 `Product #${item.product_id || item.variant_id || ''}`;
             const variantLabel = item.variant_values || item.variant_name || item.size || 'Default';
-            const qty = parseInt(item.quantity, 10) || 1;
+            const qty = Math.max(1, toSafeInteger(item.quantity, 1));
+            const itemTotal = price * qty;
             const itemWeight = resolveItemWeightGrams(item);
             const showSubtotal = qty > 1;
             // Handle image URL
@@ -97,7 +98,7 @@ async function loadCartItems(modal) {
             itemElement.innerHTML = `
                 <div class="item-checkbox">
                     <input type="checkbox" class="item-select" data-variant-id="${item.variant_id}" 
-                           data-price="${price}" data-quantity="${item.quantity}" 
+                           data-price="${price}" data-quantity="${qty}" 
                            ${isSelected ? 'checked' : ''}>
                 </div>
                 <div class="item-info">
@@ -112,8 +113,8 @@ async function loadCartItems(modal) {
                                 <p class="item-weight">${itemWeight.toLocaleString()}g each</p>
                             </div>
                             <div class="item-pricing">
-                                <p class="item-price">PHP ${price.toFixed(2)}</p>
-                                ${showSubtotal ? `<div class="item-subtotal">PHP ${itemTotal.toFixed(2)}</div>` : ''}
+                                <p class="item-price">${formatPHP(price)}</p>
+                                ${showSubtotal ? `<div class="item-subtotal">${formatPHP(itemTotal)}</div>` : ''}
                             </div>
                         </div>
                         <div class="item-controls">
@@ -145,7 +146,7 @@ async function loadCartItems(modal) {
             btn.addEventListener('click', async (e) => {
                 const variantId = e.target.dataset.variantId;
                 const quantityElement = e.target.nextElementSibling;
-                const currentQty = parseInt(quantityElement.textContent);
+                const currentQty = toSafeInteger(quantityElement.textContent, 1);
 
                 if (currentQty > 1) {
                     const newQty = currentQty - 1;
@@ -164,7 +165,7 @@ async function loadCartItems(modal) {
             btn.addEventListener('click', async (e) => {
                 const variantId = e.target.dataset.variantId;
                 const quantityElement = e.target.previousElementSibling;
-                const currentQty = parseInt(quantityElement.textContent);
+                const currentQty = toSafeInteger(quantityElement.textContent, 1);
                 const newQty = currentQty + 1;
 
                 const result = await updateCartItem(variantId, newQty);
@@ -271,11 +272,11 @@ function updateSelections(modal) {
 function updateSelectedTotal(modal) {
     let selectedTotal = 0;
     modal.querySelectorAll('.item-select:checked').forEach(checkbox => {
-        const price = parseFloat(checkbox.dataset.price);
-        const quantity = parseInt(checkbox.dataset.quantity);
+        const price = toSafeNumber(checkbox.dataset.price, 0);
+        const quantity = Math.max(0, toSafeInteger(checkbox.dataset.quantity, 0));
         selectedTotal += price * quantity;
     });
     
     const selectedTotalElement = modal.querySelector('.selected-total');
-    selectedTotalElement.textContent = `PHP ${selectedTotal.toFixed(2)}`;
+    selectedTotalElement.textContent = formatPHP(selectedTotal);
 }

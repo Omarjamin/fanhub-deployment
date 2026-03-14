@@ -3,6 +3,7 @@ import ProductDetail from '../product/product_detail.js';
 import fetchProductDetails from '../../../services/ecommerce_services/shop/product_details.js';
 import { api } from '../../../services/ecommerce_services/api.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
+import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
 import '../../../styles/ecommerce_styles/Collection.css';
 
 export default function Collection(root, data = {}) {
@@ -131,12 +132,12 @@ export default function Collection(root, data = {}) {
 
     if (Array.isArray(product.variants) && product.variants.length > 0) {
       const variantPrices = product.variants
-        .map((variant) => parseFloat(variant?.price))
+        .map((variant) => toSafeNumber(variant?.price, 0))
         .filter((value) => Number.isFinite(value) && value > 0);
       if (variantPrices.length) return Math.min(...variantPrices);
     }
 
-    const directPrice = parseFloat(
+    const directPrice = toSafeNumber(
       product.display_price ||
       product.price ||
       product.product_price ||
@@ -241,7 +242,7 @@ export default function Collection(root, data = {}) {
       box.innerHTML = `
         <img src="${img}" class="product-img" alt="${product.name || ''}">
         <h4>${product.name || ''}</h4>
-        <p class="product-price">PHP ${price.toFixed(2)}</p>
+        <p class="product-price">${formatPHP(price)}</p>
       `;
 
       box.addEventListener('click', async () => {

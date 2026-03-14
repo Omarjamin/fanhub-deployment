@@ -5,13 +5,8 @@ import {
     getCheckoutDraftEventName,
     resolveItemWeightGrams,
 } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
-
-const peso = '\u20B1';
+import { formatPeso, toSafeNumber } from '../../../lib/number-format.js';
 const emDash = '\u2014';
-
-function formatPeso(value) {
-    return `${peso}${Number(value || 0).toFixed(2)}`;
-}
 
 function renderSummary(root) {
     const draft = getCachedCheckoutDraft();
@@ -21,7 +16,7 @@ function renderSummary(root) {
         draft.shipping_fee ?? draft.summary_data?.shipping_fee ?? 0,
     );
     const shippingFee = draft.shipping_fee;
-    const total = summary.subtotal + (shippingFee ?? 0);
+    const total = toSafeNumber(summary.subtotal, 0) + toSafeNumber(shippingFee, 0);
 
     root.innerHTML = `
         <section class="order-summary">
@@ -46,7 +41,7 @@ function renderSummary(root) {
                                         <span class="summary-product-name">${item.product_name} ${item.variant_name || ''}</span>
                                         <small class="summary-product-meta">Weight: ${(resolveItemWeightGrams(item) * Number(item.quantity || 0)).toLocaleString()}g total</small>
                                     </td>
-                                    <td class="summary-price-cell">${formatPeso(parseFloat(item.price) || 0)}</td>
+                                    <td class="summary-price-cell">${formatPeso(item.price)}</td>
                                     <td class="summary-qty-cell">${item.quantity}</td>
                                 </tr>
                             `).join('')}
