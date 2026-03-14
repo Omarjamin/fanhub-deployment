@@ -1,6 +1,7 @@
 import api from '../../../services/bini_services/api.js';
 import '../../../styles/Admin_styles/Community.css';
 import { fetchAdminSites, getAdminHeaders } from './admin-sites.js';
+import { normalizeBannerGallery } from '../../../lib/banner-gallery.js';
 import { showToast } from '../../../utils/toast.js';
 
 export default function Community() {
@@ -114,8 +115,9 @@ export default function Community() {
                 <input type="url" id="leadImage" placeholder="https://...">
               </div>
               <div class="form-group">
-                <label>YouTube Banner Link</label>
-                <input type="url" id="bannerLink" placeholder="https://www.youtube.com/watch?v=...">
+                <label>Gallery Images</label>
+                <textarea id="bannerGalleryUrls" rows="4" placeholder="Paste one image URL per line. You can add 10 images or more."></textarea>
+                <input type="file" id="bannerGalleryFiles" accept="image/*" multiple>
               </div>
             </div>
             <div class="cm-social-grid">
@@ -681,7 +683,11 @@ export default function Community() {
     section.querySelector('#groupPhoto').value = site.group_photo || '';
     updateGroupPhotoPreview(site.group_photo || '');
     section.querySelector('#leadImage').value = site.lead_image || '';
-    section.querySelector('#bannerLink').value = site.banner || site.banner_link || '';
+    section.querySelector('#bannerGalleryUrls').value = normalizeBannerGallery(
+      site.banner,
+      site.banner_gallery,
+      site.banner_link,
+    ).join('\n');
     section.querySelector('#instagramUrl').value = site.instagram_url || '';
     section.querySelector('#facebookUrl').value = site.facebook_url || '';
     section.querySelector('#tiktokUrl').value = site.tiktok_url || '';
@@ -731,7 +737,12 @@ export default function Community() {
     const logo = String(section.querySelector('#siteLogo').value || '').trim();
     const group_photo = String(section.querySelector('#groupPhoto').value || '').trim();
     const lead_image = String(section.querySelector('#leadImage').value || '').trim();
-    const banner = String(section.querySelector('#bannerLink').value || '').trim();
+    const banner_gallery = normalizeBannerGallery(
+      String(section.querySelector('#bannerGalleryUrls').value || '')
+        .split(/\r?\n/)
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+    );
     const instagram_url = String(section.querySelector('#instagramUrl').value || '').trim();
     const facebook_url = String(section.querySelector('#facebookUrl').value || '').trim();
     const tiktok_url = String(section.querySelector('#tiktokUrl').value || '').trim();
@@ -799,7 +810,7 @@ export default function Community() {
         short_bio,
         description,
         logo,
-        banner,
+        banner_gallery,
         group_photo,
         lead_image,
         instagram_url,
@@ -1017,6 +1028,53 @@ export default function Community() {
         } catch (err) {
           console.error('Group photo upload failed:', err?.response?.data || err.message || err);
           showToast('Failed to upload group photo.', 'error');
+        } finally {
+          target.value = '';
+        }
+        return;
+      }
+
+      if (target.id === 'bannerGalleryFiles') {
+        const files = Array.from(target.files || []);
+        if (!files.length) return;
+
+        const maxSize = 2 * 1024 * 1024;
+        const oversizedFile = files.find((file) => file.size > maxSize);
+        if (oversizedFile) {
+          showToast('Each gallery image must be less than 2MB.', 'error');
+          target.value = '';
+          return;
+        }
+
+        try {
+          const uploadedUrls = [];
+          for (const file of files) {
+            const imageUrl = await uploadSiteImage(file);
+            if (imageUrl) {
+              uploadedUrls.push(imageUrl);
+            }
+          }
+
+          if (!uploadedUrls.length) {
+            showToast('Failed to upload gallery images.', 'error');
+            return;
+          }
+
+          const bannerGalleryInput = section.querySelector('#bannerGalleryUrls');
+          if (bannerGalleryInput) {
+            const existingUrls = normalizeBannerGallery(
+              String(bannerGalleryInput.value || '')
+                .split(/\r?\n/)
+                .map((entry) => entry.trim())
+                .filter(Boolean),
+            );
+            bannerGalleryInput.value = normalizeBannerGallery(existingUrls, uploadedUrls).join('\n');
+          }
+
+          showToast(`${uploadedUrls.length} gallery image${uploadedUrls.length === 1 ? '' : 's'} uploaded successfully.`, 'success');
+        } catch (err) {
+          console.error('Gallery upload failed:', err?.response?.data || err.message || err);
+          showToast('Failed to upload gallery images.', 'error');
         } finally {
           target.value = '';
         }

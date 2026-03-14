@@ -1,11 +1,20 @@
 import MessagingModal from "./messages/MessagingModal";
 import "../../styles/bini_styles/navigation.css";
 import { getActiveSiteSlug, setActiveSiteSlug } from "../../lib/site-context.js";
+import { isTemplatePreviewMode } from "../../lib/template-preview.js";
 
 const DEFAULT_NAV_LOGO = "/bini_logo.jpg";
 
 function resolveCommunityType(data = {}) {
-  const fromData = String(data?.community_type || data?.communityType || "").trim().toLowerCase();
+  const fromData = String(
+    data?.community_type ||
+    data?.communityType ||
+    data?.siteSlug ||
+    data?.siteData?.community_type ||
+    data?.siteData?.site_slug ||
+    data?.siteData?.domain ||
+    ""
+  ).trim().toLowerCase();
   if (fromData) return fromData;
 
   const fromStorage = String(
@@ -23,6 +32,7 @@ function resolveCommunityType(data = {}) {
 }
 
 function resolveLogoUrl(data = {}) {
+  const previewMode = isTemplatePreviewMode(data);
   const raw = String(
     data?.logo ||
       data?.siteData?.logo ||
@@ -33,8 +43,7 @@ function resolveLogoUrl(data = {}) {
       data?.community_data?.logo ||
       data?.communityData?.logo_url ||
       data?.community_data?.logo_url ||
-      sessionStorage.getItem("community_logo") ||
-      localStorage.getItem("community_logo") ||
+      (!previewMode ? (sessionStorage.getItem("community_logo") || localStorage.getItem("community_logo") || "") : "") ||
       "",
   ).trim();
 
@@ -84,6 +93,7 @@ window.addEventListener("DOMContentLoaded", () => {
 });
 
 export default function Navigation(root, data = {}) {
+  const previewMode = isTemplatePreviewMode(data);
   const communityType = resolveCommunityType(data);
   const navLogo = resolveLogoUrl(data);
   if (communityType) {
@@ -95,7 +105,9 @@ export default function Navigation(root, data = {}) {
     document.body.classList.toggle("has-community-side-nav", isDesktopSideNav);
   };
   syncCommunityLayoutClass();
-  window.addEventListener("resize", syncCommunityLayoutClass);
+  if (!previewMode) {
+    window.addEventListener("resize", syncCommunityLayoutClass);
+  }
 
   const basePath = communityType
     ? `/fanhub/community-platform/${encodeURIComponent(communityType)}`
@@ -153,15 +165,22 @@ export default function Navigation(root, data = {}) {
   if (isProfile) root.querySelector("#profilecon")?.classList.add("active");
   if (isNotif) root.querySelector("#notifcon")?.classList.add("active");
 
-  const style = document.createElement("style");
-  style.innerHTML = `
-    .nav-item.active img {
-      filter: brightness(0) saturate(100%) invert(70%) sepia(98%) saturate(748%) hue-rotate(170deg) brightness(101%) contrast(101%);
-      border-radius: 8px;
-      transition: filter 0.2s, border-bottom 0.2s;
-    }
-  `;
-  document.head.appendChild(style);
+  if (!document.getElementById("community-nav-active-style")) {
+    const style = document.createElement("style");
+    style.id = "community-nav-active-style";
+    style.innerHTML = `
+      .nav-item.active img {
+        filter: brightness(0) saturate(100%) invert(70%) sepia(98%) saturate(748%) hue-rotate(170deg) brightness(101%) contrast(101%);
+        border-radius: 8px;
+        transition: filter 0.2s, border-bottom 0.2s;
+      }
+    `;
+    document.head.appendChild(style);
+  }
+
+  if (previewMode) {
+    return;
+  }
 
   const chatBtn = root.querySelector("#newPostNavBtn");
   if (chatBtn) {

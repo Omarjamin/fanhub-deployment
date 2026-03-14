@@ -1,4 +1,5 @@
 import '../../../styles/Admin_styles/Admin-landing_page.css';
+import { resolvePrimaryBannerImage } from '../../../lib/banner-gallery.js';
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1').trim().replace(/\/$/, '');
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
@@ -317,13 +318,13 @@ export default function AdminLandingPage() {
     });
   };
 
-  const getSiteCardImage = (site) => String(
-    site?.group_photo ||
-    site?.lead_image ||
-    site?.banner ||
-    site?.logo ||
-    FALLBACK_TEMPLATE_IMAGE
-  ).trim();
+  const getSiteCardImage = (site) => resolvePrimaryBannerImage(
+    site?.group_photo,
+    site?.lead_image,
+    site?.banner,
+    site?.logo,
+    FALLBACK_TEMPLATE_IMAGE,
+  ) || FALLBACK_TEMPLATE_IMAGE;
 
   const getSiteCardDescription = (site) => {
     const description = String(site?.short_bio || site?.description || '').trim();

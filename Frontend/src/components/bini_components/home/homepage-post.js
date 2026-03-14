@@ -16,11 +16,21 @@ import { renderThreadsSidebar } from '../threadsSidebar.js';
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from '../../../lib/site-context.js';
 import { formatUserTimestamp } from '../../../utils/user-time.js';
 import { showToast } from '../../../utils/toast.js';
+import { isTemplatePreviewMode } from '../../../lib/template-preview.js';
 let isLoading = false;
 
-function resolveCommunityType(dataCommunityType = '') {
+function resolveCommunityType(dataCommunityType = '', data = null) {
   const fromData = String(dataCommunityType || '').trim().toLowerCase();
   if (fromData) return fromData;
+
+  const fromPayload = String(
+    data?.siteSlug ||
+    data?.siteData?.community_type ||
+    data?.siteData?.site_slug ||
+    data?.siteData?.domain ||
+    ''
+  ).trim().toLowerCase();
+  if (fromPayload) return fromPayload;
 
   const fromStorage = String(
     sessionStorage.getItem('community_type') || ''
@@ -41,13 +51,159 @@ function resolveCommunityType(dataCommunityType = '') {
   return '';
 }
 
+function getPreviewSiteData(data = {}) {
+  return data?.siteData && typeof data.siteData === 'object'
+    ? data.siteData
+    : (data && typeof data === 'object' ? data : {});
+}
+
+function buildPreviewThreadsHtml(siteData = {}) {
+  const siteName = String(siteData?.site_name || siteData?.domain || 'Community').trim();
+  const memberCount = Array.isArray(siteData?.members) ? siteData.members.length : 0;
+  const shortBio = String(siteData?.short_bio || siteData?.description || 'Preview your homepage feed, members, and brand styling here.').trim();
+
+  return `
+    <div class="threads-sidebar">
+      <button class="events-panel-close" aria-label="Close threads panel" disabled>&times;</button>
+      <h3 class="threads-header">${siteName} Preview</h3>
+
+      <ul class="threads-list">
+        <li class="thread-item pinned">
+          <div class="thread-item-meta">
+            <div class="thread-date">Now</div>
+            <span class="thread-pin-tag">Pinned</span>
+          </div>
+          <div class="thread-title">Theme and layout preview</div>
+          <div class="thread-venue">Live typography, palette, and button styles</div>
+        </li>
+        <li class="thread-item">
+          <div class="thread-item-meta">
+            <div class="thread-date">${memberCount || 0} members</div>
+          </div>
+          <div class="thread-title">Member spotlight section</div>
+          <div class="thread-venue">${shortBio}</div>
+        </li>
+      </ul>
+    </div>
+  `;
+}
+
+function buildPreviewPosts(siteData = {}) {
+  const siteName = String(siteData?.site_name || siteData?.domain || 'Community').trim();
+  const shortBio = String(siteData?.short_bio || '').trim();
+  const description = String(siteData?.description || siteData?.site_description || '').trim();
+  const members = Array.isArray(siteData?.members) ? siteData.members : [];
+  const logo = siteData?.logo || siteData?.logo_url || members[0]?.image || members[0]?.image_profile || '/circle-user.png';
+  const leadImage = siteData?.lead_image || siteData?.group_photo || '';
+  const now = new Date();
+
+  const posts = [
+    {
+      post_id: 'preview-intro',
+      user_id: 'preview-site',
+      fullname: siteName,
+      profile_picture: logo,
+      content: shortBio || description || 'Your community homepage will inherit the current theme, typography, and uploaded media in this preview.',
+      img_url: leadImage || '',
+      tags: ['Preview', 'Homepage'],
+      created_at: now.toISOString(),
+      likeCount: 128,
+      commentCount: 24,
+      repostCount: 8,
+    },
+  ];
+
+  members.slice(0, 2).forEach((member, index) => {
+    posts.push({
+      post_id: `preview-member-${index + 1}`,
+      user_id: `preview-member-${index + 1}`,
+      fullname: member?.name || `Member ${index + 1}`,
+      profile_picture: member?.image || member?.image_profile || logo,
+      content: member?.description || `${member?.name || 'This member'} will appear with the selected fonts, colors, and spacing across the generated site.`,
+      img_url: member?.image || member?.image_profile || '',
+      tags: [member?.role || 'Member'],
+      created_at: new Date(now.getTime() - ((index + 1) * 36e5)).toISOString(),
+      likeCount: 48 - (index * 6),
+      commentCount: 15 - (index * 2),
+      repostCount: 5 - index,
+    });
+  });
+
+  if (posts.length === 1 && description) {
+    posts.push({
+      post_id: 'preview-about',
+      user_id: 'preview-about',
+      fullname: `${siteName} Team`,
+      profile_picture: logo,
+      content: description,
+      img_url: '',
+      tags: ['About'],
+      created_at: new Date(now.getTime() - (2 * 36e5)).toISOString(),
+      likeCount: 36,
+      commentCount: 9,
+      repostCount: 3,
+    });
+  }
+
+  return posts;
+}
+
 
 export default async function Homepage(root, data) {
-  const threadsSidebar = await renderThreadsSidebar();
-  const communityType = resolveCommunityType(data?.community_type);
+  const previewMode = isTemplatePreviewMode(data);
+  const previewSiteData = getPreviewSiteData(data);
+  const communityType = resolveCommunityType(data?.community_type, data);
   if (communityType) {
     setActiveSiteSlug(communityType);
-  }  
+  }
+
+  if (previewMode) {
+    root.innerHTML = `
+      <div class="homepage-container">
+        <div class="homepage-feed"></div>
+        <div class="homepage-right">
+          ${buildPreviewThreadsHtml(previewSiteData)}
+        </div>
+      </div>
+      <div id="image-modal" class="image-modal">
+        <div class="image-stage">
+          <div class="modal-header">
+            <button class="download-button" id="download-btn" title="Download image">
+              <span class="material-icons">download</span>
+            </button>
+            <div class="zoom-controls" aria-label="Zoom controls">
+              <button id="zoom-out" type="button" title="Zoom out">-</button>
+              <span id="zoom-level" class="zoom-level" aria-live="polite">100%</span>
+              <button id="zoom-in" type="button" title="Zoom in">+</button>
+              <button id="zoom-reset" type="button" title="Reset zoom">Reset</button>
+            </div>
+            <button class="modal-close" type="button" aria-label="Close image viewer">&times;</button>
+          </div>
+          <img class="modal-content" id="modal-img" alt="Expanded post image">
+          <div class="modal-hint">Esc to close · + / - to zoom</div>
+        </div>
+      </div>
+    `;
+
+    const feed = root.querySelector('.homepage-feed');
+    if (feed) {
+      feed.innerHTML = buildPreviewPosts(previewSiteData)
+        .map((post, index) => buildPostCardHtml(post, {
+          postCreationTime: formatDate(post.created_at),
+          isLiked: index === 0,
+          isCommented: index === 1,
+          likeCount: post.likeCount || 0,
+          commentCount: post.commentCount || 0,
+          repostCount: post.repostCount || 0,
+        }))
+        .join('');
+    }
+
+    attachLocalImageModal();
+    return;
+  }
+
+  const threadsSidebar = await renderThreadsSidebar();
   root.innerHTML = `
     <div class="homepage-container">
       <div class="homepage-feed"></div>

@@ -63,90 +63,148 @@
   background-position: right 0.6rem center;
 }
 
-.products-grid {
+.marketplace .products-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.1rem;
+  align-items: stretch;
 }
 
-.product-card {
-  background: #fff;
-  border-radius: 10px;
-  padding: 0.85rem;
-  border: 1px solid #e5e7eb;
-  box-shadow: 0 1px 6px rgb(0 0 0 / 6%);
+.marketplace .product-card {
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border-radius: 18px;
+  padding: 0.95rem;
+  border: 1px solid #dbe3ef;
+  box-shadow: 0 10px 24px rgb(15 23 42 / 7%);
   display: flex;
   flex-direction: column;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  gap: 0.9rem;
+  min-height: 100%;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
-.product-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 10px rgb(0 0 0 / 8%);
+.marketplace .product-card:hover {
+  transform: translateY(-3px);
+  border-color: #bfdbfe;
+  box-shadow: 0 16px 30px rgb(15 23 42 / 11%);
 }
 
-.product-image {
+.marketplace .product-image-frame {
+  position: relative;
   width: 100%;
-  height: 150px;
-  object-fit: cover;
-  border-radius: 8px;
-  margin-bottom: 0.6rem;
+  min-height: 190px;
+  aspect-ratio: 16 / 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  background:
+    linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+  padding: 0.35rem;
 }
 
-.product-info {
+.marketplace .product-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 12px;
+  display: block;
+  background: #ffffff;
+}
+
+.marketplace .product-info {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
+  flex: 1;
+  min-height: 0;
 }
 
-.product-name {
-  font-size: 1rem;
+.marketplace .product-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.marketplace .product-name {
+  font-size: 1.04rem;
   font-weight: 700;
   color: #1f2937;
-  margin: 0 0 0.45rem;
-}
-
-.product-variants {
-  list-style: none;
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
+  line-height: 1.35;
+  min-height: 2.7em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.product-variant-row {
+.marketplace .product-meta-row {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-wrap: wrap;
   gap: 0.5rem;
-  padding: 0.4rem 0.5rem;
-  border-radius: 8px;
-  background: #f9fafb;
-  border: 1px solid #f0f2f5;
 }
 
-.variant-label {
-  font-size: 0.82rem;
-  color: #111827;
+.marketplace .product-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.62rem;
+  border-radius: 999px;
+  background: #eef2ff;
+  border: 1px solid #dbeafe;
+  color: #475569;
+  font-size: 0.78rem;
   font-weight: 600;
 }
 
-.variant-meta {
-  font-size: 0.78rem;
-  color: #6b7280;
+.marketplace .product-variants {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.45rem;
 }
 
-.product-actions {
+.marketplace .product-variant-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.55rem 0.7rem;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+}
+
+.marketplace .variant-label {
+  font-size: 0.82rem;
+  color: #111827;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.marketplace .variant-meta {
+  font-size: 0.78rem;
+  color: #6b7280;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.marketplace .product-actions {
   display: flex;
   gap: 0.5rem;
-  margin-top: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.35rem;
 }
 
 .action-btn-marketplace {
-  padding: 0.35rem 0.7rem;
-  font-size: 0.8rem;
-  border-radius: 6px;
+  padding: 0.5rem 0.9rem;
+  font-size: 0.82rem;
+  border-radius: 10px;
   border: 1px solid transparent;
   cursor: pointer;
   font-weight: 600;
@@ -337,8 +395,29 @@
     padding: 0.7rem;
   }
 
+  .marketplace .products-grid {
+    grid-template-columns: 1fr;
+  }
+
   .category-filter {
     width: 100%;
+  }
+
+  .marketplace .product-image-frame {
+    min-height: 175px;
+  }
+
+  .marketplace .product-variant-row {
+    flex-direction: column;
+  }
+
+  .marketplace .variant-meta {
+    text-align: left;
+    white-space: normal;
+  }
+
+  .marketplace .product-actions {
+    flex-wrap: wrap;
   }
 
   .variant-input-row {

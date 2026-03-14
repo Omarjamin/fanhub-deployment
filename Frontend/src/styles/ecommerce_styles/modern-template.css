@@ -37,7 +37,9 @@ html.ec-template-modern {
   background: transparent !important;
 }
 
-.ec-template-modern .banner-video-wrap,
+.ec-template-modern .banner-shell,
+.ec-template-modern .banner-card,
+.ec-template-modern .banner-card-media,
 .ec-template-modern .carousel-image,
 .ec-template-modern .image-stack::before,
 .ec-template-modern .image-stack::after,
@@ -56,7 +58,8 @@ html.ec-template-modern {
   border-radius: 24px;
 }
 
-.ec-template-modern .banner-video-wrap,
+.ec-template-modern .banner-shell,
+.ec-template-modern .banner-card,
 .ec-template-modern .ec-footer,
 .ec-template-modern .ec-footer-form,
 .ec-template-modern .order-summary,
@@ -91,7 +94,6 @@ html.ec-template-modern {
   color: color-mix(in srgb, var(--text-on-background, #ffffff) 82%, transparent) !important;
 }
 
-.ec-template-modern .watch-latest-btn,
 .ec-template-modern .discography-cta,
 .ec-template-modern .event-feature-link,
 .ec-template-modern .ec-footer-submit,
@@ -102,7 +104,6 @@ html.ec-template-modern {
   box-shadow: 0 18px 36px color-mix(in srgb, var(--accent-color, #d946ef) 22%, transparent);
 }
 
-.ec-template-modern .watch-latest-btn:hover,
 .ec-template-modern .discography-cta:hover,
 .ec-template-modern .event-feature-link:hover,
 .ec-template-modern .ec-footer-submit:hover,
@@ -129,4 +130,3 @@ html.ec-template-modern {
 .ec-template-modern .ec-footer-copy {
   text-align: center;
 }
-
