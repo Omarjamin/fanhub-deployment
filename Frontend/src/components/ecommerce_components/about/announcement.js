@@ -59,6 +59,18 @@ function normalizeThreads(siteSlug, threads = []) {
     title: String(thread?.title || 'Announcement').trim(),
     dateLabel: formatAnnouncementDate(thread?.date || thread?.created_at),
     sortTime: new Date(thread?.date || thread?.created_at || 0).getTime() || 0,
+    sortMonth: (() => {
+      const date = new Date(thread?.date || thread?.created_at || 0);
+      return Number.isNaN(date.getTime()) ? 99 : date.getMonth();
+    })(),
+    sortYear: (() => {
+      const date = new Date(thread?.date || thread?.created_at || 0);
+      return Number.isNaN(date.getTime()) ? 9999 : date.getFullYear();
+    })(),
+    sortDay: (() => {
+      const date = new Date(thread?.date || thread?.created_at || 0);
+      return Number.isNaN(date.getTime()) ? 99 : date.getDate();
+    })(),
     isPinned: Boolean(thread?.is_pinned ?? thread?.isPinned),
     threadLink: buildThreadLink(siteSlug, thread?.id),
   }));
@@ -68,7 +80,13 @@ function sortThreads(threads = []) {
   return [...threads].sort((a, b) => {
     const pinDiff = Number(b.isPinned) - Number(a.isPinned);
     if (pinDiff !== 0) return pinDiff;
-    return b.sortTime - a.sortTime;
+    const monthDiff = a.sortMonth - b.sortMonth;
+    if (monthDiff !== 0) return monthDiff;
+    const yearDiff = a.sortYear - b.sortYear;
+    if (yearDiff !== 0) return yearDiff;
+    const dayDiff = a.sortDay - b.sortDay;
+    if (dayDiff !== 0) return dayDiff;
+    return a.sortTime - b.sortTime;
   });
 }
 
