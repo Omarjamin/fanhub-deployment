@@ -78,15 +78,15 @@ const MusicSection = () => {
                 transition={{ delay: i * 0.1 }}
                 className="group relative"
               >
-                <div className="relative overflow-hidden rounded-lg border border-border/50 bg-card/70 p-3">
+                <div className="relative aspect-square overflow-hidden rounded-lg border border-border/50 bg-card/70">
                   {album.cover ? (
                     <img
                       src={album.cover}
                       alt={album.title}
-                      className="aspect-square w-full object-contain transition-transform duration-300 group-hover:scale-105"
+                      className="h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105"
                     />
                   ) : (
-                    <div className="w-full aspect-square bg-accent" />
+                    <div className="h-full w-full bg-accent" />
                   )}
                   <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
