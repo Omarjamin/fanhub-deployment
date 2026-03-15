@@ -16,7 +16,7 @@
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;  
-  color: var(--pd-accent);
+  color: #111111;
   font-size: 0.9rem;
   line-height: 1.4;
   text-decoration: underline;
@@ -30,7 +30,7 @@
 .product-detail-back-btn:focus,
 .product-detail-back-btn:focus-visible,
 .product-detail-back-btn:active {
-  color: var(--pd-accent-strong) !important;
+  color: #111111 !important;
   background: transparent !important;
   box-shadow: none !important;
   outline: none !important;
@@ -111,8 +111,7 @@
 }
 
 .product-shipping-note span {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
 }
 
 .product-option-title {
