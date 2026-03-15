@@ -124,20 +124,28 @@ function renderAnnouncementList(section, items, currentPage) {
         `
         }
       </div>
+      ${
+        totalPages > 1
+          ? `
       <div class="ec-announcement-pagination">
         <button type="button" class="ec-announcement-page-btn" data-page-dir="-1" aria-label="Previous page"${safePage === 0 ? ' disabled' : ''}>&lsaquo;</button>
         <span class="ec-announcement-page-label">Page ${safePage + 1} of ${totalPages}</span>
         <button type="button" class="ec-announcement-page-btn" data-page-dir="1" aria-label="Next page"${safePage >= totalPages - 1 ? ' disabled' : ''}>&rsaquo;</button>
       </div>
+      `
+          : ''
+      }
     </div>
   `;
 
-  section.querySelectorAll('.ec-announcement-page-btn').forEach((button) => {
-    button.addEventListener('click', () => {
-      const delta = Number(button.getAttribute('data-page-dir') || 0);
-      renderAnnouncementList(section, items, safePage + delta);
+  if (totalPages > 1) {
+    section.querySelectorAll('.ec-announcement-page-btn').forEach((button) => {
+      button.addEventListener('click', () => {
+        const delta = Number(button.getAttribute('data-page-dir') || 0);
+        renderAnnouncementList(section, items, safePage + delta);
+      });
     });
-  });
+  }
 }
 
 async function fetchThreads(siteSlug) {
