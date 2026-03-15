@@ -100,7 +100,7 @@ const ProductGrid = ({ products }: ProductGridProps) => {
           <div className="p-4">
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <h3 className="font-body font-semibold">{product.name}</h3>
+                <h3 className="font-body font-semibold text-black">{product.name}</h3>
                 <p className="text-primary font-display text-xl mt-1">{formatPeso(product.price)}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">

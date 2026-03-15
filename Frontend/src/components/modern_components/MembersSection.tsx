@@ -72,29 +72,42 @@ const MembersSection = () => {
         ) : null}
 
         {!loading && !error ? (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {members.map((member, i) => (
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-6">
+            {members.map((member, i) => {
+              const total = members.length;
+              const remainder = total % 3;
+              const lastRowStart = total - remainder;
+              const shouldCenterSingle = remainder === 1 && i === total - 1;
+              const shouldCenterPair = remainder === 2 && i === lastRowStart;
+              const gridOffset = shouldCenterSingle
+                ? "md:col-start-3"
+                : shouldCenterPair
+                  ? "md:col-start-2"
+                  : "";
+              return (
               <motion.div
                 key={member.id}
                 initial={{ opacity: 0, y: 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ delay: i * 0.1 }}
-                className="group cursor-pointer"
+                className={`group cursor-pointer md:col-span-2 ${gridOffset}`}
               >
-                <div className="relative aspect-[3/4] overflow-hidden rounded-2xl border border-border/50 bg-accent/25 p-3 md:p-4">
-                  {member.image ? (
-                    <img
-                      src={member.image}
-                      alt={member.name}
-                      className="h-full w-full object-contain object-top transition-transform duration-500 group-hover:scale-[1.03]"
-                    />
-                  ) : (
-                    <div className="w-full h-full bg-accent" />
-                  )}
-                  <div className="absolute inset-0 bg-gradient-to-t from-background/92 via-background/18 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
-                  <div className="absolute bottom-0 left-0 right-0 translate-y-full p-4 transition-transform duration-300 group-hover:translate-y-0">
-                    <p className="text-sm text-primary font-body">Date of Birth</p>
+                <div className="rounded-2xl border border-border/50 bg-accent/25 p-3 md:p-4">
+                  <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-accent/20">
+                    {member.image ? (
+                      <img
+                        src={member.image}
+                        alt={member.name}
+                        className="h-full w-full object-cover object-center transition-transform duration-500 group-hover:scale-[1.03]"
+                      />
+                    ) : (
+                      <div className="w-full h-full bg-accent" />
+                    )}
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/75 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+                  </div>
+                  <div className="mt-3 rounded-xl bg-background/85 px-3 py-2 opacity-0 translate-y-2 transition-all duration-300 group-hover:opacity-100 group-hover:translate-y-0">
+                    <p className="text-xs text-primary font-body">Date of Birth</p>
                     <p className="text-xs text-muted-foreground font-body mt-1 line-clamp-2">
                       {member.birthdate || member.role || "No birthdate"}
                     </p>
@@ -104,7 +117,8 @@ const MembersSection = () => {
                   {member.name}
                 </h3>
               </motion.div>
-            ))}
+              );
+            })}
           </div>
         ) : null}
       </div>

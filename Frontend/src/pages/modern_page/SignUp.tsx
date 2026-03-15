@@ -1,7 +1,8 @@
-import { FormEvent, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "@/components/modern_components/AuthShell";
 import { registerUser } from "@/services/ecommerce_services/auth/signup_user.js";
+import { getIdentityProviderStatus, getRecaptchaToken, renderRecaptchaWidget } from "@/services/ecommerce_services/auth/identity_providers.js";
 import { getModernSiteSlug } from "@/lib/modern-react/context";
 import { toast } from "@/hooks/use-toast";
 
@@ -15,6 +16,32 @@ const SignUp = () => {
   const [otp, setOtp] = useState("");
   const [otpRequested, setOtpRequested] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const recaptchaRef = useRef<HTMLDivElement | null>(null);
+  const [recaptchaHint, setRecaptchaHint] = useState("");
+  const [recaptchaPassive, setRecaptchaPassive] = useState(false);
+
+  useEffect(() => {
+    const status = getIdentityProviderStatus();
+    if (status.hasRecaptchaV2) {
+      setRecaptchaHint("Complete reCAPTCHA before creating your account.");
+      setRecaptchaPassive(false);
+    } else if (status.hasRecaptchaV3) {
+      setRecaptchaHint("Protected by invisible reCAPTCHA.");
+      setRecaptchaPassive(true);
+    } else {
+      setRecaptchaHint("reCAPTCHA is not available for this site yet.");
+      setRecaptchaPassive(true);
+    }
+
+    if (!status.hasRecaptchaV2) return;
+    const container = recaptchaRef.current;
+    if (!container) return;
+
+    renderRecaptchaWidget(container).catch((err) => {
+      setRecaptchaHint(`reCAPTCHA render error: ${err?.message || "Unknown error"}`);
+      console.error("Signup reCAPTCHA render error:", err);
+    });
+  }, []);
 
   const requestOtp = async () => {
     if (!firstname.trim() || !lastname.trim() || !email.trim() || !password.trim()) {
@@ -26,17 +53,29 @@ const SignUp = () => {
       return;
     }
 
+    const recaptchaToken = await getRecaptchaToken("register_otp", recaptchaRef.current).catch(() => "");
+    if (!recaptchaToken) {
+      toast({
+        title: "reCAPTCHA required",
+        description: "Please complete reCAPTCHA before requesting the code.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       await registerUser({
         email: email.trim(),
         site_slug: siteSlug,
         request_email_otp: true,
+        recaptcha_token: recaptchaToken,
       });
       setOtpRequested(true);
       toast({
         title: "OTP sent",
         description: `A verification code was sent to ${email.trim()}.`,
+        variant: "success",
       });
     } catch (err: unknown) {
       const message =
@@ -72,6 +111,16 @@ const SignUp = () => {
       return;
     }
 
+    const recaptchaToken = await getRecaptchaToken("register", recaptchaRef.current).catch(() => "");
+    if (!recaptchaToken) {
+      toast({
+        title: "reCAPTCHA required",
+        description: "Please complete reCAPTCHA before creating your account.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       await registerUser({
@@ -83,10 +132,12 @@ const SignUp = () => {
         imageUrl: "none",
         site_slug: siteSlug,
         email_otp: otp.trim(),
+        recaptcha_token: recaptchaToken,
       });
       toast({
         title: "Account created",
         description: "You can sign in now.",
+        variant: "success",
       });
       navigate("/signin", { replace: true });
     } catch (err: unknown) {
@@ -194,6 +245,11 @@ const SignUp = () => {
             Resend OTP
           </button>
         ) : null}
+
+        <div className={`mt-6 text-center ${recaptchaPassive ? "opacity-80" : ""}`}>
+          <div ref={recaptchaRef} className="mx-auto flex min-h-[78px] justify-center" />
+          <p className="mt-2 text-xs text-muted-foreground">{recaptchaHint}</p>
+        </div>
 
         <p className="text-center text-sm text-muted-foreground">
           Already registered?{" "}
