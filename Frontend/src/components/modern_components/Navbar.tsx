@@ -25,11 +25,9 @@ const Navbar = () => {
   const [isDesktop, setIsDesktop] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth >= 768 : true,
   );
-  const [isAuthenticated, setIsAuthenticated] = useState(() => isEcommerceLoggedIn());
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const site = useMemo(() => getModernResolvedSite(), []);
-  const siteSlug = useMemo(() => getActiveSiteSlug(), [location.pathname]);
   const profilePath = useMemo(
     () => siteSlug ? `/fanhub/community-platform/${siteSlug}/profile` : "/fanhub/community-platform",
     [siteSlug],
@@ -234,7 +232,7 @@ const Navbar = () => {
           </div>
         ) : null}
 
-        {!isDesktop ? (
+        {!isDesktop && (
           <button
             type="button"
             className="modern-nav-button inline-flex items-center justify-center rounded-full px-3 py-2"
