@@ -10,6 +10,16 @@ class OrderModel {
     return normalized;
   }
 
+  normalizeTrackingNumber(value) {
+    const normalized = String(value ?? '').trim();
+    return normalized || null;
+  }
+
+  normalizeCourier(value) {
+    const normalized = String(value ?? '').trim();
+    return normalized || null;
+  }
+
   async tableHasColumn(db, tableName, columnName) {
     const [rows] = await db.query(`SHOW COLUMNS FROM ${tableName} LIKE ?`, [columnName]);
     return Array.isArray(rows) && rows.length > 0;
@@ -33,7 +43,8 @@ class OrderModel {
   async ensureOrderTrackingColumns(db) {
     const columns = [
       ['tracking_number', 'ALTER TABLE orders ADD COLUMN tracking_number VARCHAR(120) NULL AFTER status'],
-      ['tracking_updated_at', 'ALTER TABLE orders ADD COLUMN tracking_updated_at DATETIME NULL AFTER tracking_number'],
+      ['courier', 'ALTER TABLE orders ADD COLUMN courier VARCHAR(120) NULL AFTER tracking_number'],
+      ['tracking_updated_at', 'ALTER TABLE orders ADD COLUMN tracking_updated_at DATETIME NULL AFTER courier'],
     ];
 
     for (const [columnName, statement] of columns) {
@@ -358,6 +369,8 @@ class OrderModel {
     // Get order items for each order with product and variant details
     for (const order of rows) {
       order.status = this.normalizeOrderStatus(order.status);
+      order.tracking_number = this.normalizeTrackingNumber(order.tracking_number);
+      order.courier = this.normalizeCourier(order.courier);
       order.items = await this.fetchOrderItems(pool, order.order_id);
     }
     
@@ -377,6 +390,8 @@ class OrderModel {
     if (!orders || orders.length === 0) return null;
     const order = orders[0];
     order.status = this.normalizeOrderStatus(order.status);
+    order.tracking_number = this.normalizeTrackingNumber(order.tracking_number);
+    order.courier = this.normalizeCourier(order.courier);
 
     order.items = await this.fetchOrderItems(pool, orderId);
     return order;
@@ -386,7 +401,7 @@ class OrderModel {
     const pool = await this.ensureConnection(communityType);
     await this.ensureOrderTrackingColumns(pool);
     const [result] = await pool.execute(
-      'UPDATE orders SET status = ?, tracking_number = NULL, tracking_updated_at = NULL WHERE order_id = ? AND user_id = ?',
+      'UPDATE orders SET status = ?, tracking_number = NULL, courier = NULL, tracking_updated_at = NULL WHERE order_id = ? AND user_id = ?',
       ['cancelled', orderId, userId],
     );
     return result;

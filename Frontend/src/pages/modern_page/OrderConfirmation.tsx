@@ -47,6 +47,7 @@ type OrderRecord = {
   payment_method?: string;
   status?: string;
   tracking_number?: string | null;
+  courier?: string | null;
   shipping_address?: ShippingAddress;
   items?: ConfirmationItem[];
 };
@@ -73,6 +74,20 @@ function formatOrderStatus(value: string) {
 function normalizeTrackingNumber(value: unknown) {
   const normalized = String(value ?? "").trim();
   return normalized || "";
+}
+
+function normalizeCourier(value: unknown) {
+  const normalized = String(value ?? "").trim();
+  return normalized || "";
+}
+
+function getCourierDisplayValue(status: string, courier: string) {
+  if (courier) return courier;
+  const normalizedStatus = normalizeOrderStatus(status);
+  if (normalizedStatus === "shipped" || normalizedStatus === "completed") {
+    return "Not assigned yet";
+  }
+  return "";
 }
 
 function formatPeso(price: number) {
@@ -133,6 +148,7 @@ const OrderConfirmation = () => {
   const shippingAddress = activeOrder?.shipping_address || state.shippingAddress || {};
   const trackingNumber = normalizeTrackingNumber(activeOrder?.tracking_number);
   const currentStatus = normalizeOrderStatus(activeOrder?.status || "pending");
+  const courierDisplayValue = getCourierDisplayValue(currentStatus, normalizeCourier(activeOrder?.courier));
   const stepKeys = ["pending", "processing", "shipped", "completed"];
   const currentStepIndex = Math.max(stepKeys.indexOf(currentStatus), 0);
   const steps = [
@@ -198,6 +214,11 @@ const OrderConfirmation = () => {
                   <p>
                     Payment Method: <span className="font-semibold">{paymentMethod}</span>
                   </p>
+                  {courierDisplayValue ? (
+                    <p>
+                      Courier: <span className="font-semibold">{courierDisplayValue}</span>
+                    </p>
+                  ) : null}
                   {trackingNumber ? (
                     <p>
                       Tracking Number: <span className="font-semibold">{trackingNumber}</span>

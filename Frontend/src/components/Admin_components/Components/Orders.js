@@ -14,6 +14,17 @@ export default function createOrders() {
   const ADMIN_API_BASE = getAdminApiBase();
   const forcedSiteSlug = resolveAdminSiteFromPath();
   const isForcedSingleSite = Boolean(forcedSiteSlug);
+  const COURIER_OPTIONS = [
+    'J&T Express',
+    'Flash Express',
+    'LBC Express',
+    'Ninja Van',
+    'SPX Express',
+    'Entrego',
+    'GrabExpress',
+    'Lalamove',
+    'Other',
+  ];
 
   const section = document.createElement('section');
   section.id = 'orders';
@@ -93,6 +104,10 @@ export default function createOrders() {
                     <span class="order-detail-value order-detail-value-mono" id="viewTracking"></span>
                   </div>
                   <div class="order-detail-row">
+                    <span class="order-detail-label">Courier</span>
+                    <span class="order-detail-value" id="viewCourier"></span>
+                  </div>
+                  <div class="order-detail-row">
                     <span class="order-detail-label">Date</span>
                     <span class="order-detail-value" id="viewDate"></span>
                   </div>
@@ -152,6 +167,15 @@ export default function createOrders() {
             </select>
           </label>
           <label class="orders-modal-group">
+            <span>Courier</span>
+            <select id="editCourier">
+              <option value="">Select courier</option>
+              ${COURIER_OPTIONS.map((courier) => `<option value="${courier}">${courier}</option>`).join('')}
+            </select>
+            <input id="editCourierCustom" type="text" maxlength="120" placeholder="Enter courier name" style="display:none">
+            <small id="editCourierHint">Required before an order can be marked as shipped.</small>
+          </label>
+          <label class="orders-modal-group">
             <span>Tracking Number</span>
             <input id="editTrackingNumber" type="text" maxlength="120" placeholder="Required when order is shipped">
             <small id="editTrackingHint">Required before an order can be marked as shipped.</small>
@@ -200,6 +224,11 @@ export default function createOrders() {
   }
 
   function normalizeTrackingNumber(value) {
+    const normalized = String(value ?? '').trim();
+    return normalized || '';
+  }
+
+  function normalizeCourier(value) {
     const normalized = String(value ?? '').trim();
     return normalized || '';
   }
@@ -354,6 +383,7 @@ export default function createOrders() {
           totalDisplay: `PHP ${totalNum.toLocaleString()}`,
           status: statusRaw,
           trackingNumber: normalizeTrackingNumber(row.tracking_number),
+          courier: normalizeCourier(row.courier),
           trackingUpdatedAt: row.tracking_updated_at || '',
           createdAt: row.created_at || '',
           dateKey: formatAdminDateInput(row.created_at),
@@ -370,7 +400,7 @@ export default function createOrders() {
     }
   }
 
-  async function updateOrderStatusOnServer(order, nextStatus, trackingNumber = '') {
+  async function updateOrderStatusOnServer(order, nextStatus, trackingNumber = '', courier = '') {
     try {
       const candidateUrls = resolveAdminEndpointUrls(
         `orders/${order.orderId}/status`,
@@ -393,6 +423,7 @@ export default function createOrders() {
               db_name: order.db_name,
               status: nextStatus,
               tracking_number: normalizeTrackingNumber(trackingNumber),
+              courier: normalizeCourier(courier),
             }),
           });
           payload = await response.json().catch(() => ({}));
@@ -417,6 +448,11 @@ export default function createOrders() {
         typeof updated.tracking_number !== 'undefined'
           ? updated.tracking_number
           : trackingNumber,
+      );
+      order.courier = normalizeCourier(
+        typeof updated.courier !== 'undefined'
+          ? updated.courier
+          : courier,
       );
       order.trackingUpdatedAt = updated.tracking_updated_at || order.trackingUpdatedAt || '';
       if (typeof updated.total !== 'undefined') {
@@ -455,6 +491,7 @@ export default function createOrders() {
       section.querySelector('#viewPayment').textContent = formatPaymentMethodLabel(order.paymentMethod);
       section.querySelector('#viewStatus').innerHTML = `<span class="badge badge-${order.status}">${formatStatusLabel(order.status)}</span>`;
       section.querySelector('#viewTracking').textContent = order.trackingNumber || 'Not assigned';
+      section.querySelector('#viewCourier').textContent = order.courier || 'Not assigned';
       section.querySelector('#viewDate').textContent = order.dateDisplayLong;
 
       // Populate order items
@@ -531,6 +568,9 @@ export default function createOrders() {
     const cancelBtn = section.querySelector('#cancelEditOrder');
     const form = section.querySelector('#editOrderForm');
     const statusSelect = section.querySelector('#editOrderStatus');
+    const courierSelect = section.querySelector('#editCourier');
+    const courierCustomInput = section.querySelector('#editCourierCustom');
+    const courierHint = section.querySelector('#editCourierHint');
     const trackingInput = section.querySelector('#editTrackingNumber');
     const trackingHint = section.querySelector('#editTrackingHint');
     const orderLabel = section.querySelector('#editOrderLabel');
@@ -540,16 +580,52 @@ export default function createOrders() {
       modal.classList.add('hidden');
     }
 
-    function syncTrackingRequirement() {
+    function syncShippingMetaRequirement() {
       const normalizedStatus = normalizeStatusValue(statusSelect.value);
       const requiresTracking = normalizedStatus === 'shipped';
       trackingInput.required = requiresTracking;
+      courierSelect.required = requiresTracking;
+      courierCustomInput.required = requiresTracking && courierSelect.value === 'Other';
+      courierCustomInput.style.display = courierSelect.value === 'Other' ? '' : 'none';
       trackingInput.placeholder = requiresTracking
         ? 'Enter tracking number'
         : 'Optional unless the order is shipped';
       trackingHint.textContent = requiresTracking
         ? 'Required before an order can be marked as shipped.'
         : 'This will be shown to the user in their order history once provided.';
+      courierCustomInput.placeholder = requiresTracking
+        ? 'Enter courier name'
+        : 'Optional unless the order is shipped';
+      courierHint.textContent = requiresTracking
+        ? 'Required before an order can be marked as shipped.'
+        : 'This will be shown to the user together with the tracking number.';
+    }
+
+    function populateCourierFields(value) {
+      const normalizedCourier = normalizeCourier(value);
+      if (!normalizedCourier) {
+        courierSelect.value = '';
+        courierCustomInput.value = '';
+        syncShippingMetaRequirement();
+        return;
+      }
+
+      if (COURIER_OPTIONS.includes(normalizedCourier)) {
+        courierSelect.value = normalizedCourier;
+        courierCustomInput.value = '';
+      } else {
+        courierSelect.value = 'Other';
+        courierCustomInput.value = normalizedCourier;
+      }
+
+      syncShippingMetaRequirement();
+    }
+
+    function getSelectedCourierValue() {
+      if (courierSelect.value === 'Other') {
+        return normalizeCourier(courierCustomInput.value);
+      }
+      return normalizeCourier(courierSelect.value);
     }
 
     function openModal(orderId) {
@@ -566,7 +642,8 @@ export default function createOrders() {
         .join('');
       statusSelect.value = allowedStatuses.includes(order.status) ? order.status : allowedStatuses[0];
       trackingInput.value = order.trackingNumber || '';
-      syncTrackingRequirement();
+      populateCourierFields(order.courier);
+      syncShippingMetaRequirement();
       modal.classList.remove('hidden');
     }
 
@@ -575,7 +652,8 @@ export default function createOrders() {
     modal.addEventListener('click', event => {
       if (event.target === modal) closeModal();
     });
-    statusSelect.addEventListener('change', syncTrackingRequirement);
+    statusSelect.addEventListener('change', syncShippingMetaRequirement);
+    courierSelect.addEventListener('change', syncShippingMetaRequirement);
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
@@ -586,15 +664,25 @@ export default function createOrders() {
 
       const selectedStatus = statusSelect.value;
       const trackingNumber = normalizeTrackingNumber(trackingInput.value);
+      const courier = getSelectedCourierValue();
 
       if (normalizeStatusValue(selectedStatus) === 'shipped' && !trackingNumber) {
         alert('Tracking number is required before marking an order as shipped.');
         trackingInput.focus();
         return;
       }
+      if (normalizeStatusValue(selectedStatus) === 'shipped' && !courier) {
+        alert('Courier is required before marking an order as shipped.');
+        if (courierSelect.value === 'Other') {
+          courierCustomInput.focus();
+        } else {
+          courierSelect.focus();
+        }
+        return;
+      }
 
       try {
-        await updateOrderStatusOnServer(order, selectedStatus, trackingNumber);
+        await updateOrderStatusOnServer(order, selectedStatus, trackingNumber, courier);
         loadOrders();
         filterOrders();
         closeModal();

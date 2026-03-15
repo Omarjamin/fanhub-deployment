@@ -110,17 +110,19 @@ class OrdersController {
    *  - db_name: target site database name
    *  - status: new status string (e.g. 'pending', 'processing', 'shipped', 'completed')
    *  - tracking_number: required when marking an order as shipped
+   *  - courier: required when marking an order as shipped
    */
   async updateOrderStatus(req, res) {
     try {
       const { orderId } = req.params;
-      const { db_name, status, tracking_number } = req.body || {};
+      const { db_name, status, tracking_number, courier } = req.body || {};
       const communityType = this.resolveCommunity(req, res, { fallbackAll: true });
       debugLog('updateOrderStatus:start', {
         orderId,
         db_name,
         status,
         hasTrackingNumber: Boolean(String(tracking_number || '').trim()),
+        courier: String(courier || '').trim() || null,
         communityType,
       });
 
@@ -144,6 +146,7 @@ class OrdersController {
         status,
         communityType,
         tracking_number,
+        courier,
       );
       debugLog('updateOrderStatus:done', { orderId, db_name: updatedOrder?.db_name, status: updatedOrder?.status });
 

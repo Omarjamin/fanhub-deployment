@@ -13,6 +13,7 @@ type HistoryItem = {
   payment_method: string;
   status: string;
   tracking_number?: string | null;
+  courier?: string | null;
   tracking_updated_at?: string | null;
   created_at: string;
   shipping_address?: Record<string, string>;
@@ -58,8 +59,22 @@ function normalizeTrackingNumber(value: unknown) {
   return normalized || "";
 }
 
+function normalizeCourier(value: unknown) {
+  const normalized = String(value ?? "").trim();
+  return normalized || "";
+}
+
 function getTrackingDisplayValue(status: string, trackingNumber: string) {
   if (trackingNumber) return trackingNumber;
+  const normalizedStatus = normalizeOrderStatus(status);
+  if (normalizedStatus === "shipped" || normalizedStatus === "completed") {
+    return "Not assigned yet";
+  }
+  return "";
+}
+
+function getCourierDisplayValue(status: string, courier: string) {
+  if (courier) return courier;
   const normalizedStatus = normalizeOrderStatus(status);
   if (normalizedStatus === "shipped" || normalizedStatus === "completed") {
     return "Not assigned yet";
@@ -165,7 +180,9 @@ const OrderHistory = () => {
                   ? "Cash on Delivery"
                   : String(order.payment_method || "N/A");
                 const trackingNumber = normalizeTrackingNumber(order.tracking_number);
+                const courier = normalizeCourier(order.courier);
                 const trackingDisplayValue = getTrackingDisplayValue(order.status, trackingNumber);
+                const courierDisplayValue = getCourierDisplayValue(order.status, courier);
 
                 return (
                   <article
@@ -197,6 +214,11 @@ const OrderHistory = () => {
                         <p>
                           Payment: <span className="font-semibold">{payment}</span>
                         </p>
+                        {courierDisplayValue ? (
+                          <p>
+                            Courier: <span className="font-semibold">{courierDisplayValue}</span>
+                          </p>
+                        ) : null}
                         {trackingDisplayValue ? (
                           <p>
                             Tracking Number: <span className="font-semibold">{trackingDisplayValue}</span>

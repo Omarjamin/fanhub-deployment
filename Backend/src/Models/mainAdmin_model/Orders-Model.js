@@ -22,6 +22,11 @@ class OrdersModel {
     return normalized || null;
   }
 
+  normalizeCourier(value) {
+    const normalized = String(value ?? '').trim();
+    return normalized || null;
+  }
+
   isLockedStatus(status) {
     const normalized = this.normalizeStatus(status);
     return normalized === 'completed' || normalized === 'cancelled';
@@ -273,7 +278,8 @@ class OrdersModel {
   async ensureOrderTrackingColumns(db) {
     const columns = [
       ['tracking_number', 'ALTER TABLE orders ADD COLUMN tracking_number VARCHAR(120) NULL AFTER status'],
-      ['tracking_updated_at', 'ALTER TABLE orders ADD COLUMN tracking_updated_at DATETIME NULL AFTER tracking_number'],
+      ['courier', 'ALTER TABLE orders ADD COLUMN courier VARCHAR(120) NULL AFTER tracking_number'],
+      ['tracking_updated_at', 'ALTER TABLE orders ADD COLUMN tracking_updated_at DATETIME NULL AFTER courier'],
     ];
 
     for (const [columnName, statement] of columns) {
@@ -551,6 +557,7 @@ class OrdersModel {
                 o.shipping_address,
                 o.status,
                 o.tracking_number,
+                o.courier,
                 o.tracking_updated_at,
                 o.created_at
               FROM orders o
@@ -590,6 +597,7 @@ class OrdersModel {
                   o.shipping_address,
                   o.status,
                   o.tracking_number,
+                  o.courier,
                   o.tracking_updated_at,
                   o.created_at
                 FROM orders o
@@ -609,6 +617,7 @@ class OrdersModel {
               ...row,
               status: this.normalizeStatus(row.status),
               tracking_number: this.normalizeTrackingNumber(row.tracking_number),
+              courier: this.normalizeCourier(row.courier),
             });
           }
         } catch (err) {
@@ -720,6 +729,7 @@ class OrdersModel {
                 o.shipping_address,
                 o.status,
                 o.tracking_number,
+                o.courier,
                 o.tracking_updated_at,
                 o.created_at
               FROM orders o
@@ -760,6 +770,7 @@ class OrdersModel {
                   o.shipping_address,
                   o.status,
                   o.tracking_number,
+                  o.courier,
                   o.tracking_updated_at,
                   o.created_at
                 FROM orders o
@@ -794,6 +805,7 @@ class OrdersModel {
               ...order,
               status: this.normalizeStatus(order.status),
               tracking_number: this.normalizeTrackingNumber(order.tracking_number),
+              courier: this.normalizeCourier(order.courier),
               items: items
             });
           }
@@ -874,7 +886,14 @@ class OrdersModel {
     );
   }
 
-  async updateOrderStatus(dbName, orderId, status, communityType = 'all', trackingNumber = null) {
+  async updateOrderStatus(
+    dbName,
+    orderId,
+    status,
+    communityType = 'all',
+    trackingNumber = null,
+    courier = null,
+  ) {
     if (!orderId) {
       throw new Error('orderId is required to update order status');
     }
@@ -887,10 +906,11 @@ class OrdersModel {
     await this.ensureOrderTrackingColumns(siteDB);
     const normalizedNextStatus = this.normalizeStatus(status);
     const normalizedTrackingNumber = this.normalizeTrackingNumber(trackingNumber);
+    const normalizedCourier = this.normalizeCourier(courier);
 
     const [beforeRows] = await siteDB.query(
       `
-        SELECT order_id, total, status, tracking_number, tracking_updated_at
+        SELECT order_id, total, status, tracking_number, courier, tracking_updated_at
         FROM orders
         WHERE order_id = ?
         LIMIT 1
@@ -903,21 +923,33 @@ class OrdersModel {
     }
     const previousStatus = this.normalizeStatus(beforeOrder.status);
     const currentTrackingNumber = this.normalizeTrackingNumber(beforeOrder.tracking_number);
+    const currentCourier = this.normalizeCourier(beforeOrder.courier);
 
     let nextTrackingNumber = currentTrackingNumber;
+    let nextCourier = currentCourier;
     if (normalizedNextStatus === 'shipped') {
       nextTrackingNumber = normalizedTrackingNumber || currentTrackingNumber;
+      nextCourier = normalizedCourier || currentCourier;
     } else if (normalizedNextStatus === 'completed') {
       nextTrackingNumber = normalizedTrackingNumber || currentTrackingNumber;
+      nextCourier = normalizedCourier || currentCourier;
     } else if (['pending', 'processing', 'cancelled'].includes(normalizedNextStatus)) {
       nextTrackingNumber = null;
+      nextCourier = null;
     }
 
     if (normalizedNextStatus === 'shipped' && !nextTrackingNumber) {
       throw new Error('Tracking number is required before marking an order as shipped');
     }
+    if (normalizedNextStatus === 'shipped' && !nextCourier) {
+      throw new Error('Courier is required before marking an order as shipped');
+    }
 
-    if (previousStatus === normalizedNextStatus && nextTrackingNumber === currentTrackingNumber) {
+    if (
+      previousStatus === normalizedNextStatus &&
+      nextTrackingNumber === currentTrackingNumber &&
+      nextCourier === currentCourier
+    ) {
       const [currentRows] = await siteDB.query(
         `
           SELECT
@@ -930,6 +962,7 @@ class OrdersModel {
             shipping_address,
             status,
             tracking_number,
+            courier,
             tracking_updated_at,
             created_at
           FROM orders
@@ -944,6 +977,7 @@ class OrdersModel {
         ...(currentRows?.[0] || beforeOrder),
         status: this.normalizeStatus(currentRows?.[0]?.status || beforeOrder.status),
         tracking_number: this.normalizeTrackingNumber(currentRows?.[0]?.tracking_number || beforeOrder.tracking_number),
+        courier: this.normalizeCourier(currentRows?.[0]?.courier ?? beforeOrder.courier),
       };
     }
 
@@ -963,11 +997,15 @@ class OrdersModel {
       normalizedNextStatus === 'completed' ||
       previousStatus === 'shipped' ||
       currentTrackingNumber !== null ||
-      normalizedTrackingNumber !== null;
+      normalizedTrackingNumber !== null ||
+      currentCourier !== null ||
+      normalizedCourier !== null;
 
     if (shouldPersistTracking) {
       updateFields.push('tracking_number = ?');
       updateParams.push(nextTrackingNumber);
+      updateFields.push('courier = ?');
+      updateParams.push(nextCourier);
 
       if (!nextTrackingNumber) {
         updateFields.push('tracking_updated_at = NULL');
@@ -1002,6 +1040,7 @@ class OrdersModel {
           shipping_address,
           status,
           tracking_number,
+          courier,
           tracking_updated_at,
           created_at
         FROM orders
@@ -1024,6 +1063,7 @@ class OrdersModel {
       ...updated,
       status: this.normalizeStatus(updated?.status),
       tracking_number: this.normalizeTrackingNumber(updated?.tracking_number),
+      courier: this.normalizeCourier(updated?.courier),
     };
   }
 }

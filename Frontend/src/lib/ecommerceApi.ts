@@ -95,6 +95,11 @@ function normalizeTrackingNumberValue(value: unknown) {
   return normalized || "";
 }
 
+function normalizeCourierValue(value: unknown) {
+  const normalized = String(value ?? "").trim();
+  return normalized || "";
+}
+
 function normalizeShippingAddress(value: unknown) {
   const parsed = parseJsonIfNeeded<Record<string, any>>(value);
   return asRecord(value) || parsed || {};
@@ -108,6 +113,7 @@ function normalizeOrderRecord(row: GenericRecord) {
     tracking_number: normalizeTrackingNumberValue(
       record.tracking_number ?? record.trackingNumber,
     ) || null,
+    courier: normalizeCourierValue(record.courier) || null,
     shipping_address: normalizeShippingAddress(
       record.shipping_address ?? record.shippingAddress,
     ),
