@@ -19,7 +19,8 @@
 }
 
 .collection-bini.is-hidden,
-.product-section.is-hidden {
+.product-section.is-hidden,
+.product-section-wrap.is-hidden {
   display: none;
 }
 
@@ -83,10 +84,21 @@
 }
 
 /* ========== PRODUCT SECTION ========== */
-.product-section {
+.product-section-wrap {
   margin: 28px auto 70px;
-  padding: 0 20px;
-  max-width: 980px;
+  padding: 0 24px;
+  max-width: 1040px;
+  width: 100%;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.product-section {
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  width: 100%;
   border: 0;
   border-radius: 0;
   background: #ffffff;
@@ -97,21 +109,33 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 26px;
+  margin: 12px auto 26px;
+  width: min(100%, 920px);
 }
 
 .collection-back-link {
   align-self: flex-start;
-  padding: 0;
+  margin-left: -50px;
+  padding: 2px 6px;
   border: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  color: #555555;
-  font-size: 0.92rem;
-  line-height: 1.4;
-  text-decoration: underline;
-  text-underline-offset: 4px;
+  color: #111111;
+  font-size: 1.7rem;
+  line-height: 1;
+  font-weight: 900 !important;
+  -webkit-text-stroke: 1.2px #111111;
+  text-shadow: 1px 0 0 #111111, -1px 0 0 #111111;
+  text-decoration: none;
   cursor: pointer;
+}
+
+.collection-back-link:hover,
+.collection-back-link:focus,
+.collection-back-link:focus-visible {
+  color: #111111 !important;
+  text-decoration: none !important;
+  background: transparent !important;
 }
 
 .product-section .section-title {
@@ -129,6 +153,9 @@
   gap: 10px;
   margin-bottom: 18px;
   flex-wrap: wrap;
+  width: min(100%, 920px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .category-btn {
@@ -159,6 +186,9 @@
   margin-bottom: 22px;
   flex-wrap: wrap;
   gap: 10px;
+  width: min(100%, 920px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .sort-group {
@@ -189,6 +219,9 @@
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 24px 18px;
   align-items: start;
+  width: min(100%, 920px);
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .product-item {
@@ -242,7 +275,7 @@
 
 .product-item:hover h4,
 .product-item:hover .product-price {
-  color: inherit;
+  color: #111111;
 }
 
 .no-products {
@@ -262,7 +295,7 @@
 
 @media (max-width: 640px) {
   .collection-bini,
-  .product-section {
+  .product-section-wrap {
     padding-left: 14px;
     padding-right: 14px;
   }

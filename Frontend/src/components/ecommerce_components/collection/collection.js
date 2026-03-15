@@ -16,11 +16,12 @@ export default function Collection(root, data = {}) {
       <div class="collection-list" id="collection-list"></div>
     </section>
 
-    <section id="product" class="product-section is-hidden" aria-hidden="true">
-      <div class="product-section-head">
-        <button type="button" class="collection-back-link" id="collection-back-link">Collections</button>
-        <h2 class="section-title" id="product-section-title">Products</h2>
-      </div>
+    <div class="product-section-wrap is-hidden" id="product-wrap" aria-hidden="true">
+      <button type="button" class="collection-back-link" id="collection-back-link" aria-label="Back to collections">←</button>
+      <section id="product" class="product-section">
+        <div class="product-section-head">
+          <h2 class="section-title" id="product-section-title">Products</h2>
+        </div>
 
       <div class="category-nav">
         <button class="category-btn active" data-category="all">All</button>
@@ -47,7 +48,8 @@ export default function Collection(root, data = {}) {
       </div>
 
       <div class="product-list" id="product-list"></div>
-    </section>
+      </section>
+    </div>
   `;
 
   let currentProducts = [];
@@ -102,7 +104,7 @@ export default function Collection(root, data = {}) {
 
       item.innerHTML = `
         <img src="${collection.img_url}" alt="${collection.name}" class="collection-image">
-        <h3>${collection.name} <span class="collection-arrow" aria-hidden="true">→</span></h3>
+        <h3>${collection.name}</h3>
       `;
 
       collectionList.appendChild(item);
@@ -320,18 +322,26 @@ export default function Collection(root, data = {}) {
   function showProductView(collectionName) {
     const collectionSection = document.getElementById('collection');
     const productSection = document.getElementById('product');
+    const productWrap = document.getElementById('product-wrap');
     const title = document.getElementById('product-section-title');
+    const formattedTitle = (() => {
+      const raw = String(collectionName || 'Collection').trim();
+      if (!raw) return 'Collection';
+      if (/^binified$/i.test(raw)) return 'Binified Collection';
+      return raw;
+    })();
 
-    if (title) title.textContent = collectionName || 'Collection';
+    if (title) title.textContent = formattedTitle;
     collectionSection?.classList.add('is-hidden');
-    productSection?.classList.remove('is-hidden');
-    productSection?.setAttribute('aria-hidden', 'false');
+    productWrap?.classList.remove('is-hidden');
+    productWrap?.setAttribute('aria-hidden', 'false');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   function showCollectionsView() {
     const collectionSection = document.getElementById('collection');
     const productSection = document.getElementById('product');
+    const productWrap = document.getElementById('product-wrap');
     const productList = document.getElementById('product-list');
     const count = document.getElementById('product-count');
     const sortSelect = document.getElementById('sort-select');
@@ -348,8 +358,8 @@ export default function Collection(root, data = {}) {
     const allBtn = document.querySelector('.category-btn[data-category="all"]');
     if (allBtn) allBtn.classList.add('active');
 
-    productSection?.classList.add('is-hidden');
-    productSection?.setAttribute('aria-hidden', 'true');
+    productWrap?.classList.add('is-hidden');
+    productWrap?.setAttribute('aria-hidden', 'true');
     collectionSection?.classList.remove('is-hidden');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
