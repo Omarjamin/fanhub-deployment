@@ -258,6 +258,7 @@ export default function Community() {
   let filteredSites = [];
   let editingId = null;
   let editingMembers = [];
+  let removedMembers = [];
   let activeMemberUploads = 0;
   let currentPage = 1;
   const itemsPerPage = 6;
@@ -518,6 +519,66 @@ export default function Community() {
     return normalized.startsWith('data:') ? '' : normalized;
   }
 
+  function normalizeBirthdateInput(value) {
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  function memberKey(member = {}) {
+    const name = String(member?.name || '').trim().toLowerCase();
+    const birthdate = normalizeBirthdateInput(member?.birthdate);
+    if (!name || !birthdate) return '';
+    return `${name}::${birthdate}`;
+  }
+
+  async function fetchSiteMembers(siteId) {
+    try {
+      const res = await api.get(`/admin/generate/generated-websites/${siteId}`, {
+        headers: getAdminHeaders(),
+      });
+      const members = res?.data?.data?.members;
+      return Array.isArray(members) ? members : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  async function buildMembersPayload(siteId, currentMembers, removedList) {
+    const removedKeys = new Set(
+      (removedList || [])
+        .map((member) => memberKey(member))
+        .filter(Boolean)
+    );
+    const existing = await fetchSiteMembers(siteId);
+    const merged = new Map();
+
+    existing.forEach((member) => {
+      const key = memberKey(member);
+      if (!key || removedKeys.has(key)) return;
+      merged.set(key, {
+        name: String(member?.name || '').trim(),
+        birthdate: normalizeBirthdateInput(member?.birthdate),
+        image_profile: sanitizeMemberImage(member?.image_profile || member?.image || ''),
+      });
+    });
+
+    (currentMembers || []).forEach((member) => {
+      const key = memberKey(member);
+      if (!key) return;
+      merged.set(key, {
+        name: String(member?.name || '').trim(),
+        birthdate: normalizeBirthdateInput(member?.birthdate),
+        image_profile: sanitizeMemberImage(member?.image_profile || member?.image || ''),
+      });
+    });
+
+    return Array.from(merged.values()).filter((member) => member.name && member.birthdate);
+  }
+
   async function uploadMemberImage(file) {
     const imageData = new FormData();
     imageData.append('file', file);
@@ -704,6 +765,7 @@ export default function Community() {
     section.querySelector('#letterSpacing').value = typography.letterSpacing || '0.02em';
     setPaletteInputs(getSitePalette(site));
     editingMembers = Array.isArray(site.members) ? [...site.members] : [];
+    removedMembers = [];
     renderMembersEditor();
     updateThemePreview();
     section.querySelector('#editModal').style.display = 'flex';
@@ -800,6 +862,7 @@ export default function Community() {
     })).filter((m) => m.name && m.birthdate);
 
     try {
+      const mergedMembers = await buildMembersPayload(editingId, editingMembers, removedMembers);
       await updateSite(editingId, {
         site_name,
         community_type: domain,
@@ -830,9 +893,13 @@ export default function Community() {
         font_size_base,
         line_height,
         letter_spacing,
-        members: editingMembers,
+        members: mergedMembers,
       });
       await fetchSites();
+      try {
+        const refreshKey = `members_refresh:${domain}`;
+        localStorage.setItem(refreshKey, String(Date.now()));
+      } catch (_) {}
       closeEditModal();
       showToast('Site updated successfully.', 'success');
     } catch (err) {
@@ -936,6 +1003,10 @@ export default function Community() {
         syncMembersFromEditor();
         const idx = Number(removeMemberIndex);
         if (Number.isFinite(idx) && idx >= 0) {
+          const removed = editingMembers[idx];
+          if (removed?.name && removed?.birthdate) {
+            removedMembers.push({ ...removed });
+          }
           editingMembers.splice(idx, 1);
           renderMembersEditor();
         }

@@ -58,7 +58,8 @@
 
 .ec-footer-brand {
   max-width: 560px;
-  padding: 20px 22px;
+  padding: 24px 28px;
+  min-width: min(90vw, 360px);
   border-radius: 20px;
   border: 1px solid color-mix(in srgb, var(--primary-color, #1f2937) 14%, white 86%);
   background:

@@ -1,8 +1,9 @@
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import AuthShell from "@/components/modern_components/AuthShell";
 import { loginUser } from "@/services/ecommerce_services/auth/signin.js";
 import { getAuthToken } from "@/services/ecommerce_services/auth/auth.js";
+import { getIdentityProviderStatus, getRecaptchaToken, renderRecaptchaWidget } from "@/services/ecommerce_services/auth/identity_providers.js";
 import { getModernSiteSlug } from "@/lib/modern-react/context";
 import { clearEcommercePostLoginRedirect, getEcommercePostLoginRedirect } from "@/lib/ecommerceApi";
 import { toast } from "@/hooks/use-toast";
@@ -14,6 +15,9 @@ const SignIn = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const recaptchaRef = useRef<HTMLDivElement | null>(null);
+  const [recaptchaHint, setRecaptchaHint] = useState("");
+  const [recaptchaPassive, setRecaptchaPassive] = useState(false);
 
   useEffect(() => {
     if (getAuthToken(siteSlug)) {
@@ -21,6 +25,29 @@ const SignIn = () => {
       navigate(redirectTo, { replace: true });
     }
   }, [navigate, redirectTo, siteSlug]);
+
+  useEffect(() => {
+    const status = getIdentityProviderStatus();
+    if (status.hasRecaptchaV2) {
+      setRecaptchaHint("Complete reCAPTCHA before signing in.");
+      setRecaptchaPassive(false);
+    } else if (status.hasRecaptchaV3) {
+      setRecaptchaHint("Protected by invisible reCAPTCHA.");
+      setRecaptchaPassive(true);
+    } else {
+      setRecaptchaHint("reCAPTCHA is not available for this site yet.");
+      setRecaptchaPassive(true);
+    }
+
+    if (!status.hasRecaptchaV2) return;
+    const container = recaptchaRef.current;
+    if (!container) return;
+
+    renderRecaptchaWidget(container).catch((err) => {
+      setRecaptchaHint(`reCAPTCHA render error: ${err?.message || "Unknown error"}`);
+      console.error("Login reCAPTCHA render error:", err);
+    });
+  }, []);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -33,12 +60,23 @@ const SignIn = () => {
       return;
     }
 
+    const recaptchaToken = await getRecaptchaToken("login", recaptchaRef.current).catch(() => "");
+    if (!recaptchaToken) {
+      toast({
+        title: "reCAPTCHA required",
+        description: "Please complete reCAPTCHA before login.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setSubmitting(true);
     try {
       await loginUser({
         email: email.trim(),
         password,
         site_slug: siteSlug,
+        recaptcha_token: recaptchaToken,
       });
       toast({
         title: "Login successful",
@@ -108,6 +146,11 @@ const SignIn = () => {
             Sign Up
           </Link>
         </p>
+
+        <div className={`mt-6 text-center ${recaptchaPassive ? "opacity-80" : ""}`}>
+          <div ref={recaptchaRef} className="mx-auto flex min-h-[78px] justify-center" />
+          <p className="mt-2 text-xs text-muted-foreground">{recaptchaHint}</p>
+        </div>
       </form>
     </AuthShell>
   );

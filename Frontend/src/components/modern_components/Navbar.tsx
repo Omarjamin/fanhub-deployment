@@ -1,22 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import {
-  History,
-  LogOut,
-  Menu,
-  ShoppingCart,
-  UserRound,
-  X,
-} from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { LogOut, Menu, User, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getModernResolvedSite } from "@/lib/modern-react/site";
+import { getAuthToken, removeAuthToken } from "@/services/ecommerce_services/auth/auth.js";
+import { getModernSiteSlug } from "@/lib/modern-react/context";
 import { isEcommerceLoggedIn, setEcommercePostLoginRedirect } from "@/lib/ecommerceApi";
-import { getActiveSiteSlug } from "@/lib/site-context.js";
-import {
-  authHeaders,
-  removeAuthToken,
-} from "@/services/ecommerce_services/auth/auth.js";
-import { api as buildEcommerceApiUrl } from "@/services/ecommerce_services/config.js";
-import { showConfirmToast, showToast } from "@/utils/toast.js";
 
 const navItems = [
   { label: "Home", id: "home" },
@@ -32,6 +20,8 @@ const Navbar = () => {
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const siteSlug = useMemo(() => getModernSiteSlug(), []);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAuthToken(siteSlug)));
   const [isDesktop, setIsDesktop] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth >= 768 : true,
   );
@@ -69,6 +59,59 @@ const Navbar = () => {
     backdropFilter: "blur(12px)",
   } as const;
 
+  useEffect(() => {
+    const handleScroll = () => setIsScrolled(window.scrollY > 50);
+    const handleResize = () => setIsDesktop(window.innerWidth >= 768);
+    const handleAuthRefresh = () => setIsAuthenticated(Boolean(getAuthToken(siteSlug)));
+    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("resize", handleResize);
+    window.addEventListener("storage", handleAuthRefresh);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleResize);
+      window.removeEventListener("storage", handleAuthRefresh);
+    };
+  }, [siteSlug]);
+
+  const handleAuthClick = () => {
+    if (isAuthenticated) {
+      removeAuthToken(siteSlug);
+      setIsAuthenticated(false);
+      navigate("/signin");
+      return;
+    }
+    navigate("/signin");
+  };
+
+  const scrollTo = (sectionId: string) => {
+    if (sectionId === "shop") {
+      if (!isEcommerceLoggedIn()) {
+        setEcommercePostLoginRedirect("/shop");
+        navigate("/signin");
+        setMobileOpen(false);
+        return;
+      }
+      const alreadyOnShop = location.pathname === "/shop";
+      navigate("/shop");
+      if (alreadyOnShop) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        setTimeout(() => window.scrollTo({ top: 0, behavior: "smooth" }), 0);
+      }
+      setMobileOpen(false);
+      return;
+    }
+
+    if (location.pathname !== "/") {
+      navigate("/", { state: { scrollTo: sectionId } });
+      setMobileOpen(false);
+      return;
+    }
+
+    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
+    setMobileOpen(false);
+  };
+
   const desktopNavStyle = {
     display: "flex",
     alignItems: "center",
@@ -90,190 +133,29 @@ const Navbar = () => {
     lineHeight: 1,
     fontSize: "0.82rem",
     fontWeight: 700,
-    letterSpacing: "0.28em",
-    textTransform: "uppercase" as const,
+    letterSpacing: "0.3em",
+    textTransform: "uppercase",
     textDecoration: "none",
     textShadow: isScrolled ? "none" : "0 1px 10px rgba(0,0,0,0.22)",
     cursor: "pointer",
   };
 
-  const actionBaseStyle = {
+  const authButtonStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: "0.5rem",
     borderRadius: "999px",
     border: useHeroNav
-      ? "1px solid rgba(255,255,255,0.2)"
-      : "1px solid color-mix(in srgb, var(--color-primary) 18%, white 82%)",
+      ? "1px solid rgba(255,255,255,0.45)"
+      : "1px solid color-mix(in srgb, var(--color-primary) 22%, white 78%)",
     background: useHeroNav
-      ? "linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.08))"
-      : "linear-gradient(180deg, rgba(255,255,255,0.96), rgba(255,255,255,0.84))",
+      ? "rgba(255,255,255,0.12)"
+      : "color-mix(in srgb, var(--color-primary-soft) 75%, white 25%)",
     color: useHeroNav ? heroNavText : scrolledNavText,
-    boxShadow: useHeroNav
-      ? "0 8px 18px rgba(0,0,0,0.15)"
-      : "0 8px 16px rgba(15,23,42,0.08)",
-  } as const;
-
-  useEffect(() => {
-    const handleScroll = () => setIsScrolled(window.scrollY > 36);
-    const handleResize = () => {
-      const nextIsDesktop = window.innerWidth >= 768;
-      setIsDesktop(nextIsDesktop);
-      if (nextIsDesktop) {
-        setMobileOpen(false);
-      }
-    };
-    const syncAuthState = () => {
-      setIsAuthenticated(isEcommerceLoggedIn());
-    };
-
-    handleScroll();
-    handleResize();
-    syncAuthState();
-
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleResize);
-    window.addEventListener("focus", syncAuthState);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleResize);
-      window.removeEventListener("focus", syncAuthState);
-    };
-  }, [siteSlug]);
-
-  useEffect(() => {
-    setIsAuthenticated(isEcommerceLoggedIn());
-  }, [location.pathname, siteSlug]);
-
-  const closeMobileMenu = () => {
-    setMobileOpen(false);
+    width: "2.35rem",
+    height: "2.35rem",
   };
-
-  const scrollTo = (sectionId: string) => {
-    if (sectionId === "shop") {
-      navigate("/shop");
-      closeMobileMenu();
-      return;
-    }
-
-    if (location.pathname !== "/") {
-      navigate("/", { state: { scrollTo: sectionId } });
-      closeMobileMenu();
-      return;
-    }
-
-    document.getElementById(sectionId)?.scrollIntoView({ behavior: "smooth" });
-    closeMobileMenu();
-  };
-
-  const routeToSignIn = (redirectPath = "/") => {
-    setEcommercePostLoginRedirect(redirectPath, siteSlug);
-    closeMobileMenu();
-    navigate("/signin");
-  };
-
-  const requireAuth = (targetLabel: string, redirectPath: string, onSuccess: () => void) => {
-    if (isAuthenticated) {
-      onSuccess();
-      closeMobileMenu();
-      return;
-    }
-
-    showToast(`Sign in to access ${targetLabel}.`, "error");
-    routeToSignIn(redirectPath);
-  };
-
-  const handleLogout = () => {
-    if (isLoggingOut) return;
-
-    showConfirmToast(
-      "Log out of your account?",
-      async () => {
-        setIsLoggingOut(true);
-        try {
-          await fetch(buildEcommerceApiUrl("/users/logout"), {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...authHeaders(siteSlug),
-            },
-            credentials: "include",
-          });
-        } catch (error) {
-          console.error("Logout request failed", error);
-        } finally {
-          removeAuthToken(siteSlug);
-          setIsAuthenticated(false);
-          setIsLoggingOut(false);
-          closeMobileMenu();
-          showToast("You have been logged out successfully.", "success");
-          navigate("/signin", { replace: true });
-        }
-      },
-      () => {},
-    );
-  };
-
-  const authActions = isAuthenticated
-    ? [
-        {
-          key: "orders",
-          label: "Orders",
-          Icon: History,
-          onClick: () => requireAuth("your orders", "/order-history", () => navigate("/order-history")),
-        },
-        {
-          key: "cart",
-          label: "Cart",
-          Icon: ShoppingCart,
-          onClick: () => requireAuth("your cart", "/cart", () => navigate("/cart")),
-        },
-        {
-          key: "profile",
-          label: "Profile",
-          Icon: UserRound,
-          onClick: () =>
-            requireAuth("your profile", "/", () => {
-              window.location.assign(profilePath);
-            }),
-        },
-        {
-          key: "logout",
-          label: isLoggingOut ? "Logging out" : "Logout",
-          Icon: LogOut,
-          onClick: handleLogout,
-        },
-      ]
-    : [
-        {
-          key: "signin",
-          label: "Sign In",
-          Icon: UserRound,
-          onClick: () => routeToSignIn(location.pathname || "/"),
-        },
-      ];
-
-  const renderActions = (mobile = false) => (
-    <div className={mobile ? "grid gap-2 pt-2" : "flex items-center gap-2"}>
-      {authActions.map(({ key, label, Icon, onClick }) => (
-        <button
-          key={key}
-          type="button"
-          onClick={onClick}
-          className={`modern-nav-button inline-flex items-center justify-center gap-2 font-body font-semibold transition ${
-            mobile ? "w-full px-4 py-3 text-sm" : "px-3.5 py-2 text-xs"
-          }`}
-          style={{
-            ...actionBaseStyle,
-            width: mobile ? "100%" : "auto",
-            letterSpacing: mobile ? "0.06em" : "0.08em",
-            textTransform: mobile ? "none" : "uppercase",
-          }}
-        >
-          <Icon size={mobile ? 17 : 15} />
-          <span>{label}</span>
-        </button>
-      ))}
-    </div>
-  );
 
   return (
     <header
@@ -312,35 +194,47 @@ const Navbar = () => {
         </button>
 
         {isDesktop ? (
-          <>
-            <ul style={desktopNavStyle}>
-              {navItems.map((item) => (
-                <li key={item.id}>
-                  <button
-                    type="button"
-                    onClick={() => scrollTo(item.id)}
-                    className="modern-nav-button"
-                    style={{
-                      ...linkBaseStyle,
-                      color: desktopLinkColor,
-                    }}
-                    onMouseEnter={(event) => {
-                      event.currentTarget.style.color = desktopLinkHover;
-                      event.currentTarget.style.background = "transparent";
-                    }}
-                    onMouseLeave={(event) => {
-                      event.currentTarget.style.color = desktopLinkColor;
-                      event.currentTarget.style.background = "transparent";
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            {renderActions(false)}
-          </>
-        ) : (
+          <ul style={desktopNavStyle}>
+            {navItems.map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => scrollTo(item.id)}
+                  className="modern-nav-button"
+                  style={{
+                    ...linkBaseStyle,
+                    color: desktopLinkColor,
+                  }}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.color = desktopLinkHover;
+                    event.currentTarget.style.background = "transparent";
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.color = desktopLinkColor;
+                    event.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+
+        {isDesktop ? (
+          <div className="flex items-center gap-3">
+            <button
+              className="modern-nav-button"
+              style={authButtonStyle}
+              onClick={handleAuthClick}
+              aria-label={isAuthenticated ? "Log Out" : "Sign In"}
+              title={isAuthenticated ? "Log Out" : "Sign In"}
+            >
+              {isAuthenticated ? <LogOut size={18} /> : <User size={18} />}
+            </button>
+          </div>
+        ) : null}
+
+        {!isDesktop ? (
           <button
             type="button"
             className="modern-nav-button inline-flex items-center justify-center rounded-full px-3 py-2"
@@ -365,35 +259,45 @@ const Navbar = () => {
             borderColor: "color-mix(in srgb, var(--color-primary) 18%, white 82%)",
           }}
         >
-          <div className="container mx-auto px-4 py-5">
-            <ul className="flex flex-col items-center gap-5" style={{ listStyle: "none", margin: 0, padding: 0 }}>
-              {navItems.map((item) => (
-                <li key={item.id} className="w-full">
-                  <button
-                    type="button"
-                    onClick={() => scrollTo(item.id)}
-                    className="modern-nav-button w-full font-body text-base font-semibold uppercase tracking-[0.18em] transition-colors"
-                    style={{
-                      color: scrolledNavMuted,
-                      padding: "0.25rem 0",
-                    }}
-                    onMouseEnter={(event) => {
-                      event.currentTarget.style.color = desktopLinkHover;
-                      event.currentTarget.style.background = "transparent";
-                    }}
-                    onMouseLeave={(event) => {
-                      event.currentTarget.style.color = scrolledNavMuted;
-                      event.currentTarget.style.background = "transparent";
-                    }}
-                  >
-                    {item.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <div className="mt-5 border-t pt-4" style={{ borderColor: "color-mix(in srgb, var(--color-primary) 14%, white 86%)" }}>
-              {renderActions(true)}
-            </div>
+          <ul className="flex flex-col items-center gap-6 py-8" style={{ listStyle: "none", margin: 0 }}>
+            {navItems.map((item) => (
+              <li key={item.id}>
+                <button
+                  onClick={() => scrollTo(item.id)}
+                  className="modern-nav-button font-body text-lg transition-colors uppercase tracking-widest"
+                  style={{
+                    color: scrolledNavMuted,
+                    padding: 0,
+                    fontWeight: 700,
+                    letterSpacing: "0.18em",
+                  }}
+                  onMouseEnter={(event) => {
+                    event.currentTarget.style.color = "var(--color-accent, #ff1493)";
+                    event.currentTarget.style.background = "transparent";
+                  }}
+                  onMouseLeave={(event) => {
+                    event.currentTarget.style.color = scrolledNavMuted;
+                    event.currentTarget.style.background = "transparent";
+                  }}
+                >
+                  {item.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <div className="flex flex-col items-center gap-3 pb-8">
+            <button
+              className="modern-nav-button"
+              style={authButtonStyle}
+              onClick={() => {
+                handleAuthClick();
+                setMobileOpen(false);
+              }}
+              aria-label={isAuthenticated ? "Log Out" : "Sign In"}
+              title={isAuthenticated ? "Log Out" : "Sign In"}
+            >
+              {isAuthenticated ? <LogOut size={18} /> : <User size={18} />}
+            </button>
           </div>
         </div>
       ) : null}

@@ -66,7 +66,7 @@
 }
 
 .ec-announcement-link {
-  color: color-mix(in srgb, var(--accent-color, #8aa8af) 84%, var(--theme-section-text, #ffffff));
+  color: var(--theme-section-heading, var(--surface-text-color, var(--primary-color, #385257)));
   font-size: 0.84rem;
   line-height: 1.3;
   text-decoration: underline;
@@ -76,7 +76,7 @@
 .ec-announcement-link:hover,
 .ec-announcement-link:focus,
 .ec-announcement-link:focus-visible {
-  color: var(--accent-color, #6f8e95);
+  color: #111111;
 }
 
 .ec-announcement-pagination {

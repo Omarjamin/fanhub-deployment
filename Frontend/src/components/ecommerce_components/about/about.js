@@ -167,6 +167,65 @@ function resolveMemberRows(payload = {}) {
     return [];
 }
 
+function buildRefreshKeys(siteSlug = '') {
+    const slug = String(siteSlug || '').trim().toLowerCase();
+    if (!slug) return [];
+    const variants = Array.from(new Set([
+        slug,
+        slug.replace(/-website$/i, ''),
+        slug.endsWith('-website') ? slug : `${slug}-website`,
+    ].filter(Boolean)));
+    return variants.map((value) => `members_refresh:${value}`);
+}
+
+function attachMembersAutoRefresh(root, siteSlug, refreshFn) {
+    if (!root || root.__aboutRefreshBound) return;
+    const keys = new Set(buildRefreshKeys(siteSlug));
+    if (!keys.size) return;
+
+    const onStorage = (event) => {
+        if (!event || !keys.has(event.key)) return;
+        refreshFn?.();
+    };
+
+    window.addEventListener('storage', onStorage);
+    root.__aboutRefreshBound = true;
+    root.__aboutRefreshCleanup = () => {
+        window.removeEventListener('storage', onStorage);
+        root.__aboutRefreshBound = false;
+    };
+}
+
+function areMembersEqual(a = [], b = []) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return false;
+    if (a.length !== b.length) return false;
+    return a.every((item, idx) => {
+        const other = b[idx];
+        return String(item?.name || '') === String(other?.name || '') &&
+            String(item?.primaryValue || '') === String(other?.primaryValue || '') &&
+            String(item?.secondaryValue || '') === String(other?.secondaryValue || '') &&
+            String(item?.photo || '') === String(other?.photo || '');
+    });
+}
+
+async function refreshMembers({
+    siteSlug,
+    siteId,
+    payload,
+    groupInfo,
+    membersData,
+    root,
+} = {}) {
+    if (!siteSlug) return { membersData };
+    const refreshedRows = await fetchMembersByCommunity(siteSlug, siteId || payload?.site_id || payload?.id);
+    const refreshedMembers = normalizeMembersFromPayload({ members: refreshedRows });
+    if (refreshedMembers.length && !areMembersEqual(refreshedMembers, membersData)) {
+        renderAbout(root, groupInfo, refreshedMembers);
+        return { membersData: refreshedMembers };
+    }
+    return { membersData };
+}
+
 function normalizeMembersFromPayload(payload = {}) {
     const rows = resolveMemberRows(payload);
     return rows.length
@@ -475,6 +534,31 @@ export default function About(root, data = {}) {
             memberNames: membersData.map((member) => member.name),
         });
         renderAbout(root, groupInfo, membersData);
+
+        attachMembersAutoRefresh(root, siteSlug, async () => {
+            const result = await refreshMembers({
+                siteSlug,
+                siteId: initialSiteId,
+                payload,
+                groupInfo,
+                membersData,
+                root,
+            });
+            membersData = result.membersData;
+        });
+
+        // Background refresh to avoid stale cached members even on first load.
+        setTimeout(async () => {
+            const result = await refreshMembers({
+                siteSlug,
+                siteId: initialSiteId,
+                payload,
+                groupInfo,
+                membersData,
+                root,
+            });
+            membersData = result.membersData;
+        }, 250);
     })();
 }
 
