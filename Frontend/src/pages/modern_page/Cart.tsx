@@ -119,7 +119,7 @@ const Cart = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <main className="pt-16 px-4 py-16">
+      <main className="pt-24 px-4 py-16">
         <div className="container mx-auto">
           <div className="mb-8 flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl border border-border/60 bg-card/70 inline-flex items-center justify-center text-primary">
