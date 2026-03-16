@@ -677,12 +677,12 @@
 .product-details-wrapper {
   --pd-surface: var(--theme-surface, var(--ec-surface, #fff7fb));
   --pd-surface-strong: var(--theme-surface-strong, var(--ec-surface-strong, #ffffff));
-  --pd-surface-muted: var(--theme-surface-muted, var(--ec-surface-muted, color-mix(in srgb, var(--pd-surface) 90%, white 10%)));
+  --pd-surface-muted: var(--theme-surface-muted, var(--ec-surface-muted, #fff0f6));
   --pd-text: var(--theme-text, var(--ec-text, #2f2430));
   --pd-text-muted: var(--theme-text-muted, var(--ec-text-muted, #6f5b6d));
   --pd-heading: var(--theme-heading, var(--ec-heading, var(--pd-text)));
   --pd-border: var(--theme-border, var(--ec-border, rgba(165, 106, 146, 0.18)));
-  --pd-shadow: var(--theme-shadow, var(--ec-shadow, 0 16px 36px rgba(121, 75, 107, 0.14)));
+  --pd-shadow: var(--theme-shadow, var(--ec-shadow, 0 22px 50px rgba(30, 20, 34, 0.22), 0 10px 22px rgba(30, 20, 34, 0.12)));
   --pd-accent: var(--theme-accent, var(--ec-accent, #f062a6));
   --pd-accent-strong: var(--theme-accent-strong, var(--ec-accent-strong, #e14d95));
   --pd-button-bg: var(--theme-button-bg, var(--ec-button-bg, var(--pd-accent)));

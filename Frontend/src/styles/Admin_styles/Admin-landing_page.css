@@ -317,7 +317,8 @@ a:hover { color: var(--primary); }
   width: 100%;
   border: 1px solid rgba(18, 15, 20, 0.08);
   border-radius: 1.5rem;
-  background: linear-gradient(180deg, #ffffff 0%, #fffafc 100%) !important;
+  background: linear-gradient(180deg, #2e2e2e 0%, #1a1a1a 100%) !important;
+
   box-shadow:
     0 28px 60px rgba(0, 0, 0, 0.18),
     0 10px 24px rgba(255, 75, 141, 0.08),
@@ -370,7 +371,7 @@ a:hover { color: var(--primary); }
 }
 
 #admin-landing .suggestion-card .form-title {
-  color: #17131c !important;
+  color: #fff !important;
   font-size: clamp(1.7rem, 3vw, 2.15rem);
   line-height: 1.05;
   letter-spacing: -0.03em;
@@ -378,7 +379,7 @@ a:hover { color: var(--primary); }
 }
 
 #admin-landing .suggestion-card .form-subtitle {
-  color: #5c5568 !important;
+  color: #fff!important;
   font-size: 0.93rem;
   line-height: 1.65;
 }
@@ -393,7 +394,7 @@ a:hover { color: var(--primary); }
   font-size: 0.82rem;
   font-weight: 700;
   letter-spacing: -0.01em;
-  color: #17131c !important;
+  color: #fff !important;
 }
 
 .auth-form { display: none; }
@@ -480,8 +481,7 @@ a:hover { color: var(--primary); }
 
 #admin-landing .suggestion-input:focus {
   border-color: #ff6aa7 !important;
-  box-shadow:
-    0 0 0 4px rgba(255, 106, 167, 0.14) !important,
+  box-shadow: 0 0 0 4px rgba(255, 106, 167, 0.14),
     0 10px 22px rgba(255, 106, 167, 0.12) !important;
   transform: translateY(-1px);
 }
@@ -607,19 +607,20 @@ a:hover { color: var(--primary); }
 
 .section-header {
   text-align: center;
-  .section-title {
-    font-size: 3rem;
-    font-weight: 800;
-    margin-bottom: 0.75rem;
-  }
-
-  /* Ensure headings inside specific sections use the 800 weight */
-  .features .section-header h2.section-title,
-  .success .section-header h2.section-title {
-    font-weight: 800;
-  }
   font-weight: 800;
   margin-bottom: 0.75rem;
+}
+
+.section-header .section-title {
+  font-size: 3rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+}
+
+/* Ensure headings inside specific sections use the 800 weight */
+.features .section-header h2.section-title,
+.success .section-header h2.section-title {
+  font-weight: 800;
 }
 
 .section-subtitle {
@@ -856,12 +857,6 @@ a:hover { color: var(--primary); }
   padding: 0 1rem 1rem;
 }
 
-@media (width >= 1024px) {
-  .templates-grid .template-card:only-child {
-    grid-column: 2;
-  }
-}
-
 .templates-grid .use-template {
   pointer-events: auto;
   cursor: pointer;
@@ -1054,7 +1049,7 @@ a:hover { color: var(--primary); }
 
   .hero-title { font-size: clamp(3.6rem, 5.4vw, 5rem); }
   .section-title { font-size: 3rem; }
-  .templates-grid { grid-auto-columns: minmax(260px, 320px); }
+  .templates-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 
   .auth-container {
     margin: 0 0 0 auto;
@@ -1069,7 +1064,7 @@ a:hover { color: var(--primary); }
   :root { --container-padding: 2rem; }
 
   .features-grid { grid-template-columns: repeat(3, 1fr); }
-  .templates-grid { grid-auto-columns: minmax(260px, 320px); }
+  .templates-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .footer-grid { grid-template-columns: 2fr 1fr; }
 
   .features-grid {

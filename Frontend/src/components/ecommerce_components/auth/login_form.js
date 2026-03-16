@@ -49,29 +49,6 @@ export default function LoginForm(root, data = {}) {
   root.innerHTML = `
     <section class="auth-section auth-section-login">
       <div class="auth-shell">
-        <div class="auth-intro">
-          <span class="auth-kicker">Official fan access</span>
-          <h1 class="auth-heading">Welcome back to ${siteLabel}</h1>
-          <p class="auth-copy">
-            Sign in to manage your orders, check out faster, and stay ready for exclusive drops and community features.
-          </p>
-
-          <div class="auth-highlights">
-            <div class="auth-highlight">
-              <strong>Track every order</strong>
-              <span>Keep your purchases, delivery updates, and history in one place.</span>
-            </div>
-            <div class="auth-highlight">
-              <strong>Faster checkout</strong>
-              <span>Use your account for a smoother shopping flow on your next visit.</span>
-            </div>
-            <div class="auth-highlight">
-              <strong>Stay connected</strong>
-              <span>Get back to the shop and community space without restarting your session.</span>
-            </div>
-          </div>
-        </div>
-
         <div class="auth-card">
           <div class="auth-card-head">
             <span class="auth-badge">Sign In</span>
