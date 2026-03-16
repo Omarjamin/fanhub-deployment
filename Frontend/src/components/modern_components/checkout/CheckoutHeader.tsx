@@ -22,7 +22,7 @@ const CheckoutHeader = ({ onBack }: CheckoutHeaderProps) => {
         </div>
         <div>
           <h1 className="font-display text-4xl text-gradient">Checkout</h1>
-          <p className="text-muted-foreground font-body text-sm">Complete your order details below.</p>
+          <p className="text-black font-body text-sm">Complete your order details below.</p>
         </div>
       </div>
     </>

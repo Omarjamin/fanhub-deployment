@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { History } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -24,6 +24,8 @@ type HistoryItem = {
     price?: number;
   }>;
 };
+
+type AnyRecord = Record<string, any>;
 
 function normalizeOrderStatus(value: string) {
   const normalized = String(value || "").trim().toLowerCase();
@@ -51,7 +53,7 @@ function getStatusBadgeClasses(value: string) {
   if (normalized === "shipped") return "border-cyan-200 bg-cyan-50 text-cyan-700";
   if (normalized === "completed") return "border-emerald-200 bg-emerald-50 text-emerald-700";
   if (normalized === "cancelled") return "border-rose-200 bg-rose-50 text-rose-700";
-  return "border-border/60 bg-background text-foreground";
+  return "border-border/60 bg-background text-black";
 }
 
 function normalizeTrackingNumber(value: unknown) {
@@ -82,13 +84,91 @@ function getCourierDisplayValue(status: string, courier: string) {
   return "";
 }
 
-function formatPeso(price: number) {
-  if (!Number.isFinite(price) || price <= 0) return "Price unavailable";
+function formatPeso(price: number | string) {
+  const normalized = typeof price === "number" ? price : Number(String(price ?? "").replace(/,/g, ""));
+  if (!Number.isFinite(normalized)) return "Price unavailable";
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency: "PHP",
     maximumFractionDigits: 2,
-  }).format(price);
+  }).format(normalized);
+}
+
+function toNumber(value: unknown, fallback = 0) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : fallback;
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+  const cleaned = raw.replace(/,/g, "").replace(/[^\d.-]/g, "");
+  if (!cleaned || cleaned === "-" || cleaned === ".") return fallback;
+  const parsed = Number(cleaned);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function firstFinite(values: unknown[]) {
+  for (const value of values) {
+    const parsed = toNumber(value, NaN);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return NaN;
+}
+
+function resolveOrderAmounts(order: HistoryItem) {
+  const raw = (order || {}) as AnyRecord;
+  const summary = (raw.summary_data || raw.summaryData || {}) as AnyRecord;
+  const items = Array.isArray(order.items) ? order.items : [];
+  const itemsSubtotal = items.reduce(
+    (sum, item) =>
+      sum + toNumber(item?.price, 0) * toNumber(item?.quantity ?? 0, 0),
+    0,
+  );
+
+  let subtotal = firstFinite([
+    raw.subtotal,
+    raw.sub_total,
+    raw.subtotal_amount,
+    raw.subTotal,
+    summary.subtotal,
+    summary.sub_total,
+    summary.subtotal_amount,
+    summary.subTotal,
+  ]);
+  if (!Number.isFinite(subtotal)) subtotal = itemsSubtotal;
+
+  let shippingFee = firstFinite([
+    raw.shipping_fee,
+    raw.shippingFee,
+    raw.shipping_fee_amount,
+    summary.shipping_fee,
+    summary.shippingFee,
+    summary.shipping_fee_amount,
+  ]);
+
+  let total = firstFinite([
+    raw.total,
+    raw.total_amount,
+    raw.totalAmount,
+    summary.total,
+    summary.total_amount,
+    summary.totalAmount,
+  ]);
+
+  if (!Number.isFinite(shippingFee)) {
+    if (Number.isFinite(total) && Number.isFinite(subtotal)) {
+      shippingFee = Math.max(0, total - subtotal);
+    } else {
+      shippingFee = 0;
+    }
+  }
+
+  if (!Number.isFinite(total)) {
+    total = subtotal + shippingFee;
+  }
+
+  return {
+    subtotal,
+    shippingFee,
+    total,
+  };
 }
 
 function formatDate(value: string) {
@@ -136,33 +216,33 @@ const OrderHistory = () => {
   }, []);
 
   const totalSpent = useMemo(
-    () => orders.reduce((sum, order) => sum + Number(order.total || 0), 0),
+    () => orders.reduce((sum, order) => sum + resolveOrderAmounts(order).total, 0),
     [orders],
   );
 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <main className="pt-24 px-4 py-16">
+      <main className="pt-24 px-4 py-16 text-black">
         <div className="container mx-auto">
           <div className="mb-6 flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl border border-border/60 bg-card/70 inline-flex items-center justify-center text-primary">
-              <History size={20} />
+              <ClipboardList size={20} />
             </div>
             <div>
               <h1 className="font-display text-4xl text-gradient">Order History</h1>
-              <p className="text-muted-foreground font-body text-sm">
+              <p className="text-black font-body text-sm">
                 {orders.length} order{orders.length === 1 ? "" : "s"} • Total spent {formatPeso(totalSpent)}
               </p>
             </div>
           </div>
 
-          {loading ? <p className="text-muted-foreground font-body">Loading order history...</p> : null}
-          {!loading && error ? <p className="text-muted-foreground font-body">{error}</p> : null}
+          {loading ? <p className="text-black font-body">Loading order history...</p> : null}
+          {!loading && error ? <p className="text-black font-body">{error}</p> : null}
 
           {!loading && !error && orders.length === 0 ? (
             <div className="rounded-2xl border border-border/60 bg-card/70 p-8 md:p-10 text-center">
-              <p className="text-muted-foreground font-body">No orders yet.</p>
+              <p className="text-black font-body">No orders yet.</p>
               <Link
                 to="/shop"
                 className="inline-block mt-6 rounded-full bg-primary px-5 py-2.5 text-primary-foreground text-sm font-body font-semibold"
@@ -183,16 +263,17 @@ const OrderHistory = () => {
                 const courier = normalizeCourier(order.courier);
                 const trackingDisplayValue = getTrackingDisplayValue(order.status, trackingNumber);
                 const courierDisplayValue = getCourierDisplayValue(order.status, courier);
+                const resolvedAmounts = resolveOrderAmounts(order);
 
                 return (
                   <article
                     key={order.order_id}
-                    className="rounded-2xl border border-border/60 bg-card/70 p-5"
+                    className="rounded-2xl border border-border/60 bg-card/70 p-5 text-black"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
                         <p className="font-body font-semibold">Order #{order.order_id}</p>
-                        <p className="text-xs text-muted-foreground">{formatDate(order.created_at)}</p>
+                        <p className="text-xs text-black">{formatDate(order.created_at)}</p>
                       </div>
                       <span className={`text-xs rounded-full border px-3 py-1 uppercase tracking-wide ${getStatusBadgeClasses(order.status)}`}>
                         {formatOrderStatus(order.status)}
@@ -200,7 +281,7 @@ const OrderHistory = () => {
                     </div>
 
                     {Array.isArray(order.items) && order.items.length > 0 ? (
-                      <div className="mt-3 space-y-1 text-sm font-body text-muted-foreground">
+                      <div className="mt-3 space-y-1 text-sm font-body text-black">
                         {order.items.map((item, index) => (
                           <p key={`${order.order_id}-${index}`}>
                             {String(item.product_name || item.name || "Item")} x {Number(item.quantity || 0)}
@@ -225,22 +306,22 @@ const OrderHistory = () => {
                           </p>
                         ) : null}
                         <p>
-                          Subtotal: <span className="font-semibold">{formatPeso(order.subtotal)}</span>
+                          Subtotal: <span className="font-semibold">{formatPeso(resolvedAmounts.subtotal)}</span>
                         </p>
                         <p>
-                          Shipping: <span className="font-semibold">{order.shipping_fee > 0 ? formatPeso(order.shipping_fee) : "--"}</span>
+                          Shipping: <span className="font-semibold">{formatPeso(resolvedAmounts.shippingFee)}</span>
                         </p>
                         <p>
-                          Total: <span className="font-semibold text-primary">{formatPeso(order.total)}</span>
+                          Total: <span className="font-semibold text-primary">{formatPeso(resolvedAmounts.total)}</span>
                         </p>
                       </div>
 
-                      <div className="space-y-1 text-muted-foreground">
-                        <p className="font-semibold text-foreground">Shipping Address</p>
-                        <p>{address.street_address || address.street || "N/A"}</p>
-                        <p>{address.barangay || "N/A"}</p>
-                        <p>{address.city_municipality || address.city || "N/A"}, {address.province || "N/A"}</p>
-                        <p>{address.region_name || address.region || "N/A"} {address.zip_code || address.zip || ""}</p>
+                      <div className="space-y-1">
+                        <p className="font-semibold text-black">Shipping Address</p>
+                        <p className="text-black">{address.street_address || address.street || "N/A"}</p>
+                        <p className="text-black">{address.barangay || "N/A"}</p>
+                        <p className="text-black">{address.city_municipality || address.city || "N/A"}, {address.province || "N/A"}</p>
+                        <p className="text-black">{address.region_name || address.region || "N/A"} {address.zip_code || address.zip || ""}</p>
                       </div>
                     </div>
                   </article>

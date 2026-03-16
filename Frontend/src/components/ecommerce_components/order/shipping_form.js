@@ -208,8 +208,8 @@ async function autoFillZipCode(api, state) {
         console.error('Error auto-filling ZIP code:', error);
     }
 
-    zip.placeholder = 'ZIP not found, enter manually';
-    zip.readOnly = false;
+    zip.placeholder = 'ZIP not found for this city';
+    zip.readOnly = true;
     return '';
 }
 

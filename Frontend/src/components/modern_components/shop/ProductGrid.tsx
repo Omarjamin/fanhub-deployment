@@ -15,6 +15,8 @@ type Product = {
   price: number;
   image: string;
   description: string;
+  category?: string;
+  variantLabel?: string;
 };
 
 type ProductGridProps = {
@@ -101,6 +103,12 @@ const ProductGrid = ({ products }: ProductGridProps) => {
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <h3 className="font-body font-semibold text-black">{product.name}</h3>
+                {product.category ? (
+                  <p className="text-xs text-muted-foreground font-body mt-1">{product.category}</p>
+                ) : null}
+                {product.variantLabel ? (
+                  <p className="text-xs text-muted-foreground font-body">{product.variantLabel}</p>
+                ) : null}
                 <p className="text-primary font-display text-xl mt-1">{formatPeso(product.price)}</p>
               </div>
               <div className="flex items-center gap-2 shrink-0">

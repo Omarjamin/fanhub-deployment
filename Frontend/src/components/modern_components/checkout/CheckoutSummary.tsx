@@ -2,7 +2,7 @@ type CheckoutSummaryProps = {
   totalQuantity: number;
   totalWeight: number;
   subtotal: number;
-  shippingFee: number;
+  shippingFee: number | null;
   total: number;
   submitting: boolean;
   paymentMethod: string;
@@ -22,24 +22,24 @@ const CheckoutSummary = ({
   formatPeso,
 }: CheckoutSummaryProps) => {
   return (
-    <aside className="rounded-2xl border border-border/60 bg-card/70 p-5 h-fit sticky top-24">
+    <aside className="rounded-2xl border border-border/60 bg-card/70 p-5 h-fit sticky top-24 text-black">
       <h2 className="font-display text-2xl text-gradient">Order Summary</h2>
       <div className="mt-4 space-y-2 text-sm font-body">
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Items</span>
+          <span className="text-black">Items</span>
           <span>{totalQuantity}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Subtotal</span>
+          <span className="text-black">Subtotal</span>
           <span>{formatPeso(subtotal)}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Total Weight</span>
+          <span className="text-black">Total Weight</span>
           <span>{totalWeight > 0 ? `${totalWeight} g` : "--"}</span>
         </div>
         <div className="flex justify-between">
-          <span className="text-muted-foreground">Shipping</span>
-          <span>{shippingFee > 0 ? formatPeso(shippingFee) : "--"}</span>
+          <span className="text-black">Shipping</span>
+          <span>{shippingFee === null ? "--" : formatPeso(shippingFee)}</span>
         </div>
         <div className="h-px bg-border/60 my-2" />
         <div className="flex justify-between text-base">
@@ -53,7 +53,7 @@ const CheckoutSummary = ({
         <button
           type="button"
           onClick={() => onPaymentMethodChange(paymentMethod === "cod" ? "" : "cod")}
-          className="mt-2 w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-body transition bg-card text-foreground hover:bg-accent"
+          className="mt-2 w-full flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-body transition bg-card text-black hover:bg-accent"
         >
           <input
             type="radio"

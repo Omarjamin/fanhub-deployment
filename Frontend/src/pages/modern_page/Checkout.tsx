@@ -11,6 +11,7 @@ import {
   fetchCartItems,
   fetchCityZipCode,
 } from "@/lib/ecommerceApi";
+import ShippingRates from "@/services/ecommerce_services/shipping/shipping_rates.js";
 import { toast } from "@/hooks/use-toast";
 import CheckoutHeader from "@/components/checkout/CheckoutHeader";
 import ShippingDetailsForm from "@/components/checkout/ShippingDetailsForm";
@@ -27,7 +28,7 @@ type AddressOption = {
 };
 
 function formatPeso(price: number) {
-  if (!Number.isFinite(price) || price <= 0) return "Price unavailable";
+  if (!Number.isFinite(price)) return "Price unavailable";
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency: "PHP",
@@ -59,6 +60,7 @@ const Checkout = () => {
   const [loadingProvinces, setLoadingProvinces] = useState(false);
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingBarangays, setLoadingBarangays] = useState(false);
+  const [shippingFee, setShippingFee] = useState<number | null>(null);
 
   useEffect(() => {
     if (Array.isArray(state.items)) return;
@@ -104,6 +106,10 @@ const Checkout = () => {
   }, []);
 
   const isNcrRegion = /ncr|national capital region/i.test(regionName);
+  const shippingLocation = useMemo(() => {
+    if (isNcrRegion) return String(cityMunicipality || "").trim();
+    return String(province || cityMunicipality || "").trim();
+  }, [cityMunicipality, isNcrRegion, province]);
 
   useEffect(() => {
     const selectedRegion = regions.find((entry) => entry.code === region);
@@ -221,8 +227,6 @@ const Checkout = () => {
     () => items.reduce((sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 0), 0),
     [items],
   );
-  const shippingFee = 0;
-  const total = subtotal + shippingFee;
   const totalQuantity = useMemo(
     () => items.reduce((sum, item) => sum + Number(item.quantity || 0), 0),
     [items],
@@ -235,6 +239,39 @@ const Checkout = () => {
       ),
     [items],
   );
+  const resolvedShippingFee = shippingFee ?? 0;
+  const total = subtotal + resolvedShippingFee;
+
+  useEffect(() => {
+    let active = true;
+    const locationLabel = String(shippingLocation || "").trim();
+    if (!locationLabel) {
+      setShippingFee(null);
+      return () => {
+        active = false;
+      };
+    }
+
+    const weightGrams = Math.max(0, Math.round(totalWeight || 0));
+    setShippingFee(null);
+    ShippingRates(locationLabel, weightGrams)
+      .then((result) => {
+        if (!active) return;
+        if (result?.success) {
+          const fee = Number(result.fee || 0);
+          setShippingFee(Number.isFinite(fee) ? Math.max(0, fee) : 0);
+          return;
+        }
+        setShippingFee(null);
+      })
+      .catch(() => {
+        if (active) setShippingFee(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [shippingLocation, totalWeight]);
 
   const isPreviewMode =
     typeof window !== "undefined" &&
@@ -285,7 +322,7 @@ const Checkout = () => {
           price: Number(item.price),
         })),
         subtotal,
-        shipping_fee: shippingFee,
+        shipping_fee: resolvedShippingFee,
         total,
         payment_method: paymentMethod,
         status: "pending",
@@ -310,7 +347,7 @@ const Checkout = () => {
           remainingStock: 0,
           items,
           subtotal,
-          shippingFee,
+          shippingFee: resolvedShippingFee,
           paymentMethod,
           shippingAddress: {
             region: regionName || region,
@@ -343,7 +380,7 @@ const Checkout = () => {
             remainingStock: 0,
             items,
             subtotal,
-            shippingFee,
+            shippingFee: resolvedShippingFee,
             paymentMethod,
             shippingAddress: {
               region: regionName || region,
@@ -371,15 +408,15 @@ const Checkout = () => {
   return (
     <div className="min-h-screen bg-background text-foreground">
       <Navbar />
-      <main className="pt-16 px-4 py-16">
+      <main className="pt-16 px-4 py-16 text-black">
         <div className="container mx-auto">
           <CheckoutHeader onBack={() => navigate(-1)} />
 
-          {isLoadingCart ? <p className="text-muted-foreground font-body">Loading checkout...</p> : null}
+          {isLoadingCart ? <p className="text-black font-body">Loading checkout...</p> : null}
 
           {!isLoadingCart && !items.length ? (
             <div className="rounded-2xl border border-border/60 bg-card/70 p-8 text-center">
-              <p className="text-muted-foreground font-body">No items to checkout.</p>
+              <p className="text-black font-body">No items to checkout.</p>
               <button
                 type="button"
                 onClick={() => navigate("/shop")}

@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { History, ShoppingCart } from "lucide-react";
+import { ClipboardList, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   fetchAllProductsAcrossCollections,
+  fetchProductWithVariants,
   fetchShopCollections,
 } from "@/lib/ecommerceApi";
 import ShopHeader from "@/components/shop/ShopHeader";
@@ -21,9 +22,14 @@ type Product = {
   image: string;
   description: string;
   category?: string;
+  collectionId?: string;
+  collectionName?: string;
+  variantLabel?: string;
 };
 
-const categoryTabs = ["All", "Apparell", "Accessories", "Collectibles", "Music"] as const;
+type ProductDetails = Record<string, any>;
+type ProductVariant = Record<string, any>;
+
 const sortOptions = [
   { value: "default", label: "Sort by: Featured" },
   { value: "price-asc", label: "Price: Low to High" },
@@ -32,15 +38,113 @@ const sortOptions = [
   { value: "name-desc", label: "Name: Z to A" },
 ] as const;
 
+const normalizeNumericValue = (value: unknown, fallback = 0) => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : fallback;
+  }
+
+  const raw = String(value ?? "").trim();
+  if (!raw) return fallback;
+
+  const negative = raw.startsWith("-");
+  const unsigned = raw.replace(/,/g, "").replace(/[^\d.]/g, "");
+  if (!unsigned) return fallback;
+
+  const firstDotIndex = unsigned.indexOf(".");
+  const normalized =
+    firstDotIndex === -1
+      ? unsigned
+      : `${unsigned.slice(0, firstDotIndex).replace(/\./g, "") || "0"}.${unsigned
+          .slice(firstDotIndex + 1)
+          .replace(/\./g, "")}`;
+  const parsed = Number(`${negative ? "-" : ""}${normalized}`);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const resolveVariantSummary = (details: ProductDetails, variants: ProductVariant[]) => {
+  const label = String(
+    details?.variant_values ||
+      details?.variant_name ||
+      details?.variant ||
+      "",
+  ).trim();
+  if (label) return label;
+
+  const variantLabels = variants
+    .map((variant) =>
+      String(variant?.name || variant?.variant_values || variant?.variant_name || "").trim(),
+    )
+    .filter(Boolean);
+
+  const count = Number(
+    variantLabels.length ||
+    details?.variant_count ||
+      details?.variantCount ||
+      details?.variants_count ||
+      variants.length ||
+      0,
+  );
+  if (count > 1) return `${count} variants`;
+  if (count === 1) return variantLabels[0] || "1 variant";
+  return "";
+};
+
+const resolveProductPrice = (
+  details: ProductDetails,
+  variants: ProductVariant[],
+  fallbackPrice = 0,
+) => {
+  const variantPrices = variants
+    .map((variant) => normalizeNumericValue(variant?.price, 0))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  if (variantPrices.length) return Math.min(...variantPrices);
+
+  return normalizeNumericValue(
+    details?.display_price ||
+      details?.price ||
+      details?.product_price ||
+      details?.unit_price ||
+      details?.amount ||
+      details?.cost ||
+      details?.retail_price ||
+      details?.sale_price ||
+      details?.min_price ||
+      details?.max_price ||
+      details?.base_price ||
+      fallbackPrice ||
+      0,
+    0,
+  );
+};
+
 const ShopSection = () => {
   const navigate = useNavigate();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeCategory, setActiveCategory] = useState<(typeof categoryTabs)[number]>("All");
+  const [activeCategory, setActiveCategory] = useState("All");
   const [sortBy, setSortBy] = useState<(typeof sortOptions)[number]["value"]>("default");
   const [loadingCollections, setLoadingCollections] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [error, setError] = useState("");
+
+  const categoryTabs = useMemo(() => {
+    const fromCollections = collections
+      .map((collection) => String(collection.name || "").trim())
+      .filter(Boolean);
+    const fromProducts = products
+      .map((product) => String(product.category || product.collectionName || "").trim())
+      .filter(Boolean);
+    const ordered = fromCollections.length ? fromCollections : fromProducts;
+    const unique = Array.from(new Set(ordered));
+    return ["All", ...unique];
+  }, [collections, products]);
+
+  useEffect(() => {
+    if (!categoryTabs.length) return;
+    if (!categoryTabs.includes(activeCategory)) {
+      setActiveCategory("All");
+    }
+  }, [activeCategory, categoryTabs]);
 
   useEffect(() => {
     let isMounted = true;
@@ -73,6 +177,9 @@ const ShopSection = () => {
   useEffect(() => {
     if (collections.length === 0) return;
     let isMounted = true;
+    const collectionLookup = new Map(
+      collections.map((collection) => [String(collection.id || "").trim(), collection.name]),
+    );
 
     const loadProducts = async () => {
       setLoadingProducts(true);
@@ -82,7 +189,41 @@ const ShopSection = () => {
           collections.map((collection) => collection.id),
         );
         if (!isMounted) return;
-        setProducts(data);
+        const normalized = data.map((product) => {
+          const collectionId = String(product.collectionId || "").trim();
+          const fallbackCategory = collectionLookup.get(collectionId) || product.collectionName || "";
+          return {
+            ...product,
+            category: String(product.category || fallbackCategory || "").trim(),
+          };
+        });
+        const enriched = await Promise.all(
+          normalized.map(async (product) => {
+            if (product.price > 0 && product.variantLabel) return product;
+            try {
+              const details = await fetchProductWithVariants(product.id);
+              const detailProduct =
+                details?.product && typeof details.product === "object"
+                  ? (details.product as ProductDetails)
+                  : {};
+              const variants = Array.isArray(details?.variants)
+                ? (details.variants as ProductVariant[])
+                : [];
+              const resolvedPrice = resolveProductPrice(detailProduct, variants, product.price);
+              const resolvedVariantLabel = resolveVariantSummary(detailProduct, variants);
+
+              return {
+                ...product,
+                price: resolvedPrice > 0 ? resolvedPrice : product.price,
+                variantLabel: resolvedVariantLabel || product.variantLabel,
+              };
+            } catch (_) {
+              return product;
+            }
+          }),
+        );
+        if (!isMounted) return;
+        setProducts(enriched);
       } catch (err: unknown) {
         if (!isMounted) return;
         const message =
@@ -101,13 +242,14 @@ const ShopSection = () => {
     };
   }, [collections]);
 
+  const normalizeCategory = (value: string) => String(value || "").trim().toLowerCase();
   const visibleProducts = useMemo(() => {
-    const normalizedCategory = activeCategory.toLowerCase();
+    const normalizedCategory = normalizeCategory(activeCategory);
     const filtered =
       normalizedCategory === "all"
         ? products
         : products.filter((product) => {
-            const productCategory = String(product.category || "").trim().toLowerCase();
+            const productCategory = normalizeCategory(product.category || "");
             if (!productCategory) return false;
             if (normalizedCategory === "apparell") {
               return productCategory === "apparel" || productCategory === "apparell";
@@ -158,7 +300,7 @@ const ShopSection = () => {
                 aria-label="Order History"
                 title="Order History"
               >
-                <History size={18} />
+                <ClipboardList size={18} />
               </button>
               <button
                 onClick={() => navigate("/cart")}

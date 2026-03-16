@@ -10,6 +10,9 @@ type ConfirmationItem = {
   product_name?: string;
   quantity?: number;
   price?: number;
+  unit_price?: number;
+  product_price?: number;
+  amount?: number;
 };
 
 type ShippingAddress = {
@@ -90,13 +93,25 @@ function getCourierDisplayValue(status: string, courier: string) {
   return "";
 }
 
-function formatPeso(price: number) {
-  if (!Number.isFinite(price) || price <= 0) return "Price unavailable";
+function formatPeso(price: number | string) {
+  const normalized = typeof price === "number" ? price : Number(String(price ?? "").replace(/,/g, ""));
+  if (!Number.isFinite(normalized)) return "Price unavailable";
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency: "PHP",
     maximumFractionDigits: 2,
-  }).format(price);
+  }).format(normalized);
+}
+
+function resolveItemPrice(item: ConfirmationItem) {
+  const price = Number(
+    item.price ??
+      item.unit_price ??
+      item.product_price ??
+      item.amount ??
+      0,
+  );
+  return Number.isFinite(price) ? price : 0;
 }
 
 const OrderConfirmation = () => {
@@ -137,10 +152,18 @@ const OrderConfirmation = () => {
     items.reduce((sum, entry) => sum + Number(entry.quantity || 0), 0) ||
     0,
   );
-  const subtotal = Number(activeOrder?.subtotal ?? state.subtotal ?? state.totalPrice ?? 0);
+  const computedItemsSubtotal = items.reduce(
+    (sum, entry) => sum + resolveItemPrice(entry) * Number(entry.quantity || 0),
+    0,
+  );
+  const subtotal = Number(activeOrder?.subtotal ?? state.subtotal ?? computedItemsSubtotal ?? state.totalPrice ?? 0);
   const shippingFee = Number(activeOrder?.shipping_fee ?? state.shippingFee ?? 0);
   const totalPrice = Number(activeOrder?.total ?? state.totalPrice ?? (subtotal + shippingFee));
-  const unitPrice = Number(state.unitPrice || (quantity > 0 ? subtotal / quantity : 0));
+  const unitPrice = Number(
+    state.unitPrice ||
+    (quantity > 0 ? computedItemsSubtotal / quantity : 0) ||
+    (quantity > 0 ? subtotal / quantity : 0),
+  );
   const remainingStock = Number(state.remainingStock || 0);
   const paymentMethod = String(activeOrder?.payment_method || state.paymentMethod || "cod").toLowerCase() === "cod"
     ? "Cash on Delivery"
@@ -177,7 +200,7 @@ const OrderConfirmation = () => {
                 </div>
               </div>
 
-              <h2 className="mt-6 font-display text-2xl">What's Next?</h2>
+              <h2 className="mt-6 font-display text-2xl text-foreground">What's Next?</h2>
               <div className="mt-4 grid md:grid-cols-2 xl:grid-cols-4 gap-3">
                 {steps.map((step, index) => {
                   const isReached = index <= currentStepIndex;
@@ -189,15 +212,15 @@ const OrderConfirmation = () => {
                       className={isReached
                         ? "rounded-2xl border border-primary/30 bg-primary/10 p-4"
                         : "rounded-2xl border border-border/60 bg-background p-4"}
-                    >
-                      <div className={isReached
-                        ? "h-10 w-10 rounded-full bg-background inline-flex items-center justify-center text-primary"
-                        : "h-10 w-10 rounded-full bg-card inline-flex items-center justify-center text-muted-foreground"}
                       >
-                        <Icon size={18} />
-                      </div>
-                      <p className="font-body font-semibold mt-3">{step.title}</p>
-                      <p className="text-sm text-muted-foreground">{step.desc}</p>
+                        <div className={isReached
+                          ? "h-10 w-10 rounded-full bg-background inline-flex items-center justify-center text-primary"
+                          : "h-10 w-10 rounded-full bg-card inline-flex items-center justify-center text-muted-foreground"}
+                        >
+                          <Icon size={18} />
+                        </div>
+                      <p className="font-body font-semibold mt-3 text-foreground">{step.title}</p>
+                      <p className="text-sm text-foreground/70">{step.desc}</p>
                     </div>
                   );
                 })}
@@ -206,8 +229,8 @@ const OrderConfirmation = () => {
 
             <div className="mt-5 grid lg:grid-cols-[1fr_340px] gap-4">
               <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
-                <h3 className="font-body font-semibold">Order Details</h3>
-                <div className="mt-3 space-y-2 text-sm font-body">
+                <h3 className="font-body font-semibold text-foreground">Order Details</h3>
+                <div className="mt-3 space-y-2 text-sm font-body text-foreground">
                   <p>
                     Order ID: <span className="font-semibold">{activeOrder?.order_id || state.orderId || "N/A"}</span>
                   </p>
@@ -229,7 +252,7 @@ const OrderConfirmation = () => {
                       {items.map((entry, index) => (
                         <p key={`${entry.product_name || entry.name || "item"}-${index}`}>
                           {entry.product_name || entry.name || itemName} x {Number(entry.quantity || 0)} -{" "}
-                          <span className="font-semibold">{formatPeso(Number(entry.price || 0))}</span>
+                          <span className="font-semibold">{formatPeso(resolveItemPrice(entry))}</span>
                         </p>
                       ))}
                     </div>
@@ -248,7 +271,7 @@ const OrderConfirmation = () => {
                     Subtotal: <span className="font-semibold">{formatPeso(subtotal)}</span>
                   </p>
                   <p>
-                    Shipping Fee: <span className="font-semibold">{shippingFee > 0 ? formatPeso(shippingFee) : "--"}</span>
+                    Shipping Fee: <span className="font-semibold">{formatPeso(shippingFee)}</span>
                   </p>
                   <p>
                     Total: <span className="font-semibold text-primary">{formatPeso(totalPrice)}</span>
@@ -262,8 +285,8 @@ const OrderConfirmation = () => {
               </div>
 
               <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
-                <h3 className="font-body font-semibold">Shipping Address</h3>
-                <div className="mt-3 space-y-1 text-sm font-body text-muted-foreground">
+                <h3 className="font-body font-semibold text-foreground">Shipping Address</h3>
+                <div className="mt-3 space-y-1 text-sm font-body text-foreground/70">
                   <p>{shippingAddress.streetAddress || shippingAddress.street_address || "N/A"}</p>
                   <p>{shippingAddress.barangay || "N/A"}</p>
                   <p>
