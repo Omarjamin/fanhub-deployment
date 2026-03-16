@@ -17,6 +17,14 @@ type Product = {
   id?: number;
   name?: string;
   description?: string;
+  price?: number;
+  display_price?: number;
+  product_price?: number;
+  unit_price?: number;
+  amount?: number;
+  cost?: number;
+  retail_price?: number;
+  sale_price?: number;
   img_url?: string;
   image_url?: string;
   image?: string;
@@ -29,6 +37,8 @@ type Variant = {
   variant_name?: string;
   variant_values?: string;
   price?: number;
+  variant_price?: number;
+  variantPrice?: number;
   stock?: number;
   weight?: number;
   weight_g?: number;
@@ -42,6 +52,26 @@ function formatPeso(price: number) {
     currency: "PHP",
     maximumFractionDigits: 2,
   }).format(price);
+}
+
+function resolveDisplayPrice(product: Product | null, variant: Variant | null) {
+  const variantPrice = Number(
+    variant?.price ?? variant?.variant_price ?? variant?.variantPrice ?? 0,
+  );
+  if (Number.isFinite(variantPrice) && variantPrice > 0) return variantPrice;
+
+  const productPrice = Number(
+    product?.display_price ??
+      product?.price ??
+      product?.product_price ??
+      product?.unit_price ??
+      product?.amount ??
+      product?.cost ??
+      product?.retail_price ??
+      product?.sale_price ??
+      0,
+  );
+  return Number.isFinite(productPrice) ? productPrice : 0;
 }
 
 const BuyNowConfirm = () => {
@@ -97,9 +127,12 @@ const BuyNowConfirm = () => {
     [selectedVariantId, variants],
   );
 
-  const itemPrice = Number(selectedVariant?.price || 0);
+  const itemPrice = resolveDisplayPrice(product, selectedVariant);
   const totalPrice = itemPrice * quantity;
   const image = toExternalUrl(product?.img_url || product?.image_url || product?.image || "", "");
+  const selectedVariantLabel = String(
+    selectedVariant?.variant_values || selectedVariant?.variant_name || "Standard",
+  );
 
   const handleConfirmBuyNow = async () => {
     if (!isEcommerceLoggedIn()) {
@@ -134,9 +167,9 @@ const BuyNowConfirm = () => {
               name: String(product?.name || "Product"),
               image,
               quantity,
-              price: Number(selectedVariant?.price || 0),
+              price: itemPrice,
               category: "",
-              variant: String(selectedVariant?.variant_values || selectedVariant?.variant_name || ""),
+              variant: selectedVariantLabel,
               weight: Number(
                 selectedVariant?.weight || selectedVariant?.weight_g || selectedVariant?.weight_in_grams || 0,
               ),
@@ -209,14 +242,47 @@ const BuyNowConfirm = () => {
                       <p className="text-muted-foreground font-body mt-3 leading-relaxed">{product.description}</p>
                     ) : null}
 
+                    {variants.length > 0 ? (
+                      <div className="mt-4">
+                        <label className="block text-sm font-body text-foreground mb-2">Variant</label>
+                        <div className="flex flex-wrap gap-2">
+                          {variants.map((variant, index) => {
+                            const variantId = Number(
+                              variant.product_variant_id || variant.variant_id || variant.id || 0,
+                            );
+                            const label = String(
+                              variant.variant_values ||
+                                variant.variant_name ||
+                                `Variant ${index + 1}`,
+                            );
+                            const isActive = variantId === selectedVariantId;
+                            return (
+                              <button
+                                key={`${variantId}-${label}`}
+                                type="button"
+                                onClick={() => setSelectedVariantId(variantId)}
+                                className={`rounded-full border px-4 py-1.5 text-xs font-body transition ${
+                                  isActive
+                                    ? "border-primary bg-primary text-primary-foreground"
+                                    : "border-border/60 bg-card/70 text-foreground hover:border-primary/50"
+                                }`}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+
                     <div className="mt-4">
                       <label className="block text-sm font-body text-foreground mb-2">Quantity</label>
                       <div className="flex items-center gap-3">
                         <div className="inline-flex items-center rounded-xl border border-border/60 overflow-hidden">
                           <button
                             type="button"
-                          onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
-                          className="h-10 w-10 bg-card hover:bg-accent transition"
+                            onClick={() => setQuantity((prev) => Math.max(1, prev - 1))}
+                            className="h-10 w-10 bg-card hover:bg-accent transition"
                           >
                             -
                           </button>
@@ -246,6 +312,7 @@ const BuyNowConfirm = () => {
                 <div className="mt-4 rounded-xl border border-border/60 bg-background p-4">
                   <p className="text-sm text-muted-foreground font-body">Order Summary</p>
                   <p className="mt-2 font-body">Item: {product.name}</p>
+                  <p className="font-body">Variant: {selectedVariantLabel}</p>
                   <p className="font-body">Quantity: {quantity}</p>
                   <p className="mt-1 font-display text-xl text-primary">Total: {formatPeso(totalPrice)}</p>
                 </div>

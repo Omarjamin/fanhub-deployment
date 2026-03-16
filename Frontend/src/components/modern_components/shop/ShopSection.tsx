@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { History, ShoppingCart } from "lucide-react";
+import { ClipboardList, ShoppingCart } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import {
   fetchAllProductsAcrossCollections,
@@ -21,9 +21,11 @@ type Product = {
   image: string;
   description: string;
   category?: string;
+  collectionId?: string;
+  collectionName?: string;
+  variantLabel?: string;
 };
 
-const categoryTabs = ["All", "Apparell", "Accessories", "Collectibles", "Music"] as const;
 const sortOptions = [
   { value: "default", label: "Sort by: Featured" },
   { value: "price-asc", label: "Price: Low to High" },
@@ -36,11 +38,30 @@ const ShopSection = () => {
   const navigate = useNavigate();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
-  const [activeCategory, setActiveCategory] = useState<(typeof categoryTabs)[number]>("All");
+  const [activeCategory, setActiveCategory] = useState("All");
   const [sortBy, setSortBy] = useState<(typeof sortOptions)[number]["value"]>("default");
   const [loadingCollections, setLoadingCollections] = useState(true);
   const [loadingProducts, setLoadingProducts] = useState(false);
   const [error, setError] = useState("");
+
+  const categoryTabs = useMemo(() => {
+    const fromCollections = collections
+      .map((collection) => String(collection.name || "").trim())
+      .filter(Boolean);
+    const fromProducts = products
+      .map((product) => String(product.category || product.collectionName || "").trim())
+      .filter(Boolean);
+    const ordered = fromCollections.length ? fromCollections : fromProducts;
+    const unique = Array.from(new Set(ordered));
+    return ["All", ...unique];
+  }, [collections, products]);
+
+  useEffect(() => {
+    if (!categoryTabs.length) return;
+    if (!categoryTabs.includes(activeCategory)) {
+      setActiveCategory("All");
+    }
+  }, [activeCategory, categoryTabs]);
 
   useEffect(() => {
     let isMounted = true;
@@ -73,6 +94,9 @@ const ShopSection = () => {
   useEffect(() => {
     if (collections.length === 0) return;
     let isMounted = true;
+    const collectionLookup = new Map(
+      collections.map((collection) => [String(collection.id || "").trim(), collection.name]),
+    );
 
     const loadProducts = async () => {
       setLoadingProducts(true);
@@ -82,7 +106,15 @@ const ShopSection = () => {
           collections.map((collection) => collection.id),
         );
         if (!isMounted) return;
-        setProducts(data);
+        const normalized = data.map((product) => {
+          const collectionId = String(product.collectionId || "").trim();
+          const fallbackCategory = collectionLookup.get(collectionId) || product.collectionName || "";
+          return {
+            ...product,
+            category: String(product.category || fallbackCategory || "").trim(),
+          };
+        });
+        setProducts(normalized);
       } catch (err: unknown) {
         if (!isMounted) return;
         const message =
@@ -101,13 +133,14 @@ const ShopSection = () => {
     };
   }, [collections]);
 
+  const normalizeCategory = (value: string) => String(value || "").trim().toLowerCase();
   const visibleProducts = useMemo(() => {
-    const normalizedCategory = activeCategory.toLowerCase();
+    const normalizedCategory = normalizeCategory(activeCategory);
     const filtered =
       normalizedCategory === "all"
         ? products
         : products.filter((product) => {
-            const productCategory = String(product.category || "").trim().toLowerCase();
+            const productCategory = normalizeCategory(product.category || "");
             if (!productCategory) return false;
             if (normalizedCategory === "apparell") {
               return productCategory === "apparel" || productCategory === "apparell";
@@ -158,7 +191,7 @@ const ShopSection = () => {
                 aria-label="Order History"
                 title="Order History"
               >
-                <History size={18} />
+                <ClipboardList size={18} />
               </button>
               <button
                 onClick={() => navigate("/cart")}

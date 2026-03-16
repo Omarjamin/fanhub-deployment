@@ -1,5 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
-import { History } from "lucide-react";
+import { ClipboardList } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
@@ -147,7 +147,7 @@ const OrderHistory = () => {
         <div className="container mx-auto">
           <div className="mb-6 flex items-center gap-3">
             <div className="h-11 w-11 rounded-xl border border-border/60 bg-card/70 inline-flex items-center justify-center text-primary">
-              <History size={20} />
+              <ClipboardList size={20} />
             </div>
             <div>
               <h1 className="font-display text-4xl text-gradient">Order History</h1>

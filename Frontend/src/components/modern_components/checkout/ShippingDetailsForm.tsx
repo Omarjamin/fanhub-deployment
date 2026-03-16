@@ -123,6 +123,9 @@ const ShippingDetailsForm = ({
           value={zipCode}
           onChange={(e) => onZipCodeChange(e.target.value)}
           placeholder="Zip Code"
+          readOnly
+          aria-readonly="true"
+          inputMode="numeric"
           className="h-11 rounded-xl border border-border/60 bg-background px-3 font-body text-sm outline-none focus:border-primary/60 md:col-span-2"
         />
 

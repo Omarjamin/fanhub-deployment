@@ -111,9 +111,24 @@ function normalizeOrderRecord(row: GenericRecord) {
     ...record,
     status: normalizeOrderStatusValue(record.status),
     tracking_number: normalizeTrackingNumberValue(
-      record.tracking_number ?? record.trackingNumber,
+      record.tracking_number ??
+        record.trackingNumber ??
+        record.tracking_no ??
+        record.trackingNo ??
+        record.tracking_code ??
+        record.trackingCode ??
+        record.tracking ??
+        record.tracking_id,
     ) || null,
-    courier: normalizeCourierValue(record.courier) || null,
+    courier: normalizeCourierValue(
+      record.courier ??
+        record.courier_name ??
+        record.shipping_courier ??
+        record.shipping_provider ??
+        record.shipping_carrier ??
+        record.delivery_courier ??
+        record.delivery_provider,
+    ) || null,
     shipping_address: normalizeShippingAddress(
       record.shipping_address ?? record.shippingAddress,
     ),
@@ -352,13 +367,80 @@ function normalizeCollection(row: GenericRecord) {
 }
 
 function normalizeProduct(row: GenericRecord) {
+  const variants = Array.isArray(row.variants) ? row.variants : [];
+  const variantPrices = variants
+    .map((variant) => normalizeNumericValue(variant?.price, 0))
+    .filter((value) => Number.isFinite(value) && value > 0);
+  const variantPrice = variantPrices.length ? Math.min(...variantPrices) : 0;
+  const variantLabel = String(
+    row.variant_values ||
+      row.variant_name ||
+      row.variant ||
+      "",
+  ).trim();
+  const variantCount = Number(
+    row.variant_count || row.variantCount || row.variants_count || variants.length || 0,
+  );
+  const variantSummary = variantLabel
+    ? variantLabel
+    : variantCount > 1
+      ? `${variantCount} variants`
+      : variantCount === 1
+        ? "1 variant"
+        : "";
+  const directPrice = normalizeNumericValue(
+    row.display_price ||
+      row.price ||
+      row.product_price ||
+      row.unit_price ||
+      row.amount ||
+      row.cost ||
+      row.retail_price ||
+      row.sale_price ||
+      row.min_price ||
+      row.max_price ||
+      row.base_price ||
+      0,
+    0,
+  );
+  const resolvedPrice = variantPrice > 0 ? variantPrice : directPrice;
+  const resolvedCategory = String(
+    row.category_name ||
+      row.category ||
+      row.collection_name ||
+      row.collection_title ||
+      row.collectionName ||
+      row.collection ||
+      "",
+  );
+  const collectionId = String(
+    row.collection_id || row.collectionId || row.__collectionId || row.collection?.id || "",
+  );
+  const collectionName = String(
+    row.collection_name || row.collectionName || row.__collectionName || row.collection?.name || "",
+  );
+  const image = toAbsoluteMediaUrl(
+    row.img_url ||
+      row.image_url ||
+      row.image ||
+      row.product_image ||
+      row.product_img ||
+      row.thumbnail ||
+      (Array.isArray(row.images) ? row.images[0] : "") ||
+      "",
+    "",
+  );
+
   return {
     id: String(row.product_id || row.id || ""),
     name: String(row.name || "Product"),
-    price: normalizeNumericValue(row.price, 0),
-    image: toAbsoluteMediaUrl(row.img_url || row.image_url || row.image || "", ""),
+    price: resolvedPrice,
+    image,
     description: String(row.description || ""),
-    category: String(row.category_name || row.category || ""),
+    category: resolvedCategory,
+    collectionId,
+    collectionName,
+    variantLabel: variantSummary,
   };
 }
 
@@ -453,7 +535,11 @@ export async function fetchAllProductsAcrossCollections(collectionIds: string[])
       if (!response.ok) {
         throw new Error(payload?.message || `Failed to load products for ${collectionId}`);
       }
-      return Array.isArray(payload?.data) ? payload.data : [];
+      const data = Array.isArray(payload?.data) ? payload.data : [];
+      return data.map((item: GenericRecord) => ({
+        ...item,
+        __collectionId: item.collection_id || item.collectionId || collectionId,
+      }));
     }),
   );
 
@@ -525,7 +611,20 @@ export async function fetchCartItems() {
     productId: Number(item.product_id || item.productId || 0),
     variantId: Number(item.variant_id || item.variantId || 0),
     name: String(item.product_name || item.name || "Item"),
-    image: toAbsoluteMediaUrl(item.product_image || item.image || item.img_url || "", ""),
+    image: toAbsoluteMediaUrl(
+      item.product_image ||
+        item.product_image_url ||
+        item.product_img ||
+        item.product_img_url ||
+        item.image_url ||
+        item.imageUrl ||
+        item.image ||
+        item.img_url ||
+        item.thumbnail ||
+        item.thumb ||
+        "",
+      "",
+    ),
     category: String(item.category_name || item.category || ""),
     variant: String(item.variant_values || item.variant_name || item.variant || ""),
     quantity: normalizeNumericValue(item.quantity, 0),

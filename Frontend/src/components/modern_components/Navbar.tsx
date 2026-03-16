@@ -2,14 +2,13 @@ import { useState, useEffect, useMemo } from "react";
 import { LogOut, Menu, User, X } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getModernResolvedSite } from "@/lib/modern-react/site";
-import { getAuthToken, removeAuthToken } from "@/services/ecommerce_services/auth/auth.js";
+import { removeAuthToken } from "@/services/ecommerce_services/auth/auth.js";
 import { getModernSiteSlug } from "@/lib/modern-react/context";
 import { isEcommerceLoggedIn, setEcommercePostLoginRedirect } from "@/lib/ecommerceApi";
 
 const navItems = [
   { label: "Home", id: "home" },
   { label: "About", id: "about" },
-  { label: "Members", id: "members" },
   { label: "Music", id: "music" },
   { label: "Events", id: "events" },
   { label: "Shop", id: "shop" },
@@ -21,17 +20,12 @@ const Navbar = () => {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const siteSlug = useMemo(() => getModernSiteSlug(), []);
-  const [isAuthenticated, setIsAuthenticated] = useState(() => Boolean(getAuthToken(siteSlug)));
+  const [isAuthenticated, setIsAuthenticated] = useState(() => isEcommerceLoggedIn());
   const [isDesktop, setIsDesktop] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth >= 768 : true,
   );
-  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [logoFailed, setLogoFailed] = useState(false);
   const site = useMemo(() => getModernResolvedSite(), []);
-  const profilePath = useMemo(
-    () => siteSlug ? `/fanhub/community-platform/${siteSlug}/profile` : "/fanhub/community-platform",
-    [siteSlug],
-  );
   const showLogo = Boolean(site.logo) && !logoFailed;
   const heroNavText = "rgba(255,255,255,0.98)";
   const heroNavMuted = "rgba(255,255,255,0.9)";
@@ -60,7 +54,7 @@ const Navbar = () => {
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 50);
     const handleResize = () => setIsDesktop(window.innerWidth >= 768);
-    const handleAuthRefresh = () => setIsAuthenticated(Boolean(getAuthToken(siteSlug)));
+    const handleAuthRefresh = () => setIsAuthenticated(isEcommerceLoggedIn());
     window.addEventListener("scroll", handleScroll);
     window.addEventListener("resize", handleResize);
     window.addEventListener("storage", handleAuthRefresh);

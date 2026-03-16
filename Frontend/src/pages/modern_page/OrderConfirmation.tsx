@@ -10,6 +10,9 @@ type ConfirmationItem = {
   product_name?: string;
   quantity?: number;
   price?: number;
+  unit_price?: number;
+  product_price?: number;
+  amount?: number;
 };
 
 type ShippingAddress = {
@@ -99,6 +102,17 @@ function formatPeso(price: number) {
   }).format(price);
 }
 
+function resolveItemPrice(item: ConfirmationItem) {
+  const price = Number(
+    item.price ??
+      item.unit_price ??
+      item.product_price ??
+      item.amount ??
+      0,
+  );
+  return Number.isFinite(price) ? price : 0;
+}
+
 const OrderConfirmation = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -137,10 +151,18 @@ const OrderConfirmation = () => {
     items.reduce((sum, entry) => sum + Number(entry.quantity || 0), 0) ||
     0,
   );
-  const subtotal = Number(activeOrder?.subtotal ?? state.subtotal ?? state.totalPrice ?? 0);
+  const computedItemsSubtotal = items.reduce(
+    (sum, entry) => sum + resolveItemPrice(entry) * Number(entry.quantity || 0),
+    0,
+  );
+  const subtotal = Number(activeOrder?.subtotal ?? state.subtotal ?? computedItemsSubtotal ?? state.totalPrice ?? 0);
   const shippingFee = Number(activeOrder?.shipping_fee ?? state.shippingFee ?? 0);
   const totalPrice = Number(activeOrder?.total ?? state.totalPrice ?? (subtotal + shippingFee));
-  const unitPrice = Number(state.unitPrice || (quantity > 0 ? subtotal / quantity : 0));
+  const unitPrice = Number(
+    state.unitPrice ||
+    (quantity > 0 ? computedItemsSubtotal / quantity : 0) ||
+    (quantity > 0 ? subtotal / quantity : 0),
+  );
   const remainingStock = Number(state.remainingStock || 0);
   const paymentMethod = String(activeOrder?.payment_method || state.paymentMethod || "cod").toLowerCase() === "cod"
     ? "Cash on Delivery"
@@ -229,7 +251,7 @@ const OrderConfirmation = () => {
                       {items.map((entry, index) => (
                         <p key={`${entry.product_name || entry.name || "item"}-${index}`}>
                           {entry.product_name || entry.name || itemName} x {Number(entry.quantity || 0)} -{" "}
-                          <span className="font-semibold">{formatPeso(Number(entry.price || 0))}</span>
+                          <span className="font-semibold">{formatPeso(resolveItemPrice(entry))}</span>
                         </p>
                       ))}
                     </div>
