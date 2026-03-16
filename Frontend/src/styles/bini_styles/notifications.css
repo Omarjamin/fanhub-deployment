@@ -674,6 +674,10 @@ body:has(.notifications-container) .threads-sidebar {
   box-shadow: 0 18px 36px rgba(17, 24, 39, 0.08), 0 4px 12px rgba(236, 72, 153, 0.08);
 }
 
+body:has(.notifications-container) .threads-sidebar .events-panel-close {
+  display: none !important;
+}
+
 body:has(.notifications-container) .threads-header {
   margin-bottom: 18px;
   padding-bottom: 16px;
@@ -801,16 +805,22 @@ body:has(.notifications-container) .notif-post-modal {
   backdrop-filter: blur(12px);
 }
 
+body:has(.notifications-container):has(.notif-post-modal) {
+  overflow: hidden;
+}
+
 body:has(.notifications-container) .notif-post-dialog {
   position: relative;
   width: min(760px, 100%);
-  max-height: min(84vh, 900px);
-  overflow-y: auto;
-  padding: 28px 24px 24px;
+  max-height: min(76vh, 820px);
+  overflow: hidden;
+  padding: 22px 20px 20px;
   border-radius: 28px;
   border: 1px solid #f2bfd8;
   background: linear-gradient(180deg, #fffdfd 0%, #fff5fa 100%);
   box-shadow: 0 24px 48px rgba(101, 56, 84, 0.24);
+  display: flex;
+  flex-direction: column;
 }
 
 body:has(.notifications-container) .notif-post-close {
@@ -831,10 +841,13 @@ body:has(.notifications-container) .notif-post-close {
 body:has(.notifications-container) .notif-post-card {
   width: 100%;
   margin: 0 !important;
+  padding: 20px !important;
   border: 1px solid #f2bfd8 !important;
   border-radius: 24px !important;
   background: linear-gradient(180deg, #ffffff 0%, #fffafd 100%) !important;
   box-shadow: none !important;
+  overflow-y: auto;
+  color: #000 !important;
 }
 
 body:has(.notifications-container) .notif-post-meta {
@@ -852,19 +865,31 @@ body:has(.notifications-container) .notif-post-avatar {
 
 body:has(.notifications-container) .notif-post-content {
   margin: 14px 0 !important;
+  color: #000 !important;
+}
+
+body:has(.notifications-container) .notif-post-card .post-tags {
+  color: #000 !important;
 }
 
 body:has(.notifications-container) .notif-post-image {
   width: 100%;
   max-width: 100%;
+  max-height: min(38vh, 320px) !important;
   margin-top: 8px;
   border-radius: 18px;
   border: 1px solid #f2d3e2;
+  object-fit: contain !important;
+  display: block;
+  background: #ffffff;
 }
 
 body:has(.notifications-container) .notif-post-actions {
   margin-top: 18px !important;
   gap: 12px !important;
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
 }
 
 @media (max-width: 1024px) {

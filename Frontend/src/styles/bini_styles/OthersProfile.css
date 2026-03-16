@@ -382,11 +382,39 @@ body:has(.profile-container) {
   border-radius: 24px;
   background: linear-gradient(180deg, #ffffff 0%, #fffafd 100%);
   box-shadow: 0 14px 32px rgba(17, 24, 39, 0.08), 0 4px 10px rgba(236, 72, 153, 0.1);
+  padding: 20px;
+  margin-bottom: 20px;
 }
 
 .feed .post-card:hover {
   border-color: #ec4899;
   box-shadow: 0 18px 36px rgba(236, 72, 153, 0.16), 0 8px 18px rgba(17, 24, 39, 0.1);
+}
+
+.feed .post-meta,
+.feed .post-meta1 {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  font-size: 0.9em;
+  color: #666;
+  margin-bottom: 10px;
+}
+
+.feed .post-time {
+  margin-left: auto;
+  font-style: italic;
+  color: #888;
+  white-space: nowrap;
+}
+
+.feed .post-content {
+  font-size: 1rem;
+  line-height: 1.6;
+  color: #333;
+  margin-bottom: 15px;
+  word-break: break-word;
 }
 
 .feed .post-tags {
@@ -399,4 +427,96 @@ body:has(.profile-container) {
   background: #fff1f7;
   color: #be185d;
   font-weight: 700;
+  margin-bottom: 15px;
+}
+
+.feed .post-image {
+  width: 100%;
+  max-width: 500px;
+  border-radius: 10px;
+  margin-bottom: 15px;
+  object-fit: cover;
+}
+
+.feed .post-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 15px;
+  flex-wrap: wrap;
+}
+
+.feed .post-action {
+  background: #f8f9fa;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: #111827;
+}
+
+.feed .post-action:hover {
+  background: #e9ecef;
+  transform: translateY(-1px);
+}
+
+.feed .post-menu-container {
+  position: relative;
+  margin-left: 0.5rem;
+  flex: 0 0 auto;
+}
+
+.feed .post-menu-btn {
+  border: none;
+  background: #f8fafc;
+  color: #475569;
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.feed .post-menu-btn:hover {
+  background: #eef2f7;
+  color: #111827;
+}
+
+.feed .post-report-dropdown {
+  position: absolute;
+  top: 36px;
+  right: 0;
+  min-width: 220px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.16);
+  padding: 6px;
+  z-index: 35;
+  display: none;
+}
+
+.feed .post-report-dropdown.open {
+  display: block;
+}
+
+.feed .report-post-option {
+  width: 100%;
+  border: none;
+  background: transparent;
+  text-align: left;
+  padding: 10px 12px;
+  border-radius: 8px;
+  color: #000;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.feed .report-post-option:hover {
+  background: #f3f4f6;
 }

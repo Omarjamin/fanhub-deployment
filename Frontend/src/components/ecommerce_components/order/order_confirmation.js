@@ -61,7 +61,18 @@ function getStatusIndex(value) {
 
 function buildAddressLines(address) {
   if (!address) return [];
-  if (typeof address === 'string') return [address];
+  if (typeof address === 'string') {
+    const raw = address.trim();
+    if (!raw) return [];
+    if (raw.startsWith('{') || raw.startsWith('[')) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed.map(item => String(item ?? '')).filter(Boolean);
+        if (parsed && typeof parsed === 'object') return buildAddressLines(parsed);
+      } catch (_) {}
+    }
+    return [raw];
+  }
 
   const street = address.street || address.streetAddress || address.address_line1 || '';
   const barangay = address.barangayText || address.barangay || '';
@@ -282,12 +293,27 @@ export default function OrderConfirmation(payload = null) {
       0,
     );
     const total = Number(order.total || order.total_amount || (subtotal + shipping));
-    const shippingAddress = order.shipping_address || order.shippingAddress || {};
+    const shippingAddressRaw = order.shipping_address || order.shippingAddress || {};
+    let shippingAddress = shippingAddressRaw;
+    if (typeof shippingAddressRaw === 'string') {
+      const raw = shippingAddressRaw.trim();
+      if (raw.startsWith('{') || raw.startsWith('[')) {
+        try {
+          const parsed = JSON.parse(raw);
+          if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+            shippingAddress = parsed;
+          }
+        } catch (_) {}
+      }
+    }
+    if (!shippingAddress || typeof shippingAddress !== 'object' || Array.isArray(shippingAddress)) {
+      shippingAddress = {};
+    }
     const paymentMethod = formatPaymentMethod(order.payment_method || order.paymentMethod);
     const recipientName = shippingAddress.recipient_name || shippingAddress.recipientName || order.customer_name || '';
     const contactNumber = shippingAddress.phone || shippingAddress.contact_number || order.phone || '';
     const trackingNumber = String(order.tracking_number || '').trim();
-    const addressLines = buildAddressLines(shippingAddress);
+    const addressLines = buildAddressLines(shippingAddressRaw);
 
     const itemMarkup = items.length
       ? items.map(item => {
@@ -325,7 +351,7 @@ export default function OrderConfirmation(payload = null) {
 
     summaryContainer.innerHTML = `
       <div class="confirmation-grid">
-        <section class="confirmation-panel order-details">
+        <section class="confirmation-panel">
           <div class="confirmation-section-heading">
             <div>
               <p class="section-eyebrow">Order details</p>

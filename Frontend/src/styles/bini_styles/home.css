@@ -2700,7 +2700,7 @@ animation: none;
 .search-post-modal-title {
   font-size: 1rem;
   font-weight: 700;
-  color: #223;
+  color: #000;
 }
 
 .search-post-modal-close {
@@ -2718,6 +2718,78 @@ animation: none;
 .search-post-modal-body {
   padding: 16px;
   overflow-y: auto;
+}
+
+/* Report post form (community/homepage) */
+.report-post-form,
+.message-report-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  color: #000;
+}
+
+.report-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.report-form-label {
+  font-weight: 600;
+  color: #000;
+}
+
+.report-form-input,
+.report-form-select,
+.report-form-textarea,
+.report-form-input::placeholder,
+.report-form-textarea::placeholder {
+  color: #000;
+  opacity: 1;
+}
+
+.report-form-input,
+.report-form-select,
+.report-form-textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 12px;
+  background: #fff;
+  font: inherit;
+}
+
+.report-form-textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.report-form-helper {
+  color: #000;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.report-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.report-form-actions .report-post-option {
+  color: #000;
+}
+
+.report-form-submit {
+  background: #e5e7eb;
+  color: #000;
+}
+
+.report-form-submit:hover {
+  background: #d1d5db;
 }
 
 /* ===== Community Page Enhancement ===== */
@@ -3358,7 +3430,7 @@ body:has(.homepage-container) .report-post-option {
   border: 1px solid transparent !important;
   border-radius: 12px !important;
   padding: 11px 12px !important;
-  color: #334155 !important;
+  color: #000 !important;
   font-size: 0.92rem !important;
   font-weight: 700 !important;
 }
@@ -3366,7 +3438,7 @@ body:has(.homepage-container) .report-post-option {
 body:has(.homepage-container) .report-post-option:hover {
   background: #fff1f7 !important;
   border-color: #f9a8d4 !important;
-  color: #9f1239 !important;
+  color: #000 !important;
 }
 
 body:has(.homepage-container) .delete-post-option {
@@ -3580,13 +3652,13 @@ body:has(.homepage-container) .search-post-modal-header {
 }
 
 body:has(.homepage-container) .search-post-modal-title {
-  color: #2f1d39 !important;
+  color: #000 !important;
   font-size: 1.12rem !important;
 }
 
 body:has(.homepage-container) .search-post-modal-close {
   background: #ffffff !important;
-  color: #9f1239 !important;
+  color: #000 !important;
   border: 1px solid #f0c7da !important;
   box-shadow: 0 8px 16px rgba(101, 56, 84, 0.14) !important;
 }
