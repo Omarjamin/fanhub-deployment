@@ -272,7 +272,7 @@ const OrderHistory = () => {
                   >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div>
-                        <p className="font-body font-semibold">Order #{order.order_id}</p>
+                        <p className="font-body font-semibold text-black">Order #{order.order_id}</p>
                         <p className="text-xs text-black">{formatDate(order.created_at)}</p>
                       </div>
                       <span className={`text-xs rounded-full border px-3 py-1 uppercase tracking-wide ${getStatusBadgeClasses(order.status)}`}>
@@ -281,9 +281,9 @@ const OrderHistory = () => {
                     </div>
 
                     {Array.isArray(order.items) && order.items.length > 0 ? (
-                      <div className="mt-3 space-y-1 text-sm font-body text-black">
+                      <div className="mt-3 space-y-1 text-sm font-body">
                         {order.items.map((item, index) => (
-                          <p key={`${order.order_id}-${index}`}>
+                          <p key={`${order.order_id}-${index}`} className="text-black">
                             {String(item.product_name || item.name || "Item")} x {Number(item.quantity || 0)}
                           </p>
                         ))}
@@ -291,28 +291,28 @@ const OrderHistory = () => {
                     ) : null}
 
                     <div className="mt-4 grid md:grid-cols-2 gap-4 text-sm font-body">
-                      <div className="space-y-1">
-                        <p>
+                      <div className="space-y-1" style={{ color: "#000" }}>
+                        <p className="text-black">
                           Payment: <span className="font-semibold">{payment}</span>
                         </p>
                         {courierDisplayValue ? (
-                          <p>
+                          <p className="text-black">
                             Courier: <span className="font-semibold">{courierDisplayValue}</span>
                           </p>
                         ) : null}
                         {trackingDisplayValue ? (
-                          <p>
+                          <p className="text-black">
                             Tracking Number: <span className="font-semibold">{trackingDisplayValue}</span>
                           </p>
                         ) : null}
-                        <p>
+                        <p className="text-black">
                           Subtotal: <span className="font-semibold">{formatPeso(resolvedAmounts.subtotal)}</span>
                         </p>
-                        <p>
+                        <p className="text-black">
                           Shipping: <span className="font-semibold">{formatPeso(resolvedAmounts.shippingFee)}</span>
                         </p>
-                        <p>
-                          Total: <span className="font-semibold text-primary">{formatPeso(resolvedAmounts.total)}</span>
+                        <p className="text-black">
+                          Total: <span className="font-semibold" style={{ color: "#000" }}>{formatPeso(resolvedAmounts.total)}</span>
                         </p>
                       </div>
 
