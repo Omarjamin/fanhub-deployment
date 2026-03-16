@@ -51,9 +51,9 @@ const ShippingDetailsForm = ({
   onZipCodeChange,
 }: ShippingDetailsFormProps) => {
   return (
-    <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
+    <div className="rounded-2xl border border-border/60 bg-card/70 p-5 text-black">
       <div className="flex items-center gap-2 mb-4">
-        <h2 className="font-body font-semibold">Shipping Details</h2>
+        <h2 className="font-body font-semibold text-black">Shipping Details</h2>
       </div>
       <div className="grid md:grid-cols-2 gap-3">
         <select

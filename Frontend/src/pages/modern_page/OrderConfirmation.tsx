@@ -93,13 +93,14 @@ function getCourierDisplayValue(status: string, courier: string) {
   return "";
 }
 
-function formatPeso(price: number) {
-  if (!Number.isFinite(price) || price <= 0) return "Price unavailable";
+function formatPeso(price: number | string) {
+  const normalized = typeof price === "number" ? price : Number(String(price ?? "").replace(/,/g, ""));
+  if (!Number.isFinite(normalized)) return "Price unavailable";
   return new Intl.NumberFormat("en-PH", {
     style: "currency",
     currency: "PHP",
     maximumFractionDigits: 2,
-  }).format(price);
+  }).format(normalized);
 }
 
 function resolveItemPrice(item: ConfirmationItem) {
@@ -199,7 +200,7 @@ const OrderConfirmation = () => {
                 </div>
               </div>
 
-              <h2 className="mt-6 font-display text-2xl">What's Next?</h2>
+              <h2 className="mt-6 font-display text-2xl text-foreground">What's Next?</h2>
               <div className="mt-4 grid md:grid-cols-2 xl:grid-cols-4 gap-3">
                 {steps.map((step, index) => {
                   const isReached = index <= currentStepIndex;
@@ -211,15 +212,15 @@ const OrderConfirmation = () => {
                       className={isReached
                         ? "rounded-2xl border border-primary/30 bg-primary/10 p-4"
                         : "rounded-2xl border border-border/60 bg-background p-4"}
-                    >
-                      <div className={isReached
-                        ? "h-10 w-10 rounded-full bg-background inline-flex items-center justify-center text-primary"
-                        : "h-10 w-10 rounded-full bg-card inline-flex items-center justify-center text-muted-foreground"}
                       >
-                        <Icon size={18} />
-                      </div>
-                      <p className="font-body font-semibold mt-3">{step.title}</p>
-                      <p className="text-sm text-muted-foreground">{step.desc}</p>
+                        <div className={isReached
+                          ? "h-10 w-10 rounded-full bg-background inline-flex items-center justify-center text-primary"
+                          : "h-10 w-10 rounded-full bg-card inline-flex items-center justify-center text-muted-foreground"}
+                        >
+                          <Icon size={18} />
+                        </div>
+                      <p className="font-body font-semibold mt-3 text-foreground">{step.title}</p>
+                      <p className="text-sm text-foreground/70">{step.desc}</p>
                     </div>
                   );
                 })}
@@ -228,8 +229,8 @@ const OrderConfirmation = () => {
 
             <div className="mt-5 grid lg:grid-cols-[1fr_340px] gap-4">
               <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
-                <h3 className="font-body font-semibold">Order Details</h3>
-                <div className="mt-3 space-y-2 text-sm font-body">
+                <h3 className="font-body font-semibold text-foreground">Order Details</h3>
+                <div className="mt-3 space-y-2 text-sm font-body text-foreground">
                   <p>
                     Order ID: <span className="font-semibold">{activeOrder?.order_id || state.orderId || "N/A"}</span>
                   </p>
@@ -270,7 +271,7 @@ const OrderConfirmation = () => {
                     Subtotal: <span className="font-semibold">{formatPeso(subtotal)}</span>
                   </p>
                   <p>
-                    Shipping Fee: <span className="font-semibold">{shippingFee > 0 ? formatPeso(shippingFee) : "--"}</span>
+                    Shipping Fee: <span className="font-semibold">{formatPeso(shippingFee)}</span>
                   </p>
                   <p>
                     Total: <span className="font-semibold text-primary">{formatPeso(totalPrice)}</span>
@@ -284,8 +285,8 @@ const OrderConfirmation = () => {
               </div>
 
               <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
-                <h3 className="font-body font-semibold">Shipping Address</h3>
-                <div className="mt-3 space-y-1 text-sm font-body text-muted-foreground">
+                <h3 className="font-body font-semibold text-foreground">Shipping Address</h3>
+                <div className="mt-3 space-y-1 text-sm font-body text-foreground/70">
                   <p>{shippingAddress.streetAddress || shippingAddress.street_address || "N/A"}</p>
                   <p>{shippingAddress.barangay || "N/A"}</p>
                   <p>
