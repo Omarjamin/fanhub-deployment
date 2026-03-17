@@ -288,9 +288,16 @@ export function bindPostMenuActions(root, options = {}) {
   const {
     resolvePost = () => null,
     onPostUpdated = () => {},
-    onPostDeleted = () => {},
+    onPostDeleted = null,
     communityType = "",
   } = options;
+  const handlePostDeleted = typeof onPostDeleted === "function"
+    ? onPostDeleted
+    : (postId) => {
+        root
+          ?.querySelector?.(`.post-card[data-post-id="${postId}"]`)
+          ?.remove();
+      };
 
   ensureOutsideHandler();
 
@@ -345,7 +352,7 @@ export function bindPostMenuActions(root, options = {}) {
           headers: activeCommunity ? { "x-community-type": activeCommunity } : {},
         });
         showToast("Post deleted successfully.", "success");
-        onPostDeleted(postId);
+        handlePostDeleted(postId);
       } catch (error) {
         showToast(error?.response?.data?.error || error?.message || "Failed to delete post.", "error");
       }

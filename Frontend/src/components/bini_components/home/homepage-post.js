@@ -444,7 +444,7 @@ function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeC
       : (tags.length > 0 ? tags.join(' ') : 'No content available');
 
   return `
-    <div class="post-card" data-post-id="${post.post_id}">
+    <div class="post-card" data-post-id="${post.post_id}" data-owner-id="${postOwnerId}">
       <div class="post-meta1">
         <a href="#" class="profile-link" data-user-id="${postOwnerId}">
           <img src="${post.profile_picture || '/circle-user.png'}" class="profile-picture" onerror="this.src='/circle-user.png';">
@@ -475,7 +475,7 @@ function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeC
           <span class="comment-count">${commentCount}</span>
         </button>
 
-        <button class="post-action repostbtn" data-post-id="${post.post_id}">
+        <button class="post-action repostbtn${isOwnPost ? ' repost-disabled' : ''}" data-post-id="${post.post_id}" data-owner-id="${postOwnerId}"${isOwnPost ? ' disabled aria-disabled="true" title="You cannot repost your own post."' : ''}>
           <span class="material-icons">repeat</span>
           <span class="repost-count">${repostCount}</span>
         </button>
@@ -668,6 +668,19 @@ function attachPostActions(feed, token, scope = null, communityType = '') {
 
   // Repost - UPDATED WITH BETTER ERROR HANDLING
   root.querySelectorAll('.repostbtn').forEach(button => {
+    const ownerId = String(
+      button.getAttribute('data-owner-id') ||
+      button.closest('.post-card')?.getAttribute('data-owner-id') ||
+      '',
+    ).trim();
+    const currentUserId = String(getCurrentUserId() || '').trim();
+    if (ownerId && currentUserId && ownerId === currentUserId) {
+      button.disabled = true;
+      button.classList.add('repost-disabled');
+      button.setAttribute('aria-disabled', 'true');
+      button.title = 'You cannot repost your own post.';
+      return;
+    }
     const postId = button.getAttribute('data-post-id');
     // Initialize button state based on current user's repost status
     checkIfUserReposted(postId)

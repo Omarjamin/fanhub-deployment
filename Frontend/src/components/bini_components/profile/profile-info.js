@@ -80,6 +80,15 @@ export default async function ProfileInfo(root, data = {}) {
           if (profilePicture) {
             profilePicture.src = newProfilePic || DEFAULT_PROFILE_IMAGE;
           }
+          const feed = root.querySelector(".feed");
+          if (feed) {
+            feed.querySelectorAll(".post-fullname").forEach((el) => {
+              el.textContent = newFullname || "You";
+            });
+          }
+          if (feed && currentUser?.user_id) {
+            renderPosts("threads", currentUser.user_id, token, feed, currentUser).catch(() => {});
+          }
         });
       } catch (error) {
         showToast("Error opening edit profile modal: " + (error?.message || error), "error");
@@ -157,13 +166,14 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
 	      const postCreationTime = formatDate(post.created_at);
 	      const isLiked = likeStatuses[index];
 	      const likeCount = countlike[index];
-	      const postUserId = post.user_id || ownerUser?.user_id || userId;
-	      const postFullname = post.fullname || ownerUser?.fullname || "You";
-	      const postProfilePic = post.profile_picture || ownerUser?.profile_picture || DEFAULT_PROFILE_IMAGE;
-        const tags = Array.isArray(post.tags) ? post.tags : [];
+      const postUserId = post.user_id || ownerUser?.user_id || userId;
+      const postFullname = post.fullname || ownerUser?.fullname || "You";
+      const postProfilePic = post.profile_picture || ownerUser?.profile_picture || DEFAULT_PROFILE_IMAGE;
+      const isOwnPost = String(postUserId) === String(userId);
+      const tags = Array.isArray(post.tags) ? post.tags : [];
 
 	      const postContent = `
-	        <div class="post-card" data-post-id="${post.post_id}">
+	        <div class="post-card" data-post-id="${post.post_id}" data-owner-id="${postUserId}">
 	          <div class="post-meta1">
               <a href="#" class="profile-link" data-user-id="${postUserId}">
                 <img src="${postProfilePic}" alt="${postFullname}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">
@@ -185,7 +195,7 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
             <button class="post-action comment-button" data-post-id="${post.post_id}">
                 <span class="material-icons">chat_bubble_outline</span>
             </button>
-            <button class="post-action repostbtn" data-post-id="${post.post_id}">
+            <button class="post-action repostbtn${isOwnPost ? " repost-disabled" : ""}" data-post-id="${post.post_id}"${isOwnPost ? ' disabled aria-disabled="true" title="You cannot repost your own post."' : ""}>
                 <span class="material-icons">repeat</span>
             </button>
           </div>

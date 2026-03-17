@@ -167,6 +167,9 @@ class PostController {
       if (!post) {
         return res.status(404).json({ error: "Post not found" });
       }
+      if (String(post.user_id) === String(userId)) {
+        return res.status(409).json({ error: "You cannot repost your own post." });
+      }
 
       const alreadyReposted = await this.postModel.hasUserReposted(userId, postId);
       if (alreadyReposted) {

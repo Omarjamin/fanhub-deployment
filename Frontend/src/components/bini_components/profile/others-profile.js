@@ -415,7 +415,7 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
         const tags = Array.isArray(post.tags) ? post.tags : [];
 
         const postContent = `
-          <div class="post-card" data-post-id="${post.post_id}">
+          <div class="post-card" data-post-id="${post.post_id}" data-owner-id="${postUserId}">
             <div class="post-meta1">
               <a href="#" class="profile-link" data-user-id="${postUserId}">
                 <img src="${postProfilePic}" alt="${postFullname}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">

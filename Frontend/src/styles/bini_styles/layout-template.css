@@ -154,7 +154,7 @@
 
 /* ===== Thread Topic Styling (Shared) ===== */
 .thread-topic-container {
-  --thread-bg: #f8fafc;
+  --thread-bg: #ffffff;
   --thread-surface: #ffffff;
   --thread-text: #0f172a;
   --thread-muted: #64748b;
@@ -166,7 +166,7 @@
   padding: clamp(20px, 3vw, 36px);
   border-radius: 20px;
   border: 1px solid var(--thread-border);
-  background: linear-gradient(180deg, #fff7fb 0%, #ffffff 22%, #ffffff 100%);
+  background: #ffffff;
   box-shadow: 0 14px 36px rgba(15, 23, 42, 0.1);
 }
 

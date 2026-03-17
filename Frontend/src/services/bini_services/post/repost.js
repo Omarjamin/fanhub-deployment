@@ -15,6 +15,8 @@ export async function repost(postId, token) {
       "Failed to repost.";
     if (String(message).toLowerCase().includes("already reposted")) {
       showToast("You have already reposted this post.", "info");
+    } else if (String(message).toLowerCase().includes("own post")) {
+      showToast("You cannot repost your own post.", "info");
     } else {
       showToast(`Failed to repost: ${message}`, "error");
     }

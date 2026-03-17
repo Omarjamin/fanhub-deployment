@@ -227,7 +227,7 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
           <span class="material-icons" style="font-size: 1rem;">reply</span>
           <span>Reply</span>
         </button>
-        <div class="reply-count" style="display: none; font-size: 0.85rem; color: #65676b; cursor: pointer; margin-left: 12px;">
+        <div class="reply-count" style="display: inline-flex; font-size: 0.85rem; color: #65676b; cursor: pointer; margin-left: 12px;">
           <!-- Reply count will be populated here -->
         </div>
       </div>
@@ -257,6 +257,22 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
   }
 
   // TOGGLE REPLIES AND REPLY INPUT
+  const setReplyCount = (count) => {
+    const safeCount = Number.isFinite(Number(count)) ? Number(count) : 0;
+    replyCountDiv.innerHTML = `<span>${safeCount} ${safeCount === 1 ? 'reply' : 'replies'}</span>`;
+    replyCountDiv.style.display = 'inline-flex';
+    replyCountDiv.dataset.loaded = '1';
+  };
+
+  if (Array.isArray(comment.replies)) {
+    setReplyCount(comment.replies.length);
+  } else {
+    setReplyCount(0);
+    getReplies(comment.comment_id, token)
+      .then((replies) => setReplyCount(Array.isArray(replies) ? replies.length : 0))
+      .catch(() => {});
+  }
+
   replyButton.addEventListener('click', async () => {
     const isShowing = repliesContainer.classList.contains('show');
     
@@ -266,11 +282,10 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
         const replies = await getReplies(comment.comment_id, token);
         if (!replies || replies.length === 0) {
           repliesContainer.innerHTML = '<p style="color: #65676b; font-size: 0.9rem; padding: 8px 0;">No replies yet.</p>';
-          replyCountDiv.style.display = 'none';
+          setReplyCount(0);
         } else {
           // Update reply count
-          replyCountDiv.innerHTML = `<span>${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}</span>`;
-          replyCountDiv.style.display = 'block';
+          setReplyCount(replies.length);
           
           repliesContainer.innerHTML = ''; 
           replies.forEach(reply => {
@@ -302,21 +317,6 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
     }
 
     replyInput.classList.toggle('show');
-  });
-
-  // Show reply count on initial load
-  replyButton.addEventListener('mouseenter', async () => {
-    if (replyCountDiv.innerHTML === '') {
-      try {
-        const replies = await getReplies(comment.comment_id, token);
-        if (replies && replies.length > 0) {
-          replyCountDiv.innerHTML = `<span>${replies.length} ${replies.length === 1 ? 'reply' : 'replies'}</span>`;
-          replyCountDiv.style.display = 'block';
-        }
-      } catch (err) {
-        // Silent fail on hover
-      }
-    }
   });
 
   // REPLY TEXT INPUT HANDLER

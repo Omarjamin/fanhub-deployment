@@ -237,3 +237,17 @@
 .submit-reply-btn:hover {
   background-color: #0056b3;
 }
+
+/* Ensure reply count is always visible inside the comment modal */
+.comment-modal .reply-count {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #111827 !important;
+  font-weight: 700;
+  opacity: 1 !important;
+}

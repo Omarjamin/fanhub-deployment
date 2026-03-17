@@ -103,6 +103,24 @@ export default function showEditProfileModal(user, token, onUpdate) {
           profile_picture: newProfilePic
       });
 
+      const resolvedUserId = user?.user_id || user?.id || user?.userId || user?.uid || null;
+      if (resolvedUserId) {
+        document.querySelectorAll('.post-card').forEach((card) => {
+          const ownerId = String(
+            card?.dataset?.ownerId ||
+            card?.getAttribute?.('data-owner-id') ||
+            card?.querySelector?.('.profile-link')?.getAttribute?.('data-user-id') ||
+            ''
+          ).trim();
+          if (ownerId && String(ownerId) === String(resolvedUserId)) {
+            const nameEl = card.querySelector('.post-fullname');
+            if (nameEl) nameEl.textContent = newFullname || 'You';
+            const imgEl = card.querySelector('img.profile-picture, img.profile-picture1, .profile-link img');
+            if (imgEl && newProfilePic) imgEl.src = newProfilePic;
+          }
+        });
+      }
+
       // Update UI via callback
       if (typeof onUpdate === 'function') {
         onUpdate(newFullname, newProfilePic);

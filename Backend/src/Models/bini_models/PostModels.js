@@ -643,6 +643,9 @@ class PostModel {
     try {
       const post = await this.getPostById(postId);
       if (!post) throw new Error('Post not found');
+      if (String(post.user_id) === String(userId)) {
+        throw new Error('You cannot repost your own post.');
+      }
 
       const hasReposted = await this.hasUserReposted(userId, postId);
       if (hasReposted) {
