@@ -1370,6 +1370,23 @@ body:has(.homepage-container) #head .whats-new-bar {
   padding: 18px !important;
 }
 
+/* Tablet (769-1024px): keep composer the same width as the feed column. */
+@media (min-width: 769px) and (max-width: 1024px) {
+  #head {
+    margin-left: 0 !important;
+    width: 100% !important;
+    padding: 0 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  #head .whats-new-bar {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0.75rem 0 1rem !important;
+    box-sizing: border-box !important;
+  }
+}
+
 body:has(.homepage-container) #head .profile-pic {
   width: 56px !important;
   height: 56px !important;
@@ -1500,10 +1517,27 @@ body:has(.homepage-container) #head #submit-post.btn-primary:hover {
 
 @media (max-width: 900px) and (orientation: landscape) {
   body:has(.homepage-container) .threads-fab {
-    left: 14px !important;
-    right: auto !important;
+    right: 14px !important;
+    left: auto !important;
     bottom: calc(78px + env(safe-area-inset-bottom, 0px)) !important;
     width: 48px !important;
     height: 48px !important;
+  }
+}
+
+/* Tablet alignment override (769-1024px): keep header aligned with feed */
+@media (min-width: 769px) and (max-width: 1024px) {
+  body:has(.homepage-container) #head {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 8px !important;
+    box-sizing: border-box !important;
+  }
+
+  body:has(.homepage-container) #head .whats-new-bar {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0.75rem auto 1rem !important;
+    box-sizing: border-box !important;
   }
 }

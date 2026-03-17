@@ -196,6 +196,12 @@
 
 /* Tablet Styles (768px and below) */
 @media (max-width: 1024px) {
+  :root {
+    /* When navigation switches to bottom-nav, there is no fixed left sidebar.
+       Zero out the shared layout var so header/feed don't get squeezed/offset. */
+    --bini-left-nav-width: 0px;
+  }
+
   .bottom-nav,
   .bottom-nav-search {
     position: fixed;
@@ -331,7 +337,7 @@
   }
 
   body.has-community-side-nav .bottom-nav {
-    width: 11.25rem;
+    width: 13.25rem;
     padding: 1.25rem 0.875rem 1rem;
     background: var(--community-nav-surface) !important;
     border-right: 1px solid var(--community-nav-border);
