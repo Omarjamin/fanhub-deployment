@@ -113,11 +113,19 @@ export default function Community() {
               <div class="form-group">
                 <label>Lead Image URL</label>
                 <input type="url" id="leadImage" placeholder="https://...">
+                <input type="file" id="leadImageFile" accept="image/*">
               </div>
-              <div class="form-group">
+              <div class="form-group cm-span-2">
                 <label>Gallery Images</label>
-                <textarea id="bannerGalleryUrls" rows="4" placeholder="Paste one image URL per line. You can add 10 images or more."></textarea>
-                <input type="file" id="bannerGalleryFiles" accept="image/*" multiple>
+                <small class="cm-field-hint">Shown as homepage gallery cards. Upload up to 10 images or paste URLs below.</small>
+                <div class="cm-gallery-actions">
+                  <input type="file" id="bannerGalleryFiles" accept="image/*" multiple>
+                  <button type="button" class="cm-gallery-action-btn" id="bannerGalleryBrowseBtn">Choose Up To 10 Images</button>
+                  <button type="button" class="cm-gallery-action-btn cm-gallery-action-btn-secondary" id="bannerGalleryClearBtn">Clear Gallery</button>
+                  <span class="cm-gallery-count" id="bannerGalleryCount">0/10 images selected</span>
+                </div>
+                <textarea id="bannerGalleryUrls" rows="4" placeholder="Paste one image URL per line. You can add up to 10 images."></textarea>
+                <div class="cm-gallery-board" id="bannerGalleryBoard"></div>
               </div>
             </div>
             <div class="cm-social-grid">
@@ -263,6 +271,7 @@ export default function Community() {
   let currentPage = 1;
   const itemsPerPage = 6;
   const DEFAULT_PALETTE = ['#ec4899', '#f9a8d4', '#ffffff', '#1f2937', '#831843'];
+  const GALLERY_IMAGE_LIMIT = 10;
 
   function normalizeSites(rows) {
     return (rows || []).map((row, index) => {
@@ -301,7 +310,7 @@ export default function Community() {
         line_height: String(row.line_height || '').trim(),
         letter_spacing: String(row.letter_spacing || '').trim(),
         nav_position: String(row.nav_position || '').trim(),
-        banner: String(row.banner || row.banner_link || '').trim(),
+        banner_gallery: row.banner_gallery ?? row.bannerGallery ?? '',
         palette: row.palette ?? [],
         typography: row.typography ?? {},
         theme: row.theme ?? {},
@@ -725,6 +734,78 @@ export default function Community() {
     empty.style.display = 'block';
   }
 
+  function getBannerGalleryInput() {
+    return section.querySelector('#bannerGalleryUrls');
+  }
+
+  function getBannerGalleryUrls() {
+    const input = getBannerGalleryInput();
+    const raw = String(input?.value || '');
+    const lines = raw
+      .split(/\r?\n/)
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    return normalizeBannerGallery(lines);
+  }
+
+  function setBannerGalleryUrls(urls = []) {
+    const input = getBannerGalleryInput();
+    if (!input) return;
+    input.value = (urls || []).join('\n');
+  }
+
+  function coerceBannerGalleryUrls(urls = [], { notifyLimit = false } = {}) {
+    const normalized = normalizeBannerGallery(urls);
+    const limited = normalized.slice(0, GALLERY_IMAGE_LIMIT);
+    if (notifyLimit && normalized.length > GALLERY_IMAGE_LIMIT) {
+      showToast(`Only ${GALLERY_IMAGE_LIMIT} gallery images are allowed. Extra items were skipped.`, 'warning');
+    }
+    return limited;
+  }
+
+  function syncBannerGalleryCount(count) {
+    const countEl = section.querySelector('#bannerGalleryCount');
+    if (countEl) {
+      countEl.textContent = `${count}/${GALLERY_IMAGE_LIMIT} images selected`;
+    }
+  }
+
+  function renderBannerGalleryBoard({ notifyLimit = false } = {}) {
+    const board = section.querySelector('#bannerGalleryBoard');
+    if (!board) return;
+    const urls = coerceBannerGalleryUrls(getBannerGalleryUrls(), { notifyLimit });
+    setBannerGalleryUrls(urls);
+    syncBannerGalleryCount(urls.length);
+
+    board.innerHTML = Array.from({ length: GALLERY_IMAGE_LIMIT }, (_, index) => {
+      const imageUrl = urls[index];
+      const slotNumber = String(index + 1).padStart(2, '0');
+
+      if (imageUrl) {
+        return `
+          <div class="cm-gallery-slot is-filled">
+            <img src="${escapeHtml(imageUrl)}" alt="Gallery image ${index + 1}" class="cm-gallery-slot-image" loading="lazy">
+            <span class="cm-gallery-slot-badge">Image ${slotNumber}</span>
+            <button type="button" class="cm-gallery-slot-remove" data-gallery-action="remove" data-index="${index}">Remove</button>
+          </div>
+        `;
+      }
+
+      return `
+        <button type="button" class="cm-gallery-slot cm-gallery-slot-add" data-gallery-action="pick">
+          <span class="cm-gallery-slot-badge">Slot ${slotNumber}</span>
+          <strong>Add Image</strong>
+          <small>Click to upload</small>
+        </button>
+      `;
+    }).join('');
+  }
+
+  function clearBannerGallery() {
+    setBannerGalleryUrls([]);
+    renderBannerGalleryBoard();
+  }
+
   function openEditModal(siteId) {
     const site = allSites.find((s) => s.id === Number(siteId));
     if (!site) return;
@@ -747,6 +828,7 @@ export default function Community() {
       site.banner_gallery,
       site.banner_link,
     ).join('\n');
+    renderBannerGalleryBoard();
     section.querySelector('#instagramUrl').value = site.instagram_url || '';
     section.querySelector('#facebookUrl').value = site.facebook_url || '';
     section.querySelector('#tiktokUrl').value = site.tiktok_url || '';
@@ -797,12 +879,8 @@ export default function Community() {
     const logo = String(section.querySelector('#siteLogo').value || '').trim();
     const group_photo = String(section.querySelector('#groupPhoto').value || '').trim();
     const lead_image = String(section.querySelector('#leadImage').value || '').trim();
-    const banner_gallery = normalizeBannerGallery(
-      String(section.querySelector('#bannerGalleryUrls').value || '')
-        .split(/\r?\n/)
-        .map((entry) => entry.trim())
-        .filter(Boolean),
-    );
+    const banner_gallery = coerceBannerGalleryUrls(getBannerGalleryUrls(), { notifyLimit: true });
+    setBannerGalleryUrls(banner_gallery);
     const instagram_url = String(section.querySelector('#instagramUrl').value || '').trim();
     const facebook_url = String(section.querySelector('#facebookUrl').value || '').trim();
     const tiktok_url = String(section.querySelector('#tiktokUrl').value || '').trim();
@@ -935,6 +1013,40 @@ export default function Community() {
     });
     section.querySelector('#groupPhoto')?.addEventListener('input', (e) => {
       updateGroupPhotoPreview(e.target.value);
+    });
+    section.querySelector('#bannerGalleryBrowseBtn')?.addEventListener('click', () => {
+      section.querySelector('#bannerGalleryFiles')?.click();
+    });
+    section.querySelector('#bannerGalleryClearBtn')?.addEventListener('click', () => {
+      clearBannerGallery();
+    });
+    section.querySelector('#bannerGalleryUrls')?.addEventListener('input', () => {
+      renderBannerGalleryBoard();
+    });
+    section.querySelector('#bannerGalleryUrls')?.addEventListener('change', () => {
+      renderBannerGalleryBoard({ notifyLimit: true });
+    });
+    section.querySelector('#bannerGalleryBoard')?.addEventListener('click', (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLElement)) return;
+
+      const removeButton = target.closest('[data-gallery-action="remove"]');
+      if (removeButton) {
+        const idx = Number(removeButton.getAttribute('data-index'));
+        if (!Number.isFinite(idx)) return;
+        const urls = getBannerGalleryUrls();
+        if (idx >= 0 && idx < urls.length) {
+          urls.splice(idx, 1);
+          setBannerGalleryUrls(urls);
+          renderBannerGalleryBoard();
+        }
+        return;
+      }
+
+      const addButton = target.closest('[data-gallery-action="pick"]');
+      if (addButton) {
+        section.querySelector('#bannerGalleryFiles')?.click();
+      }
     });
     [
       '#primaryColor',
@@ -1102,12 +1214,56 @@ export default function Community() {
         return;
       }
 
+      if (target.id === 'leadImageFile') {
+        const file = target.files?.[0];
+        if (!file) return;
+
+        const maxSize = 2 * 1024 * 1024;
+        if (file.size > maxSize) {
+          showToast('Lead image must be less than 2MB.', 'error');
+          target.value = '';
+          return;
+        }
+
+        try {
+          const imageUrl = await uploadSiteImage(file);
+          if (!imageUrl) {
+            showToast('Failed to upload lead image.', 'error');
+            return;
+          }
+          const leadInput = section.querySelector('#leadImage');
+          if (leadInput) {
+            leadInput.value = imageUrl;
+          }
+          showToast('Lead image uploaded successfully.', 'success');
+        } catch (err) {
+          console.error('Lead image upload failed:', err?.response?.data || err.message || err);
+          showToast('Failed to upload lead image.', 'error');
+        } finally {
+          target.value = '';
+        }
+        return;
+      }
+
       if (target.id === 'bannerGalleryFiles') {
         const files = Array.from(target.files || []);
         if (!files.length) return;
 
+        const existingUrls = getBannerGalleryUrls();
+        const remainingSlots = Math.max(GALLERY_IMAGE_LIMIT - existingUrls.length, 0);
+        if (remainingSlots <= 0) {
+          showToast(`Gallery already has ${GALLERY_IMAGE_LIMIT} images. Remove one to add more.`, 'warning');
+          target.value = '';
+          return;
+        }
+
+        const filesToUpload = files.slice(0, remainingSlots);
+        if (files.length > remainingSlots) {
+          showToast(`Only ${remainingSlots} more gallery image${remainingSlots === 1 ? '' : 's'} can be added.`, 'warning');
+        }
+
         const maxSize = 2 * 1024 * 1024;
-        const oversizedFile = files.find((file) => file.size > maxSize);
+        const oversizedFile = filesToUpload.find((file) => file.size > maxSize);
         if (oversizedFile) {
           showToast('Each gallery image must be less than 2MB.', 'error');
           target.value = '';
@@ -1116,7 +1272,7 @@ export default function Community() {
 
         try {
           const uploadedUrls = [];
-          for (const file of files) {
+          for (const file of filesToUpload) {
             const imageUrl = await uploadSiteImage(file);
             if (imageUrl) {
               uploadedUrls.push(imageUrl);
@@ -1128,16 +1284,12 @@ export default function Community() {
             return;
           }
 
-          const bannerGalleryInput = section.querySelector('#bannerGalleryUrls');
-          if (bannerGalleryInput) {
-            const existingUrls = normalizeBannerGallery(
-              String(bannerGalleryInput.value || '')
-                .split(/\r?\n/)
-                .map((entry) => entry.trim())
-                .filter(Boolean),
-            );
-            bannerGalleryInput.value = normalizeBannerGallery(existingUrls, uploadedUrls).join('\n');
-          }
+          const merged = coerceBannerGalleryUrls(
+            normalizeBannerGallery(existingUrls, uploadedUrls),
+            { notifyLimit: true },
+          );
+          setBannerGalleryUrls(merged);
+          renderBannerGalleryBoard();
 
           showToast(`${uploadedUrls.length} gallery image${uploadedUrls.length === 1 ? '' : 's'} uploaded successfully.`, 'success');
         } catch (err) {
