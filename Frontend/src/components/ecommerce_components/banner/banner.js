@@ -71,15 +71,68 @@ function resolveBannerImages(payload = {}) {
   ));
 }
 
+function isCloudinaryAssetUrl(value) {
+  const raw = String(value || '').trim();
+  return raw.includes('res.cloudinary.com') && raw.includes('/upload/');
+}
+
+function withCloudinaryTransform(url, transform) {
+  const raw = String(url || '').trim();
+  if (!isCloudinaryAssetUrl(raw)) return raw;
+
+  try {
+    const parsed = new URL(raw);
+    const marker = '/upload/';
+    const idx = parsed.pathname.indexOf(marker);
+    if (idx < 0) return raw;
+
+    const afterUpload = parsed.pathname.slice(idx + marker.length);
+    // If the URL already has transformations applied, avoid stacking transforms.
+    // We only inject transforms into the common `/upload/v123/...` shape.
+    if (!/^v\d+\//.test(afterUpload)) return raw;
+
+    parsed.pathname = `${parsed.pathname.slice(0, idx + marker.length)}${transform}/${afterUpload}`;
+    return parsed.toString();
+  } catch (_) {
+    return raw;
+  }
+}
+
+function buildCloudinarySrcSet(url, widths = [], baseTransform = '') {
+  const raw = String(url || '').trim();
+  if (!isCloudinaryAssetUrl(raw)) return '';
+  const entries = (widths || [])
+    .map((width) => Number(width))
+    .filter((width) => Number.isFinite(width) && width > 0)
+    .map((width) => {
+      const transform = `${baseTransform},w_${width}`;
+      return `${withCloudinaryTransform(raw, transform)} ${width}w`;
+    })
+    .filter(Boolean);
+
+  return entries.join(', ');
+}
+
 function renderGalleryCards(images = [], siteName = '') {
   return images.map((image, index) => {
     const isFeatured = index === 0 && images.length > 2;
     const label = isFeatured ? 'Gallery Highlight' : `Gallery Card ${String(index + 1).padStart(2, '0')}`;
+    const baseTransforms = 'f_auto,q_auto,dpr_auto,c_limit';
+    const cardSrc = withCloudinaryTransform(image, `${baseTransforms},w_760`);
+    const cardSrcSet = buildCloudinarySrcSet(image, [480, 760, 1100], baseTransforms);
+    const fullSrc = withCloudinaryTransform(image, `${baseTransforms},w_2200`);
 
     return `
       <article class="banner-card ${isFeatured ? 'banner-card-featured' : ''}" aria-hidden="true">
         <div class="banner-card-media">
-          <img src="${escapeHtml(image)}" alt="${escapeHtml(siteName)} gallery image ${index + 1}" loading="lazy" decoding="async">
+          <img
+            src="${escapeHtml(cardSrc || image)}"
+            ${cardSrcSet ? `srcset="${escapeHtml(cardSrcSet)}"` : ''}
+            ${cardSrcSet ? 'sizes="(max-width: 640px) 82vw, 380px"' : ''}
+            data-full-src="${escapeHtml(fullSrc || image)}"
+            alt="${escapeHtml(siteName)} gallery image ${index + 1}"
+            loading="lazy"
+            decoding="async">
           <span class="banner-card-overlay" aria-hidden="true"></span>
         </div>
         <div class="banner-card-copy">
@@ -93,11 +146,20 @@ function renderGalleryCards(images = [], siteName = '') {
 
 function renderGalleryThumbnails(images = [], siteName = '') {
   return images.map((image, index) => (
+    (() => {
+      const thumbSrc = withCloudinaryTransform(
+        image,
+        'f_auto,q_auto,dpr_auto,c_fill,g_auto,w_120,h_120',
+      );
+      const safeThumb = thumbSrc || image;
+      return (
     `
       <button class="banner-thumb" type="button" data-index="${index}" aria-label="Open gallery image ${index + 1}">
-        <img src="${escapeHtml(image)}" alt="${escapeHtml(siteName)} thumbnail ${index + 1}" loading="lazy" decoding="async">
+        <img src="${escapeHtml(safeThumb)}" alt="${escapeHtml(siteName)} thumbnail ${index + 1}" loading="lazy" decoding="async">
       </button>
     `
+      );
+    })()
   )).join('');
 }
 
@@ -366,7 +428,7 @@ export default function Banner(root, data = {}) {
     if (!card) return;
     const image = card.querySelector('img');
     if (!image) return;
-    openLightbox(image.currentSrc || image.src, image.alt);
+    openLightbox(image.getAttribute('data-full-src') || image.currentSrc || image.src, image.alt);
   };
 
   grid.addEventListener('mouseenter', stopAutoplay);
@@ -400,7 +462,7 @@ export default function Banner(root, data = {}) {
     if (lightbox?.classList.contains('is-open')) {
       const activeCard = cards[index];
       const image = activeCard?.querySelector('img');
-      if (image) openLightbox(image.currentSrc || image.src, image.alt);
+      if (image) openLightbox(image.getAttribute('data-full-src') || image.currentSrc || image.src, image.alt);
     }
   };
 
