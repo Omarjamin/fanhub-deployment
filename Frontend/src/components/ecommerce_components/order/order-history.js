@@ -279,10 +279,12 @@ export default function OrderHistory(payload = null) {
       return;
     }
 
+    const MAX_PREVIEW_ITEMS = 10;
+
     container.innerHTML = filteredOrders.map(order => {
       const items = order.items || [];
-      const displayItems = items.slice(0, 3);
-      const remainingItems = items.length - 3;
+      const displayItems = items.slice(0, MAX_PREVIEW_ITEMS);
+      const remainingItems = Math.max(items.length - MAX_PREVIEW_ITEMS, 0);
       
       return `
         <tr class="order-row">

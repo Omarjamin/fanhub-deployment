@@ -636,6 +636,137 @@
   font-size: 0.85rem;
 }
 
+.cm-field-hint {
+  display: block;
+  margin: -0.25rem 0 0.75rem;
+  color: #7a4a62;
+  font-size: 0.8rem;
+}
+
+.cm-gallery-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 0.6rem;
+}
+
+.cm-gallery-actions input[type="file"] {
+  display: none;
+}
+
+.cm-gallery-action-btn {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.55rem 0.9rem;
+  background: #ffffff;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #333;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.cm-gallery-action-btn:hover {
+  background: #f5f5f5;
+  border-color: #cfcfcf;
+}
+
+.cm-gallery-action-btn-secondary {
+  background: #fdf2f8;
+  border-color: #f3bfd8;
+  color: #be185d;
+}
+
+.cm-gallery-count {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+.cm-gallery-board {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 0.75rem;
+}
+
+.cm-gallery-slot {
+  position: relative;
+  border: 1px dashed #f3bfd8;
+  border-radius: 14px;
+  background: #fff5f9;
+  aspect-ratio: 4 / 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.2rem;
+  padding: 0.45rem;
+  text-align: center;
+  color: #be185d;
+  font-weight: 700;
+  font-family: inherit;
+}
+
+.cm-gallery-slot.is-filled {
+  border-style: solid;
+  background: #ffffff;
+  padding: 0;
+  color: inherit;
+}
+
+.cm-gallery-slot-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 12px;
+  display: block;
+}
+
+.cm-gallery-slot-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.9);
+  color: #be185d;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.cm-gallery-slot-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: rgba(17, 24, 39, 0.85);
+  color: #ffffff;
+  font-size: 0.68rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.cm-gallery-slot-add {
+  border: 1px dashed #f3bfd8;
+  background: #fff5f9;
+  cursor: pointer;
+}
+
+.cm-gallery-slot-add strong {
+  font-size: 0.82rem;
+}
+
+.cm-gallery-slot-add small {
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: #7a4a62;
+}
+
 .cm-social-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
