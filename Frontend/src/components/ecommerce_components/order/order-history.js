@@ -135,6 +135,11 @@ export default function OrderHistory(payload = null) {
             </table>
           </div>
         </div>
+
+        <!-- Cards View (mobile) -->
+        <div class="cards-view" id="cardsView">
+          <div id="ordersGrid"></div>
+        </div>
       </div>
     </main>
     <div id="footer-container"></div>
@@ -259,6 +264,7 @@ export default function OrderHistory(payload = null) {
 
   function displayOrders() {
     displayTableView();
+    displayCardsView();
   }
 
   function displayTableView() {
@@ -327,8 +333,8 @@ export default function OrderHistory(payload = null) {
             <div class="order-details-card">
               <div class="details-header">
                 <h4>(Order Details) Your Order #${order.userSequence}</h4>
-                <button class="btn btn-sm btn-outline" onclick="toggleOrderDetails('${order.order_id || order.id}')">
-                  Close
+                <button class="btn btn-sm btn-outline details-close" onclick="toggleOrderDetails('${order.order_id || order.id}')" aria-label="Close order details">
+                  &times;
                 </button>
               </div>
               <div class="details-content">
@@ -381,6 +387,7 @@ export default function OrderHistory(payload = null) {
 
   function displayCardsView() {
     const container = document.getElementById('ordersGrid');
+    if (!container) return;
     
     if (!filteredOrders || filteredOrders.length === 0) {
       container.innerHTML = `
