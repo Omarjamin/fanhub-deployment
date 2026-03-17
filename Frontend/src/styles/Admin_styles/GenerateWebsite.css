@@ -905,29 +905,36 @@
 /* Templates Grid */
 .gw-section .gw-templates-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 12px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
 }
 
 .gw-section .gw-template-card {
-  background: #f9f9f9;
-  border: 2px solid #ddd;
-  border-radius: 6px;
-  padding: 14px;
+  background: #ffffff;
+  border: 1px solid #dbe2ea;
+  border-radius: 14px;
+  padding: 18px 20px;
   text-align: center;
   transition: all 0.2s ease;
   cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 120px;
 }
 
 .gw-section .gw-template-card:hover {
-  border-color: #333;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-color: #94a3b8;
+  box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
 }
 
 .gw-section .gw-template-card.active {
-  border-color: #333;
-  background: #f0f0f0;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-color: #0f766e;
+  background: #f0fdfa;
+  box-shadow: 0 12px 26px rgba(15, 118, 110, 0.18);
 }
 
 .gw-section .gw-template-preview {
@@ -937,10 +944,10 @@
 }
 
 .gw-section .gw-template-name {
-  font-size: 13px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 10px 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
 }
 
 .gw-section .gw-template-subtitle {
@@ -952,24 +959,24 @@
 }
 
 .gw-section .gw-template-btn {
-  background: #333;
+  background: #1f2937;
   color: #ffffff;
   border: none;
-  border-radius: 4px;
-  padding: 6px 12px;
+  border-radius: 8px;
+  padding: 8px 12px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   transition: background 0.2s;
   width: 100%;
 }
 
 .gw-section .gw-template-btn:hover {
-  background: #555;
+  background: #0f172a;
 }
 
 .gw-section .gw-template-card.active .gw-template-btn {
-  background: #4CAF50;
+  background: #0f766e;
 }
 
 /* Form Styles */

@@ -111,6 +111,7 @@ export default function Navigation(root, data = {}) {
   const defaultNavLinks = `
       <a href="${homePath}" class="nav-link active">Home</a>
       <a href="#about" class="nav-link">About</a>
+      <a href="#home" class="nav-link">Gallery</a>
       <a href="#music" class="nav-link">Music</a>
       <a href="#events" class="nav-link">Events</a>
       <a href="#announcements" class="nav-link">Announcement</a>

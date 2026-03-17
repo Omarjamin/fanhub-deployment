@@ -156,20 +156,28 @@ td .btn-icon:disabled {
   color: #9ca3af;
 }
 
-td .btn-icon.btn-danger {
+td .btn-icon.btn-danger,
+body:has(.admin-sidebar) td .btn-icon.btn-danger {
+  border-color: #e2e8f0;
+  color: #64748b;
+  background: #ffffff !important;
+  background-image: none !important;
+}
+
+td .btn-icon.btn-danger:hover,
+body:has(.admin-sidebar) td .btn-icon.btn-danger:hover {
+  background: #ef4444 !important;
   border-color: #ef4444;
-  color: #ef4444;
+  color: #ffffff;
 }
 
-td .btn-icon.btn-danger:hover {
-  background-color: #fee2e2;
-  color: #991b1b;
-}
-
-td .btn-icon.btn-danger:disabled {
-  border-color: #f3b5b5;
-  color: #f3b5b5;
-  background-color: #fff7f7;
+td .btn-icon.btn-danger:disabled,
+body:has(.admin-sidebar) td .btn-icon.btn-danger:disabled {
+  border-color: #e2e8f0;
+  color: #cbd5e1;
+  background: #f8fafc !important;
+  background-image: none !important;
+  box-shadow: none;
 }
 
 /* Modal Styles */

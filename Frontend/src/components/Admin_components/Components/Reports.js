@@ -1,6 +1,6 @@
 import '../../../styles/Admin_styles/Reports.css';
 import { getAdminHeaders } from './admin-sites.js';
-import { formatAdminDate, formatAdminDateTime } from './admin-date.js';
+import { formatAdminDate, formatAdminTime } from './admin-date.js';
 import { showToast } from '../../../utils/toast.js';
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1').trim().replace(/\/$/, '');
@@ -493,8 +493,8 @@ function renderReportsTable() {
             ${escapeHtml(getStatusLabel(report))}
           </span>
         </td>
-        <td>${formatDateTime(report.created_at || report.latest_report)}</td>
-        <td>
+        <td class="report-date-td">${formatDateTime(report.created_at || report.latest_report)}</td>
+        <td class="report-actions-cell">
           ${report.report_source === 'post'
             ? `<div class="report-actions-row">
                 <button class="btn-icon btn-view" onclick="viewPostReport('${report.report_id}')" title="View post report details">&#128065;</button>
@@ -870,7 +870,16 @@ function formatDate(dateString) {
 }
 
 function formatDateTime(dateString) {
-  return formatAdminDateTime(dateString, 'N/A');
+  const dateLabel = formatAdminDate(dateString, 'N/A');
+  const timeLabel = formatAdminTime(dateString, '');
+  const safeDate = escapeHtml(dateLabel);
+  const safeTime = timeLabel ? `at ${escapeHtml(timeLabel)}` : '';
+  return `
+    <div class="report-date-cell">
+      <span class="report-date">${safeDate}</span>
+      ${safeTime ? `<span class="report-time">${safeTime}</span>` : ''}
+    </div>
+  `;
 }
 
 function showLoading(show) {

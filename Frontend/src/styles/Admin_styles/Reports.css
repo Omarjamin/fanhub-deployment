@@ -420,11 +420,55 @@
   background: #fecaca;
 }
 
+body:has(.admin-sidebar) .reports-table .btn-icon.btn-danger {
+  background: #ffffff !important;
+  border-color: #e2e8f0;
+  color: #64748b;
+}
+
+body:has(.admin-sidebar) .reports-table .btn-icon.btn-danger:hover:not(:disabled) {
+  background: #ef4444 !important;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+body:has(.admin-sidebar) .reports-table .btn-icon.btn-danger:disabled {
+  background: #ffffff !important;
+  border-color: #e2e8f0;
+  color: #cbd5f5;
+}
+
 .report-actions-row {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  justify-content: center;
   white-space: nowrap;
+}
+
+.report-actions-cell {
+  min-width: 140px;
+}
+
+.report-date-td {
+  min-width: 150px;
+  white-space: normal;
+}
+
+.report-date-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.2;
+}
+
+.report-date {
+  font-weight: 600;
+}
+
+.report-time {
+  font-size: 12px;
+  color: #6b7280;
 }
 
 .reporter-meta {

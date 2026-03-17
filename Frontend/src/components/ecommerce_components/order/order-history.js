@@ -181,9 +181,30 @@ export default function OrderHistory(payload = null) {
     return trackingNumber || '';
   }
 
+  function getCourierName(order) {
+    const courier = String(
+      order?.courier ??
+      order?.courier_name ??
+      order?.courierName ??
+      order?.shipping_courier ??
+      '',
+    ).trim();
+    return courier || '';
+  }
+
   function getTrackingLabel(order) {
     const trackingNumber = getTrackingNumber(order);
     if (trackingNumber) return trackingNumber;
+    const normalizedStatus = normalizeStatus(order?.status);
+    if (normalizedStatus === 'shipped' || normalizedStatus === 'completed') {
+      return 'Not assigned yet';
+    }
+    return '';
+  }
+
+  function getCourierLabel(order) {
+    const courier = getCourierName(order);
+    if (courier) return courier;
     const normalizedStatus = normalizeStatus(order?.status);
     if (normalizedStatus === 'shipped' || normalizedStatus === 'completed') {
       return 'Not assigned yet';
@@ -217,6 +238,7 @@ export default function OrderHistory(payload = null) {
         ...order,
         status: normalizeStatus(order.status),
         tracking_number: getTrackingNumber(order),
+        courier: getCourierName(order),
       }));
       
       // Add user sequence numbers to orders
@@ -319,6 +341,7 @@ export default function OrderHistory(payload = null) {
           </td>
           <td>
             <span class="status-badge status-${normalizeStatus(order.status)}">${formatStatus(order.status)}</span>
+            ${getCourierLabel(order) ? `<div class="order-item-meta">Courier: ${escapeHtml(getCourierLabel(order))}</div>` : ''}
             ${getTrackingLabel(order) ? `<div class="order-item-meta">Tracking: ${escapeHtml(getTrackingLabel(order))}</div>` : ''}
           </td>
           <td class="order-total">${formatMoney(order.total || order.total_amount || 0)}</td>
@@ -358,6 +381,12 @@ export default function OrderHistory(payload = null) {
                     <span>Subtotal:</span>
                     <span>${formatMoney(order.subtotal || 0)}</span>
                   </div>
+                    ${getCourierLabel(order) ? `
+                    <div class="summary-row">
+                      <span>Courier:</span>
+                      <span>${escapeHtml(getCourierLabel(order))}</span>
+                    </div>
+                    ` : ''}
                     ${getTrackingLabel(order) ? `
                     <div class="summary-row">
                       <span>Tracking Number:</span>
@@ -446,6 +475,7 @@ export default function OrderHistory(payload = null) {
           <div class="order-card-footer">
             <div>
               <div class="order-total">Total: ${formatMoney(order.total || order.total_amount || 0)}</div>
+              ${getCourierLabel(order) ? `<div class="order-item-meta">Courier: ${escapeHtml(getCourierLabel(order))}</div>` : ''}
               ${getTrackingLabel(order) ? `<div class="order-item-meta">Tracking: ${escapeHtml(getTrackingLabel(order))}</div>` : ''}
             </div>
             <div class="order-actions">
