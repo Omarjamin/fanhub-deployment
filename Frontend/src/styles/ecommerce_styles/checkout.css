@@ -624,11 +624,22 @@
   border: 1px solid rgba(139, 92, 246, 0.15);
 }
 
+.order-summary .summary-container {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
 .order-summary {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: auto;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  padding: 0;
 }
 
 .order-table {
@@ -3491,4 +3502,10 @@
   .checkout-main .order-review-card .order-actions {
     display: none;
   }
+}
+
+/* Checkout order summary cleanup */
+.checkout-main .order-table th,
+.checkout-main .order-review-card .items-section th {
+  background: #ffffff !important;
 }

@@ -226,7 +226,8 @@
 
 .orders-table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0 1.25rem;
 }
 
 .orders-table thead th {
@@ -238,18 +239,26 @@
   letter-spacing: 0.3px;
   text-transform: uppercase;
   text-align: left;
-  padding: 12px 10px;
+  padding: 1rem;
 }
 
 .orders-table tbody td {
   border-bottom: 1px solid #f3f4f6;
-  padding: 12px 10px;
+  padding: 1rem;
   vertical-align: middle;
   font-size: 1rem;
 }
 
+.orders-table tbody td:first-child {
+  font-weight: 700;
+}
+
+.orders-table tbody tr:nth-child(even) {
+  background: #fffafc;
+}
+
 .order-row:hover {
-  background: #fafafa;
+  background: #fdf2f7;
 }
 
 .order-link {
@@ -262,10 +271,11 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
+  color: #666;
 }
 
 .order-date small {
-  color: #6b7280;
+  color: #666;
   font-size: 0.85rem;
 }
 
@@ -303,8 +313,13 @@
 }
 
 .item-count {
-  color: #6b7280;
+  color: #666;
   font-size: 0.85rem;
+}
+
+.order-item-meta,
+.item-info p {
+  color: #666;
 }
 
 .status-badge {
@@ -319,24 +334,17 @@
 }
 
 .status-order-placed,
-.status-pending {
-  background: #fef3c7;
-  color: #92400e;
-}
-
+.status-pending,
 .status-processing {
-  background: #dbeafe;
-  color: #1e40af;
+  background: #ffedd5;
+  color: #9a3412;
 }
 
-.status-shipped {
+.status-shipped,
+.status-completed,
+.status-delivered {
   background: #dcfce7;
   color: #166534;
-}
-
-.status-delivered {
-  background: #d1fae5;
-  color: #065f46;
 }
 
 .status-cancelled,
@@ -346,6 +354,44 @@
 }
 
 .order-total {
+  font-weight: 700;
+  color: #ff4b8d !important;
+}
+
+.table-view,
+.cards-view {
+  display: none;
+}
+
+.table-view.active,
+.cards-view.active {
+  display: block;
+}
+
+#ordersGrid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.order-card {
+  border-radius: 14px;
+}
+
+.order-card-header,
+.order-card-body,
+.order-card-footer {
+  padding: 1rem;
+}
+
+.order-card + .order-card {
+  margin-top: 1.25rem;
+}
+
+.order-card:hover {
+  background: #fdf2f7;
+}
+
+.order-number {
   font-weight: 700;
 }
 
@@ -460,6 +506,18 @@
 .details-header h4 {
   margin: 0;
   font-size: 0.95rem;
+  color: #111111;
+}
+
+.details-close {
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  line-height: 1;
 }
 
 .details-content {
@@ -703,33 +761,23 @@
   margin: 0 auto !important;
   padding: clamp(24px, 3vw, 34px) !important;
   color: var(--ec-text) !important;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--ec-surface-strong) 92%, white 8%),
-    color-mix(in srgb, var(--ec-surface) 90%, white 10%)
-  );
+  background: #fff0f6;
   border: 1px solid var(--ec-border);
   border-radius: 30px;
-  box-shadow: var(--ec-shadow);
+  box-shadow: 0 22px 50px rgba(30, 20, 34, 0.22), 0 10px 22px rgba(30, 20, 34, 0.12);
   position: relative;
   overflow: hidden;
 }
 
 .order-history-container::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto auto 0;
-  width: 220px;
-  height: 220px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--ec-accent) 10%, transparent);
-  transform: translate(-35%, -45%);
-  pointer-events: none;
+  display: none;
 }
 
 .order-history-container > .container {
   position: relative;
   z-index: 1;
+  background: #fff0f6;
+  border-radius: 24px;
 }
 
 .order-history-header {
@@ -752,18 +800,18 @@
   min-height: 46px;
   padding: 0 18px;
   border-radius: 999px !important;
-  border: 1px solid color-mix(in srgb, var(--ec-accent) 18%, white 82%) !important;
-  background: color-mix(in srgb, var(--ec-accent) 8%, white 92%) !important;
-  color: var(--ec-heading) !important;
+  border: 1px solid #e5e7eb !important;
+  background: #ffffff !important;
+  color: #111111 !important;
   box-shadow: none !important;
 }
 
 .order-history-container .btn-link:hover,
 .order-history-container .btn-link:focus,
 .order-history-container .btn-link:focus-visible {
-  background: color-mix(in srgb, var(--ec-accent) 12%, white 88%) !important;
-  border-color: color-mix(in srgb, var(--ec-accent) 28%, white 72%) !important;
-  color: var(--ec-accent-strong) !important;
+  background: #f9fafb !important;
+  border-color: #e2e8f0 !important;
+  color: #111111 !important;
 }
 
 .order-history-back-arrow {
@@ -803,12 +851,7 @@
 }
 
 .stat-card::before {
-  content: "";
-  display: block;
-  height: 3px;
-  border-radius: 999px;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--ec-accent) 70%, white 30%), color-mix(in srgb, var(--ec-accent-strong) 80%, white 20%));
-  margin-bottom: 18px;
+  display: none;
 }
 
 .stat-row {
@@ -818,7 +861,7 @@
 .stat-item {
   padding: 14px 16px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--ec-surface) 90%, white 10%);
+  background: #ffffff;
   border: 1px solid color-mix(in srgb, var(--ec-accent) 10%, var(--ec-border) 90%);
 }
 
@@ -884,7 +927,7 @@
 }
 
 .orders-table thead th {
-  background: color-mix(in srgb, var(--ec-accent) 8%, white 92%);
+  background: #ffffff;
   color: var(--ec-heading) !important;
   border-bottom: 1px solid color-mix(in srgb, var(--ec-accent) 10%, var(--ec-border) 90%);
 }
@@ -954,16 +997,43 @@
   }
 
   .header-title {
-    align-items: flex-start;
-    gap: 12px;
+    align-items: center;
+    gap: 8px;
   }
 
   .header-title h1 {
-    text-align: left;
+    text-align: center;
   }
 
   .order-history-container .btn-link {
     position: static;
-    align-self: flex-start;
+    align-self: center;
+    margin-bottom: 4px;
+  }
+
+  #tableView {
+    display: none !important;
+  }
+
+  #cardsView {
+    display: block !important;
+  }
+}
+
+@media (min-width: 658px) and (max-width: 754px) {
+  .header-title {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .header-title h1 {
+    text-align: center;
+  }
+
+  .order-history-container .btn-link {
+    position: static;
+    align-self: center;
+    margin-bottom: 0;
   }
 }
