@@ -574,31 +574,48 @@ export default function createOrders() {
     const trackingInput = section.querySelector('#editTrackingNumber');
     const trackingHint = section.querySelector('#editTrackingHint');
     const orderLabel = section.querySelector('#editOrderLabel');
+    let trackingLocked = false;
 
     function closeModal() {
       editingOrderId = null;
+      trackingLocked = false;
       modal.classList.add('hidden');
     }
 
     function syncShippingMetaRequirement() {
       const normalizedStatus = normalizeStatusValue(statusSelect.value);
       const requiresTracking = normalizedStatus === 'shipped';
-      trackingInput.required = requiresTracking;
-      courierSelect.required = requiresTracking;
-      courierCustomInput.required = requiresTracking && courierSelect.value === 'Other';
+      const isTrackingLocked = trackingLocked;
+
+      trackingInput.required = requiresTracking && !isTrackingLocked;
+      courierSelect.required = requiresTracking && !isTrackingLocked;
+      courierCustomInput.required = requiresTracking && !isTrackingLocked && courierSelect.value === 'Other';
       courierCustomInput.style.display = courierSelect.value === 'Other' ? '' : 'none';
-      trackingInput.placeholder = requiresTracking
-        ? 'Enter tracking number'
-        : 'Optional unless the order is shipped';
-      trackingHint.textContent = requiresTracking
-        ? 'Required before an order can be marked as shipped.'
-        : 'This will be shown to the user in their order history once provided.';
-      courierCustomInput.placeholder = requiresTracking
-        ? 'Enter courier name'
-        : 'Optional unless the order is shipped';
-      courierHint.textContent = requiresTracking
-        ? 'Required before an order can be marked as shipped.'
-        : 'This will be shown to the user together with the tracking number.';
+
+      trackingInput.disabled = isTrackingLocked;
+      courierSelect.disabled = isTrackingLocked;
+      courierCustomInput.disabled = isTrackingLocked;
+
+      trackingInput.placeholder = isTrackingLocked
+        ? 'Tracking number is locked after shipping'
+        : requiresTracking
+          ? 'Enter tracking number'
+          : 'Optional unless the order is shipped';
+      trackingHint.textContent = isTrackingLocked
+        ? 'Tracking number is locked once the order is shipped.'
+        : requiresTracking
+          ? 'Required before an order can be marked as shipped.'
+          : 'This will be shown to the user in their order history once provided.';
+      courierCustomInput.placeholder = isTrackingLocked
+        ? 'Courier is locked after shipping'
+        : requiresTracking
+          ? 'Enter courier name'
+          : 'Optional unless the order is shipped';
+      courierHint.textContent = isTrackingLocked
+        ? 'Courier is locked once the order is shipped.'
+        : requiresTracking
+          ? 'Required before an order can be marked as shipped.'
+          : 'This will be shown to the user together with the tracking number.';
     }
 
     function populateCourierFields(value) {
@@ -633,6 +650,7 @@ export default function createOrders() {
       if (!order) return;
       if (isOrderLocked(order.status)) return;
 
+      trackingLocked = normalizeStatusValue(order.status) === 'shipped';
       editingOrderId = orderId;
       orderLabel.textContent = `Order: #ORD-${order.orderId}`;
       const allowedStatuses = getAllowedStatusTransitions(order.status);

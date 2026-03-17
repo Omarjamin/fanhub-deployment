@@ -924,6 +924,14 @@ class OrdersModel {
     const previousStatus = this.normalizeStatus(beforeOrder.status);
     const currentTrackingNumber = this.normalizeTrackingNumber(beforeOrder.tracking_number);
     const currentCourier = this.normalizeCourier(beforeOrder.courier);
+    const trackingChangeRequested =
+      normalizedTrackingNumber !== null && normalizedTrackingNumber !== currentTrackingNumber;
+    const courierChangeRequested =
+      normalizedCourier !== null && normalizedCourier !== currentCourier;
+
+    if (previousStatus === 'shipped' && (trackingChangeRequested || courierChangeRequested)) {
+      throw new Error('Tracking number and courier are locked once an order is shipped');
+    }
 
     let nextTrackingNumber = currentTrackingNumber;
     let nextCourier = currentCourier;
