@@ -8,6 +8,9 @@ const debugLog = (scope, payload) => {
 };
 
 class OrdersModel {
+  courierTableName = 'site_shipping_couriers';
+  globalShippingSlug = '__global__';
+
   normalizeStatus(status) {
     const normalized = String(status || '').trim().toLowerCase();
     if (!normalized) return 'pending';
@@ -25,6 +28,37 @@ class OrdersModel {
   normalizeCourier(value) {
     const normalized = String(value ?? '').trim();
     return normalized || null;
+  }
+
+  normalizeShippingScope(value = '') {
+    const raw = String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '-');
+    if (!raw || raw === 'all' || raw === 'global') return this.globalShippingSlug;
+    return raw;
+  }
+
+  async getFallbackCourier(communityType = '') {
+    try {
+      const adminDB = await connectAdmin();
+      const [rows] = await adminDB.query(
+        `SELECT courier_name
+         FROM ${this.courierTableName}
+         WHERE site_slug IN (?, ?)
+           AND is_active = 1
+         ORDER BY site_slug = ? DESC
+         LIMIT 1`,
+        [
+          this.globalShippingSlug,
+          this.normalizeShippingScope(communityType),
+          this.globalShippingSlug,
+        ],
+      );
+      return this.normalizeCourier(rows?.[0]?.courier_name);
+    } catch (_) {
+      return null;
+    }
   }
 
   isLockedStatus(status) {
@@ -965,12 +999,14 @@ class OrdersModel {
 
     let nextTrackingNumber = currentTrackingNumber;
     let nextCourier = currentCourier;
+    const fallbackCourier = await this.getFallbackCourier(communityType);
+
     if (normalizedNextStatus === 'shipped') {
       nextTrackingNumber = normalizedTrackingNumber || currentTrackingNumber;
-      nextCourier = normalizedCourier || currentCourier;
+      nextCourier = normalizedCourier || currentCourier || fallbackCourier;
     } else if (normalizedNextStatus === 'completed') {
       nextTrackingNumber = normalizedTrackingNumber || currentTrackingNumber;
-      nextCourier = normalizedCourier || currentCourier;
+      nextCourier = normalizedCourier || currentCourier || fallbackCourier;
     } else if (['pending', 'processing', 'cancelled'].includes(normalizedNextStatus)) {
       nextTrackingNumber = null;
       nextCourier = null;

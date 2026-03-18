@@ -110,7 +110,7 @@ class OrdersController {
    *  - db_name: target site database name
    *  - status: new status string (e.g. 'pending', 'processing', 'shipped', 'completed')
    *  - tracking_number: required when marking an order as shipped
-   *  - courier: required when marking an order as shipped
+   *  - courier: optional; falls back to the saved order/default shipping courier
    */
   async updateOrderStatus(req, res) {
     try {

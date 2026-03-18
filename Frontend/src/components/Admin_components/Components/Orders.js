@@ -14,17 +14,6 @@ export default function createOrders() {
   const ADMIN_API_BASE = getAdminApiBase();
   const forcedSiteSlug = resolveAdminSiteFromPath();
   const isForcedSingleSite = Boolean(forcedSiteSlug);
-  const COURIER_OPTIONS = [
-    'J&T Express',
-    'Flash Express',
-    'LBC Express',
-    'Ninja Van',
-    'SPX Express',
-    'Entrego',
-    'GrabExpress',
-    'Lalamove',
-    'Other',
-  ];
 
   const section = document.createElement('section');
   section.id = 'orders';
@@ -168,12 +157,8 @@ export default function createOrders() {
           </label>
           <label class="orders-modal-group">
             <span>Courier</span>
-            <select id="editCourier">
-              <option value="">Select courier</option>
-              ${COURIER_OPTIONS.map((courier) => `<option value="${courier}">${courier}</option>`).join('')}
-            </select>
-            <input id="editCourierCustom" type="text" maxlength="120" placeholder="Enter courier name" style="display:none">
-            <small id="editCourierHint">Required before an order can be marked as shipped.</small>
+            <input id="editCourierDisplay" type="text" readonly placeholder="Automatic from shipping settings">
+            <small id="editCourierHint">Courier is automatic from Shipping Settings and the saved order value.</small>
           </label>
           <label class="orders-modal-group">
             <span>Tracking Number</span>
@@ -445,7 +430,7 @@ export default function createOrders() {
               db_name: order.db_name,
               status: nextStatus,
               tracking_number: normalizeTrackingNumber(trackingNumber),
-              courier: normalizeCourier(courier),
+              ...(normalizeCourier(courier) ? { courier: normalizeCourier(courier) } : {}),
             }),
           });
           payload = await response.json().catch(() => ({}));
@@ -591,8 +576,7 @@ export default function createOrders() {
     const cancelBtn = section.querySelector('#cancelEditOrder');
     const form = section.querySelector('#editOrderForm');
     const statusSelect = section.querySelector('#editOrderStatus');
-    const courierSelect = section.querySelector('#editCourier');
-    const courierCustomInput = section.querySelector('#editCourierCustom');
+    const courierDisplayInput = section.querySelector('#editCourierDisplay');
     const courierHint = section.querySelector('#editCourierHint');
     const trackingInput = section.querySelector('#editTrackingNumber');
     const trackingHint = section.querySelector('#editTrackingHint');
@@ -611,13 +595,12 @@ export default function createOrders() {
       const isTrackingLocked = trackingLocked;
 
       trackingInput.required = requiresTracking && !isTrackingLocked;
-      courierSelect.required = requiresTracking && !isTrackingLocked;
-      courierCustomInput.required = requiresTracking && !isTrackingLocked && courierSelect.value === 'Other';
-      courierCustomInput.style.display = courierSelect.value === 'Other' ? '' : 'none';
 
       trackingInput.disabled = isTrackingLocked;
-      courierSelect.disabled = isTrackingLocked;
-      courierCustomInput.disabled = isTrackingLocked;
+      if (courierDisplayInput) {
+        courierDisplayInput.readOnly = true;
+        courierDisplayInput.placeholder = 'Automatic from shipping settings';
+      }
 
       trackingInput.placeholder = isTrackingLocked
         ? 'Tracking number is locked after shipping'
@@ -629,43 +612,19 @@ export default function createOrders() {
         : requiresTracking
           ? 'Required before an order can be marked as shipped.'
           : 'This will be shown to the user in their order history once provided.';
-      courierCustomInput.placeholder = isTrackingLocked
-        ? 'Courier is locked after shipping'
-        : requiresTracking
-          ? 'Enter courier name'
-          : 'Optional unless the order is shipped';
       courierHint.textContent = isTrackingLocked
-        ? 'Courier is locked once the order is shipped.'
+        ? 'Courier is automatic from Shipping Settings and is locked once the order is shipped.'
         : requiresTracking
-          ? 'Required before an order can be marked as shipped.'
-          : 'This will be shown to the user together with the tracking number.';
+          ? 'Courier will be kept automatically from the order or Shipping Settings.'
+          : 'Courier is automatic from Shipping Settings and the saved order value.';
     }
 
-    function populateCourierFields(value) {
+    function populateCourierField(value) {
       const normalizedCourier = normalizeCourier(value);
-      if (!normalizedCourier) {
-        courierSelect.value = '';
-        courierCustomInput.value = '';
-        syncShippingMetaRequirement();
-        return;
+      if (courierDisplayInput) {
+        courierDisplayInput.value = normalizedCourier || '';
       }
-
-      if (COURIER_OPTIONS.includes(normalizedCourier)) {
-        courierSelect.value = normalizedCourier;
-        courierCustomInput.value = '';
-      } else {
-        courierSelect.value = 'Other';
-        courierCustomInput.value = normalizedCourier;
-      }
-
       syncShippingMetaRequirement();
-    }
-
-    function getSelectedCourierValue() {
-      if (courierSelect.value === 'Other') {
-        return normalizeCourier(courierCustomInput.value);
-      }
-      return normalizeCourier(courierSelect.value);
     }
 
     function openModal(orderId) {
@@ -683,7 +642,7 @@ export default function createOrders() {
         .join('');
       statusSelect.value = allowedStatuses.includes(order.status) ? order.status : allowedStatuses[0];
       trackingInput.value = order.trackingNumber || '';
-      populateCourierFields(order.courier);
+      populateCourierField(order.courier);
       syncShippingMetaRequirement();
       modal.classList.remove('hidden');
     }
@@ -694,7 +653,6 @@ export default function createOrders() {
       if (event.target === modal) closeModal();
     });
     statusSelect.addEventListener('change', syncShippingMetaRequirement);
-    courierSelect.addEventListener('change', syncShippingMetaRequirement);
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
@@ -705,25 +663,15 @@ export default function createOrders() {
 
       const selectedStatus = statusSelect.value;
       const trackingNumber = normalizeTrackingNumber(trackingInput.value);
-      const courier = getSelectedCourierValue();
 
       if (normalizeStatusValue(selectedStatus) === 'shipped' && !trackingNumber) {
         alert('Tracking number is required before marking an order as shipped.');
         trackingInput.focus();
         return;
       }
-      if (normalizeStatusValue(selectedStatus) === 'shipped' && !courier) {
-        alert('Courier is required before marking an order as shipped.');
-        if (courierSelect.value === 'Other') {
-          courierCustomInput.focus();
-        } else {
-          courierSelect.focus();
-        }
-        return;
-      }
 
       try {
-        await updateOrderStatusOnServer(order, selectedStatus, trackingNumber, courier);
+        await updateOrderStatusOnServer(order, selectedStatus, trackingNumber);
         loadOrders();
         filterOrders();
         closeModal();
