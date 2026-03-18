@@ -53,6 +53,7 @@ const ProductGrid = ({ products }: ProductGridProps) => {
       toast({
         title: "Added to cart",
         description: `${product.name} has been added.`,
+        variant: "success",
       });
     } catch (err: unknown) {
       const message =

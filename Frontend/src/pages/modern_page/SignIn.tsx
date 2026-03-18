@@ -81,6 +81,7 @@ const SignIn = () => {
       toast({
         title: "Login successful",
         description: "Welcome back.",
+        variant: "success",
       });
       clearEcommercePostLoginRedirect();
       navigate(redirectTo, { replace: true });

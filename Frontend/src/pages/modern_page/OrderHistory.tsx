@@ -3,7 +3,7 @@ import { ClipboardList } from "lucide-react";
 import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { fetchOrderHistory } from "@/lib/ecommerceApi";
+import { fetchOrderHistory, toExternalUrl } from "@/lib/ecommerceApi";
 
 type HistoryItem = {
   order_id: number;
@@ -20,6 +20,14 @@ type HistoryItem = {
   items?: Array<{
     product_name?: string;
     name?: string;
+    product_image?: string;
+    product_image_url?: string;
+    product_img?: string;
+    image?: string;
+    image_url?: string;
+    img_url?: string;
+    thumbnail?: string;
+    thumb?: string;
     quantity?: number;
     price?: number;
     weight_g?: number;
@@ -196,6 +204,21 @@ function resolveItemShippingMeta(item: NonNullable<HistoryItem["items"]>[number]
   return parts.join(" • ");
 }
 
+function resolveOrderItemImage(item: NonNullable<HistoryItem["items"]>[number]) {
+  const raw =
+    item?.product_image ||
+    item?.product_image_url ||
+    item?.product_img ||
+    item?.image_url ||
+    item?.image ||
+    item?.img_url ||
+    item?.thumbnail ||
+    item?.thumb ||
+    "";
+  if (!raw) return "";
+  return toExternalUrl(String(raw), "");
+}
+
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Unknown date";
@@ -306,17 +329,34 @@ const OrderHistory = () => {
                     </div>
 
                     {Array.isArray(order.items) && order.items.length > 0 ? (
-                      <div className="mt-3 space-y-1 text-sm font-body">
-                        {order.items.map((item, index) => (
-                          <div key={`${order.order_id}-${index}`} className="text-black">
-                            <p className="text-black">
-                              {String(item.product_name || item.name || "Item")} x {Number(item.quantity || 0)}
-                            </p>
-                            {resolveItemShippingMeta(item) ? (
-                              <p className="text-xs text-black/70">{resolveItemShippingMeta(item)}</p>
-                            ) : null}
-                          </div>
-                        ))}
+                      <div className="mt-3 space-y-3 text-sm font-body">
+                        {order.items.map((item, index) => {
+                          const imageUrl = resolveOrderItemImage(item);
+                          return (
+                            <div key={`${order.order_id}-${index}`} className="flex items-start gap-3 text-black">
+                              <div className="h-14 w-14 rounded-xl border border-border/60 bg-accent/50 overflow-hidden shrink-0">
+                                {imageUrl ? (
+                                  <img
+                                    src={imageUrl}
+                                    alt={String(item.product_name || item.name || "Item")}
+                                    className="h-full w-full object-cover"
+                                    loading="lazy"
+                                  />
+                                ) : (
+                                  <div className="h-full w-full bg-accent/60" />
+                                )}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="text-black">
+                                  {String(item.product_name || item.name || "Item")} x {Number(item.quantity || 0)}
+                                </p>
+                                {resolveItemShippingMeta(item) ? (
+                                  <p className="text-xs text-black/70">{resolveItemShippingMeta(item)}</p>
+                                ) : null}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     ) : null}
 
