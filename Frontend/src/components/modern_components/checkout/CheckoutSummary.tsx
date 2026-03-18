@@ -9,6 +9,8 @@ type CheckoutSummaryProps = {
   subtotal: number;
   shippingFee: number | null;
   shippingCourier?: string;
+  shippingRegion?: string;
+  shippingSource?: string;
   total: number;
   submitting: boolean;
   paymentMethod: string;
@@ -23,6 +25,8 @@ const CheckoutSummary = ({
   subtotal,
   shippingFee,
   shippingCourier,
+  shippingRegion,
+  shippingSource,
   total,
   submitting,
   paymentMethod,
@@ -33,6 +37,12 @@ const CheckoutSummary = ({
   const packageWidth = Number(packageDimensions?.package_width_cm || 0);
   const packageHeight = Number(packageDimensions?.package_height_cm || 0);
   const hasPackageDimensions = packageLength > 0 || packageWidth > 0 || packageHeight > 0;
+  const shippingLogicLabel =
+    shippingSource === "advanced_rule"
+      ? "Advanced rule matched"
+      : shippingSource === "legacy_weight_tiers"
+        ? "Default weight rate"
+        : "Waiting for address";
 
   return (
     <aside className="rounded-2xl border border-border/60 bg-card/70 p-5 h-fit sticky top-24 text-black">
@@ -63,6 +73,14 @@ const CheckoutSummary = ({
         <div className="flex justify-between gap-3">
           <span className="text-black">Courier</span>
           <span className="text-right text-black">{shippingCourier || "--"}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-black">Shipping Rule</span>
+          <span className="text-right text-black">{shippingLogicLabel}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-black">Destination</span>
+          <span className="text-right text-black">{shippingRegion || "--"}</span>
         </div>
         <div className="h-px bg-border/60 my-2" />
         <div className="flex justify-between text-base">

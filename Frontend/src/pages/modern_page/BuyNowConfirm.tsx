@@ -80,6 +80,19 @@ function resolveDisplayPrice(product: Product | null, variant: Variant | null) {
   return Number.isFinite(productPrice) ? productPrice : 0;
 }
 
+function resolveVariantMetric(...values: Array<number | string | undefined>) {
+  for (const value of values) {
+    const numericValue = Number(value ?? 0);
+    if (Number.isFinite(numericValue) && numericValue > 0) return numericValue;
+  }
+  return 0;
+}
+
+function formatVariantPackage(length = 0, width = 0, height = 0) {
+  if (length <= 0 && width <= 0 && height <= 0) return "Not set";
+  return `${length} x ${width} x ${height} cm`;
+}
+
 const BuyNowConfirm = () => {
   const navigate = useNavigate();
   const { productId = "" } = useParams();
@@ -139,6 +152,19 @@ const BuyNowConfirm = () => {
   const selectedVariantLabel = String(
     selectedVariant?.variant_values || selectedVariant?.variant_name || "Standard",
   );
+  const selectedVariantWeight = resolveVariantMetric(
+    selectedVariant?.weight,
+    selectedVariant?.weight_g,
+    selectedVariant?.weight_in_grams,
+  );
+  const selectedVariantLength = resolveVariantMetric(selectedVariant?.length, selectedVariant?.length_cm);
+  const selectedVariantWidth = resolveVariantMetric(selectedVariant?.width, selectedVariant?.width_cm);
+  const selectedVariantHeight = resolveVariantMetric(selectedVariant?.height, selectedVariant?.height_cm);
+  const selectedVariantPackage = formatVariantPackage(
+    selectedVariantLength,
+    selectedVariantWidth,
+    selectedVariantHeight,
+  );
 
   const handleConfirmBuyNow = async () => {
     if (!isEcommerceLoggedIn()) {
@@ -176,12 +202,10 @@ const BuyNowConfirm = () => {
               price: itemPrice,
               category: "",
               variant: selectedVariantLabel,
-              weight: Number(
-                selectedVariant?.weight || selectedVariant?.weight_g || selectedVariant?.weight_in_grams || 0,
-              ),
-              length: Number(selectedVariant?.length || selectedVariant?.length_cm || 0),
-              width: Number(selectedVariant?.width || selectedVariant?.width_cm || 0),
-              height: Number(selectedVariant?.height || selectedVariant?.height_cm || 0),
+              weight: selectedVariantWeight,
+              length: selectedVariantLength,
+              width: selectedVariantWidth,
+              height: selectedVariantHeight,
             },
           ],
         },
@@ -281,6 +305,22 @@ const BuyNowConfirm = () => {
                             );
                           })}
                         </div>
+                        <div className="mt-3 grid gap-2 rounded-xl border border-border/60 bg-background p-3 text-xs font-body text-black sm:grid-cols-2">
+                          <div>
+                            <p className="text-muted-foreground">Selected size</p>
+                            <p className="mt-1 font-semibold text-black">{selectedVariantLabel}</p>
+                          </div>
+                          <div>
+                            <p className="text-muted-foreground">Weight</p>
+                            <p className="mt-1 font-semibold text-black">
+                              {selectedVariantWeight > 0 ? `${selectedVariantWeight} g` : "Not set"}
+                            </p>
+                          </div>
+                          <div className="sm:col-span-2">
+                            <p className="text-muted-foreground">Package size</p>
+                            <p className="mt-1 font-semibold text-black">{selectedVariantPackage}</p>
+                          </div>
+                        </div>
                       </div>
                     ) : null}
 
@@ -322,6 +362,8 @@ const BuyNowConfirm = () => {
                   <p className="text-sm text-muted-foreground font-body">Order Summary</p>
                   <p className="mt-2 font-body">Item: {product.name}</p>
                   <p className="font-body">Variant: {selectedVariantLabel}</p>
+                  <p className="font-body">Weight: {selectedVariantWeight > 0 ? `${selectedVariantWeight} g` : "Not set"}</p>
+                  <p className="font-body">Package: {selectedVariantPackage}</p>
                   <p className="font-body">Quantity: {quantity}</p>
                   <p className="mt-1 font-display text-xl text-primary">Total: {formatPeso(totalPrice)}</p>
                 </div>

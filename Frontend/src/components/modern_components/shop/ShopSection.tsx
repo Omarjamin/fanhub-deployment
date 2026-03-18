@@ -61,6 +61,15 @@ const normalizeNumericValue = (value: unknown, fallback = 0) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
+const getVariantDisplayLabel = (variant: ProductVariant, index = 0) =>
+  String(
+    variant?.variant_values ||
+      variant?.name ||
+      variant?.variant_name ||
+      variant?.label ||
+      `Variant ${index + 1}`,
+  ).trim();
+
 const resolveVariantSummary = (details: ProductDetails, variants: ProductVariant[]) => {
   const label = String(
     details?.variant_values ||
@@ -71,13 +80,18 @@ const resolveVariantSummary = (details: ProductDetails, variants: ProductVariant
   if (label) return label;
 
   const variantLabels = variants
-    .map((variant) =>
-      String(variant?.name || variant?.variant_values || variant?.variant_name || "").trim(),
-    )
+    .map((variant, index) => getVariantDisplayLabel(variant, index))
     .filter(Boolean);
 
+  const uniqueLabels = Array.from(new Set(variantLabels));
+  if (uniqueLabels.length > 1) {
+    const preview = uniqueLabels.slice(0, 3).join(", ");
+    return uniqueLabels.length > 3 ? `${preview} +${uniqueLabels.length - 3} more` : preview;
+  }
+  if (uniqueLabels.length === 1) return uniqueLabels[0];
+
   const count = Number(
-    variantLabels.length ||
+    uniqueLabels.length ||
     details?.variant_count ||
       details?.variantCount ||
       details?.variants_count ||
@@ -85,7 +99,7 @@ const resolveVariantSummary = (details: ProductDetails, variants: ProductVariant
       0,
   );
   if (count > 1) return `${count} variants`;
-  if (count === 1) return variantLabels[0] || "1 variant";
+  if (count === 1) return uniqueLabels[0] || "1 variant";
   return "";
 };
 

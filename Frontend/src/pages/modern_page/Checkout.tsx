@@ -62,6 +62,8 @@ const Checkout = () => {
   const [loadingBarangays, setLoadingBarangays] = useState(false);
   const [shippingFee, setShippingFee] = useState<number | null>(null);
   const [shippingCourier, setShippingCourier] = useState("");
+  const [shippingRegion, setShippingRegion] = useState("");
+  const [shippingSource, setShippingSource] = useState("");
 
   useEffect(() => {
     if (Array.isArray(state.items)) return;
@@ -268,6 +270,8 @@ const Checkout = () => {
     if (!locationLabel) {
       setShippingFee(null);
       setShippingCourier("");
+      setShippingRegion("");
+      setShippingSource("");
       return () => {
         active = false;
       };
@@ -276,6 +280,8 @@ const Checkout = () => {
     const weightGrams = Math.max(0, Math.round(totalWeight || 0));
     setShippingFee(null);
     setShippingCourier("");
+    setShippingRegion("");
+    setShippingSource("");
     ShippingRates(locationLabel, weightGrams, packageDimensions)
       .then((result) => {
         if (!active) return;
@@ -283,15 +289,21 @@ const Checkout = () => {
           const fee = Number(result.fee || 0);
           setShippingFee(Number.isFinite(fee) ? Math.max(0, fee) : 0);
           setShippingCourier(String(result.courier || "").trim());
+          setShippingRegion(String(result.region || "").trim());
+          setShippingSource(String(result.source || "").trim());
           return;
         }
         setShippingFee(null);
         setShippingCourier("");
+        setShippingRegion("");
+        setShippingSource("");
       })
       .catch(() => {
         if (active) {
           setShippingFee(null);
           setShippingCourier("");
+          setShippingRegion("");
+          setShippingSource("");
         }
       });
 
@@ -492,6 +504,8 @@ const Checkout = () => {
                 subtotal={subtotal}
                 shippingFee={shippingFee}
                 shippingCourier={shippingCourier}
+                shippingRegion={shippingRegion}
+                shippingSource={shippingSource}
                 total={total}
                 submitting={submitting}
                 paymentMethod={paymentMethod}

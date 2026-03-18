@@ -107,7 +107,9 @@ const ProductGrid = ({ products }: ProductGridProps) => {
                   <p className="text-xs text-muted-foreground font-body mt-1">{product.category}</p>
                 ) : null}
                 {product.variantLabel ? (
-                  <p className="text-xs text-muted-foreground font-body">{product.variantLabel}</p>
+                  <p className="text-xs text-muted-foreground font-body mt-1">
+                    Sizes: {product.variantLabel}
+                  </p>
                 ) : null}
                 <p className="text-primary font-display text-xl mt-1">{formatPeso(product.price)}</p>
               </div>

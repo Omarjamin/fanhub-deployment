@@ -28,8 +28,9 @@ export default async function ShippingRates(provinceName, totalWeightGrams = 0, 
         const fee = Number(data.shipping_fee ?? data.shippingFee ?? data.fee ?? data.price ?? 0) || 0;
         const region = String(data.region || '').trim();
         const courier = String(data.courier ?? data.courier_name ?? '').trim();
+        const source = String(data.shipping_source ?? data.source ?? '').trim();
 
-        return { success: true, fee, region, courier, raw: data };
+        return { success: true, fee, region, courier, source, raw: data };
     } catch (err) {
         return { success: false, message: err.message || 'Network error' };
     }
