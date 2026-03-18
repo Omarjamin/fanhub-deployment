@@ -43,6 +43,12 @@ type Variant = {
   weight?: number;
   weight_g?: number;
   weight_in_grams?: number;
+  length?: number;
+  length_cm?: number;
+  width?: number;
+  width_cm?: number;
+  height?: number;
+  height_cm?: number;
 };
 
 function formatPeso(price: number) {
@@ -173,6 +179,9 @@ const BuyNowConfirm = () => {
               weight: Number(
                 selectedVariant?.weight || selectedVariant?.weight_g || selectedVariant?.weight_in_grams || 0,
               ),
+              length: Number(selectedVariant?.length || selectedVariant?.length_cm || 0),
+              width: Number(selectedVariant?.width || selectedVariant?.width_cm || 0),
+              height: Number(selectedVariant?.height || selectedVariant?.height_cm || 0),
             },
           ],
         },

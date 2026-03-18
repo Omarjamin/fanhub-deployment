@@ -174,9 +174,9 @@ body:has(.admin-sidebar) .add-product-btn:focus-visible {
 
 .marketplace .product-variant-row {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 0.75rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.55rem;
   padding: 0.55rem 0.7rem;
   border-radius: 12px;
   background: #ffffff;
@@ -194,8 +194,27 @@ body:has(.admin-sidebar) .add-product-btn:focus-visible {
 .marketplace .variant-meta {
   font-size: 0.78rem;
   color: #6b7280;
-  text-align: right;
-  white-space: nowrap;
+  text-align: left;
+  white-space: normal;
+}
+
+.marketplace .variant-meta-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.marketplace .variant-meta-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  color: #475569;
+  font-size: 0.75rem;
+  line-height: 1.3;
 }
 
 .marketplace .product-actions {
@@ -314,28 +333,70 @@ body:has(.admin-sidebar) .add-product-btn:focus-visible {
 
 .variant-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 0.75rem;
   margin-bottom: 0.35rem;
+}
+
+.variant-header > div {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.variant-helper-text {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.8rem;
+  font-weight: 400;
 }
 
 .variant-rows {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.75rem;
 }
 
 .variant-input-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 110px 110px auto;
-  gap: 0.45rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.7rem;
+  padding: 0.9rem;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #fafafa;
 }
 
-.variant-input-row input {
+.variant-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.variant-field span {
+  font-size: 0.78rem;
+  color: #374151;
+  font-weight: 600;
+}
+
+.variant-field-wide {
+  grid-column: span 2;
+}
+
+.variant-field input {
   height: 36px;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
   padding: 0 0.65rem;
+  background: #fff;
+}
+
+.variant-row-actions {
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  grid-column: span 2;
 }
 
 .remove-variant-btn {
@@ -343,7 +404,8 @@ body:has(.admin-sidebar) .add-product-btn:focus-visible {
   color: #fff;
   background: #ef4444;
   border-radius: 8px;
-  padding: 0 0.65rem;
+  min-height: 36px;
+  padding: 0 0.85rem;
   cursor: pointer;
 }
 
@@ -414,20 +476,26 @@ body:has(.admin-sidebar) .add-product-btn:focus-visible {
     min-height: 175px;
   }
 
-  .marketplace .product-variant-row {
-    flex-direction: column;
-  }
-
-  .marketplace .variant-meta {
-    text-align: left;
-    white-space: normal;
-  }
-
   .marketplace .product-actions {
     flex-wrap: wrap;
   }
 
   .variant-input-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .variant-row-actions {
+    grid-column: span 2;
+  }
+}
+
+@media (width <= 540px) {
+  .variant-input-row {
     grid-template-columns: 1fr;
+  }
+
+  .variant-field-wide,
+  .variant-row-actions {
+    grid-column: span 1;
   }
 }

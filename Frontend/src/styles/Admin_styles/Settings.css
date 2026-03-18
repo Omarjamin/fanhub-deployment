@@ -64,6 +64,20 @@
   font-size: 0.95rem;
 }
 
+.shipping-global-badge {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 16px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  background: #111827;
+  color: #fff;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
 .shipping-rate-inputs {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -79,19 +93,196 @@
   color: #374151;
 }
 
-.shipping-rate-item input {
+.shipping-rate-item input,
+.shipping-rate-item select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 8px;
   font-size: 0.95rem;
   outline: none;
+  background: #fff;
 }
 
 .shipping-rate-item input:focus,
+.shipping-rate-item select:focus,
 .customizer-item select:focus {
   border-color: var(--primary, #ec4899);
   box-shadow: 0 0 0 3px rgb(236 72 153 / 15%);
+}
+
+.shipping-meta-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.shipping-courier-item {
+  padding: 14px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #fff8fc 100%);
+}
+
+.shipping-rules-panel {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid var(--border, #e5e7eb);
+  border-radius: 14px;
+  background: #fff;
+}
+
+.shipping-rules-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.shipping-rules-header h4 {
+  margin: 0 0 4px;
+  color: #111827;
+  font-size: 1rem;
+}
+
+.shipping-rules-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.85rem;
+}
+
+.shipping-rule-add-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 40px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid #f9a8d4;
+  background: #fff1f7;
+  color: #be185d;
+  font-weight: 700;
+  font-size: 0.9rem;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgb(244 114 182 / 15%);
+  white-space: nowrap;
+}
+
+.shipping-rule-add-btn:hover {
+  background: #ffe4f0;
+  border-color: #f472b6;
+}
+
+.shipping-rules-list {
+  display: grid;
+  gap: 12px;
+}
+
+.shipping-rules-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px;
+  border: 1px dashed #d1d5db;
+  border-radius: 12px;
+  background: #fafafa;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.shipping-rules-empty strong {
+  display: block;
+  margin-bottom: 4px;
+  color: #111827;
+}
+
+.shipping-rules-empty p {
+  margin: 0;
+}
+
+.shipping-rule-add-btn-inline {
+  flex-shrink: 0;
+}
+
+.shipping-rule-card {
+  border: 1px solid #f2d3e2;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #fff9fc 0%, #ffffff 100%);
+  padding: 14px;
+}
+
+.shipping-rule-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.shipping-rule-card-head strong {
+  display: block;
+  color: #111827;
+}
+
+.shipping-rule-card-head p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.shipping-rule-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shipping-rule-action-btn {
+  border: 1px solid #d1d5db;
+  background: #fff;
+  color: #374151;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.shipping-rule-action-btn:hover:not(:disabled) {
+  border-color: var(--primary, #ec4899);
+  color: var(--primary, #ec4899);
+}
+
+.shipping-rule-action-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.shipping-rule-action-btn.danger:hover:not(:disabled) {
+  border-color: #dc2626;
+  color: #dc2626;
+}
+
+.shipping-rule-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.shipping-rule-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  color: #374151;
+  font-size: 0.9rem;
+  font-weight: 600;
 }
 
 .shipping-province-wrapper {
@@ -330,6 +521,19 @@
   }
 
   .shipping-rate-inputs {
+    grid-template-columns: 1fr;
+  }
+
+  .shipping-rules-header {
+    flex-direction: column;
+  }
+
+  .shipping-rules-empty {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .shipping-rule-grid {
     grid-template-columns: 1fr;
   }
 

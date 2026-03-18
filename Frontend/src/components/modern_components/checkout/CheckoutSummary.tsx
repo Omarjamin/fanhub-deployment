@@ -1,8 +1,14 @@
 type CheckoutSummaryProps = {
   totalQuantity: number;
   totalWeight: number;
+  packageDimensions?: {
+    package_length_cm?: number;
+    package_width_cm?: number;
+    package_height_cm?: number;
+  };
   subtotal: number;
   shippingFee: number | null;
+  shippingCourier?: string;
   total: number;
   submitting: boolean;
   paymentMethod: string;
@@ -13,43 +19,60 @@ type CheckoutSummaryProps = {
 const CheckoutSummary = ({
   totalQuantity,
   totalWeight,
+  packageDimensions,
   subtotal,
   shippingFee,
+  shippingCourier,
   total,
   submitting,
   paymentMethod,
   onPaymentMethodChange,
   formatPeso,
 }: CheckoutSummaryProps) => {
+  const packageLength = Number(packageDimensions?.package_length_cm || 0);
+  const packageWidth = Number(packageDimensions?.package_width_cm || 0);
+  const packageHeight = Number(packageDimensions?.package_height_cm || 0);
+  const hasPackageDimensions = packageLength > 0 || packageWidth > 0 || packageHeight > 0;
+
   return (
     <aside className="rounded-2xl border border-border/60 bg-card/70 p-5 h-fit sticky top-24 text-black">
       <h2 className="font-display text-2xl text-gradient">Order Summary</h2>
-      <div className="mt-4 space-y-2 text-sm font-body">
+      <div className="mt-4 space-y-2 text-sm font-body text-black">
         <div className="flex justify-between">
           <span className="text-black">Items</span>
-          <span>{totalQuantity}</span>
+          <span className="text-black">{totalQuantity}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-black">Subtotal</span>
-          <span>{formatPeso(subtotal)}</span>
+          <span className="text-black">{formatPeso(subtotal)}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-black">Total Weight</span>
-          <span>{totalWeight > 0 ? `${totalWeight} g` : "--"}</span>
+          <span className="text-black">{totalWeight > 0 ? `${totalWeight} g` : "--"}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-black">Package Size</span>
+          <span className="text-right text-black">
+            {hasPackageDimensions ? `${packageLength} x ${packageWidth} x ${packageHeight} cm` : "--"}
+          </span>
         </div>
         <div className="flex justify-between">
           <span className="text-black">Shipping</span>
-          <span>{shippingFee === null ? "--" : formatPeso(shippingFee)}</span>
+          <span className="text-black">{shippingFee === null ? "--" : formatPeso(shippingFee)}</span>
+        </div>
+        <div className="flex justify-between gap-3">
+          <span className="text-black">Courier</span>
+          <span className="text-right text-black">{shippingCourier || "--"}</span>
         </div>
         <div className="h-px bg-border/60 my-2" />
         <div className="flex justify-between text-base">
-          <span>Total</span>
+          <span className="text-black">Total</span>
           <span className="font-display text-primary">{formatPeso(total)}</span>
         </div>
       </div>
 
       <div className="mt-5 rounded-xl border border-border/60 bg-background p-3">
-        <p className="text-sm font-body font-semibold">Payment Method</p>
+        <p className="text-sm font-body font-semibold text-black">Payment Method</p>
         <button
           type="button"
           onClick={() => onPaymentMethodChange(paymentMethod === "cod" ? "" : "cod")}

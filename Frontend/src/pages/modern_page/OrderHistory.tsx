@@ -22,6 +22,14 @@ type HistoryItem = {
     name?: string;
     quantity?: number;
     price?: number;
+    weight_g?: number;
+    weight?: number;
+    length_cm?: number;
+    length?: number;
+    width_cm?: number;
+    width?: number;
+    height_cm?: number;
+    height?: number;
   }>;
 };
 
@@ -171,6 +179,23 @@ function resolveOrderAmounts(order: HistoryItem) {
   };
 }
 
+function resolveItemShippingMeta(item: NonNullable<HistoryItem["items"]>[number]) {
+  const weight = toNumber(item?.weight_g ?? item?.weight, 0);
+  const length = toNumber(item?.length_cm ?? item?.length, 0);
+  const width = toNumber(item?.width_cm ?? item?.width, 0);
+  const height = toNumber(item?.height_cm ?? item?.height, 0);
+  const parts = [];
+
+  if (weight > 0) {
+    parts.push(`${weight}g each`);
+  }
+  if (length > 0 || width > 0 || height > 0) {
+    parts.push(`${length} x ${width} x ${height} cm`);
+  }
+
+  return parts.join(" • ");
+}
+
 function formatDate(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "Unknown date";
@@ -196,7 +221,7 @@ const OrderHistory = () => {
     fetchOrderHistory()
       .then((rows) => {
         if (!mounted) return;
-        setOrders(Array.isArray(rows) ? rows : []);
+        setOrders(Array.isArray(rows) ? (rows as HistoryItem[]) : []);
       })
       .catch((err: unknown) => {
         if (!mounted) return;
@@ -283,9 +308,14 @@ const OrderHistory = () => {
                     {Array.isArray(order.items) && order.items.length > 0 ? (
                       <div className="mt-3 space-y-1 text-sm font-body">
                         {order.items.map((item, index) => (
-                          <p key={`${order.order_id}-${index}`} className="text-black">
-                            {String(item.product_name || item.name || "Item")} x {Number(item.quantity || 0)}
-                          </p>
+                          <div key={`${order.order_id}-${index}`} className="text-black">
+                            <p className="text-black">
+                              {String(item.product_name || item.name || "Item")} x {Number(item.quantity || 0)}
+                            </p>
+                            {resolveItemShippingMeta(item) ? (
+                              <p className="text-xs text-black/70">{resolveItemShippingMeta(item)}</p>
+                            ) : null}
+                          </div>
                         ))}
                       </div>
                     ) : null}

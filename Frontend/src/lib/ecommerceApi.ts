@@ -630,6 +630,9 @@ export async function fetchCartItems() {
     quantity: normalizeNumericValue(item.quantity, 0),
     price: normalizeNumericValue(item.price, 0),
     weight: normalizeNumericValue(item.weight || item.weight_g || item.weight_in_grams, 0),
+    length: normalizeNumericValue(item.length || item.length_cm || item.package_length_cm, 0),
+    width: normalizeNumericValue(item.width || item.width_cm || item.package_width_cm, 0),
+    height: normalizeNumericValue(item.height || item.height_cm || item.package_height_cm, 0),
   }));
 }
 

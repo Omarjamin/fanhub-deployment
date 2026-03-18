@@ -32,6 +32,9 @@ class OrderModel {
       ['variant_name_snapshot', 'ALTER TABLE order_items ADD COLUMN variant_name_snapshot VARCHAR(255) NULL AFTER product_image_snapshot'],
       ['variant_values_snapshot', 'ALTER TABLE order_items ADD COLUMN variant_values_snapshot VARCHAR(255) NULL AFTER variant_name_snapshot'],
       ['weight_g_snapshot', 'ALTER TABLE order_items ADD COLUMN weight_g_snapshot INT(11) NULL AFTER variant_values_snapshot'],
+      ['length_cm_snapshot', 'ALTER TABLE order_items ADD COLUMN length_cm_snapshot DECIMAL(10,2) NULL AFTER weight_g_snapshot'],
+      ['width_cm_snapshot', 'ALTER TABLE order_items ADD COLUMN width_cm_snapshot DECIMAL(10,2) NULL AFTER length_cm_snapshot'],
+      ['height_cm_snapshot', 'ALTER TABLE order_items ADD COLUMN height_cm_snapshot DECIMAL(10,2) NULL AFTER width_cm_snapshot'],
     ];
 
     for (const [columnName, statement] of columns) {
@@ -58,6 +61,9 @@ class OrderModel {
 
     const hasProductImage = await this.tableHasColumn(db, 'products', 'image_url');
     const hasVariantWeight = await this.tableHasColumn(db, 'product_variants', 'weight_g');
+    const hasVariantLength = await this.tableHasColumn(db, 'product_variants', 'length_cm');
+    const hasVariantWidth = await this.tableHasColumn(db, 'product_variants', 'width_cm');
+    const hasVariantHeight = await this.tableHasColumn(db, 'product_variants', 'height_cm');
     const params = [];
     const whereParts = [
       '(',
@@ -66,6 +72,9 @@ class OrderModel {
       'OR oi.variant_name_snapshot IS NULL',
       'OR oi.variant_values_snapshot IS NULL',
       'OR oi.weight_g_snapshot IS NULL',
+      'OR oi.length_cm_snapshot IS NULL',
+      'OR oi.width_cm_snapshot IS NULL',
+      'OR oi.height_cm_snapshot IS NULL',
       ')',
     ];
 
@@ -76,6 +85,9 @@ class OrderModel {
 
     const productImageExpr = hasProductImage ? 'p.image_url' : 'NULL';
     const weightExpr = hasVariantWeight ? 'pv.weight_g' : '0';
+    const lengthExpr = hasVariantLength ? 'pv.length_cm' : '0';
+    const widthExpr = hasVariantWidth ? 'pv.width_cm' : '0';
+    const heightExpr = hasVariantHeight ? 'pv.height_cm' : '0';
 
     await db.query(
       `
@@ -87,7 +99,10 @@ class OrderModel {
           oi.product_image_snapshot = COALESCE(oi.product_image_snapshot, ${productImageExpr}),
           oi.variant_name_snapshot = COALESCE(oi.variant_name_snapshot, pv.variant_name),
           oi.variant_values_snapshot = COALESCE(oi.variant_values_snapshot, pv.variant_values),
-          oi.weight_g_snapshot = COALESCE(oi.weight_g_snapshot, ${weightExpr}, 0)
+          oi.weight_g_snapshot = COALESCE(oi.weight_g_snapshot, ${weightExpr}, 0),
+          oi.length_cm_snapshot = COALESCE(oi.length_cm_snapshot, ${lengthExpr}, 0),
+          oi.width_cm_snapshot = COALESCE(oi.width_cm_snapshot, ${widthExpr}, 0),
+          oi.height_cm_snapshot = COALESCE(oi.height_cm_snapshot, ${heightExpr}, 0)
         WHERE ${whereParts.join(' ')}
       `,
       params,
@@ -129,8 +144,14 @@ class OrderModel {
   async fetchVariantSnapshot(db, productId, variantId) {
     const hasProductImage = await this.tableHasColumn(db, 'products', 'image_url');
     const hasVariantWeight = await this.tableHasColumn(db, 'product_variants', 'weight_g');
+    const hasVariantLength = await this.tableHasColumn(db, 'product_variants', 'length_cm');
+    const hasVariantWidth = await this.tableHasColumn(db, 'product_variants', 'width_cm');
+    const hasVariantHeight = await this.tableHasColumn(db, 'product_variants', 'height_cm');
     const productImageSelect = hasProductImage ? ', p.image_url AS product_image' : ', NULL AS product_image';
     const weightSelect = hasVariantWeight ? ', pv.weight_g AS weight_g' : ', 0 AS weight_g';
+    const lengthSelect = hasVariantLength ? ', pv.length_cm AS length_cm' : ', 0 AS length_cm';
+    const widthSelect = hasVariantWidth ? ', pv.width_cm AS width_cm' : ', 0 AS width_cm';
+    const heightSelect = hasVariantHeight ? ', pv.height_cm AS height_cm' : ', 0 AS height_cm';
 
     const [rows] = await db.execute(
       `
@@ -142,6 +163,9 @@ class OrderModel {
           pv.variant_name,
           pv.variant_values
           ${weightSelect}
+          ${lengthSelect}
+          ${widthSelect}
+          ${heightSelect}
           ,
           p.name AS product_name
           ${productImageSelect}
@@ -161,12 +185,24 @@ class OrderModel {
 
     const hasProductImage = await this.tableHasColumn(pool, 'products', 'image_url');
     const hasVariantWeight = await this.tableHasColumn(pool, 'product_variants', 'weight_g');
+    const hasVariantLength = await this.tableHasColumn(pool, 'product_variants', 'length_cm');
+    const hasVariantWidth = await this.tableHasColumn(pool, 'product_variants', 'width_cm');
+    const hasVariantHeight = await this.tableHasColumn(pool, 'product_variants', 'height_cm');
     const productImageSelect = hasProductImage
       ? 'COALESCE(oi.product_image_snapshot, p.image_url) AS product_image,'
       : 'oi.product_image_snapshot AS product_image,';
     const weightSelect = hasVariantWeight
-      ? 'COALESCE(oi.weight_g_snapshot, pv.weight_g, 0) AS weight_g'
-      : 'COALESCE(oi.weight_g_snapshot, 0) AS weight_g';
+      ? 'COALESCE(oi.weight_g_snapshot, pv.weight_g, 0) AS weight_g,'
+      : 'COALESCE(oi.weight_g_snapshot, 0) AS weight_g,';
+    const lengthSelect = hasVariantLength
+      ? 'COALESCE(oi.length_cm_snapshot, pv.length_cm, 0) AS length_cm,'
+      : 'COALESCE(oi.length_cm_snapshot, 0) AS length_cm,';
+    const widthSelect = hasVariantWidth
+      ? 'COALESCE(oi.width_cm_snapshot, pv.width_cm, 0) AS width_cm,'
+      : 'COALESCE(oi.width_cm_snapshot, 0) AS width_cm,';
+    const heightSelect = hasVariantHeight
+      ? 'COALESCE(oi.height_cm_snapshot, pv.height_cm, 0) AS height_cm'
+      : 'COALESCE(oi.height_cm_snapshot, 0) AS height_cm';
 
     const [items] = await pool.execute(
       `
@@ -177,6 +213,9 @@ class OrderModel {
           COALESCE(oi.variant_name_snapshot, pv.variant_name) AS variant_name,
           COALESCE(oi.variant_values_snapshot, pv.variant_values) AS size,
           ${weightSelect}
+          ${lengthSelect}
+          ${widthSelect}
+          ${heightSelect}
         FROM order_items oi
         LEFT JOIN products p ON oi.product_id = p.product_id
         LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id
@@ -229,6 +268,9 @@ class OrderModel {
         const unitPrice = Number(variant.price || 0);
         const lineTotal = unitPrice * item.quantity;
         const weightG = Number(variant.weight_g || 0);
+        const lengthCm = Number(variant.length_cm || 0);
+        const widthCm = Number(variant.width_cm || 0);
+        const heightCm = Number(variant.height_cm || 0);
 
         preparedItems.push({
           ...item,
@@ -239,6 +281,9 @@ class OrderModel {
           variant_name_snapshot: String(variant.variant_name || '').trim() || null,
           variant_values_snapshot: String(variant.variant_values || '').trim() || null,
           weight_g_snapshot: Number.isFinite(weightG) ? weightG : 0,
+          length_cm_snapshot: Number.isFinite(lengthCm) ? lengthCm : 0,
+          width_cm_snapshot: Number.isFinite(widthCm) ? widthCm : 0,
+          height_cm_snapshot: Number.isFinite(heightCm) ? heightCm : 0,
         });
 
         computedSubtotal += lineTotal;
@@ -248,20 +293,21 @@ class OrderModel {
       const computedTotal = computedSubtotal + shippingFee;
       const shippingAddress = JSON.stringify(payload.shipping_address || {});
       const initialStatus = 'pending';
+      const courier = this.normalizeCourier(payload.courier);
 
       let orderRes;
       if (communityId === null || typeof communityId === 'undefined') {
         // Insert without community_id column
         [orderRes] = await conn.execute(
-          `INSERT INTO orders (user_id, subtotal, shipping_fee, total, payment_method, shipping_address, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?)`,
-          [userId, computedSubtotal, shippingFee, computedTotal, payload.payment_method || null, shippingAddress, initialStatus]
+          `INSERT INTO orders (user_id, subtotal, shipping_fee, total, payment_method, shipping_address, status, courier)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+          [userId, computedSubtotal, shippingFee, computedTotal, payload.payment_method || null, shippingAddress, initialStatus, courier]
         );
       } else {
         [orderRes] = await conn.execute(
-          `INSERT INTO orders (user_id, community_id, subtotal, shipping_fee, total, payment_method, shipping_address, status)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-          [userId, communityId, computedSubtotal, shippingFee, computedTotal, payload.payment_method || null, shippingAddress, initialStatus]
+          `INSERT INTO orders (user_id, community_id, subtotal, shipping_fee, total, payment_method, shipping_address, status, courier)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [userId, communityId, computedSubtotal, shippingFee, computedTotal, payload.payment_method || null, shippingAddress, initialStatus, courier]
         );
       }
 
@@ -282,9 +328,12 @@ class OrderModel {
               product_image_snapshot,
               variant_name_snapshot,
               variant_values_snapshot,
-              weight_g_snapshot
+              weight_g_snapshot,
+              length_cm_snapshot,
+              width_cm_snapshot,
+              height_cm_snapshot
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `,
           [
             orderId,
@@ -298,6 +347,9 @@ class OrderModel {
             item.variant_name_snapshot,
             item.variant_values_snapshot,
             item.weight_g_snapshot,
+            item.length_cm_snapshot,
+            item.width_cm_snapshot,
+            item.height_cm_snapshot,
           ]
         );
 

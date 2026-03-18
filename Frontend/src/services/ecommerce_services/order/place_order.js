@@ -19,6 +19,11 @@ export async function placeOrder() {
     const shippingData = draft.shipping_address;
     const paymentData = draft.payment_data;
     const shippingFee = draft.shipping_fee ?? 0;
+    const shippingCourier = String(
+      draft?.summary_data?.shipping_courier ??
+      draft?.shipping_courier ??
+      ''
+    ).trim();
     const checkoutSummary = {
       ...calculateCheckoutSummary(checkoutItems, shippingFee),
       ...(draft.summary_data || {}),
@@ -65,6 +70,7 @@ export async function placeOrder() {
       subtotal: toNumber(checkoutSummary?.subtotal, computedSubtotal),
       shipping_fee: toNumber(checkoutSummary?.shipping_fee, toNumber(shippingFee, 0)),
       total: toNumber(checkoutSummary?.total, computedSubtotal),
+      courier: shippingCourier || null,
       status: 'pending'
     };
 
@@ -99,6 +105,7 @@ export async function placeOrder() {
       items: checkoutItems, // Store complete checkout items with all properties
       shipping_address: shippingData,
       payment_method: paymentData.method || 'cod',
+      courier: shippingCourier || null,
       subtotal: checkoutSummary?.subtotal || 0,
       shipping_fee: toNumber(checkoutSummary?.shipping_fee, 0),
       total: toNumber(checkoutSummary?.total, 0),

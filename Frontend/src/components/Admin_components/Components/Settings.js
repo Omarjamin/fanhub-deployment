@@ -205,16 +205,76 @@ async function uploadImage(file) {
   return uploadedUrl;
 }
 
-async function fetchShippingRegionOverrides() {
+function normalizeShippingScope(siteSlug = '') {
+  return String(siteSlug || '').trim().toLowerCase() || 'global';
+}
+
+function getGlobalShippingScope() {
+  return 'global';
+}
+
+function normalizeShippingRuleRegion(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  if (normalized === 'luzon') return 'Luzon';
+  if (normalized === 'vismin' || normalized === 'visayas' || normalized === 'mindanao') return 'VisMin';
+  return 'All';
+}
+
+function toPositiveShippingNumber(value, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+}
+
+function buildShippingRule(rule = {}) {
+  return {
+    rule_id: Number(rule?.rule_id || 0) || null,
+    shipping_region: normalizeShippingRuleRegion(rule?.shipping_region ?? rule?.region),
+    max_weight_g: toPositiveShippingNumber(rule?.max_weight_g ?? rule?.maxWeightG ?? rule?.weight_g, 0),
+    max_length_cm: toPositiveShippingNumber(rule?.max_length_cm ?? rule?.maxLengthCm ?? rule?.length_cm, 0),
+    max_width_cm: toPositiveShippingNumber(rule?.max_width_cm ?? rule?.maxWidthCm ?? rule?.width_cm, 0),
+    max_height_cm: toPositiveShippingNumber(rule?.max_height_cm ?? rule?.maxHeightCm ?? rule?.height_cm, 0),
+    fee: toPositiveShippingNumber(rule?.fee ?? rule?.shipping_fee ?? rule?.rate, 0),
+    is_active: !(rule?.is_active === false || rule?.is_active === 0),
+  };
+}
+
+function createDefaultShippingRule() {
+  return buildShippingRule({
+    shipping_region: 'All',
+    max_weight_g: 0,
+    max_length_cm: 0,
+    max_width_cm: 0,
+    max_height_cm: 0,
+    fee: 0,
+    is_active: false,
+  });
+}
+
+function normalizeShippingRules(rules = []) {
+  const normalizedRules = (Array.isArray(rules) ? rules : [])
+    .map((rule) => buildShippingRule(rule))
+    .filter(Boolean);
+  return normalizedRules.length ? normalizedRules : [createDefaultShippingRule()];
+}
+
+async function fetchShippingRegionOverrides(siteSlug = '') {
+  const community = normalizeShippingScope(siteSlug);
   const payload = await fetchAdminJsonWithFallback(
     'settings/shipping-regions',
-    { community: 'global' },
+    { community },
     { headers: getAuthHeaders() },
   );
   return payload?.data || {};
 }
 
-async function saveShippingRegionOverrides(provinceRegions, shippingRates) {
+async function saveShippingRegionOverrides(
+  siteSlug = '',
+  provinceRegions,
+  shippingRates,
+  courierName = '',
+  shippingRules = [],
+) {
+  const community = normalizeShippingScope(siteSlug);
   const candidateUrls = resolveAdminEndpointUrls(
     'settings/shipping-regions',
     {},
@@ -233,9 +293,14 @@ async function saveShippingRegionOverrides(provinceRegions, shippingRates) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          community: 'global',
+          community,
           province_regions: provinceRegions,
           shipping_rates: shippingRates,
+          courier_name: String(courierName || '').trim(),
+          shipping_rules: (Array.isArray(shippingRules) ? shippingRules : []).map((rule, index) => ({
+            ...buildShippingRule(rule),
+            priority: index + 1,
+          })),
         }),
       });
       payload = await response.json().catch(() => ({}));
@@ -346,6 +411,8 @@ export default function createSettings() {
   ).trim().toLowerCase();
   let selectedCommunityId = null;
   let eventPosters = buildEventPosterRows([], selectedSite);
+  let shippingCourierName = '';
+  let shippingRules = [];
 
   function eventRowsTemplate() {
     return eventPosters
@@ -385,11 +452,119 @@ export default function createSettings() {
       .join('');
   }
 
+  function createEmptyShippingRule() {
+    return createDefaultShippingRule();
+  }
+
+  function getShippingScope() {
+    return getGlobalShippingScope();
+  }
+
+  function renderShippingRules() {
+    const list = section.querySelector('#shippingRulesList');
+    if (!list) return;
+    shippingRules = normalizeShippingRules(shippingRules);
+
+    list.innerHTML = shippingRules.map((rule, index) => {
+      const normalizedRule = buildShippingRule(rule);
+      const weightValue = normalizedRule.max_weight_g > 0 ? String(normalizedRule.max_weight_g) : '';
+      const lengthValue = normalizedRule.max_length_cm > 0 ? String(normalizedRule.max_length_cm) : '';
+      const widthValue = normalizedRule.max_width_cm > 0 ? String(normalizedRule.max_width_cm) : '';
+      const heightValue = normalizedRule.max_height_cm > 0 ? String(normalizedRule.max_height_cm) : '';
+      const feeValue = normalizedRule.fee > 0 ? String(normalizedRule.fee) : '';
+
+      return `
+        <div class="shipping-rule-card" data-rule-index="${index}">
+          <div class="shipping-rule-card-head">
+            <div>
+              <strong>Rule ${index + 1}</strong>
+              <p>Mas mauuna i-check ang rules na nasa taas. Use 0 if a limit should be ignored.</p>
+            </div>
+            <div class="shipping-rule-actions">
+              <button type="button" class="shipping-rule-action-btn" data-rule-action="up" ${index === 0 ? 'disabled' : ''}>Up</button>
+              <button type="button" class="shipping-rule-action-btn" data-rule-action="down" ${index === shippingRules.length - 1 ? 'disabled' : ''}>Down</button>
+              <button type="button" class="shipping-rule-action-btn danger" data-rule-action="remove" ${shippingRules.length === 1 ? 'disabled' : ''}>Remove</button>
+            </div>
+          </div>
+          <div class="shipping-rule-grid">
+            <label class="shipping-rate-item">
+              <span>Region</span>
+              <select data-rule-field="shipping_region">
+                <option value="All" ${normalizedRule.shipping_region === 'All' ? 'selected' : ''}>All</option>
+                <option value="Luzon" ${normalizedRule.shipping_region === 'Luzon' ? 'selected' : ''}>Luzon</option>
+                <option value="VisMin" ${normalizedRule.shipping_region === 'VisMin' ? 'selected' : ''}>VisMin</option>
+              </select>
+            </label>
+            <label class="shipping-rate-item">
+              <span>Max Weight (g)</span>
+              <input type="number" min="0" step="1" data-rule-field="max_weight_g" value="${weightValue}" placeholder="0 = no limit">
+            </label>
+            <label class="shipping-rate-item">
+              <span>Max Length (cm)</span>
+              <input type="number" min="0" step="0.01" data-rule-field="max_length_cm" value="${lengthValue}" placeholder="0 = no limit">
+            </label>
+            <label class="shipping-rate-item">
+              <span>Max Width (cm)</span>
+              <input type="number" min="0" step="0.01" data-rule-field="max_width_cm" value="${widthValue}" placeholder="0 = no limit">
+            </label>
+            <label class="shipping-rate-item">
+              <span>Max Height (cm)</span>
+              <input type="number" min="0" step="0.01" data-rule-field="max_height_cm" value="${heightValue}" placeholder="0 = no limit">
+            </label>
+            <label class="shipping-rate-item">
+              <span>Fee (PHP)</span>
+              <input type="number" min="0" step="0.01" data-rule-field="fee" value="${feeValue}" placeholder="0">
+            </label>
+          </div>
+          <label class="shipping-rule-toggle">
+            <input type="checkbox" data-rule-field="is_active" ${normalizedRule.is_active ? 'checked' : ''}>
+            Active
+          </label>
+        </div>
+      `;
+    }).join('');
+  }
+
+  async function loadShippingSettings(scope = getShippingScope()) {
+    const settingsPayload = await fetchShippingRegionOverrides(scope);
+    const savedMap = settingsPayload?.province_regions || {};
+    const savedRates = settingsPayload?.shipping_rates || {};
+
+    Object.keys(provinceShippingCategory).forEach((province) => delete provinceShippingCategory[province]);
+    Object.entries(savedMap || {}).forEach(([province, category]) => {
+      provinceShippingCategory[String(province).trim()] = String(category).trim();
+    });
+
+    const luzonRate = Number(savedRates?.Luzon);
+    const visMinRate = Number(savedRates?.VisMin);
+    if (Number.isFinite(luzonRate) && luzonRate >= 0) {
+      section.querySelector('#shippingRateLuzon').value = String(luzonRate);
+    } else {
+      section.querySelector('#shippingRateLuzon').value = String(shippingCategoryDefaults.Luzon);
+    }
+    if (Number.isFinite(visMinRate) && visMinRate >= 0) {
+      section.querySelector('#shippingRateVisMin').value = String(visMinRate);
+    } else {
+      section.querySelector('#shippingRateVisMin').value = String(shippingCategoryDefaults.VisMin);
+    }
+
+    shippingCourierName = String(settingsPayload?.courier_name || '').trim();
+    shippingRules = normalizeShippingRules(settingsPayload?.shipping_rules);
+
+    const courierInput = section.querySelector('#shippingCourierName');
+    if (courierInput) {
+      courierInput.value = shippingCourierName;
+    }
+
+    renderShippingRules();
+    return settingsPayload;
+  }
+
   section.innerHTML = `
     <div class="customizer-section others-section">
-      <h3>Site Context</h3>
+      <h3>Event Poster Site Context</h3>
       <div class="customizer-item">
-        <label for="settingsSiteSelect">Site</label>
+        <label for="settingsSiteSelect">Site For Event Posters</label>
         <select id="settingsSiteSelect">
           <option value="">All Sites</option>
         </select>
@@ -406,8 +581,27 @@ export default function createSettings() {
       </div>
 
       <div class="customizer-section shipping-section">
-        <h3>Shipping Configuration</h3>
-        <p class="shipping-subtitle">Set Luzon and VisMin rates, then assign each province category.</p>
+        <h3>Global Shipping Configuration</h3>
+        <p class="shipping-subtitle">This shipping setup is shared by all sites. Set one courier, multiple package fee rules, and one province mapping for the whole ecommerce flow.</p>
+        <div class="shipping-global-badge">Applies to all sites</div>
+        <div class="shipping-meta-grid">
+          <label class="shipping-rate-item shipping-courier-item">
+            <span>Default Courier</span>
+            <input type="text" id="shippingCourierName" maxlength="120" placeholder="ex. J&T Express">
+          </label>
+        </div>
+
+        <div class="shipping-rules-panel">
+          <div class="shipping-rules-header">
+            <div>
+              <h4>Global Shipping Rules</h4>
+              <p>Add one or more shared shipping fee rules based on region, weight, and dimensions.</p>
+            </div>
+            <button type="button" class="shipping-rule-add-btn" id="addShippingRuleBtn">+ Add Rule</button>
+          </div>
+          <div id="shippingRulesList" class="shipping-rules-list"></div>
+        </div>
+
         <div class="customizer-item">
           <label for="shippingRegionSelect">Region</label>
           <select id="shippingRegionSelect">
@@ -491,6 +685,11 @@ export default function createSettings() {
   function resetSettings() {
     section.querySelector('#shippingRateLuzon').value = shippingCategoryDefaults.Luzon;
     section.querySelector('#shippingRateVisMin').value = shippingCategoryDefaults.VisMin;
+    const courierInput = section.querySelector('#shippingCourierName');
+    shippingCourierName = '';
+    if (courierInput) courierInput.value = '';
+    shippingRules = normalizeShippingRules();
+    renderShippingRules();
     section.querySelector('#shippingRegionSelect').value = '';
     section.querySelector('#shippingProvinceWrapper').innerHTML = `<p class="shipping-empty">Select a region to show provinces.</p>`;
     Object.keys(provinceShippingCategory).forEach((province) => delete provinceShippingCategory[province]);
@@ -513,7 +712,14 @@ export default function createSettings() {
     }, {});
 
     try {
-      await saveShippingRegionOverrides(provinceShippingCategory, shippingRates);
+      shippingCourierName = String(section.querySelector('#shippingCourierName')?.value || '').trim();
+      await saveShippingRegionOverrides(
+        getShippingScope(),
+        provinceShippingCategory,
+        shippingRates,
+        shippingCourierName,
+        shippingRules,
+      );
       if (selectedSite) {
         await saveEventPosters(
           selectedSite,
@@ -521,11 +727,18 @@ export default function createSettings() {
           selectedCommunityId,
         );
       }
-      console.log('[Settings] Saved:', { selectedSite, shippingRates, provinceShipping, eventPosters });
+      console.log('[Settings] Saved:', {
+        selectedSite,
+        shippingRates,
+        provinceShipping,
+        shippingCourierName,
+        shippingRules,
+        eventPosters,
+      });
       if (selectedSite) {
-        alert('Settings saved successfully.');
+        alert('Global shipping settings saved. Event posters were also saved for the selected site.');
       } else {
-        alert('Shipping settings saved. Select a site to save event posters.');
+        alert('Global shipping settings saved for all sites.');
       }
     } catch (error) {
       console.error('[Settings] Save failed:', error);
@@ -648,9 +861,97 @@ export default function createSettings() {
     return { renderProvinceList };
   }
 
+  function setupShippingRuleManager() {
+    const courierInput = section.querySelector('#shippingCourierName');
+    const addRuleBtn = section.querySelector('#addShippingRuleBtn');
+    const rulesList = section.querySelector('#shippingRulesList');
+    const appendShippingRule = () => {
+      shippingRules = [...normalizeShippingRules(shippingRules), createEmptyShippingRule()];
+      renderShippingRules();
+    };
+
+    const updateRuleField = (target) => {
+      const field = String(target?.dataset?.ruleField || '').trim();
+      const card = target?.closest?.('.shipping-rule-card');
+      const index = Number(card?.dataset?.ruleIndex || -1);
+      if (!field || index < 0 || !shippingRules[index]) return;
+
+      if (field === 'is_active') {
+        shippingRules[index] = {
+          ...shippingRules[index],
+          is_active: Boolean(target.checked),
+        };
+        return;
+      }
+
+      if (field === 'shipping_region') {
+        shippingRules[index] = {
+          ...shippingRules[index],
+          shipping_region: normalizeShippingRuleRegion(target.value),
+        };
+        return;
+      }
+
+      shippingRules[index] = {
+        ...shippingRules[index],
+        [field]: toPositiveShippingNumber(target.value, 0),
+      };
+    };
+
+    courierInput?.addEventListener('input', () => {
+      shippingCourierName = String(courierInput.value || '').trim();
+    });
+
+    addRuleBtn?.addEventListener('click', appendShippingRule);
+
+    rulesList?.addEventListener('input', (event) => {
+      const target = event.target.closest('[data-rule-field]');
+      if (!target) return;
+      updateRuleField(target);
+    });
+
+    rulesList?.addEventListener('change', (event) => {
+      const target = event.target.closest('[data-rule-field]');
+      if (!target) return;
+      updateRuleField(target);
+    });
+
+    rulesList?.addEventListener('click', (event) => {
+      const actionBtn = event.target.closest('[data-rule-action]');
+      if (!actionBtn) return;
+
+      const card = actionBtn.closest('.shipping-rule-card');
+      const index = Number(card?.dataset?.ruleIndex || -1);
+      if (index < 0 || !shippingRules[index]) return;
+
+      const action = String(actionBtn.dataset.ruleAction || '').trim();
+      if (action === 'remove' && shippingRules.length > 1) {
+        shippingRules = shippingRules.filter((_, ruleIndex) => ruleIndex !== index);
+        renderShippingRules();
+        return;
+      }
+      if (action === 'up' && index > 0) {
+        const nextRules = [...shippingRules];
+        [nextRules[index - 1], nextRules[index]] = [nextRules[index], nextRules[index - 1]];
+        shippingRules = nextRules;
+        renderShippingRules();
+        return;
+      }
+      if (action === 'down' && index < shippingRules.length - 1) {
+        const nextRules = [...shippingRules];
+        [nextRules[index], nextRules[index + 1]] = [nextRules[index + 1], nextRules[index]];
+        shippingRules = nextRules;
+        renderShippingRules();
+      }
+    });
+
+    renderShippingRules();
+  }
+
   setupButtons();
   setupEventPosterManager();
   const shippingManager = setupShippingManager();
+  setupShippingRuleManager();
 
   section.querySelector('#settingsSiteSelect')?.addEventListener('change', async (event) => {
     selectedSite = isForcedSingleSite
@@ -662,27 +963,15 @@ export default function createSettings() {
       sessionStorage.setItem('admin_selected_site', selectedSite || 'all');
     } catch (_) {}
     Object.keys(provinceShippingCategory).forEach((province) => delete provinceShippingCategory[province]);
-    if (!selectedSite) {
-      section.querySelector('#shippingProvinceWrapper').innerHTML = `<p class="shipping-empty">Select a region to show provinces.</p>`;
-      eventPosters = buildEventPosterRows([], selectedSite);
-      await refreshEventPosterManager();
-      return;
-    }
 
     try {
-      const settingsPayload = await fetchShippingRegionOverrides();
-      const savedMap = settingsPayload?.province_regions || {};
-      const savedRates = settingsPayload?.shipping_rates || {};
-      Object.entries(savedMap || {}).forEach(([province, category]) => {
-        provinceShippingCategory[String(province).trim()] = String(category).trim();
-      });
-      const luzonRate = Number(savedRates?.Luzon);
-      const visMinRate = Number(savedRates?.VisMin);
-      if (Number.isFinite(luzonRate) && luzonRate >= 0) {
-        section.querySelector('#shippingRateLuzon').value = String(luzonRate);
-      }
-      if (Number.isFinite(visMinRate) && visMinRate >= 0) {
-        section.querySelector('#shippingRateVisMin').value = String(visMinRate);
+      await loadShippingSettings(getShippingScope());
+
+      if (!selectedSite) {
+        section.querySelector('#shippingProvinceWrapper').innerHTML = `<p class="shipping-empty">Select a region to show provinces.</p>`;
+        eventPosters = buildEventPosterRows([], selectedSite);
+        await refreshEventPosterManager();
+        return;
       }
 
       eventPosters = await fetchEventPosters(selectedSite, selectedCommunityId);
@@ -699,20 +988,7 @@ export default function createSettings() {
 
   loadSiteOptions().then(async () => {
     try {
-      const settingsPayload = await fetchShippingRegionOverrides();
-      const savedMap = settingsPayload?.province_regions || {};
-      const savedRates = settingsPayload?.shipping_rates || {};
-      Object.entries(savedMap || {}).forEach(([province, category]) => {
-        provinceShippingCategory[String(province).trim()] = String(category).trim();
-      });
-      const luzonRate = Number(savedRates?.Luzon);
-      const visMinRate = Number(savedRates?.VisMin);
-      if (Number.isFinite(luzonRate) && luzonRate >= 0) {
-        section.querySelector('#shippingRateLuzon').value = String(luzonRate);
-      }
-      if (Number.isFinite(visMinRate) && visMinRate >= 0) {
-        section.querySelector('#shippingRateVisMin').value = String(visMinRate);
-      }
+      await loadShippingSettings(getShippingScope());
     } catch (error) {
       console.error('[Settings] Failed to load initial shipping overrides:', error);
     }

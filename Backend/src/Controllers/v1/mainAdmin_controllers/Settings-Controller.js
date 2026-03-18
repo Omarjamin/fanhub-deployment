@@ -44,13 +44,13 @@ class SettingsController {
     return 'global';
   }
 
-  resolveShippingScope() {
-    return 'global';
+  resolveShippingScope(req, res) {
+    return this.resolveCommunity(req, res);
   }
 
   async getShippingRegions(req, res) {
     try {
-      const community = this.resolveShippingScope();
+      const community = this.resolveShippingScope(req, res);
       debugLog('getShippingRegions:start', { community });
 
       const data = await this.settingsModel.getShippingRegions(community);
@@ -75,7 +75,7 @@ class SettingsController {
 
   async saveShippingRegions(req, res) {
     try {
-      const community = this.resolveShippingScope();
+      const community = this.resolveShippingScope(req, res);
 
       const provinceRegions =
         req.body?.province_regions ||
@@ -85,15 +85,27 @@ class SettingsController {
         req.body?.shipping_rates ||
         req.body?.shippingRates ||
         null;
+      const courierName =
+        req.body?.courier_name ??
+        req.body?.courierName ??
+        '';
+      const shippingRules =
+        req.body?.shipping_rules ??
+        req.body?.shippingRules ??
+        [];
 
       debugLog('saveShippingRegions:start', {
         community,
         provinceCount: Object.keys(provinceRegions || {}).length,
+        courierName,
+        shippingRuleCount: Array.isArray(shippingRules) ? shippingRules.length : 0,
       });
       const data = await this.settingsModel.saveShippingRegions(
         community,
         provinceRegions,
         shippingRates,
+        courierName,
+        shippingRules,
       );
       debugLog('saveShippingRegions:done', { community, saved: data?.saved });
 

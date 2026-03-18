@@ -32,6 +32,45 @@ export function resolveItemWeightGrams(item) {
   return Number.isFinite(explicitWeight) && explicitWeight >= 0 ? explicitWeight : 0;
 }
 
+export function resolveItemLengthCm(item) {
+  const explicitLength = Number(item?.length_cm ?? item?.lengthCm ?? item?.package_length_cm ?? item?.length);
+  return Number.isFinite(explicitLength) && explicitLength >= 0 ? explicitLength : 0;
+}
+
+export function resolveItemWidthCm(item) {
+  const explicitWidth = Number(item?.width_cm ?? item?.widthCm ?? item?.package_width_cm ?? item?.width);
+  return Number.isFinite(explicitWidth) && explicitWidth >= 0 ? explicitWidth : 0;
+}
+
+export function resolveItemHeightCm(item) {
+  const explicitHeight = Number(item?.height_cm ?? item?.heightCm ?? item?.package_height_cm ?? item?.height);
+  return Number.isFinite(explicitHeight) && explicitHeight >= 0 ? explicitHeight : 0;
+}
+
+export function calculateCheckoutPackageMetrics(items = []) {
+  const normalizedItems = Array.isArray(items) ? items : [];
+  let packageLengthCm = 0;
+  let packageWidthCm = 0;
+  let packageHeightCm = 0;
+
+  normalizedItems.forEach((item) => {
+    const quantity = toNumber(item?.quantity ?? item?.qty, 0);
+    const itemLengthCm = resolveItemLengthCm(item);
+    const itemWidthCm = resolveItemWidthCm(item);
+    const itemHeightCm = resolveItemHeightCm(item);
+
+    packageLengthCm = Math.max(packageLengthCm, itemLengthCm);
+    packageWidthCm = Math.max(packageWidthCm, itemWidthCm);
+    packageHeightCm += itemHeightCm * quantity;
+  });
+
+  return {
+    package_length_cm: packageLengthCm,
+    package_width_cm: packageWidthCm,
+    package_height_cm: packageHeightCm,
+  };
+}
+
 export function calculateCheckoutSummary(items = [], shippingFee = 0) {
   const normalizedItems = Array.isArray(items) ? items : [];
   const subtotal = normalizedItems.reduce((sum, item) => {
@@ -44,6 +83,7 @@ export function calculateCheckoutSummary(items = [], shippingFee = 0) {
     const quantity = toNumber(item?.quantity ?? item?.qty, 0);
     return sum + (resolveItemWeightGrams(item) * quantity);
   }, 0);
+  const packageMetrics = calculateCheckoutPackageMetrics(normalizedItems);
 
   const normalizedShippingFee = Math.max(0, toNumber(shippingFee, 0));
 
@@ -51,6 +91,7 @@ export function calculateCheckoutSummary(items = [], shippingFee = 0) {
     subtotal,
     shipping_fee: normalizedShippingFee,
     total_weight_grams: totalWeightGrams,
+    ...packageMetrics,
     total: subtotal + normalizedShippingFee,
   };
 }
@@ -224,6 +265,7 @@ export function getCheckoutDraftEventName() {
 }
 
 export default {
+  calculateCheckoutPackageMetrics,
   calculateCheckoutSummary,
   clearCheckoutDraft,
   createEmptyCheckoutDraft,
@@ -231,7 +273,10 @@ export default {
   getCachedCheckoutDraft,
   getCheckoutDraftEventName,
   normalizeCheckoutDraft,
+  resolveItemHeightCm,
+  resolveItemLengthCm,
   resolveItemWeightGrams,
+  resolveItemWidthCm,
   saveCheckoutDraft,
   setCheckoutDraftStep,
 };

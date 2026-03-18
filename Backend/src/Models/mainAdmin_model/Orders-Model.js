@@ -267,6 +267,9 @@ class OrdersModel {
       ['variant_name_snapshot', 'ALTER TABLE order_items ADD COLUMN variant_name_snapshot VARCHAR(255) NULL AFTER product_image_snapshot'],
       ['variant_values_snapshot', 'ALTER TABLE order_items ADD COLUMN variant_values_snapshot VARCHAR(255) NULL AFTER variant_name_snapshot'],
       ['weight_g_snapshot', 'ALTER TABLE order_items ADD COLUMN weight_g_snapshot INT(11) NULL AFTER variant_values_snapshot'],
+      ['length_cm_snapshot', 'ALTER TABLE order_items ADD COLUMN length_cm_snapshot DECIMAL(10,2) NULL AFTER weight_g_snapshot'],
+      ['width_cm_snapshot', 'ALTER TABLE order_items ADD COLUMN width_cm_snapshot DECIMAL(10,2) NULL AFTER length_cm_snapshot'],
+      ['height_cm_snapshot', 'ALTER TABLE order_items ADD COLUMN height_cm_snapshot DECIMAL(10,2) NULL AFTER width_cm_snapshot'],
     ];
 
     for (const [columnName, statement] of columns) {
@@ -293,8 +296,14 @@ class OrdersModel {
 
     const hasProductImage = await this.tableHasColumn(db, 'products', 'image_url');
     const hasVariantWeight = await this.tableHasColumn(db, 'product_variants', 'weight_g');
+    const hasVariantLength = await this.tableHasColumn(db, 'product_variants', 'length_cm');
+    const hasVariantWidth = await this.tableHasColumn(db, 'product_variants', 'width_cm');
+    const hasVariantHeight = await this.tableHasColumn(db, 'product_variants', 'height_cm');
     const productImageExpr = hasProductImage ? 'p.image_url' : 'NULL';
     const weightExpr = hasVariantWeight ? 'pv.weight_g' : '0';
+    const lengthExpr = hasVariantLength ? 'pv.length_cm' : '0';
+    const widthExpr = hasVariantWidth ? 'pv.width_cm' : '0';
+    const heightExpr = hasVariantHeight ? 'pv.height_cm' : '0';
 
     await db.query(
       `
@@ -306,13 +315,19 @@ class OrdersModel {
           oi.product_image_snapshot = COALESCE(oi.product_image_snapshot, ${productImageExpr}),
           oi.variant_name_snapshot = COALESCE(oi.variant_name_snapshot, pv.variant_name),
           oi.variant_values_snapshot = COALESCE(oi.variant_values_snapshot, pv.variant_values),
-          oi.weight_g_snapshot = COALESCE(oi.weight_g_snapshot, ${weightExpr}, 0)
+          oi.weight_g_snapshot = COALESCE(oi.weight_g_snapshot, ${weightExpr}, 0),
+          oi.length_cm_snapshot = COALESCE(oi.length_cm_snapshot, ${lengthExpr}, 0),
+          oi.width_cm_snapshot = COALESCE(oi.width_cm_snapshot, ${widthExpr}, 0),
+          oi.height_cm_snapshot = COALESCE(oi.height_cm_snapshot, ${heightExpr}, 0)
         WHERE
           oi.product_name_snapshot IS NULL
           OR oi.product_image_snapshot IS NULL
           OR oi.variant_name_snapshot IS NULL
           OR oi.variant_values_snapshot IS NULL
           OR oi.weight_g_snapshot IS NULL
+          OR oi.length_cm_snapshot IS NULL
+          OR oi.width_cm_snapshot IS NULL
+          OR oi.height_cm_snapshot IS NULL
       `,
     );
   }
@@ -526,8 +541,8 @@ class OrdersModel {
             ? 'COALESCE(oi.product_image_snapshot, p.image_url) AS product_image,'
             : 'oi.product_image_snapshot AS product_image,';
           const weightSelect = hasVariantWeight
-            ? 'COALESCE(oi.weight_g_snapshot, pv.weight_g, 0) AS weight_g'
-            : 'COALESCE(oi.weight_g_snapshot, 0) AS weight_g';
+            ? 'COALESCE(oi.weight_g_snapshot, pv.weight_g, 0) AS weight_g,'
+            : 'COALESCE(oi.weight_g_snapshot, 0) AS weight_g,';
 
           const params = [];
           const whereParts = [];
@@ -693,12 +708,24 @@ class OrdersModel {
           );
           const hasProductImage = await this.tableHasColumn(siteDB, 'products', 'image_url');
           const hasVariantWeight = await this.tableHasColumn(siteDB, 'product_variants', 'weight_g');
+          const hasVariantLength = await this.tableHasColumn(siteDB, 'product_variants', 'length_cm');
+          const hasVariantWidth = await this.tableHasColumn(siteDB, 'product_variants', 'width_cm');
+          const hasVariantHeight = await this.tableHasColumn(siteDB, 'product_variants', 'height_cm');
           const productImageSelect = hasProductImage
             ? 'COALESCE(oi.product_image_snapshot, p.image_url) AS product_image,'
             : 'oi.product_image_snapshot AS product_image,';
           const weightSelect = hasVariantWeight
-            ? 'COALESCE(oi.weight_g_snapshot, pv.weight_g, 0) AS weight_g'
-            : 'COALESCE(oi.weight_g_snapshot, 0) AS weight_g';
+            ? 'COALESCE(oi.weight_g_snapshot, pv.weight_g, 0) AS weight_g,'
+            : 'COALESCE(oi.weight_g_snapshot, 0) AS weight_g,';
+          const lengthSelect = hasVariantLength
+            ? 'COALESCE(oi.length_cm_snapshot, pv.length_cm, 0) AS length_cm,'
+            : 'COALESCE(oi.length_cm_snapshot, 0) AS length_cm,';
+          const widthSelect = hasVariantWidth
+            ? 'COALESCE(oi.width_cm_snapshot, pv.width_cm, 0) AS width_cm,'
+            : 'COALESCE(oi.width_cm_snapshot, 0) AS width_cm,';
+          const heightSelect = hasVariantHeight
+            ? 'COALESCE(oi.height_cm_snapshot, pv.height_cm, 0) AS height_cm'
+            : 'COALESCE(oi.height_cm_snapshot, 0) AS height_cm';
 
           const params = [];
           const whereParts = [];
@@ -794,6 +821,9 @@ class OrdersModel {
                 COALESCE(oi.variant_name_snapshot, pv.variant_name) AS variant_name,
                 COALESCE(oi.variant_values_snapshot, pv.variant_values) AS size,
                 ${weightSelect}
+                ${lengthSelect}
+                ${widthSelect}
+                ${heightSelect}
               FROM order_items oi
               LEFT JOIN products p ON oi.product_id = p.product_id
               LEFT JOIN product_variants pv ON oi.variant_id = pv.variant_id

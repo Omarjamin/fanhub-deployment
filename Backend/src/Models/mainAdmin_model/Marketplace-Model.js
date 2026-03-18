@@ -99,6 +99,35 @@ class MarketplaceModel {
     }
   }
 
+  async ensureVariantDimensionColumn(db, columnName, afterColumn) {
+    const exists = await this.hasColumn(db, 'product_variants', columnName);
+    if (exists) return true;
+
+    try {
+      await db.query(
+        `ALTER TABLE product_variants ADD COLUMN ${columnName} DECIMAL(10,2) NOT NULL DEFAULT 0 AFTER ${afterColumn}`,
+      );
+      return true;
+    } catch (error) {
+      if (error?.code === 'ER_DUP_FIELDNAME') return true;
+      return false;
+    }
+  }
+
+  async ensureVariantShippingColumns(db) {
+    const hasWeightColumn = await this.ensureVariantWeightColumn(db);
+    const hasLengthColumn = await this.ensureVariantDimensionColumn(db, 'length_cm', 'weight_g');
+    const hasWidthColumn = await this.ensureVariantDimensionColumn(db, 'width_cm', 'length_cm');
+    const hasHeightColumn = await this.ensureVariantDimensionColumn(db, 'height_cm', 'width_cm');
+
+    return {
+      hasWeightColumn,
+      hasLengthColumn,
+      hasWidthColumn,
+      hasHeightColumn,
+    };
+  }
+
   async ensureProductCommunityColumn(db) {
     const exists = await this.hasColumn(db, 'products', 'community_id');
     if (exists) return true;
@@ -154,7 +183,12 @@ class MarketplaceModel {
       'collections',
       'group_community_id',
     );
-    const hasWeightColumn = await this.ensureVariantWeightColumn(db);
+    const {
+      hasWeightColumn,
+      hasLengthColumn,
+      hasWidthColumn,
+      hasHeightColumn,
+    } = await this.ensureVariantShippingColumns(db);
 
     // Fetch products with collection info
     const queryParams = [];
@@ -201,7 +235,10 @@ class MarketplaceModel {
           variant_values,
           price,
           stock,
-          ${hasWeightColumn ? 'weight_g' : '0 AS weight_g'}
+          ${hasWeightColumn ? 'weight_g' : '0 AS weight_g'},
+          ${hasLengthColumn ? 'length_cm' : '0 AS length_cm'},
+          ${hasWidthColumn ? 'width_cm' : '0 AS width_cm'},
+          ${hasHeightColumn ? 'height_cm' : '0 AS height_cm'}
         FROM product_variants
       `,
     );
@@ -465,7 +502,12 @@ class MarketplaceModel {
     const db = await connect(scoped);
     const scopedCommunityId = await this.resolveCommunityId(scoped);
     const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
-    const hasWeightColumn = await this.ensureVariantWeightColumn(db);
+    const {
+      hasWeightColumn,
+      hasLengthColumn,
+      hasWidthColumn,
+      hasHeightColumn,
+    } = await this.ensureVariantShippingColumns(db);
     const { name, collection_id, product_category, image_url, variants } = data;
     const collectionId = collection_id ?? null;
     const productCategory = String(product_category || 'Apparel').trim();
@@ -501,12 +543,25 @@ class MarketplaceModel {
       const price = Number(v.price);
       const stock = Number(v.stock) || 0;
       const weightG = Number(v.weight_g ?? v.weightG ?? v.weight ?? 0) || 0;
+      const lengthCm = Number(v.length_cm ?? v.lengthCm ?? v.length ?? 0) || 0;
+      const widthCm = Number(v.width_cm ?? v.widthCm ?? v.width ?? 0) || 0;
+      const heightCm = Number(v.height_cm ?? v.heightCm ?? v.height ?? 0) || 0;
       if (isNaN(price) || price < 0) continue;
-      if (hasWeightColumn) {
+      if (hasWeightColumn && hasLengthColumn && hasWidthColumn && hasHeightColumn) {
         await db.query(
-          `INSERT INTO product_variants (product_id, variant_name, variant_values, price, stock, weight_g)
-           VALUES (?, ?, ?, ?, ?, ?)`,
-          [productId, vName, vValues, price, stock, weightG],
+          `INSERT INTO product_variants (
+            product_id,
+            variant_name,
+            variant_values,
+            price,
+            stock,
+            weight_g,
+            length_cm,
+            width_cm,
+            height_cm
+          )
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [productId, vName, vValues, price, stock, weightG, lengthCm, widthCm, heightCm],
         );
       } else {
         await db.query(
@@ -529,7 +584,12 @@ class MarketplaceModel {
     const db = await connect(scoped);
     const scopedCommunityId = await this.resolveCommunityId(scoped);
     const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
-    const hasWeightColumn = await this.ensureVariantWeightColumn(db);
+    const {
+      hasWeightColumn,
+      hasLengthColumn,
+      hasWidthColumn,
+      hasHeightColumn,
+    } = await this.ensureVariantShippingColumns(db);
     const id = Number(productId);
     if (Number.isNaN(id)) throw new Error('Invalid product ID');
 
@@ -574,12 +634,25 @@ class MarketplaceModel {
         const price = Number(v.price);
         const stock = Number(v.stock) || 0;
         const weightG = Number(v.weight_g ?? v.weightG ?? v.weight ?? 0) || 0;
+        const lengthCm = Number(v.length_cm ?? v.lengthCm ?? v.length ?? 0) || 0;
+        const widthCm = Number(v.width_cm ?? v.widthCm ?? v.width ?? 0) || 0;
+        const heightCm = Number(v.height_cm ?? v.heightCm ?? v.height ?? 0) || 0;
         if (isNaN(price) || price < 0) continue;
-        if (hasWeightColumn) {
+        if (hasWeightColumn && hasLengthColumn && hasWidthColumn && hasHeightColumn) {
           await db.query(
-            `INSERT INTO product_variants (product_id, variant_name, variant_values, price, stock, weight_g)
-             VALUES (?, ?, ?, ?, ?, ?)`,
-            [id, vName, vValues, price, stock, weightG],
+            `INSERT INTO product_variants (
+              product_id,
+              variant_name,
+              variant_values,
+              price,
+              stock,
+              weight_g,
+              length_cm,
+              width_cm,
+              height_cm
+            )
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [id, vName, vValues, price, stock, weightG, lengthCm, widthCm, heightCm],
           );
         } else {
           await db.query(

@@ -127,7 +127,10 @@ export default function createMarketplace() {
           </label>
           <div class="marketplace-form-group">
             <div class="variant-header">
-              <span>Product Variants</span>
+              <div>
+                <span>Product Variants</span>
+                <p class="variant-helper-text">Set the shipping package details per variant: weight, length, width, and height.</p>
+              </div>
               <button type="button" class="modal-btn add-variant" id="addVariantBtn">+ Add Variant</button>
             </div>
             <div id="variantRows" class="variant-rows"></div>
@@ -171,6 +174,39 @@ export default function createMarketplace() {
 
   function formatPrice(value) {
     return `PHP ${Number(value).toLocaleString()}`;
+  }
+
+  function toPositiveNumber(value, fallback = 0) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) && numeric >= 0 ? numeric : fallback;
+  }
+
+  function formatVariantDimensionSummary(variant) {
+    const length = toPositiveNumber(variant.length_cm ?? variant.lengthCm ?? variant.length);
+    const width = toPositiveNumber(variant.width_cm ?? variant.widthCm ?? variant.width);
+    const height = toPositiveNumber(variant.height_cm ?? variant.heightCm ?? variant.height);
+
+    if (length <= 0 && width <= 0 && height <= 0) {
+      return 'Size not set';
+    }
+
+    return `${length.toLocaleString()} x ${width.toLocaleString()} x ${height.toLocaleString()} cm`;
+  }
+
+  function renderVariantMetaChips(variant) {
+    const price = formatPrice(variant.price);
+    const stock = `Stocks ${toPositiveNumber(variant.stock).toLocaleString()}`;
+    const weight = `${toPositiveNumber(variant.weight_g ?? variant.weightG ?? variant.weight).toLocaleString()}g`;
+    const dimensions = formatVariantDimensionSummary(variant);
+
+    return `
+      <div class="variant-meta-list">
+        <span class="variant-meta-chip">${price}</span>
+        <span class="variant-meta-chip">${stock}</span>
+        <span class="variant-meta-chip">${weight}</span>
+        <span class="variant-meta-chip">${dimensions}</span>
+      </div>
+    `;
   }
 
   function getBackendOrigin() {
@@ -217,12 +253,24 @@ export default function createMarketplace() {
     const weightG = Number(
       variant.weight_g ?? variant.weightG ?? variant.weight ?? 0,
     );
+    const lengthCm = Number(
+      variant.length_cm ?? variant.lengthCm ?? variant.length ?? 0,
+    );
+    const widthCm = Number(
+      variant.width_cm ?? variant.widthCm ?? variant.width ?? 0,
+    );
+    const heightCm = Number(
+      variant.height_cm ?? variant.heightCm ?? variant.height ?? 0,
+    );
     return {
       variantName,
       variantValue,
       stock: Number(variant.stock) || 0,
       price: Number(variant.price) || 0,
       weight_g: Number.isFinite(weightG) && weightG >= 0 ? weightG : 0,
+      length_cm: Number.isFinite(lengthCm) && lengthCm >= 0 ? lengthCm : 0,
+      width_cm: Number.isFinite(widthCm) && widthCm >= 0 ? widthCm : 0,
+      height_cm: Number.isFinite(heightCm) && heightCm >= 0 ? heightCm : 0,
     };
   }
 
@@ -437,12 +485,41 @@ export default function createMarketplace() {
   function createVariantRow(values = {}) {
     return `
       <div class="variant-input-row">
-        <input type="text" class="variant-name" placeholder="Variant Name (ex. Size)" value="${values.variantName || ''}" required>
-        <input type="text" class="variant-value" placeholder="Variant Value (ex. Small)" value="${values.variantValue || ''}" required>
-        <input type="number" class="variant-stock" placeholder="Stocks" min="0" value="${values.stock ?? ''}" required>
-        <input type="number" class="variant-price" placeholder="Price" min="0" step="0.01" value="${values.price ?? ''}" required>
-        <input type="number" class="variant-weight" placeholder="Weight (g)" min="0" step="0.01" value="${values.weight_g ?? ''}" required>
-        <button type="button" class="remove-variant-btn" aria-label="Remove variant">Remove</button>
+        <label class="variant-field variant-field-wide">
+          <span>Variant Name</span>
+          <input type="text" class="variant-name" placeholder="ex. Size" value="${values.variantName || ''}" required>
+        </label>
+        <label class="variant-field variant-field-wide">
+          <span>Variant Value</span>
+          <input type="text" class="variant-value" placeholder="ex. Small" value="${values.variantValue || ''}" required>
+        </label>
+        <label class="variant-field">
+          <span>Stocks</span>
+          <input type="number" class="variant-stock" placeholder="0" min="0" value="${values.stock ?? ''}" required>
+        </label>
+        <label class="variant-field">
+          <span>Price</span>
+          <input type="number" class="variant-price" placeholder="0.00" min="0" step="0.01" value="${values.price ?? ''}" required>
+        </label>
+        <label class="variant-field">
+          <span>Weight (g)</span>
+          <input type="number" class="variant-weight" placeholder="0" min="0" step="0.01" value="${values.weight_g ?? ''}" required>
+        </label>
+        <label class="variant-field">
+          <span>Length (cm)</span>
+          <input type="number" class="variant-length" placeholder="0" min="0" step="0.01" value="${values.length_cm ?? ''}">
+        </label>
+        <label class="variant-field">
+          <span>Width (cm)</span>
+          <input type="number" class="variant-width" placeholder="0" min="0" step="0.01" value="${values.width_cm ?? ''}">
+        </label>
+        <label class="variant-field">
+          <span>Height (cm)</span>
+          <input type="number" class="variant-height" placeholder="0" min="0" step="0.01" value="${values.height_cm ?? ''}">
+        </label>
+        <div class="variant-row-actions">
+          <button type="button" class="remove-variant-btn" aria-label="Remove variant">Remove</button>
+        </div>
       </div>
     `;
   }
@@ -478,7 +555,7 @@ export default function createMarketplace() {
     return variants.map(variant => `
       <li class="product-variant-row">
         <span class="variant-label">${getVariantLabel(variant)}</span>
-        <span class="variant-meta">${formatPrice(variant.price)} | Stocks ${variant.stock} | ${Number(variant.weight_g ?? variant.weightG ?? variant.weight ?? 0).toLocaleString()}g</span>
+        ${renderVariantMetaChips(variant)}
       </li>
     `).join('');
   }
@@ -747,7 +824,10 @@ export default function createMarketplace() {
         variantValue: row.querySelector('.variant-value').value.trim(),
         stock: Number(row.querySelector('.variant-stock').value),
         price: Number(row.querySelector('.variant-price').value),
-        weight_g: Number(row.querySelector('.variant-weight').value)
+        weight_g: Number(row.querySelector('.variant-weight').value),
+        length_cm: Number(row.querySelector('.variant-length').value),
+        width_cm: Number(row.querySelector('.variant-width').value),
+        height_cm: Number(row.querySelector('.variant-height').value)
       }));
     }
 
@@ -809,7 +889,10 @@ export default function createMarketplace() {
           variantValue: v.variantValue,
           stock: v.stock,
           price: v.price,
-          weight_g: v.weight_g
+          weight_g: v.weight_g,
+          length_cm: v.length_cm,
+          width_cm: v.width_cm,
+          height_cm: v.height_cm
         }))
       };
 

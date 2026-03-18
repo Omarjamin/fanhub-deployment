@@ -79,6 +79,9 @@ class CartModel {
             const queryWithWeight = `
                 SELECT ci.item_id, ci.quantity, pv.variant_id, pv.variant_name, pv.variant_values, pv.price,
                        pv.weight_g,
+                       pv.length_cm,
+                       pv.width_cm,
+                       pv.height_cm,
                        p.product_id, p.name AS product_name, p.image_url AS image_url, p.product_category
                 FROM cart_items ci
                 JOIN product_variants pv ON ci.variant_id = pv.variant_id
@@ -98,7 +101,13 @@ class CartModel {
                 WHERE ci.cart_id = ?
             `;
             const [rows] = await this.db.execute(queryLegacy, [cartId]);
-            return rows.map((row) => ({ ...row, weight_g: 0 }));
+            return rows.map((row) => ({
+                ...row,
+                weight_g: 0,
+                length_cm: 0,
+                width_cm: 0,
+                height_cm: 0,
+            }));
         }
     }
 

@@ -3,6 +3,8 @@ import { connectAdmin, connect, resolveCommunityContext } from '../../core/datab
 class SettingsModel {
   tableName = 'site_province_shipping_regions';
   ratesTableName = 'shipping_region_rates';
+  courierTableName = 'site_shipping_couriers';
+  rulesTableName = 'site_shipping_rules';
   globalSlug = '__global__';
 
   normalizeSiteSlug(value) {
@@ -125,6 +127,40 @@ class SettingsModel {
     `);
   }
 
+  async ensureShippingCourierTable(db) {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS ${this.courierTableName} (
+        site_slug VARCHAR(120) NOT NULL,
+        courier_name VARCHAR(120) NOT NULL,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (site_slug)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    `);
+  }
+
+  async ensureShippingRulesTable(db) {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS ${this.rulesTableName} (
+        rule_id INT(11) NOT NULL AUTO_INCREMENT,
+        site_slug VARCHAR(120) NOT NULL,
+        shipping_region ENUM('All','Luzon','VisMin') NOT NULL DEFAULT 'All',
+        max_weight_g INT(11) NOT NULL DEFAULT 0,
+        max_length_cm DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        max_width_cm DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        max_height_cm DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        fee DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+        priority INT(11) NOT NULL DEFAULT 1,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        PRIMARY KEY (rule_id),
+        KEY idx_site_rule_lookup (site_slug, shipping_region, is_active, priority)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    `);
+  }
+
   normalizeProvince(value) {
     return String(value || '').trim().replace(/\s+/g, ' ');
   }
@@ -136,6 +172,52 @@ class SettingsModel {
   normalizeRate(value, fallback = 0) {
     const n = Number(value);
     return Number.isFinite(n) && n >= 0 ? n : fallback;
+  }
+
+  normalizeCourier(value) {
+    return String(value || '').trim();
+  }
+
+  normalizeRuleRegion(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'luzon') return 'Luzon';
+    if (normalized === 'vismin' || normalized === 'visayas' || normalized === 'mindanao') return 'VisMin';
+    return 'All';
+  }
+
+  normalizeBoundedNumber(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
+  }
+
+  normalizeInteger(value, fallback = 0) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? Math.max(0, Math.round(parsed)) : fallback;
+  }
+
+  normalizeShippingRule(rawRule = {}, index = 0) {
+    if (!rawRule || typeof rawRule !== 'object' || Array.isArray(rawRule)) return null;
+
+    const rule = {
+      shipping_region: this.normalizeRuleRegion(rawRule.shipping_region ?? rawRule.region),
+      max_weight_g: this.normalizeInteger(rawRule.max_weight_g ?? rawRule.maxWeightG ?? rawRule.maxWeight ?? rawRule.weight_g, 0),
+      max_length_cm: this.normalizeBoundedNumber(rawRule.max_length_cm ?? rawRule.maxLengthCm ?? rawRule.length_cm ?? rawRule.length, 0),
+      max_width_cm: this.normalizeBoundedNumber(rawRule.max_width_cm ?? rawRule.maxWidthCm ?? rawRule.width_cm ?? rawRule.width, 0),
+      max_height_cm: this.normalizeBoundedNumber(rawRule.max_height_cm ?? rawRule.maxHeightCm ?? rawRule.height_cm ?? rawRule.height, 0),
+      fee: this.normalizeRate(rawRule.fee ?? rawRule.shipping_fee ?? rawRule.rate, 0),
+      priority: this.normalizeInteger(rawRule.priority, index + 1),
+      is_active: rawRule.is_active === false || rawRule.is_active === 0 ? 0 : 1,
+    };
+
+    const hasBound =
+      rule.max_weight_g > 0 ||
+      rule.max_length_cm > 0 ||
+      rule.max_width_cm > 0 ||
+      rule.max_height_cm > 0;
+    if (!hasBound) return null;
+    if (!(rule.fee >= 0)) return null;
+
+    return rule;
   }
 
   buildSiteSlugVariants(value) {
@@ -268,6 +350,8 @@ class SettingsModel {
     const db = await connectAdmin();
     await this.ensureProvinceRegionTable(db);
     await this.ensureShippingRatesTable(db);
+    await this.ensureShippingCourierTable(db);
+    await this.ensureShippingRulesTable(db);
 
     const [rows] = await db.query(
       `SELECT province_name, shipping_region
@@ -296,15 +380,68 @@ class SettingsModel {
       shipping_rates[region] = this.normalizeRate(row?.rate, shipping_rates[region] || 0);
     });
 
-    return { province_regions, shipping_rates };
+    const [courierRows] = await db.query(
+      `SELECT courier_name, is_active
+       FROM ${this.courierTableName}
+       WHERE site_slug = ?
+       LIMIT 1`,
+      [scoped],
+    );
+    const courier_name = this.normalizeCourier(courierRows?.[0]?.courier_name);
+    const courier_active = Number(courierRows?.[0]?.is_active || 0) === 1;
+
+    const [ruleRows] = await db.query(
+      `SELECT
+         rule_id,
+         shipping_region,
+         max_weight_g,
+         max_length_cm,
+         max_width_cm,
+         max_height_cm,
+         fee,
+         priority,
+         is_active
+       FROM ${this.rulesTableName}
+       WHERE site_slug = ?
+       ORDER BY priority ASC, rule_id ASC`,
+      [scoped],
+    );
+
+    const shipping_rules = (ruleRows || []).map((row) => ({
+      rule_id: Number(row?.rule_id || 0) || null,
+      shipping_region: this.normalizeRuleRegion(row?.shipping_region),
+      max_weight_g: this.normalizeInteger(row?.max_weight_g, 0),
+      max_length_cm: this.normalizeBoundedNumber(row?.max_length_cm, 0),
+      max_width_cm: this.normalizeBoundedNumber(row?.max_width_cm, 0),
+      max_height_cm: this.normalizeBoundedNumber(row?.max_height_cm, 0),
+      fee: this.normalizeRate(row?.fee, 0),
+      priority: this.normalizeInteger(row?.priority, 0),
+      is_active: Number(row?.is_active || 0) === 1,
+    }));
+
+    return {
+      province_regions,
+      shipping_rates,
+      courier_name,
+      courier_active,
+      shipping_rules,
+    };
   }
 
-  async saveShippingRegions(communityType, provinceRegions, shippingRates = null) {
+  async saveShippingRegions(
+    communityType,
+    provinceRegions,
+    shippingRates = null,
+    courierName = '',
+    shippingRules = [],
+  ) {
     const scoped = this.normalizeSiteSlug(communityType);
     if (!scoped) throw new Error('community is required');
     const db = await connectAdmin();
     await this.ensureProvinceRegionTable(db);
     await this.ensureShippingRatesTable(db);
+    await this.ensureShippingCourierTable(db);
+    await this.ensureShippingRulesTable(db);
 
     const entries = Object.entries(provinceRegions || {})
       .map(([province, region]) => [
@@ -317,16 +454,14 @@ class SettingsModel {
       `DELETE FROM ${this.tableName} WHERE site_slug = ?`,
       [scoped],
     );
-    if (entries.length === 0) {
-      return { saved: 0 };
+    if (entries.length > 0) {
+      const valuesSql = entries.map(() => '(?, ?, ?)').join(', ');
+      const params = entries.flatMap(([province, region]) => [scoped, province, region]);
+      await db.query(
+        `INSERT INTO ${this.tableName} (site_slug, province_name, shipping_region) VALUES ${valuesSql}`,
+        params,
+      );
     }
-
-    const valuesSql = entries.map(() => '(?, ?, ?)').join(', ');
-    const params = entries.flatMap(([province, region]) => [scoped, province, region]);
-    await db.query(
-      `INSERT INTO ${this.tableName} (site_slug, province_name, shipping_region) VALUES ${valuesSql}`,
-      params,
-    );
 
     if (shippingRates && typeof shippingRates === 'object') {
       const luzon = this.normalizeRate(shippingRates.Luzon, 95);
@@ -339,7 +474,66 @@ class SettingsModel {
       );
     }
 
-    return { saved: entries.length };
+    const normalizedCourier = this.normalizeCourier(courierName);
+    if (normalizedCourier) {
+      await db.query(
+        `INSERT INTO ${this.courierTableName} (site_slug, courier_name, is_active)
+         VALUES (?, ?, 1)
+         ON DUPLICATE KEY UPDATE
+           courier_name = VALUES(courier_name),
+           is_active = VALUES(is_active)`,
+        [scoped, normalizedCourier],
+      );
+    } else {
+      await db.query(
+        `DELETE FROM ${this.courierTableName} WHERE site_slug = ?`,
+        [scoped],
+      );
+    }
+
+    await db.query(
+      `DELETE FROM ${this.rulesTableName} WHERE site_slug = ?`,
+      [scoped],
+    );
+
+    const normalizedRules = (Array.isArray(shippingRules) ? shippingRules : [])
+      .map((rule, index) => this.normalizeShippingRule(rule, index))
+      .filter(Boolean);
+
+    if (normalizedRules.length) {
+      const valuesSql = normalizedRules.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+      const params = normalizedRules.flatMap((rule) => ([
+        scoped,
+        rule.shipping_region,
+        rule.max_weight_g,
+        rule.max_length_cm,
+        rule.max_width_cm,
+        rule.max_height_cm,
+        rule.fee,
+        rule.priority,
+        rule.is_active,
+      ]));
+      await db.query(
+        `INSERT INTO ${this.rulesTableName} (
+          site_slug,
+          shipping_region,
+          max_weight_g,
+          max_length_cm,
+          max_width_cm,
+          max_height_cm,
+          fee,
+          priority,
+          is_active
+        ) VALUES ${valuesSql}`,
+        params,
+      );
+    }
+
+    return {
+      saved: entries.length,
+      courier_name: normalizedCourier,
+      shipping_rule_count: normalizedRules.length,
+    };
   }
 
   async getEventPosters(communityType, options = {}) {

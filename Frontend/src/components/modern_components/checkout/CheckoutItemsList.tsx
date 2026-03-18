@@ -9,6 +9,9 @@
   quantity: number;
   price: number;
   weight?: number;
+  length?: number;
+  width?: number;
+  height?: number;
 };
 
 type CheckoutItemsListProps = {

@@ -105,7 +105,12 @@ async function updateShippingRate(locationLabel = '') {
     }
 
     const checkoutWeightGrams = getCheckoutWeightGrams();
-    const result = await ShippingRates(location, checkoutWeightGrams);
+    const baseSummary = buildSummaryPatch(null, checkoutWeightGrams);
+    const result = await ShippingRates(location, checkoutWeightGrams, {
+        package_length_cm: baseSummary.package_length_cm,
+        package_width_cm: baseSummary.package_width_cm,
+        package_height_cm: baseSummary.package_height_cm,
+    });
 
     if (!result.success) {
         console.error('ShippingRates error:', result.message || result.raw);
@@ -113,11 +118,15 @@ async function updateShippingRate(locationLabel = '') {
         return;
     }
 
+    const nextSummary = {
+        ...buildSummaryPatch(Number(result.fee || 0), checkoutWeightGrams),
+        shipping_courier: String(result.courier || '').trim(),
+    };
     await syncDraftFromForm({
         shipping_fee: Number(result.fee || 0),
         shipping_region: String(result.region || '').trim(),
         checkout_weight_grams: checkoutWeightGrams,
-        summary_data: buildSummaryPatch(Number(result.fee || 0), checkoutWeightGrams),
+        summary_data: nextSummary,
     });
 }
 

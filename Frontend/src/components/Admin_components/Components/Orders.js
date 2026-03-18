@@ -296,6 +296,28 @@ export default function createOrders() {
       .join(' ');
   }
 
+  function toPositiveNumber(value) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
+  }
+
+  function formatItemShippingMeta(item = {}) {
+    const weight = toPositiveNumber(item.weight_g ?? item.weight);
+    const length = toPositiveNumber(item.length_cm ?? item.length);
+    const width = toPositiveNumber(item.width_cm ?? item.width);
+    const height = toPositiveNumber(item.height_cm ?? item.height);
+    const parts = [];
+
+    if (weight > 0) {
+      parts.push(`${weight}g`);
+    }
+    if (length > 0 || width > 0 || height > 0) {
+      parts.push(`${length} x ${width} x ${height} cm`);
+    }
+
+    return parts.join(' | ');
+  }
+
   function loadOrders() {
     const tbody = section.querySelector('#ordersTableBody');
     if (!tbody) return;
@@ -504,6 +526,7 @@ export default function createOrders() {
               <div class="item-meta">
                 ${item.variant_name ? `<span class="item-chip">${item.variant_name}</span>` : ''}
                 ${item.size ? `<span class="item-chip">Size: ${item.size}</span>` : ''}
+                ${formatItemShippingMeta(item) ? `<span class="item-chip">${formatItemShippingMeta(item)}</span>` : ''}
               </div>
             </div>
             <div class="item-details">

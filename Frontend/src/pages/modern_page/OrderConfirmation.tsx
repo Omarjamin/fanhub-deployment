@@ -13,6 +13,14 @@ type ConfirmationItem = {
   unit_price?: number;
   product_price?: number;
   amount?: number;
+  weight_g?: number;
+  weight?: number;
+  length_cm?: number;
+  length?: number;
+  width_cm?: number;
+  width?: number;
+  height_cm?: number;
+  height?: number;
 };
 
 type ShippingAddress = {
@@ -114,6 +122,27 @@ function resolveItemPrice(item: ConfirmationItem) {
   return Number.isFinite(price) ? price : 0;
 }
 
+function resolveItemShippingMeta(item: ConfirmationItem) {
+  const weight = Number(item.weight_g ?? item.weight ?? 0);
+  const length = Number(item.length_cm ?? item.length ?? 0);
+  const width = Number(item.width_cm ?? item.width ?? 0);
+  const height = Number(item.height_cm ?? item.height ?? 0);
+  const parts = [];
+
+  if (Number.isFinite(weight) && weight > 0) {
+    parts.push(`${weight}g each`);
+  }
+  if (
+    (Number.isFinite(length) && length > 0) ||
+    (Number.isFinite(width) && width > 0) ||
+    (Number.isFinite(height) && height > 0)
+  ) {
+    parts.push(`${Math.max(length, 0)} x ${Math.max(width, 0)} x ${Math.max(height, 0)} cm`);
+  }
+
+  return parts.join(" • ");
+}
+
 const OrderConfirmation = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -194,7 +223,7 @@ const OrderConfirmation = () => {
                 </div>
                 <div>
                   <h1 className="font-display text-3xl text-gradient">Order Successful</h1>
-                  <p className="text-muted-foreground font-body mt-1">
+                  <p className="mt-1 font-body text-black">
                     Current status: {formatOrderStatus(currentStatus)}.
                   </p>
                 </div>
@@ -215,12 +244,12 @@ const OrderConfirmation = () => {
                       >
                         <div className={isReached
                           ? "h-10 w-10 rounded-full bg-background inline-flex items-center justify-center text-primary"
-                          : "h-10 w-10 rounded-full bg-card inline-flex items-center justify-center text-muted-foreground"}
+                          : "inline-flex h-10 w-10 items-center justify-center rounded-full bg-card text-black"}
                         >
                           <Icon size={18} />
                         </div>
-                      <p className="font-body font-semibold mt-3 text-foreground">{step.title}</p>
-                      <p className="text-sm text-foreground/70">{step.desc}</p>
+                      <p className="mt-3 font-body font-semibold text-black">{step.title}</p>
+                      <p className="text-sm text-black">{step.desc}</p>
                     </div>
                   );
                 })}
@@ -229,71 +258,76 @@ const OrderConfirmation = () => {
 
             <div className="mt-5 grid lg:grid-cols-[1fr_340px] gap-4">
               <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
-                <h3 className="font-body font-semibold text-foreground">Order Details</h3>
-                <div className="mt-3 space-y-2 text-sm font-body text-foreground">
-                  <p>
-                    Order ID: <span className="font-semibold">{activeOrder?.order_id || state.orderId || "N/A"}</span>
+                <h3 className="font-body font-semibold text-black">Order Details</h3>
+                <div className="mt-3 space-y-2 text-sm font-body text-black">
+                  <p className="text-black">
+                    Order ID: <span className="font-semibold text-black">{activeOrder?.order_id || state.orderId || "N/A"}</span>
                   </p>
-                  <p>
-                    Payment Method: <span className="font-semibold">{paymentMethod}</span>
+                  <p className="text-black">
+                    Payment Method: <span className="font-semibold text-black">{paymentMethod}</span>
                   </p>
                   {courierDisplayValue ? (
-                    <p>
-                      Courier: <span className="font-semibold">{courierDisplayValue}</span>
+                    <p className="text-black">
+                      Courier: <span className="font-semibold text-black">{courierDisplayValue}</span>
                     </p>
                   ) : null}
                   {trackingNumber ? (
-                    <p>
-                      Tracking Number: <span className="font-semibold">{trackingNumber}</span>
+                    <p className="text-black">
+                      Tracking Number: <span className="font-semibold text-black">{trackingNumber}</span>
                     </p>
                   ) : null}
                   {items.length ? (
                     <div className="mt-3 space-y-1">
                       {items.map((entry, index) => (
-                        <p key={`${entry.product_name || entry.name || "item"}-${index}`}>
-                          {entry.product_name || entry.name || itemName} x {Number(entry.quantity || 0)} -{" "}
-                          <span className="font-semibold">{formatPeso(resolveItemPrice(entry))}</span>
-                        </p>
+                        <div className="text-black" key={`${entry.product_name || entry.name || "item"}-${index}`}>
+                          <p className="text-black">
+                            {entry.product_name || entry.name || itemName} x {Number(entry.quantity || 0)} -{" "}
+                            <span className="font-semibold text-black">{formatPeso(resolveItemPrice(entry))}</span>
+                          </p>
+                          {resolveItemShippingMeta(entry) ? (
+                            <p className="text-xs text-black/70">{resolveItemShippingMeta(entry)}</p>
+                          ) : null}
+                        </div>
                       ))}
                     </div>
                   ) : (
-                    <p>
-                      Item: <span className="font-semibold">{itemName}</span>
+                    <p className="text-black">
+                      Item: <span className="font-semibold text-black">{itemName}</span>
                     </p>
                   )}
-                  <p>
-                    Quantity: <span className="font-semibold">{quantity}</span>
+                  <p className="text-black">
+                    Quantity: <span className="font-semibold text-black">{quantity}</span>
                   </p>
-                  <p>
-                    Unit Price: <span className="font-semibold">{formatPeso(unitPrice)}</span>
+                  <p className="text-black">
+                    Unit Price: <span className="font-semibold text-black">{formatPeso(unitPrice)}</span>
                   </p>
-                  <p>
-                    Subtotal: <span className="font-semibold">{formatPeso(subtotal)}</span>
+                  <p className="text-black">
+                    Subtotal: <span className="font-semibold text-black">{formatPeso(subtotal)}</span>
                   </p>
-                  <p>
-                    Shipping Fee: <span className="font-semibold">{formatPeso(shippingFee)}</span>
+                  <p className="text-black">
+                    Shipping Fee: <span className="font-semibold text-black">{formatPeso(shippingFee)}</span>
                   </p>
-                  <p>
+                  <p className="text-black">
                     Total: <span className="font-semibold text-primary">{formatPeso(totalPrice)}</span>
                   </p>
                   {remainingStock > 0 ? (
-                    <p>
-                      Remaining Stock: <span className="font-semibold">{remainingStock}</span>
+                    <p className="text-black">
+                      Remaining Stock: <span className="font-semibold text-black">{remainingStock}</span>
                     </p>
                   ) : null}
                 </div>
               </div>
 
               <div className="rounded-2xl border border-border/60 bg-card/70 p-5">
-                <h3 className="font-body font-semibold text-foreground">Shipping Address</h3>
-                <div className="mt-3 space-y-1 text-sm font-body text-foreground/70">
-                  <p>{shippingAddress.streetAddress || shippingAddress.street_address || "N/A"}</p>
-                  <p>{shippingAddress.barangay || "N/A"}</p>
-                  <p>
+                <h3 className="font-body font-semibold text-black">Shipping Address</h3>
+                <div className="mt-3 space-y-1 text-sm font-body text-black">
+                  <p className="text-black">{shippingAddress.streetAddress || shippingAddress.street_address || "N/A"}</p>
+                  <p className="text-black">{shippingAddress.barangay || "N/A"}</p>
+                  <p className="text-black">
                     {shippingAddress.cityMunicipality || shippingAddress.city_municipality || "N/A"}, {shippingAddress.province || "N/A"}
                   </p>
-                  <p>{shippingAddress.region || shippingAddress.region_name || "N/A"}</p>
-                  <p>{shippingAddress.zipCode || shippingAddress.zip_code || "N/A"}</p>
+                  <p className="text-black">{shippingAddress.region || shippingAddress.region_name || "N/A"}</p>
+                  <p className="text-black">{shippingAddress.zipCode || shippingAddress.zip_code || "N/A"}</p>
                 </div>
               </div>
             </div>

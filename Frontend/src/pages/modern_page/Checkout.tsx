@@ -61,6 +61,7 @@ const Checkout = () => {
   const [loadingCities, setLoadingCities] = useState(false);
   const [loadingBarangays, setLoadingBarangays] = useState(false);
   const [shippingFee, setShippingFee] = useState<number | null>(null);
+  const [shippingCourier, setShippingCourier] = useState("");
 
   useEffect(() => {
     if (Array.isArray(state.items)) return;
@@ -78,6 +79,9 @@ const Checkout = () => {
             quantity: item.quantity,
             price: item.price,
             weight: Number(item.weight || 0),
+            length: Number(item.length || 0),
+            width: Number(item.width || 0),
+            height: Number(item.height || 0),
           })),
         );
       })
@@ -239,6 +243,22 @@ const Checkout = () => {
       ),
     [items],
   );
+  const packageDimensions = useMemo(() => {
+    return items.reduce(
+      (acc, item) => {
+        const quantity = Number(item.quantity || 0);
+        acc.package_length_cm = Math.max(acc.package_length_cm, Number(item.length || 0));
+        acc.package_width_cm = Math.max(acc.package_width_cm, Number(item.width || 0));
+        acc.package_height_cm += Number(item.height || 0) * quantity;
+        return acc;
+      },
+      {
+        package_length_cm: 0,
+        package_width_cm: 0,
+        package_height_cm: 0,
+      },
+    );
+  }, [items]);
   const resolvedShippingFee = shippingFee ?? 0;
   const total = subtotal + resolvedShippingFee;
 
@@ -247,6 +267,7 @@ const Checkout = () => {
     const locationLabel = String(shippingLocation || "").trim();
     if (!locationLabel) {
       setShippingFee(null);
+      setShippingCourier("");
       return () => {
         active = false;
       };
@@ -254,24 +275,30 @@ const Checkout = () => {
 
     const weightGrams = Math.max(0, Math.round(totalWeight || 0));
     setShippingFee(null);
-    ShippingRates(locationLabel, weightGrams)
+    setShippingCourier("");
+    ShippingRates(locationLabel, weightGrams, packageDimensions)
       .then((result) => {
         if (!active) return;
         if (result?.success) {
           const fee = Number(result.fee || 0);
           setShippingFee(Number.isFinite(fee) ? Math.max(0, fee) : 0);
+          setShippingCourier(String(result.courier || "").trim());
           return;
         }
         setShippingFee(null);
+        setShippingCourier("");
       })
       .catch(() => {
-        if (active) setShippingFee(null);
+        if (active) {
+          setShippingFee(null);
+          setShippingCourier("");
+        }
       });
 
     return () => {
       active = false;
     };
-  }, [shippingLocation, totalWeight]);
+  }, [packageDimensions, shippingLocation, totalWeight]);
 
   const isPreviewMode =
     typeof window !== "undefined" &&
@@ -325,6 +352,7 @@ const Checkout = () => {
         shipping_fee: resolvedShippingFee,
         total,
         payment_method: paymentMethod,
+        courier: shippingCourier || null,
         status: "pending",
         shipping_address: {
           region,
@@ -348,6 +376,7 @@ const Checkout = () => {
           items,
           subtotal,
           shippingFee: resolvedShippingFee,
+          courier: shippingCourier || null,
           paymentMethod,
           shippingAddress: {
             region: regionName || region,
@@ -381,6 +410,7 @@ const Checkout = () => {
             items,
             subtotal,
             shippingFee: resolvedShippingFee,
+            courier: shippingCourier || null,
             paymentMethod,
             shippingAddress: {
               region: regionName || region,
@@ -458,8 +488,10 @@ const Checkout = () => {
               <CheckoutSummary
                 totalQuantity={totalQuantity}
                 totalWeight={totalWeight}
+                packageDimensions={packageDimensions}
                 subtotal={subtotal}
                 shippingFee={shippingFee}
+                shippingCourier={shippingCourier}
                 total={total}
                 submitting={submitting}
                 paymentMethod={paymentMethod}

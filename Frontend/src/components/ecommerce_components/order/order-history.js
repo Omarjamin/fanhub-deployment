@@ -11,6 +11,32 @@ function resolveItemWeightGrams(item) {
   return 0;
 }
 
+function resolveItemDimensions(item) {
+  const length = Number(item?.length_cm ?? item?.length ?? 0);
+  const width = Number(item?.width_cm ?? item?.width ?? 0);
+  const height = Number(item?.height_cm ?? item?.height ?? 0);
+  return {
+    length: Number.isFinite(length) && length > 0 ? length : 0,
+    width: Number.isFinite(width) && width > 0 ? width : 0,
+    height: Number.isFinite(height) && height > 0 ? height : 0,
+  };
+}
+
+function getItemShippingMeta(item) {
+  const weight = resolveItemWeightGrams(item);
+  const dimensions = resolveItemDimensions(item);
+  const parts = [];
+
+  if (weight > 0) {
+    parts.push(`${weight.toLocaleString()}g each`);
+  }
+  if (dimensions.length > 0 || dimensions.width > 0 || dimensions.height > 0) {
+    parts.push(`${dimensions.length} x ${dimensions.width} x ${dimensions.height} cm`);
+  }
+
+  return parts.join(' | ');
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -370,7 +396,8 @@ export default function OrderHistory(payload = null) {
                            onerror="this.src='/square.png'">
                       <div class="item-info">
                         <strong>${item.product_name || 'Undefined Product'}</strong>
-                        <p>Variant: ${item.variant_name || item.size || 'N/A'} | Qty: ${item.quantity} | Weight: ${(resolveItemWeightGrams(item) * Number(item.quantity || 0)).toLocaleString()}g</p>
+                        <p>Variant: ${item.variant_name || item.size || 'N/A'} | Qty: ${item.quantity}</p>
+                        ${getItemShippingMeta(item) ? `<p>${getItemShippingMeta(item)}</p>` : ''}
                         <p>Price: ${formatMoney(item.price)}</p>
                       </div>
                     </div>
@@ -457,15 +484,16 @@ export default function OrderHistory(payload = null) {
                        alt="${item.product_name || 'Product'}" 
                        class="order-item-image"
                        onerror="this.src='/square.png'">
-                  <div class="order-item-details">
-                    <div class="order-item-name">${item.product_name || 'Product'}</div>
-                    <div class="order-item-meta">
-                      Size: ${item.variant_name || item.size || 'N/A'} | Qty: ${item.quantity}
-                    </div>
-                    <div class="order-item-price">${formatMoney(item.price)}</div>
+                <div class="order-item-details">
+                  <div class="order-item-name">${item.product_name || 'Product'}</div>
+                  <div class="order-item-meta">
+                    Size: ${item.variant_name || item.size || 'N/A'} | Qty: ${item.quantity}
                   </div>
+                  ${getItemShippingMeta(item) ? `<div class="order-item-meta">${getItemShippingMeta(item)}</div>` : ''}
+                  <div class="order-item-price">${formatMoney(item.price)}</div>
                 </div>
-              `).join('')}
+              </div>
+            `).join('')}
               ${remainingItems > 0 ? `
                 <div class="more-items-text">+${remainingItems} more item${remainingItems > 1 ? 's' : ''}</div>
               ` : ''}
