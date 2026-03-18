@@ -2,6 +2,7 @@
 import { getCart, updateCartItem, removeFromCart } from '../cart/cart.js';
 import { calculateCheckoutSummary, saveCheckoutDraft } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
 import { formatPHP, toSafeInteger, toSafeNumber } from '../../../lib/number-format.js';
+import { showToast } from '../../../utils/toast.js';
 import '../../../styles/ecommerce_styles/cart.css';
 
 const DEFAULT_API_V1 = 'https://fanhub-deployment-production.up.railway.app/v1';
@@ -190,7 +191,7 @@ async function loadCartItems(modal) {
                         quantityElement.textContent = newQty;
                         await loadCartItems(modal); // Reload to update totals
                     } else {
-                        alert('Failed to update quantity: ' + result.message);
+                        showToast('Failed to update quantity: ' + result.message, 'error');
                     }
                 }
             });
@@ -208,7 +209,7 @@ async function loadCartItems(modal) {
                     quantityElement.textContent = newQty;
                     await loadCartItems(modal); // Reload to update totals
                 } else {
-                    alert('Failed to update quantity: ' + result.message);
+                    showToast('Failed to update quantity: ' + result.message, 'error');
                 }
             });
         });
@@ -222,7 +223,7 @@ async function loadCartItems(modal) {
                     if (result.success) {
                         await loadCartItems(modal); // Reload cart
                     } else {
-                        alert('Failed to remove item: ' + result.message);
+                        showToast('Failed to remove item: ' + result.message, 'error');
                     }
                 }
             });
@@ -245,7 +246,7 @@ async function loadCartItems(modal) {
             const selectedCheckboxes = modal.querySelectorAll('.item-select:checked');
 
             if (selectedCheckboxes.length === 0) {
-                alert('Please select at least one item to checkout.');
+                showToast('Select at least one cart item before checkout.', 'warning');
                 return;
             }
 
@@ -272,7 +273,7 @@ async function loadCartItems(modal) {
                 });
             } catch (error) {
                 console.error('Failed to initialize checkout draft:', error);
-                alert(error.message || 'Unable to start checkout right now. Please try again.');
+                showToast(error.message || 'Unable to start checkout right now. Please try again.', 'error');
                 return;
             }
 

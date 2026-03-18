@@ -109,4 +109,123 @@
     width: 100%;
 }
 
+#resetPasswordModal,
+#updatePasswordModal {
+    position: fixed;
+    inset: 0;
+    z-index: 1200;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.45);
+    backdrop-filter: blur(4px);
+}
+
+#resetPasswordModal[style*="display: block"],
+#updatePasswordModal[style*="display: block"] {
+    display: flex !important;
+}
+
+#resetPasswordModal .modal-content,
+#updatePasswordModal .modal-content {
+    position: relative;
+    width: min(100%, 520px);
+    padding: 32px 28px;
+    border-radius: 24px;
+    background: #ffffff;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2);
+    color: #111111;
+}
+
+#resetPasswordModal .modal-content h2,
+#updatePasswordModal .modal-content h2 {
+    margin: 0 40px 12px 0;
+    color: #111111 !important;
+    font-size: clamp(2rem, 4vw, 2.75rem);
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    -webkit-text-stroke: 0;
+}
+
+#resetPasswordModal .modal-content p,
+#updatePasswordModal .modal-content p {
+    margin: 0 0 20px;
+    color: #2f2f2f !important;
+    font-size: 1.05rem;
+    line-height: 1.6;
+}
+
+#resetPasswordModal form,
+#updatePasswordModal form {
+    display: grid;
+    gap: 14px;
+}
+
+#resetPasswordModal input,
+#updatePasswordModal input {
+    width: 100%;
+    padding: 15px 18px;
+    border: 1px solid #cbd5e1;
+    border-radius: 16px;
+    background: #ffffff;
+    color: #111111 !important;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+#resetPasswordModal input::placeholder,
+#updatePasswordModal input::placeholder {
+    color: #7c7c7c;
+}
+
+#resetPasswordModal input:focus,
+#updatePasswordModal input:focus {
+    border-color: #f63f9a;
+    box-shadow: 0 0 0 4px rgba(246, 63, 154, 0.12);
+}
+
+#resetPasswordModal .btn-primary,
+#updatePasswordModal .btn-primary {
+    width: 100%;
+    margin-top: 6px;
+    padding: 14px 18px;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #0ea5e9 0%, #2563eb 100%);
+    color: #ffffff;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+#resetPasswordModal .btn-primary:hover,
+#updatePasswordModal .btn-primary:hover {
+    filter: brightness(1.03);
+    transform: translateY(-1px);
+    box-shadow: 0 12px 24px rgba(37, 99, 235, 0.18);
+}
+
+#resetPasswordModal .close-button,
+#updatePasswordModal .close-button {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    color: #111111 !important;
+    font-size: 2rem;
+    font-weight: 700;
+    line-height: 1;
+    cursor: pointer;
+    opacity: 0.75;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#resetPasswordModal .close-button:hover,
+#updatePasswordModal .close-button:hover {
+    opacity: 1;
+    transform: scale(1.05);
+}
 
