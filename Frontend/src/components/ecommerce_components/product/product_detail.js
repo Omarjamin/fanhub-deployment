@@ -89,6 +89,51 @@ function resolveDisplayPrice(product, variant) {
   return toSafeNumber(variant?.price ?? product?.price, 0);
 }
 
+function resolveProductImage(product, variants = [], productId = '') {
+  const direct =
+    product?.img_url ||
+    product?.image_url ||
+    product?.image ||
+    product?.imageUrl ||
+    (Array.isArray(product?.images) && product.images[0]) ||
+    '';
+  if (direct) return direct;
+
+  const fromVariant = Array.isArray(variants)
+    ? variants
+        .map((variant) =>
+          variant?.img_url ||
+          variant?.image_url ||
+          variant?.image ||
+          variant?.imageUrl ||
+          (Array.isArray(variant?.images) && variant.images[0]) ||
+          ''
+        )
+        .find((value) => String(value || '').trim())
+    : '';
+  if (fromVariant) return fromVariant;
+
+  try {
+    const related = JSON.parse(sessionStorage.getItem('collectionProducts') || '[]');
+    if (Array.isArray(related)) {
+      const match = related.find(
+        (item) => String(item?.product_id || item?.id || '') === String(productId || '')
+      );
+      const fromSession =
+        match?.image_url ||
+        match?.img_url ||
+        match?.image ||
+        (Array.isArray(match?.images) && match.images[0]) ||
+        '';
+      if (fromSession) return fromSession;
+    }
+  } catch (_) {
+    // ignore storage errors
+  }
+
+  return '';
+}
+
 export default async function ProductDetail(root, productId, explicitCommunityType = '') {
   try {
     root.innerHTML = `<div class="loading">Loading product...</div>`;
@@ -109,12 +154,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
       return;
     }
 
-    const img =
-      product.img_url ||
-      product.image_url ||
-      product.image ||
-      (Array.isArray(product.images) && product.images[0]) ||
-      '';
+    const img = resolveProductImage(product, variants, productId);
 
     let selectedVariant = variants.length > 0 ? variants[0] : null;
 
@@ -125,7 +165,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
         </button>
         <div class="product-detail-grid">
           <div class="product-media">
-            <img src="${img}" alt="${product.name || ''}" class="product-detail-img" />
+            <img src="${img}" alt="${product.name || ''}" class="product-detail-img" data-full-image="${img}" />
           </div>
           <div class="product-meta">
             <h1 class="product-title">${product.name || ''}</h1>
@@ -167,7 +207,46 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
           </div>
         </div>
       </section>
+      <div class="lightbox" id="product-lightbox" aria-hidden="true">
+        <div class="lightbox-backdrop" data-lightbox-close="true"></div>
+        <div class="lightbox-dialog" role="dialog" aria-modal="true" aria-label="Product image">
+          <button class="lightbox-close" type="button" aria-label="Close image" data-lightbox-close="true">×</button>
+          <img class="lightbox-image" alt="${product.name || ''}" />
+        </div>
+      </div>
     `;
+
+    const detailImage = root.querySelector('.product-detail-img');
+    const lightbox = root.querySelector('#product-lightbox');
+    const lightboxImg = root.querySelector('.lightbox-image');
+    const closeTargets = root.querySelectorAll('[data-lightbox-close="true"]');
+
+    const closeLightbox = () => {
+      if (!lightbox) return;
+      lightbox.classList.remove('is-open');
+      lightbox.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('lightbox-open');
+    };
+
+    const openLightbox = () => {
+      if (!lightbox || !lightboxImg || !img) return;
+      lightboxImg.src = img;
+      lightbox.classList.add('is-open');
+      lightbox.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('lightbox-open');
+    };
+
+    if (detailImage && img) {
+      detailImage.addEventListener('click', openLightbox);
+    }
+
+    closeTargets.forEach((target) => {
+      target.addEventListener('click', closeLightbox);
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') closeLightbox();
+    });
 
     // Render related products from current collection (stored in session)
     try {

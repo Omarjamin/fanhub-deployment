@@ -67,6 +67,16 @@ export default function Collection(root, data = {}) {
             <option value="newest">Newest First</option>
             <option value="oldest">Oldest First</option>
           </select>
+          <label for="sort-secondary-select" class="sort-secondary-label">Then by:</label>
+          <select id="sort-secondary-select" class="sort-select" disabled>
+            <option value="">None</option>
+            <option value="low-high">Price: Low to High</option>
+            <option value="high-low">Price: High to Low</option>
+            <option value="name-asc">Name: A to Z</option>
+            <option value="name-desc">Name: Z to A</option>
+            <option value="newest">Newest First</option>
+            <option value="oldest">Oldest First</option>
+          </select>
         </div>
         <div class="product-count" id="product-count">0 products</div>
       </div>
@@ -292,7 +302,21 @@ export default function Collection(root, data = {}) {
 
   function attachFilterSortHandlers() {
     const sortSelect = document.getElementById('sort-select');
-    sortSelect?.addEventListener('change', applyFilterSort);
+    const secondarySortSelect = document.getElementById('sort-secondary-select');
+
+    const handlePrimaryChange = async () => {
+      updateSecondarySortState();
+      await applyFilterSort();
+    };
+
+    const handleSecondaryChange = async () => {
+      updateSecondarySortState();
+      await applyFilterSort();
+    };
+
+    sortSelect?.addEventListener('change', handlePrimaryChange);
+    secondarySortSelect?.addEventListener('change', handleSecondaryChange);
+    updateSecondarySortState();
   }
 
   function attachCategoryHandlers() {
@@ -315,6 +339,9 @@ export default function Collection(root, data = {}) {
 
         const sortSelect = document.getElementById('sort-select');
         if (sortSelect) sortSelect.value = '';
+        const secondarySortSelect = document.getElementById('sort-secondary-select');
+        if (secondarySortSelect) secondarySortSelect.value = '';
+        updateSecondarySortState();
         await applyFilterSort();
       });
     });
@@ -327,16 +354,75 @@ export default function Collection(root, data = {}) {
     });
   }
 
+  function resolveProductDate(product) {
+    if (!product) return 0;
+    const raw =
+      product.created_at ||
+      product.createdAt ||
+      product.date ||
+      product.created ||
+      product.updated_at ||
+      product.updatedAt ||
+      0;
+    const parsed = new Date(raw).getTime();
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  function compareBy(sort, a, b) {
+    if (sort === 'low-high') return resolveProductPrice(a) - resolveProductPrice(b);
+    if (sort === 'high-low') return resolveProductPrice(b) - resolveProductPrice(a);
+    if (sort === 'name-asc') return String(a?.name || '').localeCompare(String(b?.name || ''));
+    if (sort === 'name-desc') return String(b?.name || '').localeCompare(String(a?.name || ''));
+    if (sort === 'newest') return resolveProductDate(b) - resolveProductDate(a);
+    if (sort === 'oldest') return resolveProductDate(a) - resolveProductDate(b);
+    return 0;
+  }
+
+  function updateSecondarySortState() {
+    const primary = document.getElementById('sort-select');
+    const secondary = document.getElementById('sort-secondary-select');
+    if (!secondary) return;
+    const hasPrimary = Boolean(primary?.value);
+    secondary.disabled = !hasPrimary;
+    if (!hasPrimary) secondary.value = '';
+
+    const primaryValue = primary?.value || '';
+    const primaryIsPrice = primaryValue === 'low-high' || primaryValue === 'high-low';
+    const primaryIsName = primaryValue === 'name-asc' || primaryValue === 'name-desc';
+    const primaryIsDate = primaryValue === 'newest' || primaryValue === 'oldest';
+    secondary.querySelectorAll('option').forEach((option) => {
+      if (!option.value) return;
+      const isPriceOption = option.value === 'low-high' || option.value === 'high-low';
+      const isNameOption = option.value === 'name-asc' || option.value === 'name-desc';
+      const isDateOption = option.value === 'newest' || option.value === 'oldest';
+      const isSame = option.value === primaryValue;
+      const shouldHide =
+        isSame ||
+        (primaryIsPrice && isPriceOption) ||
+        (primaryIsName && isNameOption) ||
+        (primaryIsDate && isDateOption);
+      option.hidden = shouldHide;
+      option.disabled = shouldHide;
+    });
+    if (secondary.value && secondary.value === primaryValue) {
+      secondary.value = '';
+    }
+  }
+
   async function applyFilterSort() {
     const sort = document.getElementById('sort-select')?.value || '';
+    const secondarySort = document.getElementById('sort-secondary-select')?.value || '';
     const filtered = [...currentProducts];
 
-    if (sort === 'low-high') filtered.sort((a, b) => a.price - b.price);
-    if (sort === 'high-low') filtered.sort((a, b) => b.price - a.price);
-    if (sort === 'name-asc') filtered.sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
-    if (sort === 'name-desc') filtered.sort((a, b) => String(b.name || '').localeCompare(String(a.name || '')));
-    if (sort === 'newest') filtered.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
-    if (sort === 'oldest') filtered.sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    if (sort) {
+      const safeSecondary = secondarySort && secondarySort !== sort ? secondarySort : '';
+      filtered.sort((a, b) => {
+        const primaryResult = compareBy(sort, a, b);
+        if (primaryResult !== 0) return primaryResult;
+        if (safeSecondary) return compareBy(safeSecondary, a, b);
+        return 0;
+      });
+    }
 
     renderProducts(filtered);
   }
@@ -441,6 +527,9 @@ export default function Collection(root, data = {}) {
     if (allBtn) allBtn.classList.add('active');
     const sortSelect = document.getElementById('sort-select');
     if (sortSelect) sortSelect.value = '';
+    const secondarySortSelect = document.getElementById('sort-secondary-select');
+    if (secondarySortSelect) secondarySortSelect.value = '';
+    updateSecondarySortState();
 
     showProductView(collectionName);
     renderProducts(products);
@@ -472,12 +561,15 @@ export default function Collection(root, data = {}) {
     const productList = document.getElementById('product-list');
     const count = document.getElementById('product-count');
     const sortSelect = document.getElementById('sort-select');
+    const secondarySortSelect = document.getElementById('sort-secondary-select');
 
     currentProducts = [];
     collectionModeProducts = null;
     selectedCategory = 'all';
 
     if (sortSelect) sortSelect.value = '';
+    if (secondarySortSelect) secondarySortSelect.value = '';
+    updateSecondarySortState();
     if (count) count.textContent = '0 products';
     if (productList) productList.innerHTML = '';
 
