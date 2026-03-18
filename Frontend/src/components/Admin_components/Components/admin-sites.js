@@ -1,5 +1,6 @@
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
 const ADMIN_SELECTED_SITE_KEY = 'admin_selected_site';
+const ADMIN_AUTH_TOKEN_PREFIX = 'adminAuthToken:';
 const ADMIN_DEBUG = true;
 
 function resolveAdminApiBase() {
@@ -133,23 +134,20 @@ export function resolveAdminEndpointUrls(endpointPath, params = {}, rawBase = AD
 }
 
 export function getAdminToken() {
-  const candidates = [
-    sessionStorage.getItem('adminAuthToken'),
-    sessionStorage.getItem('token'),
-    sessionStorage.getItem('authToken'),
-    localStorage.getItem('adminAuthToken'),
-    localStorage.getItem('token'),
-    localStorage.getItem('authToken'),
-  ];
+  const getScopedAdminTokenKey = (siteSlug = '') => {
+    const normalized = normalizeAdminSiteSlug(siteSlug);
+    return `${ADMIN_AUTH_TOKEN_PREFIX}${normalized || 'global'}`;
+  };
 
   const selectedSite = resolveSelectedAdminSite();
-  if (selectedSite) {
-    candidates.unshift(sessionStorage.getItem(`authToken:${selectedSite}`));
-    candidates.unshift(localStorage.getItem(`authToken:${selectedSite}`));
-  }
-  candidates.push(sessionStorage.getItem('authToken:global'));
-  candidates.push(sessionStorage.getItem('authToken'));
-  candidates.push(localStorage.getItem('authToken:global'));
+  const candidates = [
+    sessionStorage.getItem(getScopedAdminTokenKey(selectedSite)),
+    localStorage.getItem(getScopedAdminTokenKey(selectedSite)),
+    sessionStorage.getItem('adminAuthToken'),
+    localStorage.getItem('adminAuthToken'),
+    sessionStorage.getItem(getScopedAdminTokenKey('global')),
+    localStorage.getItem(getScopedAdminTokenKey('global')),
+  ];
 
   for (const raw of candidates) {
     const token = String(raw || '').trim().replace(/^Bearer\s+/i, '');

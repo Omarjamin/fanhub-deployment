@@ -180,6 +180,7 @@ export default function AdminLoginPage() {
         // Store token in sessionStorage (site/session scoped)
         sessionStorage.setItem('adminAuthToken', data.data.token);
         if (siteSlug) {
+          sessionStorage.setItem(`adminAuthToken:${siteSlug}`, data.data.token);
           sessionStorage.setItem(`authToken:${siteSlug}`, data.data.token);
         }
         sessionStorage.setItem('adminUser', JSON.stringify({

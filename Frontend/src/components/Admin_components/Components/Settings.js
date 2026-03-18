@@ -7,11 +7,10 @@ import {
   resolveAdminEndpointUrls,
   resolveAdminSiteFromPath,
 } from './admin-sites.js';
-import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
+import { getActiveSiteSlug } from '../../../lib/site-context.js';
 
 const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 const ADMIN_API_BASE = getAdminApiBase();
-const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
 
 const DEFAULT_EVENT_POSTER_SLOTS = 3;
 const BINI_EVENT_POSTER_SLOTS = 1;
@@ -77,23 +76,9 @@ function buildEventPosterRows(savedRows = [], siteSlug = '') {
 }
 
 function getAuthHeaders() {
-  const siteScopedToken = getSessionToken(getActiveSiteSlug());
-  const token =
-    siteScopedToken ||
-    localStorage.getItem('adminAuthToken') ||
-    localStorage.getItem('authToken') ||
-    localStorage.getItem('token') ||
-    sessionStorage.getItem('adminAuthToken') ||
-    sessionStorage.getItem('authToken') ||
-    sessionStorage.getItem('token') ||
-    '';
-
-  const headers = {
-    apikey: API_KEY,
+  return {
     ...getAdminHeaders(),
   };
-  if (token) headers.Authorization = `Bearer ${token}`;
-  return headers;
 }
 
 function getUploadedImageUrl(payload = {}) {

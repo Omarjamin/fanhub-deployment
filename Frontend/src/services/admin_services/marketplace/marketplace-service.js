@@ -1,5 +1,4 @@
 import { api } from '../../ecommerce_services/api.js';
-import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
 
 const DEFAULT_ADMIN_API_BASE = 'https://fanhub-deployment-production.up.railway.app/v1/admin';
 function resolveAdminApiBase() {
@@ -19,17 +18,11 @@ const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-produ
 const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
 
 function getAuthToken() {
-  const siteScopedToken = getSessionToken(getActiveSiteSlug());
-  return (
-    siteScopedToken ||
-    localStorage.getItem('adminAuthToken') ||
-    localStorage.getItem('authToken') ||
-    localStorage.getItem('token') ||
+  return String(
     sessionStorage.getItem('adminAuthToken') ||
-    sessionStorage.getItem('authToken') ||
-    sessionStorage.getItem('token') ||
+    localStorage.getItem('adminAuthToken') ||
     ''
-  );
+  ).trim();
 }
 
 function getAdminRequestOptions() {

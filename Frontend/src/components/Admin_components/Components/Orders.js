@@ -3,11 +3,11 @@ import {
   fetchAdminJsonWithFallback,
   fetchAdminSites,
   getAdminApiBase,
+  getAdminHeaders,
   resolveAdminEndpointUrls,
   resolveAdminSiteFromPath,
 } from './admin-sites.js';
 import { formatAdminDate, formatAdminDateInput, formatAdminDateTime } from './admin-date.js';
-import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
 // import { adminApi } from '../../../services/admin_services/auth.js';
 
 export default function createOrders() {
@@ -821,24 +821,11 @@ export default function createOrders() {
   }
 
   function getAuthHeaders() {
-    const scopedSite =
-      (selectedCommunity && selectedCommunity !== 'all')
-        ? String(selectedCommunity).trim().toLowerCase()
-        : getActiveSiteSlug();
-    const siteScopedToken = getSessionToken(scopedSite);
-    const token =
-      siteScopedToken ||
-      localStorage.getItem('adminAuthToken') ||
-      localStorage.getItem('authToken') ||
-      localStorage.getItem('token') ||
-      sessionStorage.getItem('adminAuthToken') ||
-      sessionStorage.getItem('authToken') ||
-      sessionStorage.getItem('token') ||
-      '';
-    const headers = {
-      apikey: (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread',
-    };
-    if (token) headers.Authorization = `Bearer ${token}`;
+    const headers = { ...getAdminHeaders() };
+    if (selectedCommunity && selectedCommunity !== 'all') {
+      headers['x-site-slug'] = String(selectedCommunity).trim().toLowerCase();
+      headers['x-community-type'] = String(selectedCommunity).trim().toLowerCase();
+    }
     return headers;
   }
 
