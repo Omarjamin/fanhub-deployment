@@ -18,6 +18,13 @@ import '../../../styles/ecommerce_styles/discography.css';
 import '../../../styles/ecommerce_styles/announcement.css';
 
 export default function HOMEPAGE(data = {}) {
+  document.body.classList.remove(
+    'ec-shop-page',
+    'ec-auth-page',
+    'ec-checkout-page',
+    'ec-order-history-page',
+    'ec-order-confirmation-page',
+  );
   document.body.classList.add('ec-home-page');
   const { navigation, main, footer} = Layouts(this.root);
   Navigation(navigation, data);

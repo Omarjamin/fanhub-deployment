@@ -6,12 +6,21 @@ import Footer from '../../../components/ecommerce_components/footer.js';
 
 import Layouts from '../../../layouts/ecommerce_layout/shop.js';
 
+import '../../../styles/ecommerce_styles/home_page.css';
 import '../../../styles/ecommerce_styles/global.css';
 import '../../../styles/ecommerce_styles/shop.css';
 import '../../../styles/ecommerce_styles/Collection.css';
 import '../../../styles/ecommerce_styles/product_details.css';
 
 export default function Home(data = {}) {
+  document.body.classList.remove(
+    'ec-home-page',
+    'ec-auth-page',
+    'ec-checkout-page',
+    'ec-order-history-page',
+    'ec-order-confirmation-page',
+  );
+  document.body.classList.add('ec-shop-page');
   const { navigation, main, footer} = Layouts(this.root);
 
   Navigation(navigation, data); 

@@ -1,6 +1,7 @@
 import fetchProductDetails from '../../../services/ecommerce_services/shop/product_details.js';
 import { addToCart } from '../cart/cart.js';
 import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
+import { getActiveSiteSlug } from '../../../lib/site-context.js';
 import { showToast } from '../../../utils/toast.js';
 
 function resolveVariantWeight(variant) {
@@ -24,7 +25,10 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
 
     const parts = String(window.location.pathname || '').split('/').filter(Boolean);
     const communityType = String(
-      explicitCommunityType || (parts[0] === 'fanhub' ? parts[1] : '') || ''
+      explicitCommunityType ||
+      (parts[0] === 'fanhub' ? parts[1] : '') ||
+      getActiveSiteSlug() ||
+      ''
     ).trim().toLowerCase();
     const shopPath = communityType ? `/fanhub/${communityType}/shop` : '/shop';
 

@@ -959,3 +959,84 @@
     padding: 1rem !important;
   }
 }
+
+/* Thread page cleanup: keep the page surface light and remove the stacked card borders. */
+body:has(.thread-topic-container) {
+  background: #ffffff !important;
+}
+
+body:has(.thread-topic-container) #container,
+body:has(.thread-topic-container) #main,
+body:has(.thread-topic-container) .fh-template-shell {
+  background: linear-gradient(180deg, #ffffff 0%, #fff8fc 100%) !important;
+}
+
+body:has(.thread-topic-container) .thread-topic-container {
+  background: #ffffff !important;
+  border: 1px solid #f5dce8 !important;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08) !important;
+}
+
+body:has(.thread-topic-container) .discussion-area {
+  background: #ffffff !important;
+  border: none !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  padding: 0 !important;
+}
+
+body:has(.thread-topic-container) .comments-list {
+  gap: 1rem !important;
+  padding: 0 !important;
+}
+
+body:has(.thread-topic-container) .comment-item,
+body:has(.thread-topic-container) .reply-item,
+body:has(.thread-topic-container) .create-comment-form,
+body:has(.thread-topic-container) .reply-form {
+  background: #ffffff !important;
+  border: none !important;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.06) !important;
+}
+
+body:has(.thread-topic-container) .comment-item::before,
+body:has(.thread-topic-container) .comment-item::after,
+body:has(.thread-topic-container) .create-comment-form::before {
+  content: none !important;
+  display: none !important;
+}
+
+body:has(.thread-topic-container) .comment-item:hover,
+body:has(.thread-topic-container) .reply-item:hover,
+body:has(.thread-topic-container) .comment-body:hover {
+  transform: none !important;
+}
+
+body:has(.thread-topic-container) .comment-item:hover,
+body:has(.thread-topic-container) .reply-item:hover {
+  border-color: transparent !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.08) !important;
+}
+
+body:has(.thread-topic-container) .comment-body,
+body:has(.thread-topic-container) .reply-body {
+  background: #fff7fb !important;
+  border: none !important;
+  border-left: none !important;
+  box-shadow: none !important;
+}
+
+body:has(.thread-topic-container) .replies-container {
+  background: transparent !important;
+  border-left: none !important;
+  border-radius: 0 !important;
+  padding: 0.75rem 0 0 !important;
+}
+
+body:has(.thread-topic-container) .reply-btn,
+body:has(.thread-topic-container) .reply-btn.btn-link,
+body:has(.thread-topic-container) .comment-actions .reply-btn,
+body:has(.thread-topic-container) .create-comment-form button[type="submit"],
+body:has(.thread-topic-container) .reply-form button {
+  border: none !important;
+}

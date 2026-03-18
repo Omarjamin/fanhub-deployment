@@ -3,6 +3,7 @@ import { connect, resolveCommunityContext } from '../../core/database.js';
 class Follow {
     constructor() {
         this.activeCommunityId = null;
+        this.activeCommunityType = '';
         this.columnCache = new Map();
         this.connect();
     }
@@ -13,6 +14,7 @@ class Follow {
         }
     }
     async ensureConnection(community_type) {
+        this.activeCommunityType = String(community_type || '').trim().toLowerCase();
         try {
             this.db = await connect(community_type);
             const hasUsers = await this.hasTableOnPool(this.db, 'users');
@@ -65,18 +67,50 @@ class Follow {
         }
     }
     async getScopedCondition(tableName, alias = '') {
+        const prefix = alias ? `${alias}.` : '';
+        if (this.activeCommunityId) {
+            const hasCommunityId = await this.hasColumn(tableName, 'community_id');
+            if (hasCommunityId) {
+                return { sql: ` AND ${prefix}community_id = ?`, params: [this.activeCommunityId] };
+            }
+        }
+        if (this.activeCommunityType) {
+            const hasCommunityType = await this.hasColumn(tableName, 'community_type');
+            if (hasCommunityType) {
+                return { sql: ` AND ${prefix}community_type = ?`, params: [this.activeCommunityType] };
+            }
+            const hasSiteSlug = await this.hasColumn(tableName, 'site_slug');
+            if (hasSiteSlug) {
+                return { sql: ` AND ${prefix}site_slug = ?`, params: [this.activeCommunityType] };
+            }
+        }
+        return { sql: '', params: [] };
+    }
+    async hasScopeColumns(tableName) {
         const hasCommunityId = await this.hasColumn(tableName, 'community_id');
-        if (!hasCommunityId || !this.activeCommunityId) return { sql: '', params: [] };
-        const col = alias ? `${alias}.community_id` : 'community_id';
-        return { sql: ` AND ${col} = ?`, params: [this.activeCommunityId] };
+        if (hasCommunityId) return true;
+        const hasCommunityType = await this.hasColumn(tableName, 'community_type');
+        if (hasCommunityType) return true;
+        const hasSiteSlug = await this.hasColumn(tableName, 'site_slug');
+        return hasSiteSlug;
     }
     // Get suggested followers: users not yet followed by current user
     async getSuggestedFollowers(currentUserId, limit = 10, offset = 0) {
         if (!this.db) await this.connect();
         const safeLimit = Number.isFinite(Number(limit)) ? Math.max(1, Math.min(Number(limit), 50)) : 10;
         const safeOffset = Number.isFinite(Number(offset)) ? Math.max(0, Number(offset)) : 0;
-        const scoped = await this.getScopedCondition('follows', 'f');
-        const params = [currentUserId, currentUserId, ...scoped.params];
+        const followsScoped = await this.getScopedCondition('follows', 'f');
+        const userScoped = await this.getScopedCondition('users', 'u');
+        if (this.activeCommunityType && !userScoped.sql && (await this.hasScopeColumns('users'))) {
+            return [];
+        }
+        const params = [
+            ...followsScoped.params,
+            currentUserId,
+            ...userScoped.params,
+            currentUserId,
+            ...followsScoped.params,
+        ];
         const [rows] = await this.db.query(
             `
             SELECT 
@@ -87,11 +121,13 @@ class Follow {
                     SELECT COUNT(*) 
                     FROM follows f 
                     WHERE f.followed_id = u.user_id
+                    ${followsScoped.sql}
                 ) AS followers_count
             FROM users u
             WHERE u.user_id != ?
+              ${userScoped.sql}
               AND u.user_id NOT IN (
-                SELECT followed_id FROM follows f WHERE follower_id = ? ${scoped.sql}
+                SELECT followed_id FROM follows f WHERE follower_id = ? ${followsScoped.sql}
               )
             ORDER BY RAND()
             LIMIT ${safeLimit}
@@ -104,7 +140,11 @@ class Follow {
     // Get all users that current user is following
     async getFollowing(currentUserId, limit = 10, offset = 0) {
         if (!this.db) await this.connect();
-        const scoped = await this.getScopedCondition('follows', 'f');
+        const followsScoped = await this.getScopedCondition('follows', 'f');
+        const userScoped = await this.getScopedCondition('users', 'u');
+        if (this.activeCommunityType && !userScoped.sql && (await this.hasScopeColumns('users'))) {
+            return [];
+        }
         const [rows] = await this.db.execute(
             `
             SELECT 
@@ -115,20 +155,31 @@ class Follow {
                     SELECT COUNT(*) 
                     FROM follows f 
                     WHERE f.followed_id = u.user_id
+                    ${followsScoped.sql}
                 ) AS followers_count
             FROM users u
             JOIN follows f ON f.followed_id = u.user_id
             WHERE f.follower_id = ?
-            ${scoped.sql}
+            ${followsScoped.sql}
+            ${userScoped.sql}
             `,
-            [currentUserId, ...scoped.params]
+            [
+                ...followsScoped.params,
+                currentUserId,
+                ...followsScoped.params,
+                ...userScoped.params,
+            ]
         );
         return rows;
     }
     // Get all users that are following the current user
     async getFollowers(currentUserId) {
         if (!this.db) await this.connect();
-        const scoped = await this.getScopedCondition('follows', 'f');
+        const followsScoped = await this.getScopedCondition('follows', 'f');
+        const userScoped = await this.getScopedCondition('users', 'u');
+        if (this.activeCommunityType && !userScoped.sql && (await this.hasScopeColumns('users'))) {
+            return [];
+        }
         const [rows] = await this.db.execute(
             `
             SELECT 
@@ -139,13 +190,20 @@ class Follow {
                     SELECT COUNT(*) 
                     FROM follows f 
                     WHERE f.followed_id = u.user_id
+                    ${followsScoped.sql}
                 ) AS followers_count
             FROM users u
             JOIN follows f ON f.follower_id = u.user_id
             WHERE f.followed_id = ?
-            ${scoped.sql}
+            ${followsScoped.sql}
+            ${userScoped.sql}
             `,
-            [currentUserId, ...scoped.params]
+            [
+                ...followsScoped.params,
+                currentUserId,
+                ...followsScoped.params,
+                ...userScoped.params,
+            ]
         );
         return rows;
     }
@@ -153,6 +211,10 @@ class Follow {
     async getChatUsers(currentUserId) {
         if (!this.db) await this.connect();
         const scoped = await this.getScopedCondition('follows', 'f');
+        const userScoped = await this.getScopedCondition('users', 'u');
+        if (this.activeCommunityType && !userScoped.sql && (await this.hasScopeColumns('users'))) {
+            return [];
+        }
         const scopedUnion = scoped.sql ? scoped.sql.replace(/f\./g, '') : '';
         const [rows] = await this.db.execute(
             `
@@ -167,8 +229,16 @@ class Follow {
                 SELECT follower_id FROM follows WHERE followed_id = ? ${scopedUnion}
             )
             AND u.user_id != ?
+            ${userScoped.sql}
             `,
-            [currentUserId, ...scoped.params, currentUserId, ...scoped.params, currentUserId]
+            [
+                currentUserId,
+                ...scoped.params,
+                currentUserId,
+                ...scoped.params,
+                currentUserId,
+                ...userScoped.params,
+            ]
         );
         return rows;
     }

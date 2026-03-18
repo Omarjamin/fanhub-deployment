@@ -91,20 +91,37 @@ export default async function ThreadTopic(params) {
     const commentsListEl = root.querySelector(".comments-list");
     const createForm = root.querySelector(".create-comment-form");
 
-    function saveLocalComments(comments) {
-      const key = `thread-comments-${threadId}`;
-      sessionStorage.setItem(key, JSON.stringify(comments));
+    const legacyCommentsKey = `thread-comments-${threadId}`;
+    const pendingCommentsKey = `thread-comments-pending-${threadId}`;
+
+    sessionStorage.removeItem(legacyCommentsKey);
+
+    function savePendingState(state) {
+      const safeState = {
+        comments: Array.isArray(state?.comments) ? state.comments : [],
+        replies: Array.isArray(state?.replies) ? state.replies : [],
+      };
+      sessionStorage.setItem(pendingCommentsKey, JSON.stringify(safeState));
     }
 
-    function readLocalComments() {
-      const key = `thread-comments-${threadId}`;
-      const raw = sessionStorage.getItem(key);
-      if (!raw) return [];
-      try {
-        return JSON.parse(raw);
-      } catch {
-        return [];
+    function readPendingState() {
+      const raw = sessionStorage.getItem(pendingCommentsKey);
+      if (!raw) {
+        return { comments: [], replies: [] };
       }
+      try {
+        const parsed = JSON.parse(raw);
+        return {
+          comments: Array.isArray(parsed?.comments) ? parsed.comments : [],
+          replies: Array.isArray(parsed?.replies) ? parsed.replies : [],
+        };
+      } catch {
+        return { comments: [], replies: [] };
+      }
+    }
+
+    function createPendingId(prefix) {
+      return `pending-${prefix}-${Date.now()}-${Math.random().toString(16).slice(2, 8)}`;
     }
 
     function escapeHtml(str) {
@@ -116,12 +133,29 @@ export default async function ThreadTopic(params) {
         .replace(/'/g, "&#039;");
     }
 
+    function normalizeText(value) {
+      return String(value || "")
+        .trim()
+        .replace(/\s+/g, " ")
+        .toLowerCase();
+    }
+
+    function areCloseInTime(firstValue, secondValue) {
+      if (!firstValue || !secondValue) return true;
+      const firstTime = new Date(firstValue).getTime();
+      const secondTime = new Date(secondValue).getTime();
+      if (!Number.isFinite(firstTime) || !Number.isFinite(secondTime)) return true;
+      return Math.abs(firstTime - secondTime) <= 10 * 60 * 1000;
+    }
+
     function normalizeReply(reply) {
       return {
-        id: reply?.id ?? reply?.reply_id ?? `reply-${Date.now()}`,
+        id: reply?.id ?? reply?.reply_id ?? reply?.comment_id ?? `reply-${Date.now()}`,
         content: reply?.content ?? reply?.reply_content ?? "",
         author: reply?.author ?? reply?.fullname ?? reply?.username ?? "You",
-        date: reply?.date ?? formatDateDisplay(reply?.created_at),
+        date: reply?.date ?? formatDateDisplay(reply?.created_at ?? reply?.createdAt),
+        createdAt: reply?.createdAt ?? reply?.created_at ?? null,
+        pending: Boolean(reply?.pending),
       };
     }
 
@@ -132,9 +166,93 @@ export default async function ThreadTopic(params) {
         id: comment?.id ?? comment?.comment_id ?? `comment-${Date.now()}`,
         content: comment?.content ?? comment?.comment_content ?? "",
         author: comment?.author ?? comment?.fullname ?? comment?.username ?? "You",
-        date: comment?.date ?? formatDateDisplay(comment?.created_at),
+        date: comment?.date ?? formatDateDisplay(comment?.created_at ?? comment?.createdAt),
+        createdAt: comment?.createdAt ?? comment?.created_at ?? null,
+        pending: Boolean(comment?.pending),
         replies: repliesRaw.map(normalizeReply),
       };
+    }
+
+    function buildPendingComment(entry) {
+      return normalizeComment({
+        id: entry?.tempId,
+        content: entry?.content,
+        author: "You",
+        createdAt: entry?.createdAt,
+        pending: true,
+        replies: [],
+      });
+    }
+
+    function buildPendingReply(entry) {
+      return normalizeReply({
+        id: entry?.tempId,
+        content: entry?.content,
+        author: "You",
+        createdAt: entry?.createdAt,
+        pending: true,
+      });
+    }
+
+    function matchesPendingComment(serverComment, pendingComment) {
+      return (
+        normalizeText(serverComment?.content) === normalizeText(pendingComment?.content) &&
+        areCloseInTime(serverComment?.createdAt, pendingComment?.createdAt)
+      );
+    }
+
+    function matchesPendingReply(serverReply, pendingReply) {
+      return (
+        normalizeText(serverReply?.content) === normalizeText(pendingReply?.content) &&
+        areCloseInTime(serverReply?.createdAt, pendingReply?.createdAt)
+      );
+    }
+
+    function mergePendingState(apiComments, pendingState) {
+      const mergedComments = (Array.isArray(apiComments) ? apiComments : []).map((comment) => ({
+        ...normalizeComment(comment),
+        replies: (Array.isArray(comment?.replies) ? comment.replies : []).map(normalizeReply),
+      }));
+      const unresolved = { comments: [], replies: [] };
+
+      [...pendingState.comments].reverse().forEach((entry) => {
+        const pendingComment = buildPendingComment(entry);
+        const alreadySynced = mergedComments.some((comment) =>
+          matchesPendingComment(comment, pendingComment),
+        );
+
+        if (alreadySynced) return;
+        mergedComments.unshift(pendingComment);
+        unresolved.comments.unshift(entry);
+      });
+
+      pendingState.replies.forEach((entry) => {
+        const parentComment = mergedComments.find(
+          (comment) => String(comment.id) === String(entry.commentId),
+        );
+
+        if (!parentComment) {
+          unresolved.replies.push(entry);
+          return;
+        }
+
+        const currentReplies = Array.isArray(parentComment.replies)
+          ? parentComment.replies.map(normalizeReply)
+          : [];
+        const pendingReply = buildPendingReply(entry);
+        const alreadySynced = currentReplies.some((reply) =>
+          matchesPendingReply(reply, pendingReply),
+        );
+
+        if (!alreadySynced) {
+          currentReplies.push(pendingReply);
+          unresolved.replies.push(entry);
+        }
+
+        parentComment.replies = currentReplies;
+      });
+
+      return { comments: mergedComments, pendingState: unresolved };
     }
 
     async function fetchRepliesForComment(commentId) {
@@ -164,20 +282,20 @@ export default async function ThreadTopic(params) {
     let currentComments = [];
 
     function renderComments(comments) {
-      currentComments = Array.isArray(comments) ? comments : [];
+      currentComments = Array.isArray(comments) ? comments.map(normalizeComment) : [];
       commentsListEl.innerHTML = "";
-      if (!comments.length) {
+      if (!currentComments.length) {
         commentsListEl.innerHTML = `<div class="no-comments">Be the first to comment on this thread.</div>`;
         return;
       }
 
-      comments.forEach((comment) => {
+      currentComments.forEach((comment) => {
         const commentEl = document.createElement("div");
-        commentEl.className = "comment-item";
+        commentEl.className = `comment-item${comment.pending ? " is-pending" : ""}`;
         commentEl.innerHTML = `
           <div class="comment-meta"><strong>${comment.author || "You"}</strong> &middot; <span class="comment-date">${comment.date || ""}</span></div>
           <div class="comment-body">${escapeHtml(comment.content)}</div>
-          <div class="comment-actions"><button class="reply-btn btn-link" data-id="${comment.id}">Reply</button></div>
+          ${comment.pending ? "" : `<div class="comment-actions"><button class="reply-btn btn-link" data-id="${comment.id}">Reply</button></div>`}
           <div class="replies-container"></div>
         `;
 
@@ -185,7 +303,7 @@ export default async function ThreadTopic(params) {
         if (comment.replies && comment.replies.length) {
           comment.replies.forEach((r) => {
             const rEl = document.createElement("div");
-            rEl.className = "reply-item";
+            rEl.className = `reply-item${r.pending ? " is-pending" : ""}`;
             rEl.innerHTML = `<div class="reply-meta"><strong>${r.author || "You"}</strong> &middot; <span class="reply-date">${r.date || ""}</span></div><div class="reply-body">${escapeHtml(r.content)}</div>`;
             repliesContainer.appendChild(rEl);
           });
@@ -234,19 +352,26 @@ export default async function ThreadTopic(params) {
     }
 
     async function submitReply(commentId, content) {
-      const comments = (currentComments.length ? currentComments : readLocalComments().map(normalizeComment)).map(normalizeComment);
-      const idx = comments.findIndex((c) => String(c.id) === String(commentId));
-      if (idx !== -1) {
-        comments[idx].replies = comments[idx].replies || [];
-        comments[idx].replies.push({
-          id: Date.now(),
-          content,
-          author: "You",
-          date: formatUserTimestamp(new Date()),
-        });
-        saveLocalComments(comments);
-        currentComments = comments;
-      }
+      const pendingReply = {
+        tempId: createPendingId("reply"),
+        commentId,
+        content,
+        createdAt: new Date().toISOString(),
+      };
+      const pendingState = readPendingState();
+      savePendingState({
+        comments: pendingState.comments,
+        replies: [...pendingState.replies, pendingReply],
+      });
+
+      const nextComments = currentComments.map((comment) => {
+        if (String(comment.id) !== String(commentId)) return comment;
+        return {
+          ...normalizeComment(comment),
+          replies: [...(Array.isArray(comment.replies) ? comment.replies : []), buildPendingReply(pendingReply)],
+        };
+      });
+      renderComments(nextComments);
 
       try {
         const resp = await api.post(`/bini/comments/reply/${commentId}`, { content });
@@ -258,15 +383,16 @@ export default async function ThreadTopic(params) {
 
     async function submitComment(content) {
       const optimisticComment = {
-        id: Date.now(),
+        tempId: createPendingId("comment"),
         content,
-        author: "You",
-        date: formatUserTimestamp(new Date()),
-        replies: [],
+        createdAt: new Date().toISOString(),
       };
-      const localComments = readLocalComments();
-      localComments.unshift(optimisticComment);
-      saveLocalComments(localComments);
+      const pendingState = readPendingState();
+      savePendingState({
+        comments: [optimisticComment, ...pendingState.comments],
+        replies: pendingState.replies,
+      });
+      renderComments([buildPendingComment(optimisticComment), ...currentComments]);
 
       try {
         const token = getSessionToken(getActiveSiteSlug());
@@ -279,7 +405,7 @@ export default async function ThreadTopic(params) {
 
     async function loadComments() {
       let comments = [];
-      const localComments = readLocalComments().map(normalizeComment);
+      const pendingState = readPendingState();
       try {
         const token = getSessionToken(getActiveSiteSlug());
         const apiComments = await apiGetComments(
@@ -287,28 +413,14 @@ export default async function ThreadTopic(params) {
           token,
         );
         const apiList = (Array.isArray(apiComments) ? apiComments : []).map(normalizeComment);
-
-        // Keep locally cached comments visible even after exit/reopen.
-        const merged = [...apiList];
-        const seen = new Set(apiList.map((c) => String(c.id ?? "")));
-        localComments.forEach((local) => {
-          const key = String(local.id ?? "");
-          if (!seen.has(key)) {
-            merged.unshift(local);
-            return;
-          }
-          const apiComment = merged.find((item) => String(item.id ?? '') === key);
-          if (apiComment && Array.isArray(local.replies) && local.replies.length > 0) {
-            const existingReplyIds = new Set((apiComment.replies || []).map((reply) => String(reply.id ?? '')));
-            const localOnlyReplies = local.replies.filter((reply) => !existingReplyIds.has(String(reply.id ?? '')));
-            apiComment.replies = [...(apiComment.replies || []), ...localOnlyReplies];
-          }
-        });
-        comments = await hydrateReplies(merged);
-        saveLocalComments(comments);
+        const hydratedComments = await hydrateReplies(apiList);
+        const merged = mergePendingState(hydratedComments, pendingState);
+        comments = merged.comments;
+        savePendingState(merged.pendingState);
       } catch (err) {
-        comments = await hydrateReplies(localComments);
-        saveLocalComments(comments);
+        const merged = mergePendingState([], pendingState);
+        comments = merged.comments;
+        savePendingState(merged.pendingState);
       }
       renderComments(comments || []);
     }

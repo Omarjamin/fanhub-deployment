@@ -4,11 +4,35 @@ import fetchProductDetails from '../../../services/ecommerce_services/shop/produ
 import { api } from '../../../services/ecommerce_services/api.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
 import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
+import { getActiveSiteSlug } from '../../../lib/site-context.js';
 import '../../../styles/ecommerce_styles/Collection.css';
 
 export default function Collection(root, data = {}) {
   const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
-  const communityType = pathParts[0] === 'fanhub' ? pathParts[1] : '';
+  const communityType = String(
+    data?.siteSlug ||
+    data?.site_slug ||
+    data?.community_type ||
+    data?.siteData?.community_type ||
+    data?.siteData?.site_slug ||
+    (pathParts[0] === 'fanhub' ? pathParts[1] : '') ||
+    getActiveSiteSlug() ||
+    ''
+  ).trim().toLowerCase();
+  const routeProductId = (() => {
+    if (pathParts[0] === 'fanhub' && pathParts[2] === 'product' && pathParts[3]) {
+      return pathParts[3];
+    }
+    if (pathParts[0] === 'product' && pathParts[1]) {
+      return pathParts[1];
+    }
+    return '';
+  })();
+
+  if (routeProductId) {
+    ProductDetail(root, routeProductId, communityType);
+    return;
+  }
 
   root.innerHTML += `
     <section id="collection" class="collection-bini">

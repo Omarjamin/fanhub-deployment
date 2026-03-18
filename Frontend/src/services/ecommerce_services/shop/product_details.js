@@ -1,14 +1,24 @@
 import { api } from '../config.js';
 import { authHeaders, setSiteSlug } from '../auth/auth.js';
+import { getActiveSiteSlug } from '../../../lib/site-context.js';
 
 function resolveSiteSlug(explicitSiteSlug = '') {
   const direct = String(explicitSiteSlug || '').trim().toLowerCase();
   if (direct) return setSiteSlug(direct);
 
   const fromStorage = String(
-    sessionStorage.getItem('site_slug') || localStorage.getItem('site_slug') || ''
+    sessionStorage.getItem('site_slug') ||
+    sessionStorage.getItem('community_type') ||
+    sessionStorage.getItem('active_site_slug') ||
+    localStorage.getItem('active_site_slug') ||
+    localStorage.getItem('community_type') ||
+    localStorage.getItem('site_slug') ||
+    ''
   ).trim().toLowerCase();
-  if (fromStorage) return fromStorage;
+  if (fromStorage) return setSiteSlug(fromStorage);
+
+  const activeSiteSlug = String(getActiveSiteSlug() || '').trim().toLowerCase();
+  if (activeSiteSlug) return setSiteSlug(activeSiteSlug);
 
   const parts = String(window?.location?.pathname || '').split('/').filter(Boolean);
   if (parts[0] === 'fanhub' && parts[1] === 'community-platform' && parts[2]) {
