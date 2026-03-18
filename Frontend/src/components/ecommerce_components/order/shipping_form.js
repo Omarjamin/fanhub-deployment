@@ -72,9 +72,13 @@ function getCheckoutWeightGrams() {
     return Math.max(0, Math.round(summaryWeight || storedWeight || 0));
 }
 
-function buildSummaryPatch(shippingFee = null, checkoutWeightGrams = 0) {
+function buildSummaryPatch(shippingFee = null, checkoutWeightGrams = 0, summaryOverrides = {}) {
     const draft = getCachedCheckoutDraft();
-    const summary = calculateCheckoutSummary(draft.checkout_items || [], shippingFee ?? 0);
+    const summary = {
+        ...(draft.summary_data || {}),
+        ...calculateCheckoutSummary(draft.checkout_items || [], shippingFee ?? 0),
+        ...(summaryOverrides || {}),
+    };
     summary.total_weight_grams = Math.max(0, Math.round(checkoutWeightGrams || summary.total_weight_grams || 0));
     return summary;
 }
@@ -93,7 +97,11 @@ async function clearShippingRate() {
         shipping_fee: null,
         shipping_region: '',
         checkout_weight_grams: checkoutWeightGrams,
-        summary_data: buildSummaryPatch(null, checkoutWeightGrams),
+        summary_data: buildSummaryPatch(null, checkoutWeightGrams, {
+            shipping_courier: '',
+            shipping_source: '',
+            shipping_region: '',
+        }),
     });
 }
 
@@ -118,10 +126,11 @@ async function updateShippingRate(locationLabel = '') {
         return;
     }
 
-    const nextSummary = {
-        ...buildSummaryPatch(Number(result.fee || 0), checkoutWeightGrams),
+    const nextSummary = buildSummaryPatch(Number(result.fee || 0), checkoutWeightGrams, {
         shipping_courier: String(result.courier || '').trim(),
-    };
+        shipping_source: String(result.source || '').trim(),
+        shipping_region: String(result.region || '').trim(),
+    });
     await syncDraftFromForm({
         shipping_fee: Number(result.fee || 0),
         shipping_region: String(result.region || '').trim(),

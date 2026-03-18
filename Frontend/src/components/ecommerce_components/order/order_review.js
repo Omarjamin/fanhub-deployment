@@ -4,10 +4,44 @@ import {
     fetchCheckoutDraft,
     getCachedCheckoutDraft,
     getCheckoutDraftEventName,
+    resolveItemHeightCm,
+    resolveItemLengthCm,
     resolveItemWeightGrams,
+    resolveItemWidthCm,
     setCheckoutDraftStep,
 } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
 import { formatPeso, toSafeNumber } from '../../../lib/number-format.js';
+
+function formatPackageSize(length = 0, width = 0, height = 0) {
+    const resolvedLength = Number(length || 0);
+    const resolvedWidth = Number(width || 0);
+    const resolvedHeight = Number(height || 0);
+    if (resolvedLength <= 0 && resolvedWidth <= 0 && resolvedHeight <= 0) return 'Not set';
+    return `${resolvedLength} x ${resolvedWidth} x ${resolvedHeight} cm`;
+}
+
+function resolveVariantLabel(item) {
+    return String(
+        item?.variant_values ||
+        item?.variant_name ||
+        item?.variant ||
+        item?.variant_label ||
+        ''
+    ).trim();
+}
+
+function looksLikeAddressCode(value) {
+    const raw = String(value || '').trim().replace(/[\s-]/g, '');
+    return /^\d{4,}$/.test(raw);
+}
+
+function cleanAddressValue(value, options = {}) {
+    const allowNumericOnly = Boolean(options.allowNumericOnly);
+    const raw = String(value || '').trim();
+    if (!raw) return '';
+    if (!allowNumericOnly && looksLikeAddressCode(raw)) return '';
+    return raw;
+}
 
 function getCommunityTypeFromPath() {
     const pathParts = String(window.location.pathname || '').split('/').filter(Boolean);
@@ -45,15 +79,21 @@ function getReviewState() {
 }
 
 function renderAddress(address) {
+    const street = cleanAddressValue(address?.street);
+    const barangay = cleanAddressValue(address?.barangayText || address?.barangay);
+    const city = cleanAddressValue(address?.cityText || address?.city);
+    const province = cleanAddressValue(address?.provinceText || address?.province);
+    const region = cleanAddressValue(address?.regionText || address?.region);
+    const zip = cleanAddressValue(address?.zip, { allowNumericOnly: true });
     const fullAddress = address
-        ? (address.fullAddress
+        ? (cleanAddressValue(address.fullAddress)
             || [
-                address.street,
-                address.barangayText || address.barangay,
-                address.cityText || address.city,
-                address.provinceText || address.province,
-                address.regionText || address.region,
-                address.zip,
+                street,
+                barangay,
+                city,
+                province,
+                region,
+                zip ? `ZIP ${zip}` : '',
             ].filter(Boolean).join(', '))
         : null;
 
@@ -163,9 +203,20 @@ function renderItems(items) {
                                         const quantity = Number(item.quantity || item.qty || 1);
                                         const price = toSafeNumber(item.display_price || item.price, 0);
                                         const subtotal = price * quantity;
+                                        const variantLabel = resolveVariantLabel(item);
+                                        const packageSize = formatPackageSize(
+                                            resolveItemLengthCm(item),
+                                            resolveItemWidthCm(item),
+                                            resolveItemHeightCm(item),
+                                        );
                                         return `
                                             <tr>
-                                                <td class="product-name">${productName}<br><small>${(resolveItemWeightGrams(item) * quantity).toLocaleString()}g total</small></td>
+                                                <td class="product-name">
+                                                    ${productName}
+                                                    ${variantLabel ? `<br><small>${variantLabel}</small>` : ''}
+                                                    <br><small>${(resolveItemWeightGrams(item) * quantity).toLocaleString()}g total</small>
+                                                    <br><small>${packageSize}</small>
+                                                </td>
                                                 <td class="quantity">${quantity}</td>
                                                 <td class="price">${formatPeso(price)}</td>
                                                 <td class="subtotal">${formatPeso(subtotal)}</td>
@@ -210,6 +261,22 @@ function renderTotals(summary, disablePlaceOrder = false) {
                     <div class="total-row">
                         <span class="total-label">Total Weight</span>
                         <span class="total-value">${Number(summary.total_weight_grams || 0).toLocaleString()}g</span>
+                    </div>
+                    <div class="total-row">
+                        <span class="total-label">Package Size</span>
+                        <span class="total-value">${formatPackageSize(
+                            summary.package_length_cm,
+                            summary.package_width_cm,
+                            summary.package_height_cm,
+                        )}</span>
+                    </div>
+                    <div class="total-row">
+                        <span class="total-label">Courier</span>
+                        <span class="total-value">${String(summary.shipping_courier || '').trim() || 'Not set'}</span>
+                    </div>
+                    <div class="total-row">
+                        <span class="total-label">Destination</span>
+                        <span class="total-value">${String(summary.shipping_region || '').trim() || 'Not set'}</span>
                     </div>
                     <div class="total-divider"></div>
                     <div class="total-row total-final">
@@ -296,7 +363,11 @@ function bindPlaceOrderButtons(root, communityType, disablePlaceOrder) {
 
 async function renderReview(root) {
     const communityType = getCommunityTypeFromPath();
-    const { address, payment, items, summary, disablePlaceOrder } = getReviewState();
+    const { draft, address, payment, items, summary, disablePlaceOrder } = getReviewState();
+    const summaryWithShipping = {
+        ...summary,
+        shipping_region: draft?.shipping_region || summary?.shipping_region || '',
+    };
 
     root.className = 'form-container form-container--review';
     root.innerHTML = `
@@ -310,12 +381,12 @@ async function renderReview(root) {
                 ${renderAddress(address)}
                 ${renderPayment(payment)}
                 ${renderItems(items)}
-                ${renderTotals(summary, disablePlaceOrder)}
+                ${renderTotals(summaryWithShipping, disablePlaceOrder)}
             </div>
             <div class="review-mobile-bar">
                 <div class="review-mobile-total">
                     <span>Total</span>
-                    <strong>${formatPeso(summary?.total || 0)}</strong>
+                    <strong>${formatPeso(summaryWithShipping?.total || 0)}</strong>
                 </div>
                 <button id="mobilePlaceOrderBtn" class="review-mobile-button" ${disablePlaceOrder ? 'disabled' : ''}>
                     Place Order

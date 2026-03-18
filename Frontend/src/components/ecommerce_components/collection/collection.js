@@ -177,6 +177,105 @@ export default function Collection(root, data = {}) {
     return Number.isFinite(directPrice) ? directPrice : 0;
   }
 
+  function getVariantLabel(variant, index = 0) {
+    return String(
+      variant?.variant_values ||
+      variant?.value ||
+      variant?.variant_name ||
+      variant?.name ||
+      `Variant ${index + 1}`
+    ).trim();
+  }
+
+  function resolveVariantDimension(variant, keys = []) {
+    for (const key of keys) {
+      const value = toSafeNumber(variant?.[key], 0);
+      if (Number.isFinite(value) && value > 0) return value;
+    }
+    return 0;
+  }
+
+  function formatVariantPackage(variant) {
+    const length = resolveVariantDimension(variant, ['length_cm', 'lengthCm', 'package_length_cm', 'length']);
+    const width = resolveVariantDimension(variant, ['width_cm', 'widthCm', 'package_width_cm', 'width']);
+    const height = resolveVariantDimension(variant, ['height_cm', 'heightCm', 'package_height_cm', 'height']);
+    if (length <= 0 && width <= 0 && height <= 0) return '';
+    return `${length} x ${width} x ${height} cm`;
+  }
+
+  function buildVariantSummary(product) {
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    const labels = Array.from(
+      new Set(
+        variants
+          .map((variant, index) => getVariantLabel(variant, index))
+          .filter(Boolean)
+      )
+    );
+
+    if (!labels.length) return '';
+    const preview = labels.slice(0, 3).join(', ');
+    return labels.length > 3 ? `${preview} +${labels.length - 3} more` : preview;
+  }
+
+  function buildShippingPreview(product) {
+    const variants = Array.isArray(product?.variants) ? product.variants : [];
+    if (!variants.length) return '';
+
+    const firstVariant = variants[0];
+    const firstWeight = toSafeNumber(
+      firstVariant?.weight_g ??
+      firstVariant?.weightG ??
+      firstVariant?.weight_grams ??
+      firstVariant?.weight,
+      0
+    );
+    const firstPackage = formatVariantPackage(firstVariant);
+
+    if (variants.length === 1) {
+      if (firstWeight > 0 && firstPackage) return `${firstWeight} g | ${firstPackage}`;
+      if (firstWeight > 0) return `${firstWeight} g`;
+      if (firstPackage) return firstPackage;
+      return '';
+    }
+
+    const uniqueWeights = Array.from(
+      new Set(
+        variants
+          .map((variant) => toSafeNumber(
+            variant?.weight_g ??
+            variant?.weightG ??
+            variant?.weight_grams ??
+            variant?.weight,
+            0
+          ))
+          .filter((value) => Number.isFinite(value) && value > 0)
+      )
+    );
+    const uniquePackages = Array.from(
+      new Set(
+        variants
+          .map((variant) => formatVariantPackage(variant))
+          .filter(Boolean)
+      )
+    );
+
+    if (uniqueWeights.length === 1 && uniquePackages.length === 1) {
+      return `${uniqueWeights[0]} g | ${uniquePackages[0]}`;
+    }
+    if (uniqueWeights.length === 1 && !uniquePackages.length) {
+      return `${uniqueWeights[0]} g`;
+    }
+    if (!uniqueWeights.length && uniquePackages.length === 1) {
+      return uniquePackages[0];
+    }
+
+    if (firstWeight > 0 && firstPackage) return `First size: ${firstWeight} g | ${firstPackage}`;
+    if (firstWeight > 0) return `First size: ${firstWeight} g`;
+    if (firstPackage) return `First size: ${firstPackage}`;
+    return 'Package varies by size';
+  }
+
   function attachCollectionClickHandlers() {
     document.querySelectorAll('.collection-item').forEach((item) => {
       if (item._bound) return;
@@ -261,6 +360,8 @@ export default function Collection(root, data = {}) {
       const img = getProductImage(product) || '';
       const productId = product.product_id || product.id || product.productId;
       const price = resolveProductPrice(product);
+      const variantSummary = buildVariantSummary(product);
+      const shippingPreview = buildShippingPreview(product);
 
       const box = document.createElement('div');
       box.className = 'product-item';
@@ -268,6 +369,8 @@ export default function Collection(root, data = {}) {
       box.innerHTML = `
         <img src="${img}" class="product-img" alt="${product.name || ''}">
         <h4>${product.name || ''}</h4>
+        ${variantSummary ? `<p class="product-variant-preview">Sizes: ${variantSummary}</p>` : ''}
+        ${shippingPreview ? `<p class="product-shipping-preview">Package: ${shippingPreview}</p>` : ''}
         <p class="product-price">${formatPHP(price)}</p>
       `;
 

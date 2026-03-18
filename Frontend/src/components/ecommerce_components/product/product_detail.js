@@ -10,6 +10,76 @@ function resolveVariantWeight(variant) {
   return 0;
 }
 
+function resolveVariantLength(variant) {
+  return toSafeNumber(variant?.length_cm ?? variant?.lengthCm ?? variant?.package_length_cm ?? variant?.length, 0);
+}
+
+function resolveVariantWidth(variant) {
+  return toSafeNumber(variant?.width_cm ?? variant?.widthCm ?? variant?.package_width_cm ?? variant?.width, 0);
+}
+
+function resolveVariantHeight(variant) {
+  return toSafeNumber(variant?.height_cm ?? variant?.heightCm ?? variant?.package_height_cm ?? variant?.height, 0);
+}
+
+function getVariantLabel(variant, index = 0) {
+  return String(
+    variant?.variant_values ??
+    variant?.value ??
+    variant?.variant_name ??
+    variant?.name ??
+    `Variant ${index + 1}`
+  ).trim();
+}
+
+function formatVariantPackage(variant) {
+  const length = resolveVariantLength(variant);
+  const width = resolveVariantWidth(variant);
+  const height = resolveVariantHeight(variant);
+
+  if (length <= 0 && width <= 0 && height <= 0) return 'Not set';
+  return `${length} x ${width} x ${height} cm`;
+}
+
+function renderVariantSpecs(variant, index = 0) {
+  if (!variant) {
+    return `
+      <div class="product-variant-specs-grid">
+        <div class="product-variant-spec-card product-variant-spec-card--wide">
+          <span class="product-variant-spec-label">Package details</span>
+          <strong class="product-variant-spec-value">Variant details are not available yet.</strong>
+        </div>
+      </div>
+    `;
+  }
+
+  const variantLabel = getVariantLabel(variant, index) || 'Standard';
+  const weight = resolveVariantWeight(variant);
+  const packageSize = formatVariantPackage(variant);
+  const stock = resolveVariantStock(variant);
+
+  return `
+    <div class="product-variant-specs-grid">
+      <div class="product-variant-spec-card">
+        <span class="product-variant-spec-label">Selected size</span>
+        <strong class="product-variant-spec-value">${variantLabel}</strong>
+      </div>
+      <div class="product-variant-spec-card">
+        <span class="product-variant-spec-label">Weight</span>
+        <strong class="product-variant-spec-value">${weight > 0 ? `${weight} g` : 'Not set'}</strong>
+      </div>
+      <div class="product-variant-spec-card product-variant-spec-card--wide">
+        <span class="product-variant-spec-label">Package size</span>
+        <strong class="product-variant-spec-value">${packageSize}</strong>
+      </div>
+      <div class="product-variant-spec-card product-variant-spec-card--wide">
+        <span class="product-variant-spec-label">Stock</span>
+        <strong class="product-variant-spec-value">${stock.toLocaleString()}</strong>
+      </div>
+    </div>
+  `;
+}
+
 function resolveVariantStock(variant) {
   const stock = toSafeNumber(variant?.stock ?? variant?.inventory ?? variant?.quantity);
   return Number.isFinite(stock) && stock >= 0 ? stock : 0;
@@ -70,11 +140,14 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
                 <button class="variant-option ${idx === 0 ? 'active' : ''}" data-variant-id="${
                     v.product_variant_id || v.id || idx
                   }">
-                  ${v.name || v.variant_values || 'Variant'}
+                  ${getVariantLabel(v, idx)}
                 </button>
               `
                 )
                 .join('')}
+            </div>
+            <div class="product-variant-specs" id="product-variant-specs">
+              ${renderVariantSpecs(selectedVariant, 0)}
             </div>
 
             <div class="cart-controls">
@@ -155,6 +228,8 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
 
         const priceEl = root.querySelector('.product-price');
         if (priceEl) priceEl.textContent = formatPHP(resolveDisplayPrice(product, selectedVariant));
+        const specsEl = root.querySelector('#product-variant-specs');
+        if (specsEl) specsEl.innerHTML = renderVariantSpecs(selectedVariant, idx);
       });
     });
 

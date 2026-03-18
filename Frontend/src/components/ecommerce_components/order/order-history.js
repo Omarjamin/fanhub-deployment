@@ -11,6 +11,16 @@ function resolveItemWeightGrams(item) {
   return 0;
 }
 
+function resolveVariantLabel(item) {
+  return String(
+    item?.variant_values ||
+    item?.size ||
+    item?.variant_name ||
+    item?.variant ||
+    ''
+  ).trim();
+}
+
 function resolveItemDimensions(item) {
   const length = Number(item?.length_cm ?? item?.length ?? 0);
   const width = Number(item?.width_cm ?? item?.width ?? 0);
@@ -35,6 +45,35 @@ function getItemShippingMeta(item) {
   }
 
   return parts.join(' | ');
+}
+
+function formatPackageSize(length = 0, width = 0, height = 0) {
+  const resolvedLength = Number(length || 0);
+  const resolvedWidth = Number(width || 0);
+  const resolvedHeight = Number(height || 0);
+  if (resolvedLength <= 0 && resolvedWidth <= 0 && resolvedHeight <= 0) return '';
+  return `${resolvedLength} x ${resolvedWidth} x ${resolvedHeight} cm`;
+}
+
+function calculateOrderPackageMetrics(items = []) {
+  return (Array.isArray(items) ? items : []).reduce((acc, item) => {
+    const quantity = Number(item?.quantity || item?.qty || 0);
+    const dimensions = resolveItemDimensions(item);
+    acc.length = Math.max(acc.length, dimensions.length);
+    acc.width = Math.max(acc.width, dimensions.width);
+    acc.height += dimensions.height * quantity;
+    return acc;
+  }, { length: 0, width: 0, height: 0 });
+}
+
+function getOrderPackageLabel(order = {}) {
+  const metrics = calculateOrderPackageMetrics(order?.items || []);
+  return formatPackageSize(metrics.length, metrics.width, metrics.height);
+}
+
+function getDisplayOrderNumber(order = {}) {
+  const sequence = Number(order?.userSequence || 0);
+  return sequence > 0 ? String(sequence) : String(order?.order_id || order?.id || '');
 }
 
 function escapeHtml(value) {
@@ -396,7 +435,7 @@ export default function OrderHistory(payload = null) {
                            onerror="this.src='/square.png'">
                       <div class="item-info">
                         <strong>${item.product_name || 'Undefined Product'}</strong>
-                        <p>Variant: ${item.variant_name || item.size || 'N/A'} | Qty: ${item.quantity}</p>
+                        <p>Size: ${escapeHtml(resolveVariantLabel(item) || 'N/A')} | Qty: ${item.quantity}</p>
                         ${getItemShippingMeta(item) ? `<p>${getItemShippingMeta(item)}</p>` : ''}
                         <p>Price: ${formatMoney(item.price)}</p>
                       </div>
@@ -428,6 +467,12 @@ export default function OrderHistory(payload = null) {
                       <span>Total Weight:</span>
                       <span>${(order.items || []).reduce((sum, item) => sum + (resolveItemWeightGrams(item) * Number(item.quantity || 0)), 0).toLocaleString()}g</span>
                     </div>
+                    ${getOrderPackageLabel(order) ? `
+                    <div class="summary-row">
+                      <span>Package Size:</span>
+                      <span>${escapeHtml(getOrderPackageLabel(order))}</span>
+                    </div>
+                    ` : ''}
                     <div class="summary-row total">
                     <span>Total:</span>
                     <span>${formatMoney(order.total || order.total_amount || 0)}</span>
@@ -467,7 +512,7 @@ export default function OrderHistory(payload = null) {
           <div class="order-card-header">
             <div class="order-card-title">
               <div>
-                <div class="order-number">Order #BINI-${order.order_id || order.id} (Your Order #${order.userSequence})</div>
+                <div class="order-number">Order #${escapeHtml(getDisplayOrderNumber(order))}</div>
                 <div class="order-date">${orderDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
               </div>
             </div>
@@ -487,7 +532,7 @@ export default function OrderHistory(payload = null) {
                 <div class="order-item-details">
                   <div class="order-item-name">${item.product_name || 'Product'}</div>
                   <div class="order-item-meta">
-                    Size: ${item.variant_name || item.size || 'N/A'} | Qty: ${item.quantity}
+                    Size: ${escapeHtml(resolveVariantLabel(item) || 'N/A')} | Qty: ${item.quantity}
                   </div>
                   ${getItemShippingMeta(item) ? `<div class="order-item-meta">${getItemShippingMeta(item)}</div>` : ''}
                   <div class="order-item-price">${formatMoney(item.price)}</div>
@@ -551,12 +596,13 @@ export default function OrderHistory(payload = null) {
       // Search filter
       if (searchTerm) {
         const orderId = (order.order_id || order.id || '').toString().toLowerCase();
+        const orderSequence = String(order.userSequence || '').toLowerCase();
         const hasMatchingItem = (order.items || []).some(item => {
           const itemName = (item.name || item.product_name || '').toString().toLowerCase();
           return itemName.includes(searchTerm);
         });
         
-        if (!orderId.includes(searchTerm) && !hasMatchingItem) {
+        if (!orderId.includes(searchTerm) && !orderSequence.includes(searchTerm) && !hasMatchingItem) {
           return false;
         }
       }
@@ -940,6 +986,8 @@ export default function OrderHistory(payload = null) {
       if (response.ok) {
         const result = await response.json();
         const order = result.order || result;
+        const existingOrder = allOrders.find(entry => String(entry.order_id || entry.id) === String(orderId));
+        const displayOrderNumber = getDisplayOrderNumber(existingOrder || order);
         
         if (order.items && order.items.length > 0) {
           // Add items to cart
@@ -966,7 +1014,7 @@ export default function OrderHistory(payload = null) {
           }
           
           sessionStorage.setItem('openCartOnLoad', '1');
-          alert(`All items from order #${orderId} have been added to your cart. Redirecting to shop...`);
+          alert(`All items from Order #${displayOrderNumber} have been added to your cart. Redirecting to shop...`);
           // Redirect to cart page
           window.location.href = communityCartPath;
         } else {
@@ -986,6 +1034,7 @@ export default function OrderHistory(payload = null) {
     console.log('Tracking order:', orderId);
     const order = allOrders.find(entry => String(entry.order_id || entry.id) === String(orderId));
     const trackingNumber = getTrackingNumber(order);
+    const displayOrderNumber = getDisplayOrderNumber(order);
 
     if (!trackingNumber) {
       alert('Tracking number is not available yet for this order.');
@@ -996,12 +1045,14 @@ export default function OrderHistory(payload = null) {
       navigator.clipboard.writeText(trackingNumber).catch(() => {});
     }
 
-    alert(`Tracking number for order #${orderId}: ${trackingNumber}`);
+    alert(`Tracking number for Order #${displayOrderNumber}: ${trackingNumber}`);
   };
 
   window.cancelOrder = async (orderId) => {
     console.log('Cancelling order:', orderId);
-    if (confirm(`Are you sure you want to cancel order #${orderId}?`)) {
+    const order = allOrders.find(entry => String(entry.order_id || entry.id) === String(orderId));
+    const displayOrderNumber = getDisplayOrderNumber(order);
+    if (confirm(`Are you sure you want to cancel Order #${displayOrderNumber}?`)) {
       try {
         const response = await fetch(api(`/orders/${orderId}/cancel`), {
           method: 'PUT',
@@ -1014,7 +1065,7 @@ export default function OrderHistory(payload = null) {
           // Refresh the order list to show updated status
           await fetchOrderHistory();
           // Show success message
-          alert(`Order #${orderId} has been cancelled successfully.`);
+          alert(`Order #${displayOrderNumber} has been cancelled successfully.`);
         } else {
           const error = await response.json();
           console.error('Cancel order error:', error);

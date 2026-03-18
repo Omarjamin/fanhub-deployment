@@ -505,7 +505,6 @@ const Checkout = () => {
                 shippingFee={shippingFee}
                 shippingCourier={shippingCourier}
                 shippingRegion={shippingRegion}
-                shippingSource={shippingSource}
                 total={total}
                 submitting={submitting}
                 paymentMethod={paymentMethod}

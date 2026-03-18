@@ -17,6 +17,80 @@ function resolveItemWeightGrams(item) {
   return 0;
 }
 
+function resolveItemDimensions(item) {
+  const length = Number(item?.length_cm ?? item?.length ?? 0);
+  const width = Number(item?.width_cm ?? item?.width ?? 0);
+  const height = Number(item?.height_cm ?? item?.height ?? 0);
+  return {
+    length: Number.isFinite(length) && length > 0 ? length : 0,
+    width: Number.isFinite(width) && width > 0 ? width : 0,
+    height: Number.isFinite(height) && height > 0 ? height : 0,
+  };
+}
+
+function formatPackageSize(length = 0, width = 0, height = 0) {
+  const resolvedLength = Number(length || 0);
+  const resolvedWidth = Number(width || 0);
+  const resolvedHeight = Number(height || 0);
+  if (resolvedLength <= 0 && resolvedWidth <= 0 && resolvedHeight <= 0) return '';
+  return `${resolvedLength} x ${resolvedWidth} x ${resolvedHeight} cm`;
+}
+
+function getItemPackageSize(item) {
+  const dimensions = resolveItemDimensions(item);
+  return formatPackageSize(dimensions.length, dimensions.width, dimensions.height);
+}
+
+function calculatePackageMetrics(items = []) {
+  return (Array.isArray(items) ? items : []).reduce((acc, item) => {
+    const quantity = Number(item?.quantity || item?.qty || 0);
+    const dimensions = resolveItemDimensions(item);
+    acc.length = Math.max(acc.length, dimensions.length);
+    acc.width = Math.max(acc.width, dimensions.width);
+    acc.height += dimensions.height * quantity;
+    return acc;
+  }, { length: 0, width: 0, height: 0 });
+}
+
+function resolveVariantLabel(item) {
+  return String(
+    item?.variant_values ||
+    item?.size ||
+    item?.variant_name ||
+    item?.product_variant ||
+    item?.variant ||
+    ''
+  ).trim();
+}
+
+function looksLikeAddressCode(value) {
+  const raw = String(value || '').trim().replace(/[\s-]/g, '');
+  return /^\d{4,}$/.test(raw);
+}
+
+function cleanAddressValue(value, options = {}) {
+  const allowNumericOnly = Boolean(options.allowNumericOnly);
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  if (!allowNumericOnly && looksLikeAddressCode(raw)) return '';
+  return raw;
+}
+
+function getOrderCourier(order = {}) {
+  return String(
+    order?.courier ||
+    order?.courier_name ||
+    order?.courierName ||
+    order?.shipping_courier ||
+    ''
+  ).trim();
+}
+
+function getFriendlyOrderLabel(sequence = 0) {
+  const parsedSequence = Number(sequence || 0);
+  return parsedSequence > 0 ? `Order ${parsedSequence}` : 'Order confirmed';
+}
+
 function escapeHtml(value) {
   return String(value ?? '')
     .replace(/&/g, '&amp;')
@@ -74,15 +148,15 @@ function buildAddressLines(address) {
     return [raw];
   }
 
-  const street = address.street || address.streetAddress || address.address_line1 || '';
-  const barangay = address.barangayText || address.barangay || '';
-  const city = address.cityText || address.city_municipality || address.cityMunicipality || address.city || '';
-  const province = address.provinceText || address.province || '';
-  const region = address.regionText || address.region_name || address.region || '';
-  const zip = address.zipCode || address.zip_code || address.zip || '';
+  const street = cleanAddressValue(address.street || address.streetAddress || address.address_line1 || '');
+  const barangay = cleanAddressValue(address.barangayText || address.barangay || '');
+  const city = cleanAddressValue(address.cityText || address.city_municipality || address.cityMunicipality || address.city || '');
+  const province = cleanAddressValue(address.provinceText || address.province || '');
+  const region = cleanAddressValue(address.regionText || address.region_name || address.region || '');
+  const zip = cleanAddressValue(address.zipCode || address.zip_code || address.zip || '', { allowNumericOnly: true });
 
   const locality = [barangay, city, province].filter(Boolean).join(', ');
-  const finalLine = [region, zip].filter(Boolean).join(' ');
+  const finalLine = [region, zip ? `ZIP ${zip}` : ''].filter(Boolean).join(' • ');
 
   return [street, locality, finalLine].filter(Boolean);
 }
@@ -236,16 +310,17 @@ export default function OrderConfirmation(payload = null) {
 
       if (order) {
         const orderNumberElement = document.getElementById('orderNumber');
-        if (orderNumberElement) {
-          if (order.order_id) {
-            const userOrderSequence = await getUserOrderSequence(order.order_id);
-            orderNumberElement.textContent = `#BINI-${order.order_id} / Order ${userOrderSequence}`;
-          } else if (order.id) {
-            orderNumberElement.textContent = `#${order.id}`;
-          } else {
-            orderNumberElement.textContent = `#BINI-${generateOrderNumber()}`;
-          }
+      if (orderNumberElement) {
+        if (order.order_id) {
+          const userOrderSequence = await getUserOrderSequence(order.order_id);
+          orderNumberElement.textContent = getFriendlyOrderLabel(userOrderSequence);
+        } else if (order.id) {
+          const userOrderSequence = await getUserOrderSequence(order.id);
+          orderNumberElement.textContent = getFriendlyOrderLabel(userOrderSequence);
+        } else {
+          orderNumberElement.textContent = 'Order confirmed';
         }
+      }
 
         displayOrderSummary(order);
         displayStatusTimeline(order.status || 'Pending');
@@ -292,6 +367,8 @@ export default function OrderConfirmation(payload = null) {
       (sum, item) => sum + (resolveItemWeightGrams(item) * Number(item.quantity || 0)),
       0,
     );
+    const packageMetrics = calculatePackageMetrics(items);
+    const packageSize = formatPackageSize(packageMetrics.length, packageMetrics.width, packageMetrics.height);
     const total = Number(order.total || order.total_amount || (subtotal + shipping));
     const shippingAddressRaw = order.shipping_address || order.shippingAddress || {};
     let shippingAddress = shippingAddressRaw;
@@ -310,6 +387,7 @@ export default function OrderConfirmation(payload = null) {
       shippingAddress = {};
     }
     const paymentMethod = formatPaymentMethod(order.payment_method || order.paymentMethod);
+    const shippingCourier = getOrderCourier(order);
     const recipientName = shippingAddress.recipient_name || shippingAddress.recipientName || order.customer_name || '';
     const contactNumber = shippingAddress.phone || shippingAddress.contact_number || order.phone || '';
     const trackingNumber = String(order.tracking_number || '').trim();
@@ -320,8 +398,9 @@ export default function OrderConfirmation(payload = null) {
         const quantity = Number(item.quantity || item.qty || 0);
         const unitPrice = Number(item.display_price || item.price || 0);
         const itemTotal = unitPrice * quantity;
-        const variant = item.size || item.variant_name || item.product_variant || '';
+        const variant = resolveVariantLabel(item);
         const weight = resolveItemWeightGrams(item) * quantity;
+        const packageLabel = getItemPackageSize(item);
         return `
           <article class="confirm-item">
             <img src="${escapeHtml(item.image_url || item.image || item.product_image || '/placeholder.jpg')}" alt="${escapeHtml(item.name || item.product_name || 'Product')}">
@@ -332,6 +411,7 @@ export default function OrderConfirmation(payload = null) {
                 <div class="confirm-item-meta">
                   <span>Qty ${escapeHtml(quantity)}</span>
                   <span>Weight ${escapeHtml(weight.toLocaleString())}g</span>
+                  ${packageLabel ? `<span>Package ${escapeHtml(packageLabel)}</span>` : ''}
                 </div>
               </div>
               <p class="confirm-item-price">${escapeHtml(formatPeso(itemTotal))}</p>
@@ -377,6 +457,14 @@ export default function OrderConfirmation(payload = null) {
               <span class="total-card-label">Total Weight</span>
               <strong>${escapeHtml(totalWeightGrams.toLocaleString())}g</strong>
             </div>
+            <div class="total-card">
+              <span class="total-card-label">Package Size</span>
+              <strong>${escapeHtml(packageSize || 'Not set')}</strong>
+            </div>
+            <div class="total-card">
+              <span class="total-card-label">Courier</span>
+              <strong>${escapeHtml(shippingCourier || 'Not set')}</strong>
+            </div>
             <div class="total-card total-card--accent">
               <span class="total-card-label">Total</span>
               <strong>${escapeHtml(formatPeso(total))}</strong>
@@ -412,6 +500,7 @@ export default function OrderConfirmation(payload = null) {
               </div>
             </div>
             <div class="payment-pill">${escapeHtml(paymentMethod)}</div>
+            ${shippingCourier ? `<p class="payment-note">Courier: <strong>${escapeHtml(shippingCourier)}</strong></p>` : ''}
             ${trackingNumber ? `<p class="payment-note">Tracking number: <strong>${escapeHtml(trackingNumber)}</strong></p>` : ''}
             <p class="payment-note">Payment is collected according to your selected checkout method.</p>
           </section>
@@ -450,7 +539,7 @@ export default function OrderConfirmation(payload = null) {
   function displayDemoOrder() {
     const orderNumberElement = document.getElementById('orderNumber');
     if (orderNumberElement) {
-      orderNumberElement.textContent = `#BINI-${generateOrderNumber()}`;
+      orderNumberElement.textContent = 'Order 1';
     }
 
     const demoOrder = {

@@ -14,6 +14,39 @@ function resolveItemWeightGrams(item) {
     return 0;
 }
 
+function resolveItemLengthCm(item) {
+    const explicitLength = toSafeNumber(item?.length_cm ?? item?.lengthCm ?? item?.package_length_cm ?? item?.length);
+    return Number.isFinite(explicitLength) && explicitLength >= 0 ? explicitLength : 0;
+}
+
+function resolveItemWidthCm(item) {
+    const explicitWidth = toSafeNumber(item?.width_cm ?? item?.widthCm ?? item?.package_width_cm ?? item?.width);
+    return Number.isFinite(explicitWidth) && explicitWidth >= 0 ? explicitWidth : 0;
+}
+
+function resolveItemHeightCm(item) {
+    const explicitHeight = toSafeNumber(item?.height_cm ?? item?.heightCm ?? item?.package_height_cm ?? item?.height);
+    return Number.isFinite(explicitHeight) && explicitHeight >= 0 ? explicitHeight : 0;
+}
+
+function resolveVariantLabel(item) {
+    return String(
+        item?.variant_values ||
+        item?.variant_name ||
+        item?.variant ||
+        item?.size ||
+        'Default'
+    ).trim();
+}
+
+function formatPackageSize(item) {
+    const length = resolveItemLengthCm(item);
+    const width = resolveItemWidthCm(item);
+    const height = resolveItemHeightCm(item);
+    if (length <= 0 && width <= 0 && height <= 0) return '';
+    return `${length} x ${width} x ${height} cm`;
+}
+
 export default async function CustomerCart() {
     // Create modal element
     const modal = document.createElement('div');
@@ -80,10 +113,11 @@ async function loadCartItems(modal) {
                 item.name ||
                 item.title ||
                 `Product #${item.product_id || item.variant_id || ''}`;
-            const variantLabel = item.variant_values || item.variant_name || item.size || 'Default';
+            const variantLabel = resolveVariantLabel(item);
             const qty = Math.max(1, toSafeInteger(item.quantity, 1));
             const itemTotal = price * qty;
             const itemWeight = resolveItemWeightGrams(item);
+            const packageSize = formatPackageSize(item);
             const showSubtotal = qty > 1;
             // Handle image URL
             let imageSrc = item.image_url || '/placeholder.png';
@@ -111,6 +145,7 @@ async function loadCartItems(modal) {
                                 <h4 class="item-name">${productName}</h4>
                                 <p class="item-variant"><strong>${variantLabel}</strong></p>
                                 <p class="item-weight">${itemWeight.toLocaleString()}g each</p>
+                                ${packageSize ? `<p class="item-package">${packageSize}</p>` : ''}
                             </div>
                             <div class="item-pricing">
                                 <p class="item-price">${formatPHP(price)}</p>

@@ -287,6 +287,19 @@
   line-height: 1.6;
 }
 
+.product-item .product-variant-preview,
+.product-item .product-shipping-preview {
+  margin: 0;
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: #666666;
+  text-align: left;
+}
+
+.product-item .product-shipping-preview {
+  color: #444444;
+}
+
 .product-item:hover h4,
 .product-item:hover .product-price {
   color: #111111;
