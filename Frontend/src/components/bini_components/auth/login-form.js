@@ -41,7 +41,10 @@ export default function LoginformComponent(formElement) {
         <div id="resetPasswordModal" class="modal" style="display: none;">
             <div class="modal-content">
                 <span class="close-button">&times;</span>
-                <h2>Request Password Reset</h2>
+                <h2
+                  class="password-modal-title"
+                  style="color: #000000 !important; -webkit-text-fill-color: #000000 !important; -webkit-text-stroke: 0 transparent !important; opacity: 1 !important; text-shadow: none !important; filter: none !important;"
+                >Request Password Reset</h2>
                 <p>Enter your email address to receive a password reset link.</p>
                 <form id="resetPasswordForm">
                     <input type="email" id="resetEmail" placeholder="Email Address" required>
@@ -54,7 +57,10 @@ export default function LoginformComponent(formElement) {
         <div id="updatePasswordModal" class="modal" style="display: none;">
             <div class="modal-content">
                 <span class="close-button">&times;</span>
-                <h2>Update Password</h2>
+                <h2
+                  class="password-modal-title"
+                  style="color: #000000 !important; -webkit-text-fill-color: #000000 !important; -webkit-text-stroke: 0 transparent !important; opacity: 1 !important; text-shadow: none !important; filter: none !important;"
+                >Update Password</h2>
                 <form id="updatePasswordForm">
                     <input type="email" id="updateEmail" placeholder="Email Address" required>
                     <input type="text" id="otp" placeholder="Enter OTP" required>

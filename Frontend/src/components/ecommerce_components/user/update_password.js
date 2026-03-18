@@ -7,7 +7,10 @@ function createUpdatePasswordModal() {
       <div class="update-password-modal-content">
         <span class="close-button">&times;</span>
         <form id="updatePasswordForm">
-          <h2>Update Password</h2>
+          <h2
+            class="update-password-modal-title"
+            style="color: #000000 !important; -webkit-text-fill-color: #000000 !important; -webkit-text-stroke: 0 transparent !important; opacity: 1 !important; text-shadow: none !important; filter: none !important;"
+          >Update Password</h2>
 
           <div class="form-group">
             <label for="updateEmail">Email</label>

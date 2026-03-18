@@ -10,7 +10,10 @@ function createPasswordResetModal() {
         <div class="password-reset-modal-content">
           <span class="close-button">&times;</span>
           <form class="password-reset-form">
-            <h2>Reset Password</h2>
+            <h2
+              class="reset-password-modal-title"
+              style="color: #000000 !important; -webkit-text-fill-color: #000000 !important; -webkit-text-stroke: 0 transparent !important; opacity: 1 !important; text-shadow: none !important; filter: none !important;"
+            >Reset Password</h2>
             <p class="email-request-parag">Enter your email address and we will send you instructions to reset your password.</p>
             
             <div class="form-group">

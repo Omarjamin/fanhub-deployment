@@ -140,13 +140,19 @@
 
 #resetPasswordModal .modal-content h2,
 #updatePasswordModal .modal-content h2 {
+    display: block;
     margin: 0 40px 12px 0;
     color: #111111 !important;
+    -webkit-text-fill-color: #111111 !important;
     font-size: clamp(2rem, 4vw, 2.75rem);
     font-weight: 800;
     line-height: 1.05;
     letter-spacing: -0.03em;
-    -webkit-text-stroke: 0;
+    opacity: 1 !important;
+    text-shadow: none !important;
+    filter: none !important;
+    background: none !important;
+    -webkit-text-stroke: 0 !important;
 }
 
 #resetPasswordModal .modal-content p,
@@ -228,4 +234,3 @@
     opacity: 1;
     transform: scale(1.05);
 }
-
