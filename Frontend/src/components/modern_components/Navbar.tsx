@@ -5,6 +5,7 @@ import { getModernResolvedSite } from "@/lib/modern-react/site";
 import { removeAuthToken } from "@/services/ecommerce_services/auth/auth.js";
 import { getModernSiteSlug } from "@/lib/modern-react/context";
 import { isEcommerceLoggedIn, setEcommercePostLoginRedirect } from "@/lib/ecommerceApi";
+import { showConfirmToast, showToast } from "@/utils/toast.js";
 
 const navItems = [
   { label: "Home", id: "home" },
@@ -67,9 +68,16 @@ const Navbar = () => {
 
   const handleAuthClick = () => {
     if (isAuthenticated) {
-      removeAuthToken(siteSlug);
-      setIsAuthenticated(false);
-      navigate("/signin");
+      showConfirmToast(
+        "Are you sure you want to log out?",
+        () => {
+          removeAuthToken(siteSlug);
+          setIsAuthenticated(false);
+          showToast("You have been logged out successfully", "success");
+          navigate("/signin");
+        },
+        () => {},
+      );
       return;
     }
     navigate("/signin");

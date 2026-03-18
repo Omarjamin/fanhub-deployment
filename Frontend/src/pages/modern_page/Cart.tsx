@@ -100,6 +100,7 @@ const Cart = () => {
       toast({
         title: "Removed",
         description: `${item.name} removed from cart.`,
+        variant: "destructive",
       });
     } catch (err: unknown) {
       const message =
@@ -152,7 +153,7 @@ const Cart = () => {
               <p className="text-muted-foreground font-body">Your cart is empty.</p>
               <Link
                 to="/shop"
-                className="inline-block mt-4 rounded-full bg-primary px-5 py-2.5 text-primary-foreground text-sm font-body font-semibold"
+                className="inline-block mt-4 rounded-full bg-primary px-5 py-2.5 text-black text-sm font-body font-semibold hover:text-black"
               >
                 Continue Shopping
               </Link>
