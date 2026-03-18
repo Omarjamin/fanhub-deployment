@@ -129,7 +129,7 @@ export default function createMarketplace() {
             <div class="variant-header">
               <div>
                 <span>Product Variants</span>
-                <p class="variant-helper-text">Set the shipping package details per variant: weight, length, width, and height.</p>
+                <p class="variant-helper-text">Set the shipping package details per variant: weight, length, width, and height. Courier is automatic from Shipping Settings.</p>
               </div>
               <button type="button" class="modal-btn add-variant" id="addVariantBtn">+ Add Variant</button>
             </div>
