@@ -242,11 +242,15 @@ export default function Collection(root, data = {}) {
     );
     const firstPackage = formatVariantPackage(firstVariant);
 
+    const buildPackageLines = (weightValue = 0, packageValue = '') => {
+      const lines = [];
+      if (weightValue > 0) lines.push(`Package Weight: ${weightValue} g`);
+      if (packageValue) lines.push(`Package Size: ${packageValue}`);
+      return lines.join('<br>');
+    };
+
     if (variants.length === 1) {
-      if (firstWeight > 0 && firstPackage) return `${firstWeight} g | ${firstPackage}`;
-      if (firstWeight > 0) return `${firstWeight} g`;
-      if (firstPackage) return firstPackage;
-      return '';
+      return buildPackageLines(firstWeight, firstPackage);
     }
 
     const uniqueWeights = Array.from(
@@ -271,19 +275,29 @@ export default function Collection(root, data = {}) {
     );
 
     if (uniqueWeights.length === 1 && uniquePackages.length === 1) {
-      return `${uniqueWeights[0]} g | ${uniquePackages[0]}`;
+      return buildPackageLines(uniqueWeights[0], uniquePackages[0]);
     }
     if (uniqueWeights.length === 1 && !uniquePackages.length) {
-      return `${uniqueWeights[0]} g`;
+      return buildPackageLines(uniqueWeights[0], '');
     }
     if (!uniqueWeights.length && uniquePackages.length === 1) {
-      return uniquePackages[0];
+      return buildPackageLines(0, uniquePackages[0]);
     }
 
-    if (firstWeight > 0 && firstPackage) return `First size: ${firstWeight} g | ${firstPackage}`;
-    if (firstWeight > 0) return `First size: ${firstWeight} g`;
-    if (firstPackage) return `First size: ${firstPackage}`;
-    return 'Package varies by size';
+    const fallbackLines = [];
+    if (firstWeight > 0) {
+      fallbackLines.push(`Package Weight: ${firstWeight} g (varies)`);
+    } else if (uniqueWeights.length > 1) {
+      fallbackLines.push('Package Weight: varies by size');
+    }
+
+    if (firstPackage) {
+      fallbackLines.push(`Package Size: ${firstPackage} (varies)`);
+    } else if (uniquePackages.length > 1) {
+      fallbackLines.push('Package Size: varies by size');
+    }
+
+    return fallbackLines.join('<br>');
   }
 
   function attachCollectionClickHandlers() {
@@ -456,7 +470,7 @@ export default function Collection(root, data = {}) {
         <img src="${img}" class="product-img" alt="${product.name || ''}">
         <h4>${product.name || ''}</h4>
         ${variantSummary ? `<p class="product-variant-preview">Sizes: ${variantSummary}</p>` : ''}
-        ${shippingPreview ? `<p class="product-shipping-preview">Package: ${shippingPreview}</p>` : ''}
+        ${shippingPreview ? `<p class="product-shipping-preview">${shippingPreview}</p>` : ''}
         <p class="product-price">${formatPHP(price)}</p>
       `;
 
