@@ -20,7 +20,7 @@
   line-height: 1;
   font-weight: 500;
   color: var(--theme-section-heading, #2f4a4e);
-  font-family: var(--theme-font-heading, var(--theme-font-body, Arial, sans-serif));
+  font-family: var(--ec-font-heading, var(--theme-font-heading, var(--theme-font-body, Arial, sans-serif)));
 }
 
 .ec-announcement-list {
@@ -126,15 +126,18 @@
     grid-template-columns: 1fr;
     gap: 8px;
     padding: 16px 0 18px;
+    text-align: center;
+    justify-items: center;
   }
 
   .ec-announcement-link-wrap {
-    justify-content: flex-start;
+    justify-content: center;
   }
 
   .ec-announcement-date,
   .ec-announcement-item-title,
   .ec-announcement-page-label {
     font-size: 0.96rem;
+    text-align: center;
   }
 }
