@@ -90,7 +90,7 @@
 
 .stat-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: clamp(10px, 2vw, 16px);
 }
 
@@ -665,6 +665,27 @@
   line-height: 1.35;
 }
 
+/* Align price with the top of the item image in order details */
+.detail-item .item-info {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  column-gap: 12px;
+}
+
+.detail-item .item-info strong,
+.detail-item .item-info p {
+  grid-column: 1;
+}
+
+.detail-item .item-info p:last-child {
+  grid-column: 2;
+  grid-row: 1;
+  align-self: start;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+}
+
 .order-summary {
   background: #f9fafb;
   border: 1px solid #e5e7eb;
@@ -777,7 +798,9 @@
 
   .stat-row {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px;
+    gap: 16px;
+    justify-items: center;
+    justify-content: center;
   }
 
   .stat-label {
@@ -825,6 +848,17 @@
 
   .order-history-container .btn {
     width: 100%;
+  }
+}
+
+/* Final mobile override: ensure 2-column stats apply on small screens */
+@media (max-width: 640px) {
+  .order-stats .stat-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: clamp(10px, 3vw, 18px) !important;
+    justify-items: center !important;
+    justify-content: center !important;
+    padding-left: 0 !important;
   }
 }
 
@@ -1014,14 +1048,22 @@
 }
 
 .stat-row {
-  gap: 16px;
+  gap: 45px;
+  justify-items: center;
+  align-items: center;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  justify-content: center;
+  padding-left: 50px;
 }
 
 .stat-item {
-  padding: 14px 16px;
+  padding: 18px 20px;
   border-radius: 18px;
   background: #ffffff;
   border: 1px solid color-mix(in srgb, var(--ec-accent) 10%, var(--ec-border) 90%);
+  width: 100%;
+  max-width: 320px;
+  text-align: center;
 }
 
 .stat-label,
