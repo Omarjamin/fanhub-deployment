@@ -453,8 +453,54 @@
     line-height: 1.45;
   }
 
+  .about-title,
+  .about-description {
+    text-align: center;
+  }
+
   .members-list {
     gap: 10px 14px;
+  }
+
+  .member-title,
+  .member-details,
+  .member-info-container {
+    align-items: center;
+    text-align: center;
+  }
+
+  .member-details .detail-row {
+    align-items: center;
+    text-align: center;
+  }
+
+  .member-details .detail-row:nth-child(1) {
+    display: none !important;
+  }
+}
+
+@media (min-width: 645px) and (max-width: 757px) {
+  .member-title,
+  .member-details,
+  .member-info-container {
+    align-items: center;
+    text-align: center;
+  }
+
+  .member-details .detail-row {
+    align-items: center;
+    text-align: center;
+  }
+
+  .member-details .detail-row:nth-child(1) {
+    display: none !important;
+  }
+}
+
+@media (min-width: 646px) and (max-width: 750px) {
+  .about-title,
+  .about-description {
+    text-align: center;
   }
 }
 
@@ -535,7 +581,21 @@
   .member-title,
   .member-details,
   .group-info {
-    text-align: left;
+    text-align: center;
+  }
+
+  .about-title,
+  .about-description {
+    text-align: center;
+  }
+
+  .member-title,
+  .member-details {
+    align-items: center;
+  }
+
+  .member-details .detail-row:nth-child(1) {
+    display: none !important;
   }
 
   .bini-label,

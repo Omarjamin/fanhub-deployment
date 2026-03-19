@@ -28,7 +28,7 @@
   font-weight: 500;
   letter-spacing: 0.02em;
   color: var(--discography-ink);
-  font-family: var(--theme-font-heading, var(--theme-font-body, var(--theme-font-family, Arial, sans-serif)));
+  font-family: var(--ec-font-heading, var(--theme-font-heading, var(--theme-font-body, var(--theme-font-family, Arial, sans-serif))));
 }
 
 .album-carousel {

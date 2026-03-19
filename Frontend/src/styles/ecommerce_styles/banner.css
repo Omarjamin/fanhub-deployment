@@ -44,18 +44,15 @@
 
 .banner-title {
   margin: 0;
-  font-family: var(--theme-font-heading, var(--theme-font-family, Arial, sans-serif));
+  font-family: var(--ec-font-heading, var(--theme-font-heading, var(--theme-font-family, Arial, sans-serif)));
   font-size: clamp(1.9rem, 4vw, 3rem);
   line-height: 1;
   color: var(--theme-section-heading, var(--primary-color, #111827));
+  text-align: center;
 }
 
 .banner-description {
-  margin: 0;
-  max-width: 54rem;
-  font-size: 1rem;
-  line-height: 1.75;
-  color: color-mix(in srgb, var(--surface-text-color, #1f2937) 82%, white 18%);
+  display: none;
 }
 
 .banner-header-actions {
