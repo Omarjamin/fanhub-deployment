@@ -76,11 +76,23 @@ html.ec-template-modern {
 .ec-template-modern .discography-title,
 .ec-template-modern .ec-announcement-title,
 .ec-template-modern #events .section-title,
-.ec-template-modern .checkout-title,
 .ec-template-modern .order-confirm-section .section-title {
   color: var(--text-on-background, #ffffff) !important;
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+/* Checkout title should be black even on modern template */
+.ec-template-modern .checkout-title {
+  color: #111111 !important;
+  text-shadow: none !important;
+  opacity: 1 !important;
+  mix-blend-mode: normal !important;
+  filter: none !important;
+}
+
+.ec-template-modern .checkout-header {
+  opacity: 1 !important;
 }
 
 .ec-template-modern .about-description,

@@ -38,13 +38,13 @@ function getItemShippingMeta(item) {
   const parts = [];
 
   if (weight > 0) {
-    parts.push(`${weight.toLocaleString()}g each`);
+    parts.push(`Weight: ${weight.toLocaleString()}g each`);
   }
   if (dimensions.length > 0 || dimensions.width > 0 || dimensions.height > 0) {
-    parts.push(`${dimensions.length} x ${dimensions.width} x ${dimensions.height} cm`);
+    parts.push(`Package Size: ${dimensions.length} x ${dimensions.width} x ${dimensions.height} cm`);
   }
 
-  return parts.join(' | ');
+  return parts.join('<br>');
 }
 
 function formatPackageSize(length = 0, width = 0, height = 0) {

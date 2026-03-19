@@ -61,13 +61,8 @@
   padding: 24px 28px;
   min-width: min(90vw, 360px);
   border-radius: 20px;
-  border: 1px solid color-mix(in srgb, var(--primary-color, #1f2937) 14%, white 86%);
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--surface-color, #ffffff) 94%, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 6%),
-      color-mix(in srgb, var(--color-primary-soft, var(--theme-accent-soft, #f5d9e7)) 18%, white 82%)
-    );
+  border: none;
+  background: transparent;
 }
 
 .ec-footer-brand-note strong {

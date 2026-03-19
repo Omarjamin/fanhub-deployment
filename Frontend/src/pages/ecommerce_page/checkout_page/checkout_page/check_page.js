@@ -46,7 +46,7 @@ export default async function Checkout() {
         </span>
         <span class="back-label">Back</span>
       </button>
-      <h1 class="checkout-title">Checkout</h1>
+      <h1 class="checkout-title" style="color:#111111; text-shadow:none; opacity:1;">Checkout</h1>
     </div>
   `;
   
