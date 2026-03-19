@@ -157,6 +157,24 @@ const Navbar = () => {
     height: "2.35rem",
   };
 
+  const actionBaseStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    width: "2.5rem",
+    height: "2.5rem",
+    borderRadius: "999px",
+    border: useHeroNav
+      ? "1px solid rgba(255,255,255,0.35)"
+      : "1px solid color-mix(in srgb, var(--color-primary) 22%, white 78%)",
+    background: useHeroNav
+      ? "rgba(255,255,255,0.14)"
+      : "color-mix(in srgb, var(--color-primary-soft) 70%, white 30%)",
+    boxShadow: useHeroNav
+      ? "0 8px 18px rgba(0,0,0,0.18)"
+      : "0 8px 18px rgba(15,23,42,0.12)",
+  };
+
   return (
     <header
       className="fixed top-0 left-0 right-0 z-50 shadow-lg transition-all duration-300"
