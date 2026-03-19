@@ -51,7 +51,7 @@ body.ec-shop-page .navbar nav a.active {
 
 .binishop-banner .banner-content {
   padding: 0;
-  text-align: left;
+  text-align: center;
 }
 
 .binishop-banner .banner-kicker {
@@ -65,13 +65,15 @@ body.ec-shop-page .navbar nav a.active {
 .binishop-banner .banner-title {
   margin: 0 0 0.35rem;
   color: #000000;
+  text-align: center;
 }
 
 .binishop-banner .banner-text {
-  margin: 0;
+  margin: 0 0 24px;
   font-size: 0.96rem;
   line-height: 1.5;
   color: #555555;
+  text-align: center;
 }
 
 @media (max-width: 720px) {

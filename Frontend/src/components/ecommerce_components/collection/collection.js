@@ -41,9 +41,9 @@ export default function Collection(root, data = {}) {
     </section>
 
     <div class="product-section-wrap is-hidden" id="product-wrap" aria-hidden="true">
-      <button type="button" class="collection-back-link" id="collection-back-link" aria-label="Back to collections">←</button>
       <section id="product" class="product-section">
         <div class="product-section-head">
+          <button type="button" class="collection-back-link" id="collection-back-link" aria-label="Back to collections">&larr;</button>
           <h2 class="section-title" id="product-section-title">Products</h2>
         </div>
 
