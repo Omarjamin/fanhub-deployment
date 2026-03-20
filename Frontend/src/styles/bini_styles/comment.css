@@ -210,6 +210,8 @@
   border-radius: 5px;
   border: 1px solid #ccc;
   font-size: 0.9rem;
+  resize: none;
+  overflow: hidden;
 }
 
 .reply-text:focus {

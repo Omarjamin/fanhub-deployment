@@ -85,6 +85,21 @@
   margin-top: 5px;
 }
 
+.post-repost-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 6px;
+  font-size: 0.85rem;
+  color: #6b7280;
+}
+
+.post-repost-meta a {
+  color: #1f2937;
+  text-decoration: none;
+  font-weight: 600;
+}
+
 .profile-bio {
   text-align: center;
   color: #333;
@@ -256,9 +271,10 @@
 
 .post-image {
   width: 100%;
-  max-width: 500px;
   border-radius: 10px;
   margin-bottom: 15px;
+  height: clamp(12.5rem, 50vw, 25rem);
+  max-height: 60vh;
   object-fit: cover;
 }
 
@@ -531,6 +547,71 @@
   overflow-y: auto;
 }
 
+/* Edit post form styling (match homepage adjustments) */
+body:has(.profile-container) .edit-post-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+}
+
+body:has(.profile-container) .edit-post-textarea,
+body:has(.profile-container) .edit-post-file {
+  width: 100%;
+  border-radius: 16px;
+  border: 1px solid #efc3da;
+  background: rgba(255, 255, 255, 0.96);
+  color: #111111;
+  font: inherit;
+}
+
+body:has(.profile-container) .edit-post-textarea {
+  min-height: 138px;
+  padding: 14px 16px;
+  resize: vertical;
+  line-height: 1.6;
+}
+
+body:has(.profile-container) .edit-post-textarea::placeholder {
+  color: #111111;
+  opacity: 0.5;
+}
+
+body:has(.profile-container) .edit-post-textarea:focus,
+body:has(.profile-container) .edit-post-file:focus {
+  outline: none;
+  border-color: #ec4899;
+  box-shadow: 0 0 0 4px rgba(236, 72, 153, 0.12);
+}
+
+body:has(.profile-container) .edit-post-file {
+  padding: 12px 14px;
+  border-style: dashed;
+  background: #fffafb;
+  display: block;
+  color: #111111;
+}
+
+body:has(.profile-container) .edit-post-file::file-selector-button {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111111;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-right: 12px;
+  cursor: pointer;
+}
+
+body:has(.profile-container) .edit-post-file::-webkit-file-upload-button {
+  border: 1px solid #d1d5db;
+  background: #ffffff;
+  color: #111111;
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-right: 12px;
+  cursor: pointer;
+}
+
 body:has(.profile-container) #head > .profile-header,
 body:has(.profile-container) #head .profile-title {
   display: none !important;
@@ -643,9 +724,62 @@ body:has(.profile-container) .feed .post-card:hover {
 
 body:has(.profile-container) .feed .post-meta,
 body:has(.profile-container) .feed .post-meta1 {
-  display: flex;
-  align-items: center;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
   gap: 12px;
+  flex-wrap: nowrap !important;
+}
+
+body:has(.profile-container) .post-time {
+  margin-left: auto;
+}
+
+body:has(.profile-container) .post-menu-container {
+  margin-left: 8px;
+  flex: 0 0 auto;
+}
+
+body:has(.profile-container) .post-meta1 .profile-link + .profile-link {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+body:has(.profile-container) .post-meta1 .profile-link + .profile-link .post-fullname {
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body:has(.profile-container) .post-menu-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+}
+
+@media (max-width: 480px) {
+  body:has(.profile-container) .feed .post-meta1 {
+    flex-wrap: nowrap !important;
+    gap: 8px;
+    align-items: center;
+  }
+
+  body:has(.profile-container) .post-time {
+    margin-left: auto;
+    font-size: 0.78rem;
+  }
+
+  body:has(.profile-container) .post-menu-container {
+    margin-left: 0;
+  }
+
+  body:has(.profile-container) .post-fullname {
+    max-width: 44vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
 }
 
 body:has(.profile-container) .feed .post-tags {
@@ -658,4 +792,86 @@ body:has(.profile-container) .feed .post-tags {
   background: #fff1f7;
   color: #be185d;
   font-weight: 700;
+}
+
+@media (max-width: 480px) {
+  body:has(.profile-container) .profile-container {
+    width: calc(100% - 16px);
+    padding: 20px 14px;
+    border-radius: 22px;
+  }
+
+  body:has(.profile-container) .profile-info {
+    gap: 12px;
+    padding-bottom: 20px;
+  }
+
+  body:has(.profile-container) .profile-picture1 {
+    width: 104px !important;
+    height: 104px !important;
+  }
+
+  body:has(.profile-container) #fullname,
+  body:has(.profile-container) .profile-name {
+    font-size: 1.6rem;
+  }
+
+  body:has(.profile-container) .btn-editbutton,
+  body:has(.profile-container) .btn-follow {
+    width: 100%;
+    min-height: 46px;
+  }
+
+  body:has(.profile-container) .nav-container {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  body:has(.profile-container) .nav-tab,
+  body:has(.profile-container) .profile-nav-item {
+    flex: 1 1 120px;
+    min-height: 44px;
+    padding: 0 14px;
+  }
+
+  body:has(.profile-container) .feed {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  body:has(.profile-container) .feed .post-card {
+    padding: 14px 14px 12px;
+    border-radius: 18px;
+  }
+
+  body:has(.profile-container) .feed .post-meta1 {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  body:has(.profile-container) .feed .post-fullname {
+    font-size: 0.95rem;
+  }
+
+  body:has(.profile-container) .feed .post-time {
+    font-size: 0.78rem;
+  }
+
+  body:has(.profile-container) .feed .post-actions {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  body:has(.profile-container) .feed .post-action {
+    min-width: 64px;
+    padding: 6px 8px;
+  }
+
+body:has(.profile-container) .feed .post-image {
+  width: 100%;
+  height: clamp(12.5rem, 50vw, 25rem);
+  max-height: 60vh;
+  border-radius: 14px;
+  object-fit: cover;
+}
 }
