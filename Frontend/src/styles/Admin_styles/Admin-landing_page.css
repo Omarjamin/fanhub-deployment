@@ -925,19 +925,7 @@ a:hover { color: var(--primary); }
 }
 
 .admin-login-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 2.6rem;
-  padding: 0.7rem 1.15rem;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.04);
-  color: #ffffff !important;
-  font-size: 0.88rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  transition: background-color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  display: none !important;
 }
 
 .admin-login-link:hover {

@@ -221,6 +221,7 @@
   line-height: 0.95;
   letter-spacing: 0.02em;
   color: var(--theme-section-heading, var(--surface-text-color, var(--primary-color, #385257)));
+  margin-bottom: 8px;
 }
 
 .member-details {
@@ -233,6 +234,10 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.member-details .detail-row:first-child {
+  display: none !important;
 }
 
 .detail-label {
