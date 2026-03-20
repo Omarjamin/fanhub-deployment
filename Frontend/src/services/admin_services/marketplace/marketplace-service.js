@@ -111,8 +111,14 @@ export async function createMarketplaceCategory(payload) {
   return readJsonOrThrow(res);
 }
 
-export async function createMarketplaceProduct(payload) {
-  const res = await api(`${ADMIN_API_BASE}/marketplace`, {
+export async function createMarketplaceProduct(payload, community, communityId = null) {
+  const params = new URLSearchParams();
+  if (community) params.set('community', String(community).toLowerCase());
+  if (communityId && Number(communityId) > 0) params.set('community_id', String(communityId));
+  const url = `${ADMIN_API_BASE}/marketplace${
+    params.toString() ? `?${params.toString()}` : ''
+  }`;
+  const res = await api(url, {
     ...getAdminRequestOptions(),
     method: 'POST',
     body: JSON.stringify(payload),

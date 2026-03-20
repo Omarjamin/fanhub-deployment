@@ -155,6 +155,76 @@ class MarketplaceModel {
     return true;
   }
 
+  async ensureProductImageGalleryColumn(db) {
+    const exists = await this.hasColumn(db, 'products', 'image_gallery');
+    if (exists) return true;
+
+    try {
+      await db.query(
+        'ALTER TABLE products ADD COLUMN image_gallery LONGTEXT NULL AFTER image_url',
+      );
+      return true;
+    } catch (error) {
+      if (error?.code === 'ER_DUP_FIELDNAME') return true;
+      return false;
+    }
+  }
+
+  async ensureProductImgUrlColumn(db) {
+    const exists = await this.hasColumn(db, 'products', 'img_url');
+    if (exists) return true;
+
+    try {
+      await db.query(
+        'ALTER TABLE products ADD COLUMN img_url LONGTEXT NULL AFTER image_url',
+      );
+      return true;
+    } catch (error) {
+      if (error?.code === 'ER_DUP_FIELDNAME') return true;
+      return false;
+    }
+  }
+
+  parseImageGallery(value) {
+    if (Array.isArray(value)) {
+      return value
+        .map((item) => String(item || '').trim())
+        .filter(Boolean);
+    }
+
+    const raw = String(value || '').trim();
+    if (!raw) return [];
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((item) => String(item || '').trim())
+          .filter(Boolean);
+      }
+    } catch (_) {
+      // keep raw fallback below
+    }
+
+    return [raw];
+  }
+
+  buildProductImageGallery(rawGallery = [], primaryImage = null, fallbackGallery = []) {
+    const unique = [];
+    const seen = new Set();
+    const push = (candidate) => {
+      const value = String(candidate || '').trim();
+      if (!value || seen.has(value)) return;
+      seen.add(value);
+      unique.push(value);
+    };
+
+    push(primaryImage);
+    this.parseImageGallery(rawGallery).forEach(push);
+    this.parseImageGallery(fallbackGallery).forEach(push);
+    return unique.slice(0, 3);
+  }
+
   async ensureCollectionCategoriesTable(db) {
     await db.query(`
       CREATE TABLE IF NOT EXISTS collection_categories (
@@ -178,6 +248,8 @@ class MarketplaceModel {
     const db = await connect(scoped);
     const scopedCommunityId = await this.resolveCommunityId(scoped);
     const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
+    const hasProductImgUrlColumn = await this.ensureProductImgUrlColumn(db);
+    const hasImageGalleryColumn = await this.hasColumn(db, 'products', 'image_gallery');
     const hasCollectionCommunityId = await this.hasColumn(
       db,
       'collections',
@@ -212,6 +284,8 @@ class MarketplaceModel {
           p.collection_id,
           p.product_category,
           p.image_url,
+          ${hasProductImgUrlColumn ? 'p.img_url,' : 'NULL AS img_url,'}
+          ${hasImageGalleryColumn ? 'p.image_gallery,' : 'NULL AS image_gallery,'}
           ${hasProductCommunityId ? 'p.community_id,' : 'NULL AS community_id,'}
           p.created_at,
           c.name AS collection_name
@@ -259,6 +333,11 @@ class MarketplaceModel {
 
     for (const row of products) {
       const prodVariants = variantsByProduct.get(row.product_id) || [];
+      const imageGallery = this.buildProductImageGallery(
+        row.img_url,
+        row.image_url,
+        row.image_gallery,
+      );
       const totalStock = prodVariants.reduce(
         (sum, v) => sum + Number(v.stock || 0),
         0,
@@ -274,7 +353,11 @@ class MarketplaceModel {
         collection_id: row.collection_id,
         collection_name: row.collection_name,
         product_category: row.product_category,
-        image_url: row.image_url,
+        image_url: imageGallery[0] || row.image_url,
+        img_url: hasProductImgUrlColumn
+          ? (row.img_url || (imageGallery.length ? JSON.stringify(imageGallery) : null))
+          : null,
+        image_gallery: imageGallery,
         created_at: row.created_at,
         community_id: Number(row.community_id || scopedCommunityId || 0) || null,
         community_key: community.key,
@@ -502,37 +585,57 @@ class MarketplaceModel {
     const db = await connect(scoped);
     const scopedCommunityId = await this.resolveCommunityId(scoped);
     const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
+    const hasProductImgUrlColumn = await this.ensureProductImgUrlColumn(db);
+    const hasImageGalleryColumn = await this.ensureProductImageGalleryColumn(db);
     const {
       hasWeightColumn,
       hasLengthColumn,
       hasWidthColumn,
       hasHeightColumn,
     } = await this.ensureVariantShippingColumns(db);
-    const { name, collection_id, product_category, image_url, variants } = data;
+    const { name, collection_id, product_category, image_url, image_gallery, img_url, variants } = data;
     const collectionId = collection_id ?? null;
     const productCategory = String(product_category || 'Apparel').trim();
-    const imageUrl = image_url ? String(image_url).trim() : null;
-
-    let prodResult;
-    if (hasProductCommunityId) {
-      [prodResult] = await db.query(
-        `INSERT INTO products (name, collection_id, product_category, image_url, community_id)
-         VALUES (?, ?, ?, ?, ?)`,
-        [
-          String(name || '').trim(),
-          collectionId,
-          productCategory,
-          imageUrl,
-          scopedCommunityId || 0,
-        ],
-      );
-    } else {
-      [prodResult] = await db.query(
-        `INSERT INTO products (name, collection_id, product_category, image_url)
-         VALUES (?, ?, ?, ?)`,
-        [String(name || '').trim(), collectionId, productCategory, imageUrl],
-      );
+    const galleryImages = this.buildProductImageGallery(img_url, image_url, image_gallery);
+    if (galleryImages.length > 1 && !hasImageGalleryColumn && !hasProductImgUrlColumn) {
+      throw new Error('Multiple product images are not available on this database yet. Please contact support or retry after the img_url/image_gallery column is enabled.');
     }
+    const imageUrl = galleryImages[0] || (image_url ? String(image_url).trim() : null);
+    const productImgUrlPayload =
+      hasProductImgUrlColumn && galleryImages.length
+        ? JSON.stringify(galleryImages)
+        : null;
+    const imageGalleryPayload =
+      hasImageGalleryColumn && galleryImages.length
+        ? JSON.stringify(galleryImages)
+        : null;
+
+    const insertColumns = ['name', 'collection_id', 'product_category', 'image_url'];
+    const insertValues = [
+      String(name || '').trim(),
+      collectionId,
+      productCategory,
+      imageUrl,
+    ];
+
+    if (hasProductImgUrlColumn) {
+      insertColumns.push('img_url');
+      insertValues.push(productImgUrlPayload);
+    }
+    if (hasImageGalleryColumn) {
+      insertColumns.push('image_gallery');
+      insertValues.push(imageGalleryPayload);
+    }
+    if (hasProductCommunityId) {
+      insertColumns.push('community_id');
+      insertValues.push(scopedCommunityId || 0);
+    }
+
+    const [prodResult] = await db.query(
+      `INSERT INTO products (${insertColumns.join(', ')})
+       VALUES (${insertColumns.map(() => '?').join(', ')})`,
+      insertValues,
+    );
     const productId = prodResult?.insertId;
     if (!productId) throw new Error('Failed to create product');
 
@@ -584,6 +687,8 @@ class MarketplaceModel {
     const db = await connect(scoped);
     const scopedCommunityId = await this.resolveCommunityId(scoped);
     const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
+    const hasProductImgUrlColumn = await this.ensureProductImgUrlColumn(db);
+    const hasImageGalleryColumn = await this.ensureProductImageGalleryColumn(db);
     const {
       hasWeightColumn,
       hasLengthColumn,
@@ -593,7 +698,7 @@ class MarketplaceModel {
     const id = Number(productId);
     if (Number.isNaN(id)) throw new Error('Invalid product ID');
 
-    const { name, collection_id, product_category, image_url, variants } = data;
+    const { name, collection_id, product_category, image_url, image_gallery, img_url, variants } = data;
     const updates = [];
     const values = [];
 
@@ -609,9 +714,21 @@ class MarketplaceModel {
       updates.push('product_category = ?');
       values.push(String(product_category).trim());
     }
-    if (image_url !== undefined) {
+    if (image_url !== undefined || image_gallery !== undefined || img_url !== undefined) {
+      const galleryImages = this.buildProductImageGallery(img_url, image_url, image_gallery);
+      if (galleryImages.length > 1 && !hasImageGalleryColumn && !hasProductImgUrlColumn) {
+        throw new Error('Multiple product images are not available on this database yet. Please contact support or retry after the img_url/image_gallery column is enabled.');
+      }
       updates.push('image_url = ?');
-      values.push(image_url ? String(image_url).trim() : null);
+      values.push(galleryImages[0] || null);
+      if (hasProductImgUrlColumn) {
+        updates.push('img_url = ?');
+        values.push(galleryImages.length ? JSON.stringify(galleryImages) : null);
+      }
+      if (hasImageGalleryColumn) {
+        updates.push('image_gallery = ?');
+        values.push(galleryImages.length ? JSON.stringify(galleryImages) : null);
+      }
     }
     if (hasProductCommunityId && scopedCommunityId) {
       updates.push('community_id = ?');

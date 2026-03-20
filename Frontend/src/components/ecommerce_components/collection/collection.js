@@ -155,10 +155,30 @@ export default function Collection(root, data = {}) {
     return '';
   }
 
+  function parseProductImageArray(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || '').trim()).filter(Boolean);
+    }
+
+    const raw = String(value || '').trim();
+    if (!raw) return [];
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item || '').trim()).filter(Boolean);
+      }
+    } catch (_) {
+      // keep raw fallback below
+    }
+
+    return [raw];
+  }
+
   function getProductImage(product) {
     if (!product) return '';
     if (product.image_url) return product.image_url;
-    if (product.img_url) return product.img_url;
+    if (product.img_url) return parseProductImageArray(product.img_url)[0] || '';
     if (product.image) return product.image;
     if (Array.isArray(product.images) && product.images.length) return product.images[0];
     return '';
@@ -471,6 +491,25 @@ export default function Collection(root, data = {}) {
 
       box.addEventListener('click', async () => {
         try {
+          try {
+            sessionStorage.setItem(
+              'selectedProductSnapshot',
+              JSON.stringify({
+                product_id: productId,
+                name: product.name || '',
+                image_url: product.image_url || parseProductImageArray(product.img_url)[0] || product.image || '',
+                img_url: product.img_url || product.image_gallery || [],
+                image_gallery:
+                  product.img_url ??
+                  product.image_gallery ??
+                  product.imageGallery ??
+                  product.images ??
+                  [],
+                images: product.images || [],
+                variants: product.variants || [],
+              }),
+            );
+          } catch (_) {}
           const productPath = communityType
             ? `/fanhub/${communityType}/product/${productId}`
             : `/product/${productId}`;
@@ -504,6 +543,23 @@ export default function Collection(root, data = {}) {
             ...fullProduct,
             variants,
           };
+          merged.image_url =
+            fullProduct?.image_url ||
+            parseProductImageArray(fullProduct?.img_url)[0] ||
+            product?.image_url ||
+            parseProductImageArray(product?.img_url)[0] ||
+            merged.image_url ||
+            '';
+          merged.image_gallery =
+            fullProduct?.img_url ??
+            fullProduct?.image_gallery ??
+            fullProduct?.imageGallery ??
+            product?.img_url ??
+            product?.image_gallery ??
+            product?.imageGallery ??
+            fullProduct?.images ??
+            product?.images ??
+            [];
           merged.price = resolveProductPrice(merged);
           products.push(merged);
         }
@@ -519,10 +575,28 @@ export default function Collection(root, data = {}) {
     currentProducts = [...products];
     collectionModeProducts = [...products];
     try {
+      const productSnapshots = products.map((p) => ({
+        product_id: p.product_id || p.id || p.productId,
+        name: p.name || '',
+        image_url: p.image_url || parseProductImageArray(p.img_url)[0] || p.image || (Array.isArray(p.images) && p.images[0]) || '',
+        img_url: p.img_url || p.image_gallery || p.imageGallery || p.images || [],
+        image_gallery:
+          p.img_url ||
+          p.image_gallery ||
+          p.imageGallery ||
+          p.images ||
+          [],
+        images: p.images || [],
+        variants: p.variants || [],
+      }));
+      sessionStorage.setItem('collectionProductSnapshots', JSON.stringify(productSnapshots));
+
       const relatedPayload = products.map((p) => ({
         product_id: p.product_id || p.id || p.productId,
         name: p.name || '',
-        image_url: p.image_url || p.img_url || p.image || (Array.isArray(p.images) && p.images[0]) || '',
+        image_url: p.image_url || parseProductImageArray(p.img_url)[0] || p.image || (Array.isArray(p.images) && p.images[0]) || '',
+        img_url: p.img_url || p.image_gallery || p.imageGallery || p.images || [],
+        image_gallery: p.img_url || p.image_gallery || p.imageGallery || p.images || [],
         price: p.price ?? resolveProductPrice(p),
       }));
       sessionStorage.setItem('collectionProducts', JSON.stringify(relatedPayload));

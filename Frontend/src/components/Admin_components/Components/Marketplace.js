@@ -122,8 +122,12 @@ export default function createMarketplace() {
             <input id="newProductName" type="text" placeholder="Enter product name" required>
           </label>
           <label class="marketplace-form-group">
-            <span>Product Image</span>
-            <input id="newProductImage" type="file" accept="image/*">
+            <span>Product Images</span>
+            <input id="newProductImage" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple>
+            <p class="marketplace-form-helper">Upload up to 3 images total. JPG and PNG only, max 5 MB each. The first image becomes the main product cover.</p>
+            <div id="newProductImagePreview" class="product-image-preview-grid">
+              <div class="product-image-preview-empty">Add a cover image plus up to 2 extra shots for the product detail gallery.</div>
+            </div>
           </label>
           <div class="marketplace-form-group">
             <div class="variant-header">
@@ -217,10 +221,33 @@ export default function createMarketplace() {
     }
   }
 
-  function resolveProductImage(rawUrl) {
-    const fallback = '/placeholder.svg?height=200&width=200';
+  function parseImageGalleryValue(value) {
+    if (Array.isArray(value)) {
+      return value
+        .flatMap(item => parseImageGalleryValue(item))
+        .filter(Boolean);
+    }
+
+    const raw = String(value || '').trim();
+    if (!raw) return [];
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .flatMap(item => parseImageGalleryValue(item))
+          .filter(Boolean);
+      }
+    } catch (_) {
+      // Keep raw fallback below.
+    }
+
+    return [raw];
+  }
+
+  function resolveProductImageCandidate(rawUrl) {
     const value = String(rawUrl || '').trim();
-    if (!value) return fallback;
+    if (!value) return '';
 
     if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
       return value;
@@ -231,6 +258,46 @@ export default function createMarketplace() {
       return base ? `${base}${value}` : value;
     }
     return base ? `${base}/${value}` : value;
+  }
+
+  function resolveProductImage(rawUrl) {
+    return resolveProductImageCandidate(rawUrl) || '/placeholder.svg?height=200&width=200';
+  }
+
+  function buildResolvedProductGallery(...sources) {
+    const gallery = [];
+    const seen = new Set();
+
+    const pushImage = (candidate) => {
+      const resolved = resolveProductImageCandidate(candidate);
+      if (!resolved || seen.has(resolved)) return;
+      seen.add(resolved);
+      gallery.push(resolved);
+    };
+
+    sources.forEach((source) => {
+      if (!source) return;
+
+      if (Array.isArray(source)) {
+        source.forEach((item) => pushImage(item));
+        return;
+      }
+
+      if (typeof source === 'object') {
+        pushImage(source.image_url);
+        parseImageGalleryValue(source.img_url).forEach(pushImage);
+        pushImage(source.image);
+        pushImage(source.imageUrl);
+        parseImageGalleryValue(source.image_gallery).forEach(pushImage);
+        parseImageGalleryValue(source.imageGallery).forEach(pushImage);
+        parseImageGalleryValue(source.images).forEach(pushImage);
+        return;
+      }
+
+      parseImageGalleryValue(source).forEach(pushImage);
+    });
+
+    return gallery.slice(0, 3);
   }
 
   function findProductById(productId) {
@@ -770,10 +837,113 @@ export default function createMarketplace() {
     const productCategorySelect = section.querySelector('#newProductCategory');
     const productNameInput = section.querySelector('#newProductName');
     const imageInput = section.querySelector('#newProductImage');
+    const imagePreview = section.querySelector('#newProductImagePreview');
     const addVariantBtn = section.querySelector('#addVariantBtn');
     const variantRows = section.querySelector('#variantRows');
+    const MAX_PRODUCT_IMAGES = 3;
+    const MAX_PRODUCT_IMAGE_SIZE = 5 * 1024 * 1024;
+    const allowedImageTypes = new Set(['image/jpeg', 'image/png']);
+    let existingImageGallery = [];
+    let pendingImageFiles = [];
+    let previewUrls = [];
+    let hasImageChanges = false;
+
+    function getImageFileKey(file) {
+      return [file?.name || '', file?.size || 0, file?.lastModified || 0].join('::');
+    }
+
+    function isAllowedImageFile(file) {
+      const type = String(file?.type || '').trim().toLowerCase();
+      const name = String(file?.name || '').trim().toLowerCase();
+      return allowedImageTypes.has(type) || /\.(jpe?g|png)$/i.test(name);
+    }
+
+    function clearPreviewUrls() {
+      previewUrls.forEach((url) => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch (_) {}
+      });
+      previewUrls = [];
+    }
+
+    function renderImagePreview(previewItems = []) {
+      if (!imagePreview) return;
+
+      if (!previewItems.length) {
+        imagePreview.innerHTML = `
+          <div class="product-image-preview-empty">
+            Add a cover image plus up to 2 extra shots for the product detail gallery.
+          </div>
+        `;
+        return;
+      }
+
+      imagePreview.innerHTML = previewItems
+        .map((item, index) => `
+          <div class="product-image-preview-card">
+            <img src="${item.src}" alt="Product preview ${index + 1}">
+            <span class="product-image-preview-badge">
+              ${
+                index === 0
+                  ? (item.state === 'pending' ? 'New cover' : 'Current cover')
+                  : (item.state === 'pending' ? `New shot ${index}` : `Extra shot ${index}`)
+              }
+            </span>
+            <button
+              type="button"
+              class="product-image-preview-remove"
+              data-image-state="${item.state}"
+              data-image-index="${item.index}"
+              aria-label="Remove product image ${index + 1}"
+            >
+              &times;
+            </button>
+          </div>
+        `)
+        .join('');
+    }
+
+    function syncImagePreview() {
+      clearPreviewUrls();
+      const previewItems = [];
+
+      existingImageGallery.slice(0, MAX_PRODUCT_IMAGES).forEach((src, index) => {
+        previewItems.push({
+          src,
+          state: 'existing',
+          index,
+        });
+      });
+
+      pendingImageFiles.slice(0, MAX_PRODUCT_IMAGES).forEach((file, index) => {
+        const objectUrl = URL.createObjectURL(file);
+        previewUrls.push(objectUrl);
+        previewItems.push({
+          src: objectUrl,
+          state: 'pending',
+          index,
+        });
+      });
+
+      renderImagePreview(previewItems.slice(0, MAX_PRODUCT_IMAGES));
+    }
+
+    async function uploadSelectedProductImages(files = []) {
+      const uploadedImages = [];
+      for (const file of files.slice(0, MAX_PRODUCT_IMAGES)) {
+        const uploadedUrl = await uploadMarketplaceImage(file);
+        if (!uploadedUrl) {
+          throw new Error(`Failed to upload "${file?.name || 'product image'}". Please try again.`);
+        }
+        uploadedImages.push(uploadedUrl);
+      }
+      return uploadedImages;
+    }
 
     function closeModal() {
+      clearPreviewUrls();
+      pendingImageFiles = [];
       modal.classList.add('hidden');
     }
 
@@ -788,6 +958,10 @@ export default function createMarketplace() {
       await loadCollectionOptions();
       await loadCategoryOptions();
       resetVariantRows();
+      existingImageGallery = [];
+      pendingImageFiles = [];
+      hasImageChanges = false;
+      syncImagePreview();
       title.textContent = 'Add Product';
       submitBtn.textContent = 'Save Product';
       modal.classList.remove('hidden');
@@ -806,6 +980,12 @@ export default function createMarketplace() {
       await loadCategoryOptions(product.productCategory || '');
       productNameInput.value = product.name;
       imageInput.value = '';
+      existingImageGallery = Array.isArray(product.imageGallery)
+        ? product.imageGallery.slice(0, MAX_PRODUCT_IMAGES)
+        : [];
+      pendingImageFiles = [];
+      hasImageChanges = false;
+      syncImagePreview();
       variantRows.innerHTML = '';
       (product.variants || []).forEach(variant => {
         addVariantRow(normalizeVariantForForm(variant));
@@ -844,6 +1024,76 @@ export default function createMarketplace() {
       await loadCategoryOptions();
     });
     addVariantBtn.addEventListener('click', () => addVariantRow());
+    imageInput.addEventListener('change', () => {
+      const selectedFiles = Array.from(imageInput.files || []);
+      imageInput.value = '';
+      if (!selectedFiles.length) return;
+
+      const invalidTypeFiles = [];
+      const oversizeFiles = [];
+      const duplicateKeys = new Set(pendingImageFiles.map(getImageFileKey));
+      const acceptedFiles = [];
+
+      selectedFiles.forEach((file) => {
+        if (!isAllowedImageFile(file)) {
+          invalidTypeFiles.push(file.name || 'Unnamed file');
+          return;
+        }
+        if (Number(file.size || 0) > MAX_PRODUCT_IMAGE_SIZE) {
+          oversizeFiles.push(file.name || 'Unnamed file');
+          return;
+        }
+        const key = getImageFileKey(file);
+        if (duplicateKeys.has(key)) return;
+        duplicateKeys.add(key);
+        acceptedFiles.push(file);
+      });
+
+      const remainingSlots = Math.max(
+        0,
+        MAX_PRODUCT_IMAGES - existingImageGallery.length - pendingImageFiles.length
+      );
+      const filesToAppend = acceptedFiles.slice(0, remainingSlots);
+
+      if (filesToAppend.length) {
+        pendingImageFiles = [...pendingImageFiles, ...filesToAppend];
+        hasImageChanges = true;
+      }
+
+      const notices = [];
+      if (invalidTypeFiles.length) {
+        notices.push('Only JPG and PNG images are allowed.');
+      }
+      if (oversizeFiles.length) {
+        notices.push('Each image must be 5 MB or smaller.');
+      }
+      if (acceptedFiles.length > filesToAppend.length) {
+        notices.push('You can keep up to 3 product images total. Remove one first if you want to add another.');
+      }
+      if (notices.length) {
+        alert(notices.join(' '));
+      }
+      syncImagePreview();
+    });
+
+    imagePreview?.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('.product-image-preview-remove');
+      if (!removeBtn) return;
+
+      const imageState = removeBtn.dataset.imageState;
+      const imageIndex = Number(removeBtn.dataset.imageIndex);
+      if (!Number.isInteger(imageIndex) || imageIndex < 0) return;
+
+      if (imageState === 'existing') {
+        existingImageGallery = existingImageGallery.filter((_, index) => index !== imageIndex);
+        hasImageChanges = true;
+      } else if (imageState === 'pending') {
+        pendingImageFiles = pendingImageFiles.filter((_, index) => index !== imageIndex);
+        hasImageChanges = true;
+      }
+
+      syncImagePreview();
+    });
 
     variantRows.addEventListener('click', event => {
       const removeBtn = event.target.closest('.remove-variant-btn');
@@ -865,7 +1115,6 @@ export default function createMarketplace() {
       const collection = collectionSelect.value;
       const productCategory = productCategorySelect.value.trim();
       const productName = productNameInput.value.trim();
-      const imageFile = imageInput.files?.[0];
       const variants = collectVariants();
 
       if (!productName) {
@@ -883,7 +1132,6 @@ export default function createMarketplace() {
         community_id,
         collection,
         product_category: productCategory,
-        image_url: null,
         variants: variants.map(v => ({
           variantName: v.variantName,
           variantValue: v.variantValue,
@@ -899,10 +1147,14 @@ export default function createMarketplace() {
       if (editingProductId) {
         const product = findProductById(editingProductId);
         if (!product) return;
-        if (imageFile) {
-          payload.image_url = await uploadMarketplaceImage(imageFile);
-        } else if (typeof product.image === 'string' && product.image.startsWith('http')) {
-          payload.image_url = product.image;
+
+        if (hasImageChanges) {
+          const uploadedImages = await uploadSelectedProductImages(pendingImageFiles);
+
+          const finalImageGallery = [...existingImageGallery, ...uploadedImages].slice(0, MAX_PRODUCT_IMAGES);
+          payload.img_url = finalImageGallery;
+          payload.image_gallery = finalImageGallery;
+          payload.image_url = finalImageGallery[0] || null;
         }
         const dbProductId =
           product.productId ??
@@ -917,11 +1169,15 @@ export default function createMarketplace() {
           alert(error.message || 'Failed to update product. Please try again.');
         }
       } else {
-        if (imageFile) {
-          payload.image_url = await uploadMarketplaceImage(imageFile);
+        if (pendingImageFiles.length) {
+          const uploadedImages = await uploadSelectedProductImages(pendingImageFiles);
+
+          payload.img_url = uploadedImages;
+          payload.image_gallery = uploadedImages;
+          payload.image_url = uploadedImages[0] || null;
         }
         try {
-          await createMarketplaceProduct(payload);
+          await createMarketplaceProduct(payload, community, community_id);
           persistSelectedCommunity(community || getSelectedCommunity());
           await fetchProducts(getSelectedCommunity());
           closeModal();
@@ -1019,6 +1275,7 @@ export default function createMarketplace() {
 
       products = rows.map(row => {
         const variants = Array.isArray(row.variants) ? row.variants : [];
+        const imageGallery = buildResolvedProductGallery(row, row.image_gallery, row.images, row.image_url);
         const communityKeyValue = String(
           row.__community_key || row.community_key || normalizedCommunity || 'all'
         )
@@ -1041,8 +1298,8 @@ export default function createMarketplace() {
           collectionName: String(row.collection_name || '').trim(),
           productCategory: String(row.product_category || 'Apparel').trim(),
           sold: 0,
-          image:
-            resolveProductImage(row.image_url),
+          image: imageGallery[0] || resolveProductImage(row.image_url),
+          imageGallery,
           variants,
         };
       });
