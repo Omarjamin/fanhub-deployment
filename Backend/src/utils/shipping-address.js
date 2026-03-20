@@ -1,14 +1,5 @@
 function stripHtmlToText(value) {
-  const html = String(value ?? '');
-  if (!html) return '';
-
-  if (typeof DOMParser !== 'undefined') {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, 'text/html');
-    return doc.body.textContent || '';
-  }
-
-  return html.replace(/<[^>]*>/g, ' ');
+  return String(value ?? '').replace(/<[^>]*>/g, ' ');
 }
 
 function normalizeShippingUnicode(value) {
@@ -53,42 +44,6 @@ function sanitizeStreetAddress(value, maxLength = 160) {
   return collapseWhitespace(normalized).slice(0, maxLength);
 }
 
-function looksLikeStreetAddress(value) {
-  const normalized = collapseWhitespace(value);
-  if (!normalized) return false;
-
-  const hasDigit = /\d/.test(normalized);
-  const hasAddressHint = STREET_ADDRESS_HINT_PATTERN.test(normalized);
-  return hasDigit || hasAddressHint;
-}
-
-export function sanitizeAddressOption(option = {}, options = {}) {
-  const codeMaxLength = Number.isFinite(options.codeMaxLength) ? options.codeMaxLength : 40;
-  const nameMaxLength = Number.isFinite(options.nameMaxLength) ? options.nameMaxLength : 120;
-  const rawCode = typeof option === 'string'
-    ? option
-    : (option?.code ?? option?.id ?? option?.value ?? '');
-  const rawName = typeof option === 'string'
-    ? option
-    : (
-      option?.name ??
-      option?.label ??
-      option?.text ??
-      option?.regionName ??
-      option?.provinceName ??
-      option?.cityName ??
-      option?.municipalityName ??
-      option?.barangayName ??
-      ''
-    );
-
-  return {
-    ...(typeof option === 'object' && option !== null && !Array.isArray(option) ? option : {}),
-    code: sanitizeShippingText(rawCode, codeMaxLength),
-    name: sanitizeShippingText(rawName, nameMaxLength),
-  };
-}
-
 function sanitizePlainText(value, maxLength = 160) {
   return sanitizeShippingText(value, maxLength);
 }
@@ -118,6 +73,15 @@ function isNcrAddress(address = {}) {
     regionCode === '13' ||
     regionCode === '130000000'
   );
+}
+
+function looksLikeStreetAddress(value) {
+  const normalized = collapseWhitespace(value);
+  if (!normalized) return false;
+
+  const hasDigit = /\d/.test(normalized);
+  const hasAddressHint = STREET_ADDRESS_HINT_PATTERN.test(normalized);
+  return hasDigit || hasAddressHint;
 }
 
 export function sanitizeShippingAddress(address = {}) {

@@ -5,7 +5,7 @@ import {
 } from "../../services/bini_services/post/create-comment-api.js";
 import api from "../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken } from "../../lib/site-context.js";
-import { formatUserTimestamp } from "../../utils/user-time.js";
+import { formatFriendlyDateTime, formatUserTimestamp } from "../../utils/user-time.js";
 import {
   sanitizeCommunityText,
   validateCommunityText,
@@ -22,9 +22,24 @@ function attachCloseButton(root) {
   if (btn) btn.addEventListener("click", navigateHome);
 }
 
-function formatDateDisplay(value) {
+function formatThreadHeaderDate(value) {
   if (!value) return "";
-  return formatUserTimestamp(value);
+  return (
+    formatFriendlyDateTime(value) ||
+    formatUserTimestamp(value) ||
+    sanitizeCommunityText(value, { maxLength: 80 }) ||
+    ""
+  );
+}
+
+function formatCommentTimestamp(value) {
+  if (!value) return "";
+  return (
+    formatUserTimestamp(value) ||
+    formatFriendlyDateTime(value) ||
+    sanitizeCommunityText(value, { maxLength: 80 }) ||
+    ""
+  );
 }
 
 export default async function ThreadTopic(params) {
@@ -65,7 +80,7 @@ export default async function ThreadTopic(params) {
         <button type="button" class="thread-topic-close" aria-label="Close">&times;</button>
         <div class="thread-topic-header">
           <div class="thread-topic-meta">
-            <div class="thread-topic-date">${formatDateDisplay(thread.date || thread.created_at)}</div>
+            <div class="thread-topic-date">${formatThreadHeaderDate(thread.date || thread.created_at)}</div>
             <div class="thread-topic-venue">${thread.venue}</div>
           </div>
           <h1 class="thread-topic-title">
@@ -159,7 +174,7 @@ export default async function ThreadTopic(params) {
         id: reply?.id ?? reply?.reply_id ?? reply?.comment_id ?? `reply-${Date.now()}`,
         content: sanitizeCommunityText(reply?.content ?? reply?.reply_content ?? ""),
         author: reply?.author ?? reply?.fullname ?? reply?.username ?? "You",
-        date: reply?.date ?? formatDateDisplay(reply?.created_at ?? reply?.createdAt),
+        date: reply?.date ?? formatCommentTimestamp(reply?.created_at ?? reply?.createdAt),
         createdAt: reply?.createdAt ?? reply?.created_at ?? null,
         pending: Boolean(reply?.pending),
       };
@@ -172,7 +187,7 @@ export default async function ThreadTopic(params) {
         id: comment?.id ?? comment?.comment_id ?? `comment-${Date.now()}`,
         content: sanitizeCommunityText(comment?.content ?? comment?.comment_content ?? ""),
         author: comment?.author ?? comment?.fullname ?? comment?.username ?? "You",
-        date: comment?.date ?? formatDateDisplay(comment?.created_at ?? comment?.createdAt),
+        date: comment?.date ?? formatCommentTimestamp(comment?.created_at ?? comment?.createdAt),
         createdAt: comment?.createdAt ?? comment?.created_at ?? null,
         pending: Boolean(comment?.pending),
         replies: repliesRaw.map(normalizeReply),

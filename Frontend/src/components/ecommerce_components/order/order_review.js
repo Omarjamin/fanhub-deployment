@@ -11,14 +11,11 @@ import {
     setCheckoutDraftStep,
 } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
 import { formatPeso, toSafeNumber } from '../../../lib/number-format.js';
+import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
 import { sanitizeShippingAddress } from '../../../utils/shipping-address.js';
 
 function formatPackageSize(length = 0, width = 0, height = 0) {
-    const resolvedLength = Number(length || 0);
-    const resolvedWidth = Number(width || 0);
-    const resolvedHeight = Number(height || 0);
-    if (resolvedLength <= 0 && resolvedWidth <= 0 && resolvedHeight <= 0) return 'Not set';
-    return `${resolvedLength} x ${resolvedWidth} x ${resolvedHeight} cm`;
+    return formatPackageDimensions(length, width, height, { emptyLabel: 'Not set' });
 }
 
 function resolveVariantLabel(item) {

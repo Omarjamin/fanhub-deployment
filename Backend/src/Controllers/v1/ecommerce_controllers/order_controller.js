@@ -3,6 +3,7 @@ import CheckoutDraftModel from '../../../Models/ecommerce_model/checkout_draft_m
 import UserCommunityModel from '../../../Models/ecommerce_model/UserCommunityModel.js';
 import { resolveSiteSlug } from '../../../utils/site-scope.js';
 import { resolveCommunityContext } from '../../../core/database.js';
+import { validateShippingAddress } from '../../../utils/shipping-address.js';
 
 class OrderController {
   constructor() {
@@ -56,6 +57,15 @@ class OrderController {
           message: 'site/community scope is required',
         });
       }
+
+      const shippingValidation = validateShippingAddress(payload.shipping_address || {});
+      if (!shippingValidation.isValid) {
+        return res.status(400).json({
+          success: false,
+          message: shippingValidation.errors[0]?.message || 'Shipping address is invalid',
+        });
+      }
+      payload.shipping_address = shippingValidation.sanitized;
 
       const orderId = await this.orderModel.createOrder(userId, communityId, payload, siteSlug);
 

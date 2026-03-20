@@ -169,16 +169,22 @@ export default function Banner(root, data = {}) {
     payload?.site_name || payload?.community_name || payload?.name || 'Community',
   ).trim() || 'Community';
   const images = resolveBannerImages(payload);
+  const galleryCountLabel = `${images.length}+ showcase visuals`;
 
   root.innerHTML += `
     <section id="home" class="banner">
       <div class="banner-shell">
         <div class="banner-header">
           <div class="banner-copy-block">
+            <span class="banner-kicker">Homepage Showcase</span>
             <h2 class="banner-title">Gallery</h2>
             <p class="banner-description">
-              Explore the homepage gallery through responsive image cards sized to keep every uploaded visual clear and balanced, including sets with 10 images or more.
+              Explore featured moments from ${escapeHtml(siteName)} through a homepage gallery built for portraits, event highlights, and group visuals that stay clear on every screen.
             </p>
+            <div class="banner-highlights" aria-label="Gallery highlights">
+              <span class="banner-highlight">${escapeHtml(galleryCountLabel)}</span>
+              <span class="banner-highlight">${escapeHtml(siteName)} visual story</span>
+            </div>
           </div>
           <div class="banner-header-actions"></div>
         </div>

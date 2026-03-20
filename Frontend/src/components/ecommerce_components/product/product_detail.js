@@ -2,6 +2,7 @@ import fetchProductDetails from '../../../services/ecommerce_services/shop/produ
 import { addToCart } from '../cart/cart.js';
 import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
 import { getActiveSiteSlug } from '../../../lib/site-context.js';
+import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
 import { showToast } from '../../../utils/toast.js';
 
 function resolveVariantWeight(variant) {
@@ -36,9 +37,7 @@ function formatVariantPackage(variant) {
   const length = resolveVariantLength(variant);
   const width = resolveVariantWidth(variant);
   const height = resolveVariantHeight(variant);
-
-  if (length <= 0 && width <= 0 && height <= 0) return 'Not set';
-  return `${length} x ${width} x ${height} cm`;
+  return formatPackageDimensions(length, width, height, { emptyLabel: 'Not set' });
 }
 
 function renderVariantSpecs(variant, index = 0) {

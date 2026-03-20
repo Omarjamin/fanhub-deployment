@@ -1,15 +1,20 @@
 import fetchThreads from "../../services/bini_services/thread/thread-api.js";
 import { getActiveSiteSlug } from "../../lib/site-context.js";
-import { formatUserTimestamp } from "../../utils/user-time.js";
+import { formatFriendlyDateTime, formatUserTimestamp } from "../../utils/user-time.js";
 import { escapeHtml, sanitizeCommunityText } from "../../utils/community-text.js";
 
 function formatThreadDate(dateValue, createdAtValue) {
   const explicitDate = sanitizeCommunityText(dateValue, { maxLength: 80 });
+  const formattedExplicitDate = explicitDate ? formatFriendlyDateTime(explicitDate, { dateOnly: true }) : "";
+  if (formattedExplicitDate) {
+    return escapeHtml(formattedExplicitDate);
+  }
   if (explicitDate) {
     return escapeHtml(explicitDate);
   }
 
-  return formatUserTimestamp(createdAtValue) || "No date";
+  const formattedCreatedAt = formatFriendlyDateTime(createdAtValue) || formatUserTimestamp(createdAtValue);
+  return formattedCreatedAt || "No date";
 }
 
 function getSafeThreadText(value, fallback) {

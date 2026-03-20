@@ -17,6 +17,7 @@ type Product = {
   description: string;
   category?: string;
   variantLabel?: string;
+  packageSize?: string;
 };
 
 type ProductGridProps = {
@@ -106,11 +107,6 @@ const ProductGrid = ({ products }: ProductGridProps) => {
                 <h3 className="font-body font-semibold text-black">{product.name}</h3>
                 {product.category ? (
                   <p className="text-xs text-muted-foreground font-body mt-1">{product.category}</p>
-                ) : null}
-                {product.variantLabel ? (
-                  <p className="text-xs text-muted-foreground font-body mt-1">
-                    Sizes: {product.variantLabel}
-                  </p>
                 ) : null}
                 <p className="text-primary font-display text-xl mt-1">{formatPeso(product.price)}</p>
               </div>

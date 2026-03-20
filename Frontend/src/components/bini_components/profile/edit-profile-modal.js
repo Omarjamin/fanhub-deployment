@@ -6,6 +6,7 @@ import {
   IMAGE_UPLOAD_ACCEPT_ATTR,
   validateSingleImageFile,
 } from '../../../utils/image-upload.js';
+import { validateProfileFullname } from '../../../utils/profile-name.js';
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
 const PROFILE_IMAGE_LABEL = "Profile image";
@@ -26,7 +27,7 @@ export default function showEditProfileModal(user, token, onUpdate) {
       <form id="editProfileForm" class="edit-profile-form">
         <div class="form-group">
           <label for="editFullname">Full Name:</label>
-          <input type="text" id="editFullname" value="${user.fullname || ''}" required>
+          <input type="text" id="editFullname" value="${user.fullname || ''}" maxlength="80" autocomplete="name" required>
         </div>
         
         <div class="form-group">
@@ -117,7 +118,17 @@ export default function showEditProfileModal(user, token, onUpdate) {
   // Handle form submit with backend integration and image upload
   modal.querySelector('#editProfileForm').onsubmit = async (e) => {
     e.preventDefault();
-    const newFullname = modal.querySelector('#editFullname').value;
+    const fullNameInput = modal.querySelector('#editFullname');
+    const nameValidation = validateProfileFullname(fullNameInput.value, {
+      label: 'Full name',
+    });
+    if (!nameValidation.isValid) {
+      showToast(nameValidation.errors[0], 'error');
+      return;
+    }
+
+    const newFullname = nameValidation.sanitized;
+    fullNameInput.value = newFullname;
     let newProfilePic = user.profile_picture || "";
 
     // Upload new profile picture if selected
@@ -180,7 +191,11 @@ export default function showEditProfileModal(user, token, onUpdate) {
       modal.remove();
       showToast('Profile updated successfully!', 'success');
     } catch (error) {
-      showToast("Error updating profile: " + error.message, 'error');
+      const message =
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to update profile';
+      showToast("Error updating profile: " + message, 'error');
     }
   };
 }

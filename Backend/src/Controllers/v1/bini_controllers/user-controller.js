@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
 import UserModel from "../../../Models/bini_models/User-Account-Model.js";
+import { validateProfileName } from "../../../utils/profile-name.js";
 import { resolveSiteSlug } from "../../../utils/site-scope.js";
 
 class UserController {
@@ -389,9 +390,11 @@ class UserController {
   // Update user profile
   async updateUser(req, res) {
     const userId = res.locals.userId;
-    const { fullname, profile_picture } = req.body;
+    const payload = req.body || {};
+    const hasFullname = Object.prototype.hasOwnProperty.call(payload, "fullname");
+    const hasProfilePicture = Object.prototype.hasOwnProperty.call(payload, "profile_picture");
 
-    if (!fullname && !profile_picture) {
+    if (!hasFullname && !hasProfilePicture) {
       return res
         .status(400)
         .json({ error: "At least one field is required to update" });
@@ -400,8 +403,18 @@ class UserController {
     try {
       await this.ensureDbForRequest(req, res);
       const updates = {};
-      if (fullname) updates.fullname = fullname;
-      if (profile_picture) updates.profile_picture = profile_picture;
+      if (hasFullname) {
+        const fullnameValidation = validateProfileName(payload.fullname, {
+          label: "Full name",
+        });
+        if (!fullnameValidation.isValid) {
+          return res.status(400).json({ error: fullnameValidation.errors[0] });
+        }
+        updates.fullname = fullnameValidation.sanitized;
+      }
+      if (hasProfilePicture) {
+        updates.profile_picture = String(payload.profile_picture ?? "").trim();
+      }
 
       const success = await this.userModel.updateUser(userId, updates);
 

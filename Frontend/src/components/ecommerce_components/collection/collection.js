@@ -5,6 +5,7 @@ import { api } from '../../../services/ecommerce_services/api.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
 import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
 import { getActiveSiteSlug } from '../../../lib/site-context.js';
+import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
 import '../../../styles/ecommerce_styles/Collection.css';
 
 export default function Collection(root, data = {}) {
@@ -209,8 +210,7 @@ export default function Collection(root, data = {}) {
     const length = resolveVariantDimension(variant, ['length_cm', 'lengthCm', 'package_length_cm', 'length']);
     const width = resolveVariantDimension(variant, ['width_cm', 'widthCm', 'package_width_cm', 'width']);
     const height = resolveVariantDimension(variant, ['height_cm', 'heightCm', 'package_height_cm', 'height']);
-    if (length <= 0 && width <= 0 && height <= 0) return '';
-    return `${length} x ${width} x ${height} cm`;
+    return formatPackageDimensions(length, width, height, { emptyLabel: '' });
   }
 
   function buildVariantSummary(product) {
@@ -460,17 +460,12 @@ export default function Collection(root, data = {}) {
       const img = getProductImage(product) || '';
       const productId = product.product_id || product.id || product.productId;
       const price = resolveProductPrice(product);
-      const variantSummary = buildVariantSummary(product);
-      const shippingPreview = buildShippingPreview(product);
-
       const box = document.createElement('div');
       box.className = 'product-item';
       box.dataset.productId = productId;
       box.innerHTML = `
         <img src="${img}" class="product-img" alt="${product.name || ''}">
         <h4>${product.name || ''}</h4>
-        ${variantSummary ? `<p class="product-variant-preview">Sizes: ${variantSummary}</p>` : ''}
-        ${shippingPreview ? `<p class="product-shipping-preview">${shippingPreview}</p>` : ''}
         <p class="product-price">${formatPHP(price)}</p>
       `;
 

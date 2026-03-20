@@ -59,6 +59,38 @@ function formatAbsoluteTimestamp(date, now = new Date()) {
   });
 }
 
+function looksLikeDateOnlyValue(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return false;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return true;
+  if (/T00:00(?::00(?:\.0+)?)?Z$/i.test(raw)) return true;
+  if (/T00:00(?::00(?:\.0+)?)?(?:[+-]\d{2}:\d{2})$/i.test(raw)) return true;
+  return false;
+}
+
+export function formatFriendlyDateTime(value, options = {}) {
+  if (!value && value !== 0) return "";
+
+  const date = parseUserTimestamp(value);
+  if (!date) return "";
+
+  const dateOnly = options.dateOnly ?? looksLikeDateOnlyValue(value);
+  const useUtc = options.timeZone === "UTC" || (dateOnly && looksLikeDateOnlyValue(value));
+
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    ...(dateOnly
+      ? {}
+      : {
+          hour: "numeric",
+          minute: "2-digit",
+        }),
+    ...(useUtc ? { timeZone: "UTC" } : {}),
+  }).format(date);
+}
+
 export function formatUserTimestamp(value) {
   if (!value) return "";
 

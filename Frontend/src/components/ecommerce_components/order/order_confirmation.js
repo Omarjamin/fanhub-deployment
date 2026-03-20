@@ -2,6 +2,7 @@ import Navigation from '../navigation.js';
 import Footer from '../footer.js';
 import { api } from '../../../services/ecommerce_services/config.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
+import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
 import { sanitizeShippingAddress, sanitizeShippingText } from '../../../utils/shipping-address.js';
 import '../../../styles/ecommerce_styles/order_confirmation.css';
 
@@ -30,11 +31,7 @@ function resolveItemDimensions(item) {
 }
 
 function formatPackageSize(length = 0, width = 0, height = 0) {
-  const resolvedLength = Number(length || 0);
-  const resolvedWidth = Number(width || 0);
-  const resolvedHeight = Number(height || 0);
-  if (resolvedLength <= 0 && resolvedWidth <= 0 && resolvedHeight <= 0) return '';
-  return `${resolvedLength} x ${resolvedWidth} x ${resolvedHeight} cm`;
+  return formatPackageDimensions(length, width, height, { emptyLabel: '' });
 }
 
 function getItemPackageSize(item) {
