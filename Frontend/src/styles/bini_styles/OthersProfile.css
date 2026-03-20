@@ -637,3 +637,106 @@ body:has(.profile-container) #head .profile-title {
 .feed .report-post-option:hover {
   background: #f3f4f6;
 }
+
+/* Followers / Following modal */
+.profile-follow-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(12, 20, 30, 0.55);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 12000;
+  padding: 20px;
+}
+
+.profile-follow-modal.open {
+  display: flex;
+}
+
+.profile-follow-dialog {
+  width: min(520px, 92vw);
+  max-height: 80vh;
+  background: #ffffff;
+  border-radius: 18px;
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.26);
+  border: 1px solid rgba(57, 189, 254, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.profile-follow-header {
+  padding: 14px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e6edf5;
+  background: #f8fbff;
+}
+
+.profile-follow-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #223;
+  margin: 0;
+}
+
+.profile-follow-close {
+  border: none;
+  background: #fff;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
+}
+
+.profile-follow-body {
+  padding: 16px;
+  overflow-y: auto;
+}
+
+.profile-follow-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.profile-follow-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #f1d5e3;
+  background: #fffafb;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.profile-follow-item:hover {
+  background: #fff1f7;
+  border-color: #f3bfd8;
+}
+
+.profile-follow-item img {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid #f9a8d4;
+}
+
+.profile-follow-name {
+  font-weight: 700;
+  color: #1f2340;
+}
+
+.profile-follow-empty {
+  color: #6b7280;
+  text-align: center;
+  margin: 12px 0;
+}

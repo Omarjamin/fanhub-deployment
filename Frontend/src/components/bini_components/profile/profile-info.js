@@ -70,6 +70,9 @@ export default async function ProfileInfo(root, data = {}) {
   const profilePicture = root.querySelector("#profilePicture");
   const fullname = root.querySelector("#fullname");
   const editBtn = root.querySelector("#editProfileBtn");
+  const followersStat = root.querySelector("#followersCount");
+  const followingStat = root.querySelector("#followingCount");
+  let followModal = null;
 
   // Bind edit action early so it still works even if another part of the page fails.
   if (editBtn) {
@@ -123,6 +126,128 @@ export default async function ProfileInfo(root, data = {}) {
       loadProfileStats(userId, root).catch((err) => {
         console.error("Stats loading failed, but continuing:", err);
       });
+
+      const ensureFollowModal = () => {
+        if (followModal) return followModal;
+        followModal = document.createElement("div");
+        followModal.className = "profile-follow-modal";
+        followModal.innerHTML = `
+          <div class="profile-follow-dialog" role="dialog" aria-modal="true">
+            <div class="profile-follow-header">
+              <h3 class="profile-follow-title">Followers</h3>
+              <button type="button" class="profile-follow-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="profile-follow-body">
+              <div class="profile-follow-list"></div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(followModal);
+        followModal.querySelector(".profile-follow-close")?.addEventListener("click", () => {
+          followModal.classList.remove("open");
+        });
+        followModal.addEventListener("click", (event) => {
+          if (event.target === followModal) {
+            followModal.classList.remove("open");
+          }
+        });
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && followModal.classList.contains("open")) {
+            followModal.classList.remove("open");
+          }
+        });
+        return followModal;
+      };
+
+      const normalizeList = (payload, key) => {
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload?.[key])) return payload[key];
+        if (Array.isArray(payload?.data)) return payload.data;
+        return [];
+      };
+
+      const renderFollowList = (items, title) => {
+        const modal = ensureFollowModal();
+        const titleEl = modal.querySelector(".profile-follow-title");
+        const listEl = modal.querySelector(".profile-follow-list");
+        if (titleEl) titleEl.textContent = title;
+        if (listEl) {
+          if (!items.length) {
+            listEl.innerHTML = `<p class="profile-follow-empty">No ${title.toLowerCase()} yet.</p>`;
+          } else {
+            listEl.innerHTML = items
+              .map((item) => {
+                const name = item.fullname || item.username || "User";
+                const avatar = item.profile_picture || DEFAULT_PROFILE_IMAGE;
+                const id = item.user_id || item.id || "";
+                return `
+                  <div class="profile-follow-item" data-user-id="${id}">
+                    <img src="${avatar}" alt="${name}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">
+                    <div class="profile-follow-name">${name}</div>
+                  </div>
+                `;
+              })
+              .join("");
+          }
+        }
+        modal.classList.add("open");
+        if (listEl && !listEl.__boundProfileLinks) {
+          listEl.__boundProfileLinks = true;
+          listEl.addEventListener("click", (event) => {
+            const target = event.target.closest(".profile-follow-item");
+            if (!target) return;
+            const selectedId = target.getAttribute("data-user-id");
+            if (!selectedId) return;
+            const activeCommunityType = String(
+              getActiveSiteSlug() ||
+              sessionStorage.getItem("community_type") ||
+              "",
+            ).trim().toLowerCase();
+            const basePath = resolveCommunityBasePath(activeCommunityType);
+            if (String(selectedId) === String(userId)) {
+              window.history.pushState({}, "", `${basePath}/profile`);
+              window.dispatchEvent(new Event("popstate"));
+              followModal.classList.remove("open");
+              return;
+            }
+            sessionStorage.setItem("selectedUserId", String(selectedId));
+            window.history.pushState(
+              {},
+              "",
+              `${basePath}/others-profile?userId=${encodeURIComponent(String(selectedId))}`,
+            );
+            window.dispatchEvent(new Event("popstate"));
+            followModal.classList.remove("open");
+          });
+        }
+      };
+
+      const openFollowers = async () => {
+        try {
+          const res = await api.get(`/bini/users/${encodeURIComponent(String(userId))}/followers`);
+          const items = normalizeList(res.data, "followers");
+          renderFollowList(items, "Followers");
+        } catch (error) {
+          showToast("Failed to load followers.", "error");
+        }
+      };
+
+      const openFollowing = async () => {
+        try {
+          const res = await api.get(`/bini/users/${encodeURIComponent(String(userId))}/following`);
+          const items = normalizeList(res.data, "following");
+          renderFollowList(items, "Following");
+        } catch (error) {
+          showToast("Failed to load following.", "error");
+        }
+      };
+
+      if (followersStat) {
+        followersStat.addEventListener("click", openFollowers);
+      }
+      if (followingStat) {
+        followingStat.addEventListener("click", openFollowing);
+      }
 
       const profileNavItems = root.querySelectorAll(".profile-nav-item");
       profileNavItems.forEach((item) => {
