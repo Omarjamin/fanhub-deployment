@@ -36,6 +36,20 @@ export default async function ProfileInfo(root, data = {}) {
           <button id="editProfileBtn" class="btn-editbutton">Edit Profile</button>
         </div>
       </div>
+      <div class="profile-stats">
+        <div class="stat-item" id="followersCount">
+          <span class="stat-count">0</span>
+          <span class="stat-label">Followers</span>
+        </div>
+        <div class="stat-item" id="followingCount">
+          <span class="stat-count">0</span>
+          <span class="stat-label">Following</span>
+        </div>
+        <div class="stat-item" id="likesCount">
+          <span class="stat-count">0</span>
+          <span class="stat-label">Likes</span>
+        </div>
+      </div>
       <div class="nav-container">
         <button class="profile-nav-item active" data-tab="threads">Bloomies</button>
         <button class="profile-nav-item" data-tab="reposts">Reposts</button>
@@ -106,6 +120,9 @@ export default async function ProfileInfo(root, data = {}) {
       fullname.textContent = user.fullname || "Anonymous";
       const userId = user.user_id;
       renderPosts("threads", userId, token, root.querySelector(".feed"), user);
+      loadProfileStats(userId, root).catch((err) => {
+        console.error("Stats loading failed, but continuing:", err);
+      });
 
       const profileNavItems = root.querySelectorAll(".profile-nav-item");
       profileNavItems.forEach((item) => {
@@ -153,6 +170,13 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
       return;
     }
 
+    posts = posts
+      .slice()
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+
+    const repostOriginals =
+      tab === "reposts" ? await hydrateRepostOriginals(posts) : new Map();
+
     const likeStatusPromises = posts.map((post) =>
       fetchIsLikedStatus(post.post_id, userId, token),
     );
@@ -161,6 +185,11 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
       fetchLikedCounts(post.post_id, userId, token),
     );
     const countlike = await Promise.all(likecountPromises);
+    if (tab === "threads") {
+      const likesTotal = countlike.reduce((sum, value) => sum + (Number(value) || 0), 0);
+      const likesCountEl = feed.closest(".profile-container")?.querySelector("#likesCount .stat-count");
+      if (likesCountEl) likesCountEl.textContent = String(likesTotal);
+    }
 
 	    posts.forEach((post, index) => {
 	      const postCreationTime = formatDate(post.created_at);
@@ -171,6 +200,9 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
       const postProfilePic = post.profile_picture || ownerUser?.profile_picture || DEFAULT_PROFILE_IMAGE;
       const isOwnPost = String(postUserId) === String(userId);
       const tags = Array.isArray(post.tags) ? post.tags : [];
+      const originalPost = repostOriginals.get(String(post.repost_id || "")) || null;
+      const originalName = originalPost?.fullname || null;
+      const originalUserId = originalPost?.user_id || null;
 
 	      const postContent = `
 	        <div class="post-card" data-post-id="${post.post_id}" data-owner-id="${postUserId}">
@@ -184,6 +216,12 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
 	            <span class="post-time">${postCreationTime}</span>
               ${buildPostMenuHtml({ postId: post.post_id, isOwnPost: true })}
           </div>
+          ${tab === "reposts" && originalName ? `
+            <div class="post-repost-meta">
+              <span>Reposted from</span>
+              <a href="#" class="profile-link" data-user-id="${originalUserId || ''}">${originalName}</a>
+            </div>
+          ` : ""}
           <div class="post-content">${post.content || "No content available"}</div>
           ${tags.length ? `<div class="post-tags">${tags.join(", ")}</div>` : ""}
           ${post.img_url ? `<img src="${post.img_url}" alt="Post Image" class="post-image" />` : ""}
@@ -344,6 +382,27 @@ export async function fetchUserReposts() {
     return [];
   }
 }
+
+async function hydrateRepostOriginals(posts) {
+  const map = new Map();
+  const uniqueIds = Array.from(
+    new Set(posts.map((post) => post.repost_id).filter(Boolean).map(String)),
+  );
+  if (!uniqueIds.length) return map;
+
+  const results = await Promise.allSettled(
+    uniqueIds.map((id) => api.get(`/bini/posts/${encodeURIComponent(id)}`)),
+  );
+
+  results.forEach((result, index) => {
+    if (result.status !== "fulfilled") return;
+    const original = result.value?.data;
+    if (!original) return;
+    map.set(uniqueIds[index], original);
+  });
+
+  return map;
+}
 // Toggle like function
 export async function toggleLike(postId, likeType = "post", commentId = null) {
   try {
@@ -397,6 +456,60 @@ export async function deletePost(postId) {
       error.response?.data?.message || error.message || "Failed to delete post";
     alert("Error deleting post: " + message);
     throw new Error(message);
+  }
+}
+
+// LOAD PROFILE STATS (Followers, Following)
+async function loadProfileStats(userId, root) {
+  const followersCountEl = root.querySelector("#followersCount .stat-count");
+  const followingCountEl = root.querySelector("#followingCount .stat-count");
+
+  try {
+    const [followersRes, followingRes] = await Promise.allSettled([
+      api.get(`/bini/users/${encodeURIComponent(String(userId))}/follower-count`),
+      api.get(`/bini/users/${encodeURIComponent(String(userId))}/following-count`),
+    ]);
+
+    let followerCount =
+      followersRes.status === "fulfilled"
+        ? Number(followersRes.value?.data?.followerCount ?? followersRes.value?.data?.count ?? 0)
+        : null;
+    let followingCount =
+      followingRes.status === "fulfilled"
+        ? Number(followingRes.value?.data?.followingCount ?? followingRes.value?.data?.count ?? 0)
+        : null;
+
+    if (followerCount === null || followingCount === null) {
+      const [followersListRes, followingListRes] = await Promise.allSettled([
+        api.get(`/bini/users/${encodeURIComponent(String(userId))}/followers`),
+        api.get(`/bini/users/${encodeURIComponent(String(userId))}/following`),
+      ]);
+
+      if (followerCount === null && followersListRes.status === "fulfilled") {
+        const followers = followersListRes.value?.data?.followers;
+        followerCount = Array.isArray(followers) ? followers.length : 0;
+      }
+
+      if (followingCount === null && followingListRes.status === "fulfilled") {
+        const following = followingListRes.value?.data?.following;
+        followingCount = Array.isArray(following) ? following.length : 0;
+      }
+    }
+
+    if (followersCountEl) {
+      followersCountEl.textContent = String(
+        Number.isFinite(followerCount) ? followerCount : 0,
+      );
+    }
+    if (followingCountEl) {
+      followingCountEl.textContent = String(
+        Number.isFinite(followingCount) ? followingCount : 0,
+      );
+    }
+  } catch (error) {
+    console.error("Error loading profile stats:", error);
+    if (followersCountEl) followersCountEl.textContent = "0";
+    if (followingCountEl) followingCountEl.textContent = "0";
   }
 }
 

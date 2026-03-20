@@ -1126,16 +1126,36 @@ body:has(.thread-topic-container) .threads-fab {
   }
 
   .post-input-container {
-    grid-template-columns: 40px minmax(0, 1fr) auto auto !important;
+    grid-template-columns: 36px minmax(0, 1fr) 32px auto !important;
     gap: 6px !important;
   }
 
   .profile-pic {
-    width: 40px !important;
-    height: 40px !important;
-    min-width: 40px !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+
+  .post-textarea {
+    padding: 8px 10px !important;
+    font-size: 0.85rem !important;
+    min-height: 38px !important;
+  }
+
+  .image-icon {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+  }
+
+  #submit-post.btn-primary {
+    min-width: 62px !important;
+    height: 30px !important;
+    padding: 0 8px !important;
+    font-size: 0.8rem !important;
   }
 }
+
 
 /* ===== CONSOLIDATED HOMEPAGE COLUMN ALIGNMENT (>=769px) ===== */
 @media (min-width: 769px) {
