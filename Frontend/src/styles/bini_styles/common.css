@@ -384,11 +384,6 @@ input[type="text"], input[type="email"], input[type="password"] {
   min-height: 40px;
 }
 
-#addCommentBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(235, 76, 187, 0.3);
-}
-
 #addCommentBtn:disabled {
   background: #ccc;
   cursor: not-allowed;
@@ -527,12 +522,6 @@ input[type="text"], input[type="email"], input[type="password"] {
   transition: background 0.2s ease;
 }
 
-.comment-box:hover {
-  background-color: #fafafa;
-  padding: 12px 8px;
-  border-radius: 8px;
-}
-
 .comment-box:last-child {
   border-bottom: none;
 }
@@ -592,10 +581,6 @@ input[type="text"], input[type="email"], input[type="password"] {
   font-weight: 500;
 }
 
-.reply-button:hover {
-  color: var(--accent-color, #eb4cbb);
-}
-
 .reply-button .material-icons {
   font-size: 1rem;
 }
@@ -608,10 +593,6 @@ input[type="text"], input[type="email"], input[type="password"] {
   transition: color 0.2s ease;
   display: flex;
   align-items: center;
-}
-
-.reply-count:hover {
-  color: var(--accent-color, #eb4cbb);
 }
 
 /* Replies container - nested replies with indentation */
@@ -699,11 +680,6 @@ input[type="text"], input[type="email"], input[type="password"] {
   font-weight: 600;
   font-size: 0.9rem;
   transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.submit-reply-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(235, 76, 187, 0.3);
 }
 
 .submit-reply-btn:disabled {

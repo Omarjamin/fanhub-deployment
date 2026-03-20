@@ -6,6 +6,8 @@ import CreatePostModal from "./create-post-modal.js";
 import setupThreadsFab from "../threads-fab.js";
 import { isTemplatePreviewMode } from "../../../lib/template-preview.js";
 
+const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
+
 function sanitizePostContent(value) {
   const html = String(value || "");
   const parser = new DOMParser();
@@ -92,7 +94,7 @@ export default async function Header(root, data = {}) {
       <!-- ROW 1: Profile Pic → Textarea → Icon → Button -->
       <div class="post-input-container">
         <!-- Profile Picture -->
-        <img src="${profilePicUrl}" alt="Profile" class="profile-pic"/>
+        <img src="${profilePicUrl || DEFAULT_PROFILE_IMAGE}" alt="Profile" class="profile-pic" onerror="this.src='${DEFAULT_PROFILE_IMAGE}';"/>
         
         <!-- Text Area -->
         <textarea

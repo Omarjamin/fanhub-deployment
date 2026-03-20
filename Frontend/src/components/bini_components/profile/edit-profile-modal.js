@@ -2,9 +2,12 @@ import '../../../styles/bini_styles/EditProfileModal.css';
 import api from '../../../services/bini_services/api.js';
 import { showToast } from '../../../utils/toast.js';
 
+const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
+
 export default function showEditProfileModal(user, token, onUpdate) {
   const existing = document.getElementById('editProfileModal');
   if (existing) existing.remove();
+  const hasExistingPhoto = Boolean(user?.profile_picture);
 
   const modal = document.createElement('div');
   modal.id = 'editProfileModal';
@@ -23,11 +26,15 @@ export default function showEditProfileModal(user, token, onUpdate) {
         <div class="form-group">
           <label>Profile Picture:</label>
           <img id="previewProfilePic" 
-               src="${user.profile_picture || ''}" 
+               src="${user.profile_picture || DEFAULT_PROFILE_IMAGE}" 
                class="profile-picture-preview" 
-               alt="Profile preview">
+               alt="Profile preview"
+               onerror="this.src='${DEFAULT_PROFILE_IMAGE}';">
           
           <div class="file-upload-wrapper">
+            <button type="button" id="removeProfilePic" class="remove-photo-button" ${hasExistingPhoto ? "" : "disabled"}>
+              Remove Photo
+            </button>
             <label for="editProfilePicFile" class="file-upload-label">
               Choose Photo
             </label>
@@ -52,6 +59,9 @@ export default function showEditProfileModal(user, token, onUpdate) {
   // Preview image on file select
   const fileInput = modal.querySelector('#editProfilePicFile');
   const previewImg = modal.querySelector('#previewProfilePic');
+  const removeButton = modal.querySelector('#removeProfilePic');
+  let removePhotoRequested = false;
+
   fileInput.addEventListener('change', () => {
     if (fileInput.files && fileInput.files[0]) {
       const reader = new FileReader();
@@ -59,8 +69,19 @@ export default function showEditProfileModal(user, token, onUpdate) {
         previewImg.src = e.target.result;
       };
       reader.readAsDataURL(fileInput.files[0]);
+      removePhotoRequested = false;
+      if (removeButton) removeButton.disabled = false;
     }
   });
+
+  if (removeButton) {
+    removeButton.addEventListener('click', () => {
+      removePhotoRequested = true;
+      fileInput.value = "";
+      previewImg.src = DEFAULT_PROFILE_IMAGE;
+      removeButton.disabled = true;
+    });
+  }
 
   // Close modal logic
   modal.querySelector('#closeEditModal').onclick = () => {
@@ -92,6 +113,8 @@ export default function showEditProfileModal(user, token, onUpdate) {
         showToast('Failed to upload image: ' + err.message, 'error');
         return;
       }
+    } else if (removePhotoRequested) {
+      newProfilePic = "";
     } else {
       // No new image selected, keep existing
       newProfilePic = user.profile_picture || "";

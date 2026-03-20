@@ -2800,7 +2800,7 @@
   margin: 96px auto 0;
   padding: 0 18px;
   display: grid;
-  grid-template-columns: minmax(128px, 180px) 1fr minmax(128px, 180px);
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 16px;
   position: relative;
@@ -2815,6 +2815,8 @@
   margin: 0;
   padding: 0;
   text-align: center;
+  justify-self: center;
+  grid-column: 2;
   color: #000000;
   opacity: 1 !important;
   text-shadow: none;
@@ -3268,7 +3270,7 @@
 
 @media (max-width: 1024px) {
   .checkout-main .checkout-header {
-    grid-template-columns: minmax(110px, 150px) 1fr minmax(110px, 150px);
+    grid-template-columns: 1fr auto 1fr;
     margin-top: 88px;
   }
 
@@ -3287,9 +3289,10 @@
 
 @media (max-width: 768px) {
   .checkout-main .checkout-header {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 12px;
     margin-top: 84px;
+    align-items: center;
   }
 
   .checkout-main #back-to-shop.btn-link {
@@ -3297,7 +3300,7 @@
   }
 
   .checkout-main .checkout-title {
-    text-align: left;
+    text-align: center;
     font-size: clamp(1.65rem, 7vw, 2.3rem);
   }
 
@@ -3347,6 +3350,7 @@
 
 @media (max-width: 480px) {
   .checkout-main .checkout-header {
+    grid-template-columns: 1fr auto 1fr;
     margin-top: 70px;
     padding: 0 14px;
   }
@@ -3357,7 +3361,7 @@
   }
 
   .checkout-main .checkout-title {
-    text-align: left;
+    text-align: center;
     font-size: clamp(1.45rem, 8.5vw, 2rem);
   }
 

@@ -166,9 +166,6 @@
   cursor: pointer;
 }
 
-.reply-button:hover {
-  background-color: #0056b3;
-}
 
 .replies {
   margin-top: 15px;
@@ -234,9 +231,6 @@
   cursor: not-allowed;
 }
 
-.submit-reply-btn:hover {
-  background-color: #0056b3;
-}
 
 /* Ensure reply count is always visible inside the comment modal */
 .comment-modal .reply-count {

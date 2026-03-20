@@ -242,6 +242,29 @@
   background: #fff0f7;
 }
 
+.remove-photo-button {
+  margin: 0 0 10px;
+  padding: 8px 14px;
+  border-radius: 14px;
+  border: 1px solid #f2bfd8;
+  background: #ffffff;
+  color: #9f1239;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.remove-photo-button:hover {
+  background: #ffe4ed;
+  border-color: #f5a0c2;
+}
+
+.remove-photo-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .save-button {
   min-height: 52px;
   border-radius: 16px;
