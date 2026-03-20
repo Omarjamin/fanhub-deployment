@@ -4,6 +4,34 @@ import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
 import { getActiveSiteSlug } from '../../../lib/site-context.js';
 import { showToast } from '../../../utils/toast.js';
 
+const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
+
+function resolveBackendOrigin() {
+  try {
+    return new URL(BASE_V1).origin;
+  } catch (_) {
+    return '';
+  }
+}
+
+function resolveImageUrl(rawValue = '') {
+  const fallback = '/placeholder.svg?height=420&width=420';
+  const value = String(rawValue || '').trim();
+  if (!value) return fallback;
+  const lowered = value.toLowerCase();
+  if (lowered === 'null' || lowered === 'undefined' || lowered === 'none') {
+    return fallback;
+  }
+  if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value;
+  }
+  const base = resolveBackendOrigin();
+  if (value.startsWith('/')) {
+    return base ? `${base}${value}` : value;
+  }
+  return base ? `${base}/${value}` : value;
+}
+
 function resolveVariantWeight(variant) {
   const explicitWeight = toSafeNumber(variant?.weight_g ?? variant?.weightG ?? variant?.weight_grams ?? variant?.weight);
   if (Number.isFinite(explicitWeight) && explicitWeight >= 0) return explicitWeight;
@@ -97,7 +125,7 @@ function resolveProductImage(product, variants = [], productId = '') {
     product?.imageUrl ||
     (Array.isArray(product?.images) && product.images[0]) ||
     '';
-  if (direct) return direct;
+  if (direct) return resolveImageUrl(direct);
 
   const fromVariant = Array.isArray(variants)
     ? variants
@@ -111,7 +139,7 @@ function resolveProductImage(product, variants = [], productId = '') {
         )
         .find((value) => String(value || '').trim())
     : '';
-  if (fromVariant) return fromVariant;
+  if (fromVariant) return resolveImageUrl(fromVariant);
 
   try {
     const related = JSON.parse(sessionStorage.getItem('collectionProducts') || '[]');
@@ -125,13 +153,48 @@ function resolveProductImage(product, variants = [], productId = '') {
         match?.image ||
         (Array.isArray(match?.images) && match.images[0]) ||
         '';
-      if (fromSession) return fromSession;
+      if (fromSession) return resolveImageUrl(fromSession);
     }
   } catch (_) {
     // ignore storage errors
   }
 
-  return '';
+  return resolveImageUrl('');
+}
+
+function normalizeImageList(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
+  if (typeof value === 'string') {
+    const raw = value.trim();
+    if (!raw) return [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item || '').trim()).filter(Boolean);
+      }
+    } catch (_) {}
+    if (raw.includes(',')) {
+      return raw.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+    return [raw];
+  }
+  return [];
+}
+
+function resolveProductImages(product) {
+  const sources = [
+    product?.images,
+    product?.image_urls,
+    product?.imageUrls,
+    product?.image_url_list,
+    product?.imageList,
+  ];
+  for (const source of sources) {
+    const list = normalizeImageList(source);
+    if (list.length) return list;
+  }
+  return [];
 }
 
 export default async function ProductDetail(root, productId, explicitCommunityType = '') {
@@ -154,7 +217,12 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
       return;
     }
 
-    const img = resolveProductImage(product, variants, productId);
+    const resolvedPrimary = resolveProductImage(product, variants, productId);
+    const galleryImages = resolveProductImages(product)
+      .map((value) => resolveImageUrl(value))
+      .filter((value) => value);
+    const imageList = galleryImages.length ? galleryImages : [resolvedPrimary];
+    let currentImageIndex = 0;
 
     let selectedVariant = variants.length > 0 ? variants[0] : null;
 
@@ -164,8 +232,10 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
           <span class="product-detail-back-label">Back to shop</span>
         </button>
         <div class="product-detail-grid">
-          <div class="product-media">
-            <img src="${img}" alt="${product.name || ''}" class="product-detail-img" data-full-image="${img}" />
+          <div class="product-media ${imageList.length > 1 ? 'has-gallery' : ''}">
+            ${imageList.length > 1 ? '<button class="media-nav-btn prev" type="button" aria-label="Previous image">&#10094;</button>' : ''}
+            <img src="${imageList[0]}" alt="${product.name || ''}" class="product-detail-img" data-full-image="${imageList[0]}" />
+            ${imageList.length > 1 ? '<button class="media-nav-btn next" type="button" aria-label="Next image">&#10095;</button>' : ''}
           </div>
           <div class="product-meta">
             <h1 class="product-title">${product.name || ''}</h1>
@@ -217,9 +287,34 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     `;
 
     const detailImage = root.querySelector('.product-detail-img');
+    const prevBtn = root.querySelector('.media-nav-btn.prev');
+    const nextBtn = root.querySelector('.media-nav-btn.next');
     const lightbox = root.querySelector('#product-lightbox');
     const lightboxImg = root.querySelector('.lightbox-image');
     const closeTargets = root.querySelectorAll('[data-lightbox-close="true"]');
+
+    const getCurrentImage = () => imageList[currentImageIndex] || imageList[0] || '';
+
+    const updateDisplayedImage = () => {
+      const current = getCurrentImage();
+      if (!detailImage) return;
+      detailImage.src = current;
+      detailImage.dataset.fullImage = current;
+    };
+
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        currentImageIndex = (currentImageIndex - 1 + imageList.length) % imageList.length;
+        updateDisplayedImage();
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        currentImageIndex = (currentImageIndex + 1) % imageList.length;
+        updateDisplayedImage();
+      });
+    }
 
     const closeLightbox = () => {
       if (!lightbox) return;
@@ -229,14 +324,15 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     };
 
     const openLightbox = () => {
-      if (!lightbox || !lightboxImg || !img) return;
-      lightboxImg.src = img;
+      const current = getCurrentImage();
+      if (!lightbox || !lightboxImg || !current) return;
+      lightboxImg.src = current;
       lightbox.classList.add('is-open');
       lightbox.setAttribute('aria-hidden', 'false');
       document.body.classList.add('lightbox-open');
     };
 
-    if (detailImage && img) {
+    if (detailImage && getCurrentImage()) {
       detailImage.addEventListener('click', openLightbox);
     }
 

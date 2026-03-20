@@ -258,7 +258,7 @@ class MarketplaceController {
 
   /**
    * POST /v1/admin/marketplace
-   * Body: { name, collection_id?, community?, collection?, product_category?, image_url?, variants[] }
+   * Body: { name, collection_id?, community?, collection?, product_category?, image_url?, image_urls?, variants[] }
    */
   async createProduct(req, res) {
     try {
@@ -282,12 +282,19 @@ class MarketplaceController {
         name: body.name,
         collectionId,
         variantCount: Array.isArray(body.variants) ? body.variants.length : 0,
+        imageCount: Array.isArray(body.image_urls) ? body.image_urls.length : 0,
       });
       const payload = {
         name: body.name,
         collection_id: collectionId,
         product_category: body.product_category || 'Apparel',
         image_url: body.image_url || null,
+        image_urls:
+          body.image_urls ||
+          body.images ||
+          body.imageUrls ||
+          body.image_url_list ||
+          undefined,
         variants: body.variants || [],
       };
       const { product_id } = await this.marketplaceModel.createProduct(
@@ -312,7 +319,7 @@ class MarketplaceController {
 
   /**
    * PUT /v1/admin/marketplace/:productId
-   * Body: { name?, collection_id?, community?, collection?, product_category?, image_url?, variants[] }
+   * Body: { name?, collection_id?, community?, collection?, product_category?, image_url?, image_urls?, variants[] }
    */
   async updateProduct(req, res) {
     try {
@@ -342,6 +349,12 @@ class MarketplaceController {
         collection_id: collectionId,
         product_category: body.product_category,
         image_url: body.image_url,
+        image_urls:
+          body.image_urls ||
+          body.images ||
+          body.imageUrls ||
+          body.image_url_list ||
+          undefined,
         variants: body.variants,
       };
       Object.keys(payload).forEach((k) => {

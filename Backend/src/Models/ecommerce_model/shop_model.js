@@ -147,6 +147,35 @@ class ShopModel {
     }
   }
 
+  async getImagesByProductIds(db, productIds = []) {
+    const ids = Array.isArray(productIds)
+      ? productIds.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+      : [];
+    const map = new Map();
+    if (!ids.length) return map;
+    try {
+      const placeholders = ids.map(() => '?').join(',');
+      const [rows] = await db.query(
+        `
+          SELECT product_id, image_url, sort_order, image_id
+          FROM product_images
+          WHERE product_id IN (${placeholders})
+          ORDER BY product_id ASC, sort_order ASC, image_id ASC
+        `,
+        ids,
+      );
+      for (const row of rows || []) {
+        const list = map.get(row.product_id) || [];
+        if (row.image_url) list.push(row.image_url);
+        map.set(row.product_id, list);
+      }
+    } catch (error) {
+      if (error?.code !== 'ER_NO_SUCH_TABLE') {
+        console.error('Failed to load product images:', error);
+      }
+    }
+    return map;
+  }
 
 
   // Get all collections for a community
@@ -202,8 +231,14 @@ class ShopModel {
     if (scopedByCollections) params.push(this.activeCommunityId);
     const [rows] = await db.query(query, params);
     console.log('sa shop models Fetched products!:', rows);
-
-    return rows;
+    const imageMap = await this.getImagesByProductIds(db, rows.map((row) => row.product_id));
+    return (rows || []).map((row) => {
+      const images = imageMap.get(row.product_id) || [];
+      if (!row.image_url && images.length) {
+        return { ...row, image_url: images[0], images };
+      }
+      return { ...row, images };
+    });
 
   }
 
@@ -347,6 +382,13 @@ class ShopModel {
     if (scopedByProducts) params.push(this.activeCommunityId);
     if (scopedByCollections) params.push(this.activeCommunityId);
     const [rows] = await db.query(query, params);
+    if (!rows || !rows.length) return rows;
+    const imageMap = await this.getImagesByProductIds(db, [product_id]);
+    const images = imageMap.get(Number(product_id)) || [];
+    if (!rows[0].image_url && images.length) {
+      rows[0].image_url = images[0];
+    }
+    rows[0].images = images;
     return rows;
   }
 

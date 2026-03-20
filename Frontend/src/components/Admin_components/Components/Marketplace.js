@@ -122,8 +122,9 @@ export default function createMarketplace() {
             <input id="newProductName" type="text" placeholder="Enter product name" required>
           </label>
           <label class="marketplace-form-group">
-            <span>Product Image</span>
-            <input id="newProductImage" type="file" accept="image/*">
+            <span>Product Images</span>
+            <input id="newProductImage" type="file" accept="image/*" multiple>
+            <div id="productImagePreview" class="product-image-preview hidden"></div>
           </label>
           <div class="marketplace-form-group">
             <div class="variant-header">
@@ -221,6 +222,10 @@ export default function createMarketplace() {
     const fallback = '/placeholder.svg?height=200&width=200';
     const value = String(rawUrl || '').trim();
     if (!value) return fallback;
+    const lowered = value.toLowerCase();
+    if (lowered === 'null' || lowered === 'undefined' || lowered === 'none') {
+      return fallback;
+    }
 
     if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
       return value;
@@ -770,8 +775,85 @@ export default function createMarketplace() {
     const productCategorySelect = section.querySelector('#newProductCategory');
     const productNameInput = section.querySelector('#newProductName');
     const imageInput = section.querySelector('#newProductImage');
+    const imagePreview = section.querySelector('#productImagePreview');
     const addVariantBtn = section.querySelector('#addVariantBtn');
     const variantRows = section.querySelector('#variantRows');
+
+    let selectedImageFiles = [];
+    let existingImageUrls = [];
+    let imagesDirty = false;
+
+    function getImageFileKey(file) {
+      return `${file.name}::${file.size}::${file.lastModified}`;
+    }
+
+    function getImageLabel(url) {
+      const raw = String(url || '').trim();
+      if (!raw) return 'image';
+      try {
+        const parsed = new URL(raw);
+        const name = parsed.pathname.split('/').pop();
+        return name || raw;
+      } catch (_) {
+        return raw.split('/').pop() || raw;
+      }
+    }
+
+    function renderImagePreview() {
+      if (!imagePreview) return;
+      const fileItems = selectedImageFiles.map(file => ({
+        kind: 'file',
+        key: getImageFileKey(file),
+        label: file.name,
+      }));
+      const urlItems = existingImageUrls.map((url, index) => ({
+        kind: 'url',
+        key: `url-${index}`,
+        label: getImageLabel(url),
+        url,
+      }));
+      const items = [...urlItems, ...fileItems];
+
+      if (!items.length) {
+        imagePreview.innerHTML = '';
+        imagePreview.classList.add('hidden');
+        return;
+      }
+
+      imagePreview.classList.remove('hidden');
+      imagePreview.innerHTML = items
+        .map(item => `
+          <div class="image-preview-item" data-kind="${item.kind}" data-key="${item.key}">
+            <span class="image-preview-label">${item.label}</span>
+            <button type="button" class="remove-image-btn" aria-label="Remove image">Remove</button>
+          </div>
+        `)
+        .join('');
+    }
+
+    function resetImageState() {
+      selectedImageFiles = [];
+      existingImageUrls = [];
+      imagesDirty = false;
+      if (imageInput) imageInput.value = '';
+      renderImagePreview();
+    }
+
+    function addImageFiles(fileList) {
+      const incoming = Array.from(fileList || []).filter(file => file && file.type?.startsWith('image/'));
+      if (!incoming.length) return;
+      const existingKeys = new Set(selectedImageFiles.map(getImageFileKey));
+      incoming.forEach(file => {
+        const key = getImageFileKey(file);
+        if (!existingKeys.has(key)) {
+          selectedImageFiles.push(file);
+          existingKeys.add(key);
+        }
+      });
+      imagesDirty = true;
+      if (imageInput) imageInput.value = '';
+      renderImagePreview();
+    }
 
     function closeModal() {
       modal.classList.add('hidden');
@@ -780,6 +862,7 @@ export default function createMarketplace() {
     async function openAddModal() {
       editingProductId = null;
       form.reset();
+      resetImageState();
       loadAddProductCommunities();
       const selectedCommunity = getSelectedCommunity();
       if (selectedCommunity && selectedCommunity !== 'all') {
@@ -805,7 +888,14 @@ export default function createMarketplace() {
       collectionSelect.value = product.collectionName || '';
       await loadCategoryOptions(product.productCategory || '');
       productNameInput.value = product.name;
-      imageInput.value = '';
+      existingImageUrls = Array.isArray(product.images) ? [...product.images] : [];
+      if (!existingImageUrls.length && product.image) {
+        existingImageUrls = [product.image];
+      }
+      selectedImageFiles = [];
+      imagesDirty = false;
+      if (imageInput) imageInput.value = '';
+      renderImagePreview();
       variantRows.innerHTML = '';
       (product.variants || []).forEach(variant => {
         addVariantRow(normalizeVariantForForm(variant));
@@ -844,12 +934,35 @@ export default function createMarketplace() {
       await loadCategoryOptions();
     });
     addVariantBtn.addEventListener('click', () => addVariantRow());
+    imageInput.addEventListener('change', (event) => {
+      addImageFiles(event.target.files);
+    });
 
     variantRows.addEventListener('click', event => {
       const removeBtn = event.target.closest('.remove-variant-btn');
       if (!removeBtn) return;
       if (variantRows.children.length === 1) return;
       removeBtn.closest('.variant-input-row')?.remove();
+    });
+
+    imagePreview.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('.remove-image-btn');
+      if (!removeBtn) return;
+      const item = removeBtn.closest('.image-preview-item');
+      if (!item) return;
+      const kind = item.dataset.kind;
+      const key = item.dataset.key;
+      if (kind === 'file') {
+        selectedImageFiles = selectedImageFiles.filter(file => getImageFileKey(file) !== key);
+        imagesDirty = true;
+      } else if (kind === 'url') {
+        const index = Number(String(key || '').replace('url-', ''));
+        if (!Number.isNaN(index)) {
+          existingImageUrls.splice(index, 1);
+          imagesDirty = true;
+        }
+      }
+      renderImagePreview();
     });
 
     modal.addEventListener('click', event => {
@@ -865,7 +978,6 @@ export default function createMarketplace() {
       const collection = collectionSelect.value;
       const productCategory = productCategorySelect.value.trim();
       const productName = productNameInput.value.trim();
-      const imageFile = imageInput.files?.[0];
       const variants = collectVariants();
 
       if (!productName) {
@@ -884,6 +996,7 @@ export default function createMarketplace() {
         collection,
         product_category: productCategory,
         image_url: null,
+        image_urls: undefined,
         variants: variants.map(v => ({
           variantName: v.variantName,
           variantValue: v.variantValue,
@@ -896,11 +1009,19 @@ export default function createMarketplace() {
         }))
       };
 
+      const uploadedUrls = selectedImageFiles.length
+        ? (await Promise.all(selectedImageFiles.map(file => uploadMarketplaceImage(file)))).filter(Boolean)
+        : [];
+      const combinedImageUrls = [...existingImageUrls, ...uploadedUrls];
+
       if (editingProductId) {
         const product = findProductById(editingProductId);
         if (!product) return;
-        if (imageFile) {
-          payload.image_url = await uploadMarketplaceImage(imageFile);
+        if (imagesDirty || uploadedUrls.length) {
+          if (combinedImageUrls.length) {
+            payload.image_url = combinedImageUrls[0];
+          }
+          payload.image_urls = combinedImageUrls;
         } else if (typeof product.image === 'string' && product.image.startsWith('http')) {
           payload.image_url = product.image;
         }
@@ -917,8 +1038,9 @@ export default function createMarketplace() {
           alert(error.message || 'Failed to update product. Please try again.');
         }
       } else {
-        if (imageFile) {
-          payload.image_url = await uploadMarketplaceImage(imageFile);
+        if (combinedImageUrls.length) {
+          payload.image_url = combinedImageUrls[0];
+          payload.image_urls = combinedImageUrls;
         }
         try {
           await createMarketplaceProduct(payload);
@@ -1019,6 +1141,10 @@ export default function createMarketplace() {
 
       products = rows.map(row => {
         const variants = Array.isArray(row.variants) ? row.variants : [];
+        const rowImages = Array.isArray(row.images)
+          ? row.images.filter(Boolean)
+          : [];
+        const primaryImage = rowImages.length ? rowImages[0] : row.image_url;
         const communityKeyValue = String(
           row.__community_key || row.community_key || normalizedCommunity || 'all'
         )
@@ -1041,8 +1167,10 @@ export default function createMarketplace() {
           collectionName: String(row.collection_name || '').trim(),
           productCategory: String(row.product_category || 'Apparel').trim(),
           sold: 0,
-          image:
-            resolveProductImage(row.image_url),
+          image: resolveProductImage(primaryImage),
+          images: rowImages.length
+            ? rowImages
+            : (row.image_url ? [row.image_url] : []),
           variants,
         };
       });
