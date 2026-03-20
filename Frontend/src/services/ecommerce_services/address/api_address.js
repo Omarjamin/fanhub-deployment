@@ -1,3 +1,5 @@
+import { sanitizeAddressOption, sanitizeShippingText } from '../../../utils/shipping-address.js';
+
 class Address_Api {
   constructor() {
     this.base = 'https://psgc.cloud/api/v2';
@@ -22,8 +24,37 @@ class Address_Api {
     return [];
   }
 
+  sanitizeRow(row) {
+    if (!row || typeof row !== 'object' || Array.isArray(row)) {
+      return row;
+    }
+
+    const sanitized = { ...row };
+    const normalizedOption = sanitizeAddressOption(sanitized);
+    sanitized.code = normalizedOption.code || String(sanitized.code ?? sanitized.id ?? '').trim();
+    sanitized.name = normalizedOption.name || '';
+
+    [
+      'regionName',
+      'provinceName',
+      'cityName',
+      'municipalityName',
+      'barangayName',
+    ].forEach((field) => {
+      if (typeof sanitized[field] !== 'undefined') {
+        sanitized[field] = sanitizeShippingText(sanitized[field], 120);
+      }
+    });
+
+    if (typeof sanitized.type !== 'undefined') {
+      sanitized.type = sanitizeShippingText(sanitized.type, 40);
+    }
+
+    return sanitized;
+  }
+
   async fetchRows(url) {
-    return this.extractRows(await this.fetchJson(url));
+    return this.extractRows(await this.fetchJson(url)).map((row) => this.sanitizeRow(row));
   }
 
   normalizeName(value) {

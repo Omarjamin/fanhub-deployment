@@ -7,8 +7,25 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../
 import { formatUserTimestamp } from "../../../utils/user-time.js";
 import { buildPostMenuHtml, bindPostMenuActions } from "../post/post-menu.js";
 import { showToast } from "../../../utils/toast.js";
+import { escapeHtml, sanitizeCommunityText } from "../../../utils/community-text.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
+
+function sanitizePostTags(tags = []) {
+  return (Array.isArray(tags) ? tags : [])
+    .map((tag) => sanitizeCommunityText(tag, { maxLength: 80 }))
+    .filter(Boolean);
+}
+
+function getSafePostContent(post = {}) {
+  const tags = sanitizePostTags(post.tags);
+  const text = sanitizeCommunityText(post.content, { maxLength: 1000 });
+  return text || (tags.length ? tags.join(" ") : "No content available");
+}
+
+function getSafeDisplayName(value, fallback = "Unknown User") {
+  return escapeHtml(sanitizeCommunityText(value, { maxLength: 120 }) || fallback);
+}
 
 function resolveCommunityBasePath(communityType = "") {
   const normalized = String(communityType || "").trim().toLowerCase();
@@ -533,9 +550,9 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
 	      const isLiked = likeStatuses[index];
 	      const likeCount = countlike[index];
         const postUserId = post.user_id || userId;
-        const postFullname = post.fullname || "Unknown User";
+        const postFullname = getSafeDisplayName(post.fullname, "Unknown User");
         const postProfilePic = post.profile_picture || DEFAULT_PROFILE_IMAGE;
-        const tags = Array.isArray(post.tags) ? post.tags : [];
+        const tags = sanitizePostTags(post.tags);
 
         const postContent = `
           <div class="post-card" data-post-id="${post.post_id}" data-owner-id="${postUserId}">
@@ -550,8 +567,8 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
               <span class="post-time">${postCreationTime}</span>
               ${buildPostMenuHtml({ postId: post.post_id, isOwnPost: false })}
             </div>
-            <div class="post-content">${post.content || "No content available"}</div>
-            ${tags.length ? `<div class="post-tags">${tags.join(", ")}</div>` : ""}
+            <div class="post-content">${escapeHtml(getSafePostContent(post))}</div>
+            ${tags.length ? `<div class="post-tags">${escapeHtml(tags.join(", "))}</div>` : ""}
             ${post.img_url ? `<img src="${post.img_url}" alt="Post Image" class="post-image" />` : ""}
             <div class="post-actions">
               <button class="post-action like-button ${isLiked ? "liked" : ""}" data-post-id="${post.post_id}" data-like-type="post">

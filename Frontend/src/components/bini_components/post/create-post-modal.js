@@ -1,13 +1,19 @@
 import api from '../../../services/bini_services/api.js';
 import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
 import { showToast } from '../../../utils/toast.js';
+import {
+  resolveCommunitySubmissionError,
+  sanitizeCommunityText,
+  validateCommunityText,
+} from '../../../utils/community-text.js';
+import {
+  DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+  IMAGE_UPLOAD_ACCEPT_ATTR,
+  validateSingleImageFile,
+} from '../../../utils/image-upload.js';
 
-function sanitizePostContent(value) {
-  const html = String(value || '');
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
-  return (doc.body.textContent || '').replace(/\s+/g, ' ').trim();
-}
+const POST_TEXT_MAX_LENGTH = 1000;
+const POST_IMAGE_LABEL = 'Post image';
 
 function ensureModal(root) {
   if (root.__createPostModal) return root.__createPostModal;
@@ -40,7 +46,7 @@ function ensureModal(root) {
             <div id="create-post-name" class="create-post-name">You</div>
           </div>
         </div>
-        <textarea id="create-post-content" name="content" placeholder="What's on your mind?" required></textarea>
+        <textarea id="create-post-content" name="content" placeholder="What's on your mind?" required maxlength="${POST_TEXT_MAX_LENGTH}"></textarea>
         <div class="create-post-preview" id="create-post-preview"></div>
         <div class="create-post-actions">
           <div class="create-post-add">
@@ -56,7 +62,7 @@ function ensureModal(root) {
           </div>
         </div>
         <div class="create-post-emoji-panel" id="create-post-emoji-panel" aria-hidden="true"></div>
-        <input type="file" id="create-post-image" name="image_file" accept="image/*" />
+        <input type="file" id="create-post-image" name="image_file" accept="${IMAGE_UPLOAD_ACCEPT_ATTR}" />
         <button class="create-post-submit" type="submit" id="create-post-submit">Post</button>
       </form>
     </div>
@@ -106,6 +112,24 @@ function ensureModal(root) {
     const cursor = start + value.length;
     textarea.setSelectionRange(cursor, cursor);
     textarea.focus();
+  };
+
+  const syncSanitizedTextareaValue = () => {
+    if (!textarea) {
+      return validateCommunityText('', { label: 'Post', maxLength: POST_TEXT_MAX_LENGTH });
+    }
+
+    const validation = validateCommunityText(textarea.value, {
+      label: 'Post',
+      maxLength: POST_TEXT_MAX_LENGTH,
+    });
+    const sanitized = sanitizeCommunityText(textarea.value, {
+      maxLength: POST_TEXT_MAX_LENGTH,
+    });
+    if (textarea.value !== sanitized) {
+      textarea.value = sanitized;
+    }
+    return validation;
   };
 
   const openModal = ({ profilePicUrl = '', displayName = 'You' } = {}) => {
@@ -159,6 +183,10 @@ function ensureModal(root) {
       });
     }
 
+    textarea?.addEventListener('blur', () => {
+      syncSanitizedTextareaValue();
+    });
+
     document.addEventListener('click', (event) => {
       if (!modal.classList.contains('is-open')) return;
       if (!emojiPanel || !emojiToggle) return;
@@ -173,14 +201,14 @@ function ensureModal(root) {
       const file = event.target.files[0];
       if (!file) return;
 
-      if (!file.type.startsWith('image/')) {
-        alert('Please select an image file (JPEG, PNG, GIF, etc.)');
-        event.target.value = '';
-        return;
-      }
-
-      if (file.size > 5 * 1024 * 1024) {
-        alert('Image size should be less than 5MB');
+      const imageValidation = validateSingleImageFile(file, {
+        label: POST_IMAGE_LABEL,
+        maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+      });
+      if (!imageValidation.isValid) {
+        showToast(imageValidation.errorMessage, 'error');
+        imagePreview.innerHTML = '';
+        imagePreview.classList.remove('active');
         event.target.value = '';
         return;
       }
@@ -219,13 +247,27 @@ function ensureModal(root) {
         return;
       }
 
-      const content = sanitizePostContent(textarea.value);
+      const contentValidation = syncSanitizedTextareaValue();
       const imageFile = imageInput.files[0];
+      const imageValidation = validateSingleImageFile(imageFile, {
+        label: POST_IMAGE_LABEL,
+        maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+      });
 
-      if (!content && !imageFile) {
+      if (!contentValidation.isValid && !imageFile) {
         showToast('Please enter content or select an image.', 'error');
         return;
       }
+
+      if (!imageValidation.isValid) {
+        showToast(imageValidation.errorMessage, 'error');
+        imageInput.value = '';
+        imagePreview.innerHTML = '';
+        imagePreview.classList.remove('active');
+        return;
+      }
+
+      const content = contentValidation.sanitized;
 
       submitButton.disabled = true;
 
@@ -265,18 +307,7 @@ function ensureModal(root) {
         showToast('Post created successfully!', 'success');
         closeModal();
       } catch (error) {
-        const payload = error?.response?.data || {};
-        const rawMessage = String(payload?.error || payload?.message || '');
-        const isModerationBlocked =
-          Boolean(payload?.warning) ||
-          Boolean(payload?.moderation) ||
-          /suspicious words detected/i.test(rawMessage);
-
-        if (isModerationBlocked) {
-          showToast('Bad detected words, please try another.', 'error');
-        } else {
-          showToast(rawMessage || 'Error creating post. Please try again.', 'error');
-        }
+        showToast(resolveCommunitySubmissionError(error, 'Error creating post. Please try again.'), 'error');
       } finally {
         submitButton.disabled = false;
       }

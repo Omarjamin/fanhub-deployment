@@ -7,8 +7,25 @@ import api from "../../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../lib/site-context.js";
 import { formatUserTimestamp } from "../../../utils/user-time.js";
 import { showToast } from "../../../utils/toast.js";
+import { escapeHtml, sanitizeCommunityText } from "../../../utils/community-text.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
+
+function sanitizePostTags(tags = []) {
+  return (Array.isArray(tags) ? tags : [])
+    .map((tag) => sanitizeCommunityText(tag, { maxLength: 80 }))
+    .filter(Boolean);
+}
+
+function getSafePostContent(post = {}) {
+  const tags = sanitizePostTags(post.tags);
+  const text = sanitizeCommunityText(post.content, { maxLength: 1000 });
+  return text || (tags.length ? tags.join(" ") : "No content available");
+}
+
+function getSafeDisplayName(value, fallback = "Unknown User") {
+  return escapeHtml(sanitizeCommunityText(value, { maxLength: 120 }) || fallback);
+}
 
 function resolveCommunityBasePath(communityType = "") {
   const normalized = String(communityType || "").trim().toLowerCase();
@@ -321,12 +338,12 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
 	      const isLiked = likeStatuses[index];
 	      const likeCount = countlike[index];
       const postUserId = post.user_id || ownerUser?.user_id || userId;
-      const postFullname = post.fullname || ownerUser?.fullname || "You";
+      const postFullname = getSafeDisplayName(post.fullname || ownerUser?.fullname, "You");
       const postProfilePic = post.profile_picture || ownerUser?.profile_picture || DEFAULT_PROFILE_IMAGE;
       const isOwnPost = String(postUserId) === String(userId);
-      const tags = Array.isArray(post.tags) ? post.tags : [];
+      const tags = sanitizePostTags(post.tags);
       const originalPost = repostOriginals.get(String(post.repost_id || "")) || null;
-      const originalName = originalPost?.fullname || null;
+      const originalName = sanitizeCommunityText(originalPost?.fullname, { maxLength: 120 }) || null;
       const originalUserId = originalPost?.user_id || null;
 
 	      const postContent = `
@@ -347,8 +364,8 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
               <a href="#" class="profile-link" data-user-id="${originalUserId || ''}">${originalName}</a>
             </div>
           ` : ""}
-          <div class="post-content">${post.content || "No content available"}</div>
-          ${tags.length ? `<div class="post-tags">${tags.join(", ")}</div>` : ""}
+          <div class="post-content">${escapeHtml(getSafePostContent(post))}</div>
+          ${tags.length ? `<div class="post-tags">${escapeHtml(tags.join(", "))}</div>` : ""}
           ${post.img_url ? `<img src="${post.img_url}" alt="Post Image" class="post-image" />` : ""}
 	          <div class="post-actions">
 	            <button class="post-action like-button ${isLiked ? "liked" : ""}" data-post-id="${post.post_id}" data-like-type="post">
@@ -380,7 +397,7 @@ async function renderPosts(tab, userId, token, feed, ownerUser = null) {
         if (!card) return;
         const contentEl = card.querySelector(".post-content");
         const imageEl = card.querySelector(".post-image");
-        if (contentEl) contentEl.textContent = updatedPost.content || "No content available";
+        if (contentEl) contentEl.textContent = getSafePostContent(updatedPost);
         if (updatedPost.img_url) {
           if (imageEl) {
             imageEl.src = updatedPost.img_url;

@@ -8,8 +8,21 @@ import api from "../../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../lib/site-context.js";
 import { formatUserTimestamp } from "../../../utils/user-time.js";
 import { showToast } from "../../../utils/toast.js";
+import { escapeHtml, sanitizeCommunityText } from "../../../utils/community-text.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
+
+function sanitizePostTags(tags = []) {
+  return (Array.isArray(tags) ? tags : (tags ? [].concat(tags) : []))
+    .map((tag) => sanitizeCommunityText(tag, { maxLength: 80 }))
+    .filter(Boolean);
+}
+
+function getSafePostContent(post = {}) {
+  const tags = sanitizePostTags(post.tags);
+  const text = sanitizeCommunityText(post.content, { maxLength: 1000 });
+  return text || (tags.length ? tags.join(" ") : "No content available");
+}
 
 function resolveCommunityType(data = {}) {
   const fromData = String(data?.community_type || data?.communityType || "").trim().toLowerCase();
@@ -37,6 +50,38 @@ function resolveCommunityType(data = {}) {
 // Format date helper function
 function formatDate(timestamp) {
   return formatUserTimestamp(timestamp);
+}
+
+function renderNotifActionIcon(type, isActive = false) {
+  if (type === "like") {
+    return isActive
+      ? `
+        <svg viewBox="0 0 24 24" class="notif-action-svg notif-action-svg--active" aria-hidden="true">
+          <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35Z" />
+        </svg>
+      `
+      : `
+        <svg viewBox="0 0 24 24" class="notif-action-svg" aria-hidden="true">
+          <path d="M16.5 3c-1.74 0-3.41.81-4.5 2.09C10.91 3.81 9.24 3 7.5 3 4.42 3 2 5.42 2 8.5c0 3.78 3.4 6.86 8.55 11.54L12 21.35l1.45-1.32C18.6 15.36 22 12.28 22 8.5 22 5.42 19.58 3 16.5 3Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+        </svg>
+      `;
+  }
+
+  if (type === "comment") {
+    return `
+      <svg viewBox="0 0 24 24" class="notif-action-svg" aria-hidden="true">
+        <path d="M5 6.5h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9l-4 3v-3H5a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2Z" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>
+    `;
+  }
+
+  return `
+    <svg viewBox="0 0 24 24" class="notif-action-svg" aria-hidden="true">
+      <path d="M8 7h8M8 17h8" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" />
+      <path d="m14 4 5 3-5 3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+      <path d="m10 14-5 3 5 3" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  `;
 }
 
 function getNotificationText(notif, fromUser) {
@@ -219,6 +264,8 @@ async function showPostModal(post, token) {
     post.tags && post.tags.length > 0
       ? `<div class="post-tags">${Array.isArray(post.tags) ? post.tags.join(", ") : post.tags}</div>`
       : "";
+  const safeContent = escapeHtml(getSafePostContent(post));
+  const safeTags = sanitizePostTags(post.tags);
   const imageHtml = post.img_url
     ? `<img src="${post.img_url}" alt="Post Image" class="post-image notif-post-image" />`
     : "";
@@ -236,19 +283,19 @@ async function showPostModal(post, token) {
           </a>
           <span class="post-time">${formatDate(post.created_at)}</span>
         </div>
-        <div class="post-content notif-post-content">${post.content || "No content available"}</div>
-        ${tagsHtml}
+        <div class="post-content notif-post-content">${safeContent}</div>
+        ${safeTags.length ? `<div class="post-tags">${escapeHtml(safeTags.join(", "))}</div>` : ""}
         ${imageHtml}
         <div class="post-actions notif-post-actions">
           <button class="post-action like-button ${isLiked ? "liked" : ""}" data-post-id="${post.post_id}" data-like-type="post">
-            <span class="material-icons ${isLiked ? "liked" : ""}">${isLiked ? "favorite" : "favorite_border"}</span>
+            <span class="notif-post-action-icon" aria-hidden="true">${renderNotifActionIcon("like", isLiked)}</span>
             <span class="like-count">${likeCount}</span>
           </button>
           <button class="post-action comment-button" data-post-id="${post.post_id}">
-            <span class="material-icons">chat_bubble_outline</span>
+            <span class="notif-post-action-icon" aria-hidden="true">${renderNotifActionIcon("comment")}</span>
           </button>
           <button class="post-action repostbtn" data-post-id="${post.post_id}">
-            <span class="material-icons">repeat</span>
+            <span class="notif-post-action-icon" aria-hidden="true">${renderNotifActionIcon("repost")}</span>
           </button>
         </div>
       </div>
@@ -284,11 +331,12 @@ async function showPostModal(post, token) {
       try {
         const updatedLikeData = await toggleLike(postId, token, likeType);
         const likeCountElement = button.querySelector(".like-count");
-        const likeIcon = button.querySelector(".material-icons");
+        const likeIcon = button.querySelector(".notif-post-action-icon");
 
         likeCountElement.textContent = updatedLikeData.likes;
-        likeIcon.classList.toggle("liked", updatedLikeData.isLiked);
-        likeIcon.textContent = updatedLikeData.isLiked ? "favorite" : "favorite_border";
+        if (likeIcon) {
+          likeIcon.innerHTML = renderNotifActionIcon("like", updatedLikeData.isLiked);
+        }
         button.classList.toggle("liked", updatedLikeData.isLiked);
       } catch (error) {
         showToast("Error updating like: " + error.message, "error");

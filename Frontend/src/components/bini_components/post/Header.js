@@ -5,17 +5,13 @@ import { showToast } from "../../../utils/toast.js";
 import CreatePostModal from "./create-post-modal.js";
 import setupThreadsFab from "../threads-fab.js";
 import { isTemplatePreviewMode } from "../../../lib/template-preview.js";
+import {
+  resolveCommunitySubmissionError,
+  sanitizeCommunityText,
+} from "../../../utils/community-text.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
-
-function sanitizePostContent(value) {
-  const html = String(value || "");
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, "text/html");
-  return (doc.body.textContent || "")
-    .replace(/\s+/g, " ")
-    .trim();
-}
+const POST_TEXT_MAX_LENGTH = 1000;
 
 export default async function Header(root, data = {}) {
   if (isTemplatePreviewMode(data)) {
@@ -104,6 +100,7 @@ export default async function Header(root, data = {}) {
           required
           class="post-textarea"
           rows="1"
+          maxlength="${POST_TEXT_MAX_LENGTH}"
         ></textarea>
         
         <!-- Image Icon -->
@@ -239,7 +236,9 @@ export default async function Header(root, data = {}) {
       return;
     }
 
-    const content = sanitizePostContent(textarea.value);
+    const content = sanitizeCommunityText(textarea.value, {
+      maxLength: POST_TEXT_MAX_LENGTH,
+    });
     const imageFile = imageInput.files[0];
 
     textarea.value = content;
@@ -302,19 +301,7 @@ export default async function Header(root, data = {}) {
 
       submitButton.disabled = false;
     } catch (error) {
-      const payload = error?.response?.data || {};
-      const rawMessage = String(payload?.error || payload?.message || "");
-      const isModerationBlocked =
-        Boolean(payload?.warning) ||
-        Boolean(payload?.moderation) ||
-        /suspicious words detected/i.test(rawMessage);
-
-      if (isModerationBlocked) {
-        showToast("Bad detected words, please try another.", "error");
-      } else {
-        const message = rawMessage || "Error creating post. Please try again.";
-        showToast(message, "error");
-      }
+      showToast(resolveCommunitySubmissionError(error, "Error creating post. Please try again."), "error");
       submitButton.disabled = false;
     }
   });

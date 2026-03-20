@@ -3,10 +3,25 @@ import api from "../../../services/bini_services/api.js";
 import "../../../styles/bini_styles/MessagingModal.css";
 import { getActiveSiteSlug } from "../../../lib/site-context.js";
 import { showToast } from "../../../utils/toast.js";
+import { formatUserTimestamp, parseUserTimestamp } from "../../../utils/user-time.js";
+import {
+  escapeHtml,
+  resolveCommunitySubmissionError,
+  sanitizeCommunityText,
+  validateCommunityText,
+} from "../../../utils/community-text.js";
+import {
+  DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+  IMAGE_UPLOAD_ACCEPT_ATTR,
+  validateSingleImageFile,
+} from "../../../utils/image-upload.js";
 
 const DEFAULT_AVATAR = "/circle-user.png";
 const API_URL = import.meta.env.VITE_API_URL || "https://fanhub-deployment-production.up.railway.app/v1";
 const API_ORIGIN = String(API_URL).replace(/\/v1\/?$/, "");
+const COMMUNITY_TEXT_MAX_LENGTH = 1000;
+const MESSAGE_CLOCK_SKEW_TOLERANCE_SECONDS = 12 * 60 * 60;
+const MESSAGE_REPORT_IMAGE_LABEL = "Proof image";
 const REPORT_CATEGORY_OPTIONS = [
   { value: "spam", label: "Spam / Scam" },
   { value: "harassment", label: "Harassment" },
@@ -151,7 +166,7 @@ export default class MessagingModal {
             </div>
             <div class="report-form-group">
               <label class="report-form-label" for="message-report-proof">Proof of report</label>
-              <input id="message-report-proof" class="report-form-input" type="file" name="proof_file" accept="image/*" required />
+              <input id="message-report-proof" class="report-form-input" type="file" name="proof_file" accept="${IMAGE_UPLOAD_ACCEPT_ATTR}" required />
               <small class="report-form-helper">Proof image is required for message reports.</small>
               <img class="message-report-preview report-form-preview" alt="Report proof preview" />
             </div>
@@ -196,6 +211,19 @@ export default class MessagingModal {
         preview.style.display = "none";
         return;
       }
+
+      const proofValidation = validateSingleImageFile(file, {
+        label: MESSAGE_REPORT_IMAGE_LABEL,
+        maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+      });
+      if (!proofValidation.isValid) {
+        showToast(proofValidation.errorMessage, "error");
+        proofInput.value = "";
+        preview.src = "";
+        preview.style.display = "none";
+        return;
+      }
+
       preview.src = URL.createObjectURL(file);
       preview.style.display = "block";
     };
@@ -204,19 +232,34 @@ export default class MessagingModal {
       event.preventDefault();
 
       const category = String(categorySelect.value || "").trim();
-      const reason = String(reasonInput.value || "").trim();
+      const reasonValidation = validateCommunityText(reasonInput.value, {
+        label: "Reason",
+        maxLength: 500,
+      });
       const proofFile = proofInput.files?.[0] || null;
 
       if (!category) {
         showToast("Please choose a report category.", "error");
         return;
       }
-      if (!reason) {
-        showToast("Please enter the reason for this report.", "error");
+      if (!reasonValidation.isValid) {
+        showToast(reasonValidation.errors[0], "error");
         return;
       }
       if (!proofFile) {
         showToast("Proof image is required.", "error");
+        return;
+      }
+
+      const proofValidation = validateSingleImageFile(proofFile, {
+        label: MESSAGE_REPORT_IMAGE_LABEL,
+        maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+      });
+      if (!proofValidation.isValid) {
+        showToast(proofValidation.errorMessage, "error");
+        proofInput.value = "";
+        preview.src = "";
+        preview.style.display = "none";
         return;
       }
 
@@ -228,7 +271,7 @@ export default class MessagingModal {
 
         await this.reportChatUser(reportedUserId, {
           category,
-          reason,
+          reason: reasonValidation.sanitized,
           image_url: proofUrl,
         }, messageId);
 
@@ -243,7 +286,15 @@ export default class MessagingModal {
   }
 
   timeAgo(date) {
-    const seconds = Math.floor((new Date() - new Date(date)) / 1000);
+    const parsedDate = parseUserTimestamp(date);
+    if (!parsedDate) return "Just now";
+
+    const rawSeconds = Math.floor((Date.now() - parsedDate.getTime()) / 1000);
+    if (rawSeconds < 0 && Math.abs(rawSeconds) > MESSAGE_CLOCK_SKEW_TOLERANCE_SECONDS) {
+      return formatUserTimestamp(parsedDate) || "Just now";
+    }
+
+    const seconds = rawSeconds < 0 ? Math.abs(rawSeconds) : rawSeconds;
     let interval = seconds / 31536000;
     if (interval > 1) return Math.floor(interval) + " y";
     interval = seconds / 2592000;
@@ -298,7 +349,7 @@ export default class MessagingModal {
             String(message.sender_id) === String(this.currentUserId)
               ? "You: "
               : "";
-          previewEl.innerHTML = `${prefix}${message.content}`;
+          previewEl.textContent = `${prefix}${sanitizeCommunityText(message.content)}`;
         }
         if (timeEl) {
           timeEl.innerHTML = `${timeAgo}<span class="unread-dot-inline"></span>`;
@@ -413,7 +464,7 @@ export default class MessagingModal {
         <div id="messagesContainer"></div>
         <div class="message-form">
           <form id="messageForm">
-            <input type="text" id="messageInput" class="message-input" placeholder="Type a message..." autocomplete="off">
+            <input type="text" id="messageInput" class="message-input" placeholder="Type a message..." autocomplete="off" maxlength="${COMMUNITY_TEXT_MAX_LENGTH}">
             <button type="submit" class="send-button">Send</button>
           </form>
         </div>
@@ -664,6 +715,12 @@ export default class MessagingModal {
           : "";
         const unread = Number(u.unread_count) || 0;
         const isUnread = unread > 0;
+        const safeUserId = escapeHtml(String(u.user_id || ""));
+        const safeUserName = escapeHtml(String(u.fullname || u.username || "User"));
+        const safeUserAvatar = encodeURIComponent(normalizeAvatarUrl(u.profile_picture));
+        const previewText = u.last_message
+          ? `${String(u.sender_id) === String(this.currentUserId) ? "You: " : ""}${sanitizeCommunityText(u.last_message)}`
+          : "";
 
         // Add follow relationship indicator
         let followBadge = "";
@@ -678,14 +735,14 @@ export default class MessagingModal {
 
         return `
         <div class="chat-user ${isUnread ? "unread" : ""}"
-             data-user-id="${u.user_id}"
-             data-user-name="${u.fullname}"
-             data-user-avatar="${encodeURIComponent(normalizeAvatarUrl(u.profile_picture))}">
+             data-user-id="${safeUserId}"
+             data-user-name="${safeUserName}"
+             data-user-avatar="${safeUserAvatar}">
 
           <!-- Avatar + online dot + unread dot -->
           <div class="chat-user-avatar-container">
             <img src="${normalizeAvatarUrl(u.profile_picture)}"
-                 alt="${u.fullname}"
+                 alt="${safeUserName}"
                  class="chat-user-avatar"
                  onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'">
             <span class="online-dot" style="background:${u.is_online ? "#4CAF50" : "#ccc"};"></span>
@@ -696,13 +753,13 @@ export default class MessagingModal {
           <div class="chat-user-info">
             <div class="chat-user-name-row">
               <div class="chat-user-name">
-                ${u.fullname || u.username}
+                ${safeUserName}
               </div>
               ${followBadge}
             </div>
             <div class="chat-user-preview-row">
               <div class="chat-preview">
-                ${u.last_message ? (String(u.sender_id) === String(this.currentUserId) ? "You: " : "") + u.last_message : ""}
+                ${escapeHtml(previewText)}
               </div>
               <div class="chat-user-time">
                 ${timeAgo}
@@ -749,6 +806,7 @@ export default class MessagingModal {
   /*MINI CHAT WINDOWS*/
   createMiniChatWindow(userId, userName, userAvatar) {
     userId = String(userId);
+    const safeUserName = escapeHtml(String(userName || "User"));
     setTimeout(() => {
       const listItem = document.querySelector(
         `.chat-user[data-user-id="${userId}"]`,
@@ -791,11 +849,11 @@ export default class MessagingModal {
     <div class="mini-chat-header">
       <div class="mini-chat-header-content">
         <div class="mini-chat-avatar-container">
-          <img src="${decodedAvatar}" alt="${userName}" class="mini-chat-avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'">
+          <img src="${decodedAvatar}" alt="${safeUserName}" class="mini-chat-avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'">
           <span class="mini-online-dot" style="background:${this.onlineUsers.has(userId) ? "#4CAF50" : "#ccc"};"></span>
         </div>
         <div class="mini-chat-user-info">
-          <span class="mini-username">${userName}</span>
+          <span class="mini-username">${safeUserName}</span>
           <span class="mini-user-status" data-user-id="${userId}">
             ${this.onlineUsers.has(userId) ? "Active now" : "Offline"}
           </span>
@@ -823,7 +881,7 @@ export default class MessagingModal {
     </div>
 
     <div class="mini-chat-footer">
-      <input type="text" class="mini-input" placeholder="Type a message..." autocomplete="off" />
+      <input type="text" class="mini-input" placeholder="Type a message..." autocomplete="off" maxlength="${COMMUNITY_TEXT_MAX_LENGTH}" />
       <button class="mini-send">Send</button>
     </div>
   `;
@@ -871,8 +929,17 @@ export default class MessagingModal {
     });
 
     sendBtn.addEventListener("click", async () => {
-      const content = input.value.trim();
-      if (!content) return;
+      const messageValidation = validateCommunityText(input.value, {
+        label: "Message",
+        maxLength: COMMUNITY_TEXT_MAX_LENGTH,
+      });
+      if (!messageValidation.isValid) {
+        showToast(messageValidation.errors[0], "error");
+        return;
+      }
+
+      const content = messageValidation.sanitized;
+      input.value = content;
 
       // Create message data for immediate display
       const messageData = {
@@ -896,6 +963,7 @@ export default class MessagingModal {
           await api.post("/bini/message", { receiver_id: userId, content });
         } catch (err) {
           console.error("Error sending mini message:", err);
+          showToast(resolveCommunitySubmissionError(err, "Failed to send message."), "error");
           // Remove the message if sending failed
           const container = document.querySelector(
             `#miniChatMessages-${userId}`,
@@ -1094,12 +1162,14 @@ export default class MessagingModal {
     console.log("Display as received message:", isMessageReceived);
 
     // Get message content from different possible field names
-    const messageText = message.content ||
+    const messageText = sanitizeCommunityText(
+      message.content ||
       message.message_content ||
       message.text ||
       message.body ||
       message.message ||
-      "No content";
+      "No content",
+    );
 
     console.log("Message text to display:", messageText);
 
@@ -1216,14 +1286,16 @@ export default class MessagingModal {
 
     const msg = document.createElement("div");
     msg.className = `main-message-container ${isReceived ? "" : "sent"}`;
+    const safeContent = sanitizeCommunityText(message.content);
 
     msg.innerHTML = `
       <img src="${profilePic}" class="main-message-avatar" onerror="this.onerror=null;this.src='${DEFAULT_AVATAR}'">
       <div class="main-message-bubble ${isReceived ? "received" : "sent"}">
-        <div class="main-message-content">${message.content}</div>
+        <div class="main-message-content"></div>
         <div class="main-message-time">${time}</div>
       </div>
     `;
+    msg.querySelector(".main-message-content").textContent = safeContent;
     messagesContainer.appendChild(msg);
     this.scrollToBottom();
   }
@@ -1292,7 +1364,17 @@ export default class MessagingModal {
       messageForm.addEventListener("submit", (e) => {
         e.preventDefault();
         const input = messageForm.querySelector("#messageInput");
-        const message = input.value.trim();
+        const messageValidation = validateCommunityText(input.value, {
+          label: "Message",
+          maxLength: COMMUNITY_TEXT_MAX_LENGTH,
+        });
+        if (!messageValidation.isValid) {
+          showToast(messageValidation.errors[0], "error");
+          return;
+        }
+
+        const message = messageValidation.sanitized;
+        input.value = message;
         if (message && this.currentChatUserId) {
           // Create message data
           const messageData = {
@@ -1312,8 +1394,13 @@ export default class MessagingModal {
             this.socket.emit("send_message", messageData);
           } else {
             // Fallback to HTTP API
-            // You could implement HTTP fallback here if needed
-            console.warn("Socket not connected, message not sent");
+            api.post("/bini/message", {
+              receiver_id: this.currentChatUserId,
+              content: message,
+            }).catch((error) => {
+              console.warn("Socket not connected, message fallback failed", error);
+              showToast(resolveCommunitySubmissionError(error, "Failed to send message."), "error");
+            });
           }
 
           input.value = "";

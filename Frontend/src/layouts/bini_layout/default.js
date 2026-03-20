@@ -87,8 +87,7 @@ export default function Layout(root, data = {}) {
         <footer id="footer">
           <div class="community-footer fh-footer">
             <div class="community-footer-center">
-              <p>For educational purposes only.</p>
-              <p>&copy; 2026 Bini FanHub. Educational Purposes Only.</p>
+              <p>&copy; 2026 Bini FanHub. For educational purposes only.</p>
             </div>
           </div>
         </footer>

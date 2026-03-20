@@ -11,6 +11,24 @@ function stripHtmlToText(value) {
   return html.replace(/<[^>]*>/g, ' ');
 }
 
+function normalizeShippingUnicode(value) {
+  const raw = String(value ?? '');
+  if (!raw) return '';
+
+  try {
+    return raw.normalize('NFKC');
+  } catch {
+    return raw;
+  }
+}
+
+function stripUnsafeUnicode(value) {
+  return normalizeShippingUnicode(value)
+    .replace(/[\u0000-\u001F\u007F-\u009F]/g, ' ')
+    .replace(/\p{Cf}+/gu, '')
+    .replace(/\p{M}+/gu, '');
+}
+
 function collapseWhitespace(value) {
   return String(value ?? '')
     .replace(/\r\n/g, '\n')
@@ -18,16 +36,51 @@ function collapseWhitespace(value) {
     .trim();
 }
 
+function cleanShippingText(value) {
+  return stripUnsafeUnicode(stripHtmlToText(value));
+}
+
+export function sanitizeShippingText(value, maxLength = 160) {
+  return collapseWhitespace(cleanShippingText(value)).slice(0, maxLength);
+}
+
+export function sanitizeAddressOption(option = {}, options = {}) {
+  const codeMaxLength = Number.isFinite(options.codeMaxLength) ? options.codeMaxLength : 40;
+  const nameMaxLength = Number.isFinite(options.nameMaxLength) ? options.nameMaxLength : 120;
+  const rawCode = typeof option === 'string'
+    ? option
+    : (option?.code ?? option?.id ?? option?.value ?? '');
+  const rawName = typeof option === 'string'
+    ? option
+    : (
+      option?.name ??
+      option?.label ??
+      option?.text ??
+      option?.regionName ??
+      option?.provinceName ??
+      option?.cityName ??
+      option?.municipalityName ??
+      option?.barangayName ??
+      ''
+    );
+
+  return {
+    ...(typeof option === 'object' && option !== null && !Array.isArray(option) ? option : {}),
+    code: sanitizeShippingText(rawCode, codeMaxLength),
+    name: sanitizeShippingText(rawName, nameMaxLength),
+  };
+}
+
 function sanitizePlainText(value, maxLength = 160) {
-  return collapseWhitespace(stripHtmlToText(value)).slice(0, maxLength);
+  return sanitizeShippingText(value, maxLength);
 }
 
 function sanitizeZipCode(value) {
-  return stripHtmlToText(value).replace(/\D+/g, '').slice(0, 4);
+  return cleanShippingText(value).replace(/\D+/g, '').slice(0, 4);
 }
 
 function sanitizePhoneNumber(value) {
-  return collapseWhitespace(stripHtmlToText(value))
+  return collapseWhitespace(cleanShippingText(value))
     .replace(/[^0-9+()\-\s]/g, '')
     .slice(0, 24);
 }

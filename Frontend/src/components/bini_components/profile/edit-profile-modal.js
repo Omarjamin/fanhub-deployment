@@ -1,8 +1,14 @@
 import '../../../styles/bini_styles/EditProfileModal.css';
 import api from '../../../services/bini_services/api.js';
 import { showToast } from '../../../utils/toast.js';
+import {
+  DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+  IMAGE_UPLOAD_ACCEPT_ATTR,
+  validateSingleImageFile,
+} from '../../../utils/image-upload.js';
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
+const PROFILE_IMAGE_LABEL = "Profile image";
 
 export default function showEditProfileModal(user, token, onUpdate) {
   const existing = document.getElementById('editProfileModal');
@@ -41,7 +47,7 @@ export default function showEditProfileModal(user, token, onUpdate) {
             <input type="file" 
                    id="editProfilePicFile" 
                    class="file-upload-input" 
-                   accept="image/*">
+                   accept="${IMAGE_UPLOAD_ACCEPT_ATTR}">
           </div>
         </div>
         
@@ -63,15 +69,29 @@ export default function showEditProfileModal(user, token, onUpdate) {
   let removePhotoRequested = false;
 
   fileInput.addEventListener('change', () => {
-    if (fileInput.files && fileInput.files[0]) {
-      const reader = new FileReader();
-      reader.onload = e => {
-        previewImg.src = e.target.result;
-      };
-      reader.readAsDataURL(fileInput.files[0]);
-      removePhotoRequested = false;
-      if (removeButton) removeButton.disabled = false;
+    const selectedFile = fileInput.files?.[0] || null;
+    if (!selectedFile) return;
+
+    const imageValidation = validateSingleImageFile(selectedFile, {
+      label: PROFILE_IMAGE_LABEL,
+      maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+    });
+    if (!imageValidation.isValid) {
+      showToast(imageValidation.errorMessage, 'error');
+      fileInput.value = "";
+      previewImg.src = removePhotoRequested
+        ? DEFAULT_PROFILE_IMAGE
+        : (user.profile_picture || DEFAULT_PROFILE_IMAGE);
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+    };
+    reader.readAsDataURL(selectedFile);
+    removePhotoRequested = false;
+    if (removeButton) removeButton.disabled = false;
   });
 
   if (removeButton) {
@@ -102,6 +122,15 @@ export default function showEditProfileModal(user, token, onUpdate) {
 
     // Upload new profile picture if selected
     if (fileInput.files && fileInput.files[0]) {
+      const imageValidation = validateSingleImageFile(fileInput.files[0], {
+        label: PROFILE_IMAGE_LABEL,
+        maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+      });
+      if (!imageValidation.isValid) {
+        showToast(imageValidation.errorMessage, 'error');
+        return;
+      }
+
       const imageData = new FormData();
       imageData.append('file', fileInput.files[0]);
 
