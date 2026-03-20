@@ -318,10 +318,11 @@
   /* REMOVED the conflicting .image-icon size rules from here */
   
   #submit-post.btn-primary {
-    width: 4px;
-    padding: 0;
-    height: 41px;
-    font-size: small;
+    width: auto;
+    min-width: 72px;
+    padding: 0 10px;
+    height: 38px;
+    font-size: 0.8rem;
   }
   
   .preview-image-wrapper {
@@ -995,7 +996,7 @@ body:has(.thread-topic-container) .threads-fab {
   .whats-new-bar {
     width: 66% !important;
     max-width: 760px !important;
-    margin: 0.75rem 0 1rem 15% !important;
+    margin: 0 0 1rem 15% !important;
     box-sizing: border-box !important;
   }
 }
@@ -1005,7 +1006,7 @@ body:has(.thread-topic-container) .threads-fab {
   .whats-new-bar {
     width: 100% !important;
     max-width: 100% !important;
-    margin: 0.625rem auto 0.875rem !important;
+    margin: 0 auto 0.875rem !important;
     padding: 10px !important;
     border-radius: 16px !important;
     box-sizing: border-box !important;
@@ -1219,6 +1220,30 @@ body:has(.homepage-container) #head .image-icon {
   background: #fff3f9 !important;
 }
 
+body:has(.homepage-container) #head #submit-post.btn-primary {
+  font-size: 0.8rem !important;
+  line-height: 1 !important;
+}
+
+/* Force override for composer Post button font size */
+@media (max-width: 480px) {
+  body:has(.homepage-container) #head .whats-new-bar #submit-post.btn-primary {
+    font-size: 0.78rem !important;
+    line-height: 1 !important;
+    height: 34px !important;
+    min-width: 72px !important;
+    padding: 0 10px !important;
+    border-radius: 12px !important;
+    margin-left: 6px !important;
+  }
+
+  body:has(.homepage-container) #head .image-icon {
+    width: 34px !important;
+    height: 34px !important;
+    min-width: 34px !important;
+  }
+}
+
 body:has(.homepage-container) #head .image-icon::before {
   margin-bottom: 0 !important;
   font-size: 1.6rem !important;
@@ -1291,7 +1316,7 @@ body:has(.homepage-container) #head #submit-post.btn-primary:hover {
   body:has(.homepage-container) #head .whats-new-bar {
     width: 66% !important;
     max-width: 760px !important;
-    margin: 0.75rem 0 0.875rem 15% !important;
+    margin: 0 0 0.875rem 15% !important;
     box-sizing: border-box !important;
   }
 }
@@ -1390,6 +1415,49 @@ body:has(.homepage-container) #head .whats-new-bar {
   padding: 18px !important;
 }
 
+@media (max-width: 1024px) {
+  body:has(.homepage-container) {
+    --mobile-composer-top: 0px;
+  }
+
+  body:has(.homepage-container) #head {
+    padding-top: calc(env(safe-area-inset-top, 0px)) !important;
+  }
+
+  body:has(.homepage-container) #head .whats-new-bar,
+  #head .whats-new-bar {
+    position: fixed !important;
+    top: calc(var(--mobile-composer-top, 12px) + env(safe-area-inset-top, 0px)) !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    z-index: 1400 !important;
+    background: linear-gradient(180deg, #ee9db6 0%, #e98aac 100%) !important;
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
+    border-radius: 0 !important;
+    box-shadow: 0 12px 26px rgba(17, 24, 39, 0.12), 0 3px 10px rgba(236, 72, 153, 0.12) !important;
+  }
+
+  .whats-new-bar {
+    border-radius: 0 !important;
+  }
+}
+
+/* Tablet (769-1024px): sit flush at very top */
+@media (min-width: 769px) and (max-width: 1024px) {
+  body:has(.homepage-container) #head {
+    padding-top: 0 !important;
+  }
+
+  body:has(.homepage-container) #head .whats-new-bar,
+  #head .whats-new-bar {
+    top: 0 !important;
+  }
+}
+
 /* Tablet (769-1024px): keep composer the same width as the feed column. */
 @media (min-width: 769px) and (max-width: 1024px) {
   #head {
@@ -1438,15 +1506,15 @@ body:has(.homepage-container) #head .image-icon {
   width: 52px !important;
   height: 52px !important;
   min-width: 52px !important;
-  border-radius: 16px !important;
-  border: 1px solid #efc3da !important;
-  background: linear-gradient(180deg, #fff5fa 0%, #ffe7f3 100%) !important;
-  box-shadow: 0 8px 18px rgba(236, 72, 153, 0.12) !important;
+  border-radius: 0 !important;
+  border: none !important;
+  background: transparent !important;
+  box-shadow: none !important;
 }
 
 body:has(.homepage-container) #head .image-icon:hover {
-  border-color: #ec4899 !important;
-  background: linear-gradient(180deg, #fff0f7 0%, #ffd9ea 100%) !important;
+  border-color: transparent !important;
+  background: transparent !important;
 }
 
 body:has(.homepage-container) #head .image-icon::before {
@@ -1495,10 +1563,11 @@ body:has(.homepage-container) #head #submit-post.btn-primary:hover {
 }
 
 @media (max-width: 768px) {
-  body:has(.homepage-container) #head .whats-new-bar {
+  body:has(.homepage-container){
     border-radius: 18px !important;
     padding: 14px !important;
   }
+
 
   body:has(.homepage-container) #head .profile-pic {
     width: 48px !important;
@@ -1559,5 +1628,58 @@ body:has(.homepage-container) #head #submit-post.btn-primary:hover {
     max-width: 100% !important;
     margin: 0.75rem auto 1rem !important;
     box-sizing: border-box !important;
+  }
+}
+
+/* Mobile composer tidy: keep Post button clean and aligned */
+@media (max-width: 520px) {
+  body:has(.homepage-container) #head .post-input-container {
+    display: grid !important;
+    grid-template-columns: 36px minmax(0, 1fr) 32px auto !important;
+    align-items: center !important;
+    gap: 6px !important;
+    width: 100% !important;
+  }
+
+  body:has(.homepage-container) #head .profile-pic {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+  }
+
+  body:has(.homepage-container) #head .post-textarea {
+    min-height: 38px !important;
+    padding: 8px 10px !important;
+    font-size: 0.85rem !important;
+    line-height: 1.25 !important;
+  }
+
+  body:has(.homepage-container) #head .image-icon {
+    width: 30px !important;
+    height: 30px !important;
+    min-width: 30px !important;
+  }
+
+  body:has(.homepage-container) #head #submit-post.btn-primary {
+    min-width: 72px !important;
+    height: 32px !important;
+    padding: 0 10px !important;
+    font-size: 0.8rem !important;
+    line-height: 1 !important;
+    white-space: nowrap !important;
+  }
+}
+
+/* Final tablet flush override (authoritative) */
+@media (min-width: 769px) and (max-width: 1024px) {
+  body:has(.homepage-container) #head {
+    padding-top: 0 !important;
+    margin-top: 0 !important;
+  }
+
+  body:has(.homepage-container) #head .whats-new-bar,
+  #head .whats-new-bar {
+    top: 0 !important;
+    margin-top: 0 !important;
   }
 }

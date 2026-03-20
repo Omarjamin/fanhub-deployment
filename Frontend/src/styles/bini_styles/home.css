@@ -3328,10 +3328,22 @@ animation: none;
   .create-post-dialog {
     width: min(92vw, 480px);
     padding: 14px;
+    max-height: 85vh;
+    overflow: hidden;
+  }
+
+  .create-post-body {
+    max-height: calc(85vh - 120px);
+    overflow-y: auto;
+    padding-top: 12px;
   }
 
   #create-post-content {
     font-size: 1.1rem;
+  }
+
+  .create-post-preview-item {
+    max-height: 30vh;
   }
 }
 
@@ -3983,5 +3995,65 @@ body:has(.homepage-container) .post-tags {
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
+  }
+}
+
+/* Mobile: allow page scroll so sticky composer can work */
+@media (max-width: 768px) {
+  body:has(.homepage-container) .homepage-container {
+    overflow: visible !important;
+  }
+
+  body:has(.homepage-container) .homepage-feed {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+}
+
+/* Mobile sticky support: ensure the page (not the feed) handles scrolling */
+@media (max-width: 768px) {
+  body:has(.homepage-container) {
+    overflow: visible !important;
+  }
+
+  .homepage-feed {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+}
+
+@media (max-width: 768px) {
+  body:has(.homepage-container) .homepage-container {
+    padding-top: calc(80px + env(safe-area-inset-top, 0px)) !important;
+  }
+}
+
+/* Final mobile spacing: maximize left/right feed space */
+@media (max-width: 768px) {
+  body:has(.homepage-container) .homepage-container {
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  body:has(.homepage-container) .homepage-feed {
+    padding: 8px 0 !important;
+    align-items: stretch !important;
+  }
+
+  body:has(.homepage-container) .homepage-feed > .post-card {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+    border-radius: 12px !important;
+  }
+}
+
+/* Tablet: add top padding so header doesn't cover first post */
+@media (min-width: 769px) and (max-width: 1024px) {
+  body:has(.homepage-container) .homepage-feed {
+    padding-top: 96px !important;
   }
 }
