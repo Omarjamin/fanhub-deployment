@@ -2,6 +2,7 @@
 import { getCart, updateCartItem, removeFromCart } from '../cart/cart.js';
 import { calculateCheckoutSummary, saveCheckoutDraft } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
 import { formatPHP, toSafeInteger, toSafeNumber } from '../../../lib/number-format.js';
+import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
 import { showToast } from '../../../utils/toast.js';
 import '../../../styles/ecommerce_styles/cart.css';
 
@@ -44,8 +45,10 @@ function formatPackageSize(item) {
     const length = resolveItemLengthCm(item);
     const width = resolveItemWidthCm(item);
     const height = resolveItemHeightCm(item);
-    if (length <= 0 && width <= 0 && height <= 0) return '';
-    return `${length} x ${width} x ${height} cm`;
+    return formatPackageDimensions(length, width, height, {
+        emptyLabel: '',
+        showAxisLabels: false,
+    });
 }
 
 export default async function CustomerCart() {

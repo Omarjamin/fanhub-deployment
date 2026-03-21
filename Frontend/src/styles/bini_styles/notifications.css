@@ -605,6 +605,10 @@ body:has(.notifications-container) {
     linear-gradient(180deg, #fff8fb 0%, #fff4f8 48%, #fffafd 100%);
 }
 
+body:has(.notifications-container) #footer {
+  display: none !important;
+}
+
 body:has(.notifications-container) #head .notif-header {
   width: min(760px, calc(100% - 48px));
   margin: 0 auto 20px !important;
@@ -903,4 +907,107 @@ body:has(.notifications-container) .notif-post-actions {
     max-width: 100% !important;
     max-height: none !important;
   }
+}
+
+body:has(.notifications-container) .notif-post-actions {
+  margin-top: 20px !important;
+  padding-top: 14px;
+  border-top: 1px solid #f6d2e3;
+  gap: 12px !important;
+}
+
+body:has(.notifications-container) .notif-post-actions .post-action {
+  min-width: 56px;
+  min-height: 46px;
+  padding: 10px 14px !important;
+  border: 1px solid #efcadb !important;
+  border-radius: 14px !important;
+  background: #ffffff !important;
+  color: #475569 !important;
+  box-shadow: 0 6px 14px rgba(17, 24, 39, 0.08) !important;
+}
+
+body:has(.notifications-container) .notif-post-actions .post-action:hover {
+  border-color: #ec4899 !important;
+  background: #fff2f8 !important;
+  color: #be185d !important;
+}
+
+body:has(.notifications-container) .notif-post-actions .like-button.liked {
+  border-color: #ec4899 !important;
+  background: #fdf2f8 !important;
+  color: #be185d !important;
+}
+
+body:has(.notifications-container) .notif-post-action-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  color: currentColor;
+  flex-shrink: 0;
+}
+
+body:has(.notifications-container) .notif-action-svg {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: none;
+  stroke: currentColor;
+}
+
+body:has(.notifications-container) .notif-action-svg--active {
+  width: 20px;
+  height: 20px;
+  display: block;
+  fill: currentColor;
+}
+
+body:has(.notifications-container) .notif-post-actions .like-count {
+  font-weight: 700;
+  line-height: 1;
+}
+
+body:has(.notifications-container) .threads-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body:has(.notifications-container) .threads-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+body:has(.notifications-container) .thread-item {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 12px;
+}
+
+body:has(.notifications-container) .thread-item-content {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+body:has(.notifications-container) .thread-item-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+body:has(.notifications-container) .thread-title,
+body:has(.notifications-container) .thread-venue {
+  margin: 0 !important;
 }

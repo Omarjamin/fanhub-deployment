@@ -7,8 +7,33 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from "../../../
 import { formatUserTimestamp } from "../../../utils/user-time.js";
 import { buildPostMenuHtml, bindPostMenuActions } from "../post/post-menu.js";
 import { showToast } from "../../../utils/toast.js";
+import { escapeHtml, sanitizeCommunityText } from "../../../utils/community-text.js";
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
+
+function sanitizePostTags(tags = []) {
+  return (Array.isArray(tags) ? tags : [])
+    .map((tag) => sanitizeCommunityText(tag, { maxLength: 80 }))
+    .filter(Boolean);
+}
+
+function getSafePostContent(post = {}) {
+  const tags = sanitizePostTags(post.tags);
+  const text = sanitizeCommunityText(post.content, { maxLength: 1000 });
+  return text || (tags.length ? tags.join(" ") : "No content available");
+}
+
+function getSafeDisplayName(value, fallback = "Unknown User") {
+  return escapeHtml(sanitizeCommunityText(value, { maxLength: 120 }) || fallback);
+}
+
+function resolveCommunityBasePath(communityType = "") {
+  const normalized = String(communityType || "").trim().toLowerCase();
+  if (normalized) {
+    return `/fanhub/community-platform/${encodeURIComponent(normalized)}`;
+  }
+  return "/bini";
+}
 
 // Helper to decode JWT and get userId
 function getUserIdFromToken(token) {
@@ -83,6 +108,7 @@ export default async function ProfileInfo(main, params) {
   const activeSite = getActiveSiteSlug(activeCommunityType) || activeCommunityType;
   const token = getSessionToken(activeSite);
   const myUserId = getUserIdFromToken(token);
+  let followModal = null;
 
   if (!token) {
     showToast("Please login first.", "error");
@@ -116,6 +142,8 @@ export default async function ProfileInfo(main, params) {
       const fullname = main.querySelector("#fullname");
       const followBtn = main.querySelector("#followBtn");
       const editProfileBtn = main.querySelector("#editProfileBtn");
+      const followersStat = main.querySelector("#followersCount");
+      const followingStat = main.querySelector("#followingCount");
       const displayName = user.user.fullname || user.user.username || "Anonymous";
 
       // Update profile picture and fullname
@@ -192,6 +220,118 @@ export default async function ProfileInfo(main, params) {
         followBtn.style.display = "none";
       }
 
+      const ensureFollowModal = () => {
+        if (followModal) return followModal;
+        followModal = document.createElement("div");
+        followModal.className = "profile-follow-modal";
+        followModal.innerHTML = `
+          <div class="profile-follow-dialog" role="dialog" aria-modal="true">
+            <div class="profile-follow-header">
+              <h3 class="profile-follow-title">Followers</h3>
+              <button type="button" class="profile-follow-close" aria-label="Close">&times;</button>
+            </div>
+            <div class="profile-follow-body">
+              <div class="profile-follow-list"></div>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(followModal);
+        followModal.querySelector(".profile-follow-close")?.addEventListener("click", () => {
+          followModal.classList.remove("open");
+        });
+        followModal.addEventListener("click", (event) => {
+          if (event.target === followModal) {
+            followModal.classList.remove("open");
+          }
+        });
+        document.addEventListener("keydown", (event) => {
+          if (event.key === "Escape" && followModal.classList.contains("open")) {
+            followModal.classList.remove("open");
+          }
+        });
+        return followModal;
+      };
+
+      const normalizeList = (payload, key) => {
+        if (Array.isArray(payload)) return payload;
+        if (Array.isArray(payload?.[key])) return payload[key];
+        if (Array.isArray(payload?.data)) return payload.data;
+        return [];
+      };
+
+      const renderFollowList = (items, title) => {
+        const modal = ensureFollowModal();
+        const titleEl = modal.querySelector(".profile-follow-title");
+        const listEl = modal.querySelector(".profile-follow-list");
+        if (titleEl) titleEl.textContent = title;
+        if (listEl) {
+          if (!items.length) {
+            listEl.innerHTML = `<p class="profile-follow-empty">No ${title.toLowerCase()} yet.</p>`;
+          } else {
+            listEl.innerHTML = items
+              .map((item) => {
+                const name = item.fullname || item.username || "User";
+                const avatar = item.profile_picture || DEFAULT_PROFILE_IMAGE;
+                const id = item.user_id || item.id || "";
+                return `
+                  <div class="profile-follow-item" data-user-id="${id}">
+                    <img src="${avatar}" alt="${name}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">
+                    <div class="profile-follow-name">${name}</div>
+                  </div>
+                `;
+              })
+              .join("");
+          }
+        }
+        modal.classList.add("open");
+        if (listEl && !listEl.__boundProfileLinks) {
+          listEl.__boundProfileLinks = true;
+          listEl.addEventListener("click", (event) => {
+            const target = event.target.closest(".profile-follow-item");
+            if (!target) return;
+            const selectedId = target.getAttribute("data-user-id");
+            if (!selectedId) return;
+            const activeCommunity = String(
+              getActiveSiteSlug() ||
+              sessionStorage.getItem("community_type") ||
+              "",
+            ).trim().toLowerCase();
+            const basePath = resolveCommunityBasePath(activeCommunity);
+            sessionStorage.setItem("selectedUserId", String(selectedId));
+            window.history.pushState(
+              {},
+              "",
+              `${basePath}/others-profile?userId=${encodeURIComponent(String(selectedId))}`,
+            );
+            window.dispatchEvent(new Event("popstate"));
+            followModal.classList.remove("open");
+          });
+        }
+      };
+
+      const openFollowers = async () => {
+        try {
+          const res = await api.get(`/bini/users/${encodeURIComponent(String(viewedUserId))}/followers`);
+          const items = normalizeList(res.data, "followers");
+          renderFollowList(items, "Followers");
+        } catch (error) {
+          showToast("Failed to load followers.", "error");
+        }
+      };
+
+      const openFollowing = async () => {
+        try {
+          const res = await api.get(`/bini/users/${encodeURIComponent(String(viewedUserId))}/following`);
+          const items = normalizeList(res.data, "following");
+          renderFollowList(items, "Following");
+        } catch (error) {
+          showToast("Failed to load following.", "error");
+        }
+      };
+
+      if (followersStat) followersStat.addEventListener("click", openFollowers);
+      if (followingStat) followingStat.addEventListener("click", openFollowing);
+
       // FOLLOW BUTTON LOGIC
       let isFollowing = false;
       // Fetch following status from API
@@ -251,7 +391,7 @@ export default async function ProfileInfo(main, params) {
         feedElement.style.visibility = "visible";
         feedElement.style.opacity = "1";
         console.log("Feed element found, rendering posts...");
-        await renderPosts("threads", userId, token, feedElement, main);
+        await renderPosts("threads", userId, myUserId, token, feedElement, main, activeCommunityType);
       } else {
         console.error("Feed element not found!");
       }
@@ -273,9 +413,11 @@ export default async function ProfileInfo(main, params) {
           renderPosts(
             item.dataset.tab,
             userId,
+            myUserId,
             token,
             main.querySelector(".feed"),
             main,
+            activeCommunityType,
           );
         });
       });
@@ -346,7 +488,7 @@ async function loadProfileStats(userId, main) {
 
 // POSTS/REPOSTS RENDERING
 // POSTS/REPOSTS RENDERING
-async function renderPosts(tab, userId, token, feed, mainContainer = null) {
+async function renderPosts(tab, userId, viewerUserId, token, feed, mainContainer = null, communityType = "") {
   feed.innerHTML = "";
   if (!userId) {
     feed.innerHTML = "<p>User ID not found.</p>";
@@ -368,6 +510,10 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
       // console.log("REPOST:", repostData);
       // posts = repostData.reposts || [];
     }
+
+    posts = (Array.isArray(posts) ? posts : [])
+      .slice()
+      .sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
 
     console.log("POSTS:", posts);
 
@@ -396,6 +542,9 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
       return;
     }
 
+    const repostOriginals =
+      tab === "reposts" ? await hydrateRepostOriginals(posts) : new Map();
+
     const likeStatusPromises = posts.map((post) =>
       fetchIsLikedStatus(post.post_id, userId, token),
     );
@@ -410,9 +559,15 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
 	      const isLiked = likeStatuses[index];
 	      const likeCount = countlike[index];
         const postUserId = post.user_id || userId;
-        const postFullname = post.fullname || "Unknown User";
+        const postFullname = getSafeDisplayName(post.fullname, "Unknown User");
         const postProfilePic = post.profile_picture || DEFAULT_PROFILE_IMAGE;
-        const tags = Array.isArray(post.tags) ? post.tags : [];
+        const isOwnPost = String(postUserId) === String(viewerUserId);
+        const tags = sanitizePostTags(post.tags);
+        const originalPost = repostOriginals.get(String(post.repost_id || "")) || null;
+        const originalName = escapeHtml(
+          sanitizeCommunityText(originalPost?.fullname, { maxLength: 120 }) || "",
+        );
+        const originalUserId = originalPost?.user_id || null;
 
         const postContent = `
           <div class="post-card" data-post-id="${post.post_id}" data-owner-id="${postUserId}">
@@ -423,12 +578,17 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
               <a href="#" class="profile-link" data-user-id="${postUserId}">
                 <span class="post-fullname">${postFullname}</span>
               </a>
-              ${tab === "reposts" ? '<span class="repost-indicator">Reposted</span>' : ""}
               <span class="post-time">${postCreationTime}</span>
-              ${buildPostMenuHtml({ postId: post.post_id, isOwnPost: false })}
+              ${buildPostMenuHtml({ postId: post.post_id, isOwnPost })}
             </div>
-            <div class="post-content">${post.content || "No content available"}</div>
-            ${tags.length ? `<div class="post-tags">${tags.join(", ")}</div>` : ""}
+            ${tab === "reposts" && originalName ? `
+              <div class="post-repost-meta">
+                <span>Reposted from</span>
+                <a href="#" class="profile-link" data-user-id="${originalUserId || ''}">${originalName}</a>
+              </div>
+            ` : ""}
+            <div class="post-content">${escapeHtml(getSafePostContent(post))}</div>
+            ${tags.length ? `<div class="post-tags">${escapeHtml(tags.join(", "))}</div>` : ""}
             ${post.img_url ? `<img src="${post.img_url}" alt="Post Image" class="post-image" />` : ""}
             <div class="post-actions">
               <button class="post-action like-button ${isLiked ? "liked" : ""}" data-post-id="${post.post_id}" data-like-type="post">
@@ -438,7 +598,7 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
               <button class="post-action comment-button" data-post-id="${post.post_id}">
                 <span class="material-icons">chat_bubble_outline</span>
               </button>
-              <button class="post-action repostbtn" data-post-id="${post.post_id}">
+              <button class="post-action repostbtn${isOwnPost ? " repost-disabled" : ""}" data-post-id="${post.post_id}"${isOwnPost ? ' disabled aria-disabled="true" title="You cannot repost your own post."' : ""}>
                 <span class="material-icons">repeat</span>
               </button>
             </div>
@@ -504,9 +664,24 @@ async function renderPosts(tab, userId, token, feed, mainContainer = null) {
 	        e.preventDefault();
 	        const selectedId = link.getAttribute("data-user-id");
 	        if (!selectedId) return;
+          const resolvedCommunityType = String(
+            communityType ||
+            getActiveSiteSlug() ||
+            sessionStorage.getItem("community_type") ||
+            "",
+          ).trim().toLowerCase();
+          const basePath = resolveCommunityBasePath(resolvedCommunityType);
+          if (String(selectedId) === String(viewerUserId)) {
+            window.history.pushState({}, "", `${basePath}/profile`);
+            window.dispatchEvent(new Event("popstate"));
+            return;
+          }
 	        sessionStorage.setItem("selectedUserId", String(selectedId));
-          const scopedCommunity = getActiveSiteSlug(activeCommunityType) || activeCommunityType || "";
-	        window.history.pushState({}, "", `/fanhub/community-platform/${scopedCommunity}/others-profile`);
+	        window.history.pushState(
+            {},
+            "",
+            `${basePath}/others-profile?userId=${encodeURIComponent(String(selectedId))}`,
+          );
 	        window.dispatchEvent(new Event("popstate"));
 	      });
 	    });
@@ -541,10 +716,31 @@ async function fetchUserPosts(userId, token) {
 async function fetchUserRepost(userId, token) {
   try {
     const response = await api.get(`/bini/posts/${userId}/repost`);
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error) {
     return [];
   }
+}
+
+async function hydrateRepostOriginals(posts) {
+  const map = new Map();
+  const uniqueIds = Array.from(
+    new Set(posts.map((post) => post.repost_id).filter(Boolean).map(String)),
+  );
+  if (!uniqueIds.length) return map;
+
+  const results = await Promise.allSettled(
+    uniqueIds.map((id) => api.get(`/bini/posts/${encodeURIComponent(id)}`)),
+  );
+
+  results.forEach((result, index) => {
+    if (result.status !== "fulfilled") return;
+    const original = result.value?.data;
+    if (!original) return;
+    map.set(uniqueIds[index], original);
+  });
+
+  return map;
 }
 // Toggle like function
 async function toggleLike(postId, token, likeType = "post", commentId = null) {

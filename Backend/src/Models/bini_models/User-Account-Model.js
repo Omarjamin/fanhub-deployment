@@ -351,15 +351,28 @@ class UserModel {
     return Number(result?.[0]?.following_count || 0);
   }
   // update user profile
-  async updateUser(userId, { fullname, profile_picture }) {
+  async updateUser(userId, updates = {}) {
     try {
-      const query =
-        "UPDATE users SET fullname = ?, profile_picture = ? WHERE user_id = ?";
-      const [result] = await this.db.query(query, [
-        fullname,
-        profile_picture,
-        userId,
-      ]);
+      const fields = [];
+      const values = [];
+
+      if (Object.prototype.hasOwnProperty.call(updates, "fullname")) {
+        fields.push("fullname = ?");
+        values.push(updates.fullname);
+      }
+
+      if (Object.prototype.hasOwnProperty.call(updates, "profile_picture")) {
+        fields.push("profile_picture = ?");
+        values.push(updates.profile_picture);
+      }
+
+      if (!fields.length) {
+        return false;
+      }
+
+      const query = `UPDATE users SET ${fields.join(", ")} WHERE user_id = ?`;
+      values.push(userId);
+      const [result] = await this.db.query(query, values);
       return result.affectedRows > 0;
     } catch (error) {
       console.error("<error> user.updateUser", error);

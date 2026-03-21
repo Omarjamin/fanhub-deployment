@@ -5,6 +5,7 @@ import { api } from '../../../services/ecommerce_services/api.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
 import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
 import { getActiveSiteSlug } from '../../../lib/site-context.js';
+import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
 import '../../../styles/ecommerce_styles/Collection.css';
 
 export default function Collection(root, data = {}) {
@@ -154,10 +155,30 @@ export default function Collection(root, data = {}) {
     return '';
   }
 
+  function parseProductImageArray(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || '').trim()).filter(Boolean);
+    }
+
+    const raw = String(value || '').trim();
+    if (!raw) return [];
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((item) => String(item || '').trim()).filter(Boolean);
+      }
+    } catch (_) {
+      // keep raw fallback below
+    }
+
+    return [raw];
+  }
+
   function getProductImage(product) {
     if (!product) return '';
     if (product.image_url) return product.image_url;
-    if (product.img_url) return product.img_url;
+    if (product.img_url) return parseProductImageArray(product.img_url)[0] || '';
     if (product.image) return product.image;
     if (Array.isArray(product.images) && product.images.length) return product.images[0];
     return '';
@@ -209,8 +230,7 @@ export default function Collection(root, data = {}) {
     const length = resolveVariantDimension(variant, ['length_cm', 'lengthCm', 'package_length_cm', 'length']);
     const width = resolveVariantDimension(variant, ['width_cm', 'widthCm', 'package_width_cm', 'width']);
     const height = resolveVariantDimension(variant, ['height_cm', 'heightCm', 'package_height_cm', 'height']);
-    if (length <= 0 && width <= 0 && height <= 0) return '';
-    return `${length} x ${width} x ${height} cm`;
+    return formatPackageDimensions(length, width, height, { emptyLabel: '' });
   }
 
   function buildVariantSummary(product) {
@@ -460,22 +480,36 @@ export default function Collection(root, data = {}) {
       const img = getProductImage(product) || '';
       const productId = product.product_id || product.id || product.productId;
       const price = resolveProductPrice(product);
-      const variantSummary = buildVariantSummary(product);
-      const shippingPreview = buildShippingPreview(product);
-
       const box = document.createElement('div');
       box.className = 'product-item';
       box.dataset.productId = productId;
       box.innerHTML = `
         <img src="${img}" class="product-img" alt="${product.name || ''}">
         <h4>${product.name || ''}</h4>
-        ${variantSummary ? `<p class="product-variant-preview">Sizes: ${variantSummary}</p>` : ''}
-        ${shippingPreview ? `<p class="product-shipping-preview">${shippingPreview}</p>` : ''}
         <p class="product-price">${formatPHP(price)}</p>
       `;
 
       box.addEventListener('click', async () => {
         try {
+          try {
+            sessionStorage.setItem(
+              'selectedProductSnapshot',
+              JSON.stringify({
+                product_id: productId,
+                name: product.name || '',
+                image_url: product.image_url || parseProductImageArray(product.img_url)[0] || product.image || '',
+                img_url: product.img_url || product.image_gallery || [],
+                image_gallery:
+                  product.img_url ??
+                  product.image_gallery ??
+                  product.imageGallery ??
+                  product.images ??
+                  [],
+                images: product.images || [],
+                variants: product.variants || [],
+              }),
+            );
+          } catch (_) {}
           const productPath = communityType
             ? `/fanhub/${communityType}/product/${productId}`
             : `/product/${productId}`;
@@ -509,6 +543,23 @@ export default function Collection(root, data = {}) {
             ...fullProduct,
             variants,
           };
+          merged.image_url =
+            fullProduct?.image_url ||
+            parseProductImageArray(fullProduct?.img_url)[0] ||
+            product?.image_url ||
+            parseProductImageArray(product?.img_url)[0] ||
+            merged.image_url ||
+            '';
+          merged.image_gallery =
+            fullProduct?.img_url ??
+            fullProduct?.image_gallery ??
+            fullProduct?.imageGallery ??
+            product?.img_url ??
+            product?.image_gallery ??
+            product?.imageGallery ??
+            fullProduct?.images ??
+            product?.images ??
+            [];
           merged.price = resolveProductPrice(merged);
           products.push(merged);
         }
@@ -524,10 +575,28 @@ export default function Collection(root, data = {}) {
     currentProducts = [...products];
     collectionModeProducts = [...products];
     try {
+      const productSnapshots = products.map((p) => ({
+        product_id: p.product_id || p.id || p.productId,
+        name: p.name || '',
+        image_url: p.image_url || parseProductImageArray(p.img_url)[0] || p.image || (Array.isArray(p.images) && p.images[0]) || '',
+        img_url: p.img_url || p.image_gallery || p.imageGallery || p.images || [],
+        image_gallery:
+          p.img_url ||
+          p.image_gallery ||
+          p.imageGallery ||
+          p.images ||
+          [],
+        images: p.images || [],
+        variants: p.variants || [],
+      }));
+      sessionStorage.setItem('collectionProductSnapshots', JSON.stringify(productSnapshots));
+
       const relatedPayload = products.map((p) => ({
         product_id: p.product_id || p.id || p.productId,
         name: p.name || '',
-        image_url: p.image_url || p.img_url || p.image || (Array.isArray(p.images) && p.images[0]) || '',
+        image_url: p.image_url || parseProductImageArray(p.img_url)[0] || p.image || (Array.isArray(p.images) && p.images[0]) || '',
+        img_url: p.img_url || p.image_gallery || p.imageGallery || p.images || [],
+        image_gallery: p.img_url || p.image_gallery || p.imageGallery || p.images || [],
         price: p.price ?? resolveProductPrice(p),
       }));
       sessionStorage.setItem('collectionProducts', JSON.stringify(relatedPayload));

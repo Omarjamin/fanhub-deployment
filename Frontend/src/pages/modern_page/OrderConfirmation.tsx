@@ -4,6 +4,7 @@ import { CheckCircle2, Cog, PackageCheck, Truck } from "lucide-react";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { fetchOrderById } from "@/lib/ecommerceApi";
+import { formatPackageDimensions } from "@/utils/package-dimensions.js";
 
 type ConfirmationItem = {
   name?: string;
@@ -137,7 +138,7 @@ function resolveItemShippingMeta(item: ConfirmationItem) {
     (Number.isFinite(width) && width > 0) ||
     (Number.isFinite(height) && height > 0)
   ) {
-    parts.push(`${Math.max(length, 0)} x ${Math.max(width, 0)} x ${Math.max(height, 0)} cm`);
+    parts.push(formatPackageDimensions(length, width, height));
   }
 
   return parts.join(" • ");

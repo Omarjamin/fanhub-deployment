@@ -6,6 +6,7 @@ import {
   fetchProductWithVariants,
   fetchShopCollections,
 } from "@/lib/ecommerceApi";
+import { formatPackageDimensions } from "@/utils/package-dimensions.js";
 import ShopHeader from "@/components/shop/ShopHeader";
 import ProductGrid from "@/components/shop/ProductGrid";
 
@@ -25,6 +26,7 @@ type Product = {
   collectionId?: string;
   collectionName?: string;
   variantLabel?: string;
+  packageSize?: string;
 };
 
 type ProductDetails = Record<string, any>;
@@ -69,6 +71,43 @@ const getVariantDisplayLabel = (variant: ProductVariant, index = 0) =>
       variant?.label ||
       `Variant ${index + 1}`,
   ).trim();
+
+const resolveVariantDimension = (variant: ProductVariant, keys: string[]) => {
+  for (const key of keys) {
+    const value = normalizeNumericValue(variant?.[key], 0);
+    if (value > 0) return value;
+  }
+  return 0;
+};
+
+const resolveProductPackageSize = (details: ProductDetails, variants: ProductVariant[]) => {
+  const directPackageSize = formatPackageDimensions(
+    normalizeNumericValue(details?.length_cm ?? details?.length ?? details?.package_length_cm, 0),
+    normalizeNumericValue(details?.width_cm ?? details?.width ?? details?.package_width_cm, 0),
+    normalizeNumericValue(details?.height_cm ?? details?.height ?? details?.package_height_cm, 0),
+    { emptyLabel: "" },
+  );
+  if (directPackageSize) return directPackageSize;
+
+  const variantPackageSizes = Array.from(
+    new Set(
+      variants
+        .map((variant) =>
+          formatPackageDimensions(
+            resolveVariantDimension(variant, ["length_cm", "length", "package_length_cm"]),
+            resolveVariantDimension(variant, ["width_cm", "width", "package_width_cm"]),
+            resolveVariantDimension(variant, ["height_cm", "height", "package_height_cm"]),
+            { emptyLabel: "" },
+          ),
+        )
+        .filter(Boolean),
+    ),
+  );
+
+  if (variantPackageSizes.length === 1) return variantPackageSizes[0];
+  if (variantPackageSizes.length > 1) return `${variantPackageSizes[0]} (varies)`;
+  return "";
+};
 
 const resolveVariantSummary = (details: ProductDetails, variants: ProductVariant[]) => {
   const label = String(
@@ -225,11 +264,13 @@ const ShopSection = () => {
                 : [];
               const resolvedPrice = resolveProductPrice(detailProduct, variants, product.price);
               const resolvedVariantLabel = resolveVariantSummary(detailProduct, variants);
+              const resolvedPackageSize = resolveProductPackageSize(detailProduct, variants);
 
               return {
                 ...product,
                 price: resolvedPrice > 0 ? resolvedPrice : product.price,
                 variantLabel: resolvedVariantLabel || product.variantLabel,
+                packageSize: resolvedPackageSize || product.packageSize,
               };
             } catch (_) {
               return product;

@@ -148,19 +148,22 @@
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
+  padding-right: 0.25rem;
 }
 
 .item-details p {
   margin: 0;
   font-size: 0.74rem;
   color: #6b7280;
-  line-height: 1.5;
+  line-height: 1.35;
 }
 
 .item-variant strong {
   color: #111827;
   font-weight: 700;
+  font-size: 0.98rem;
+  line-height: 1.2;
 }
 
 .item-details {
@@ -172,12 +175,16 @@
   grid-column: 3;
   grid-row: 1;
   text-align: right;
+  min-width: fit-content;
+  padding-left: 0.35rem;
 }
 
 .item-price {
+  margin: 0;
   color: #ff4b8d !important;
   font-weight: 700;
   font-size: 0.82rem;
+  white-space: nowrap;
 }
 
 .item-subtotal {
@@ -226,6 +233,12 @@
   color: #0f172a;
 }
 
+.item-package {
+  color: #7c3f5d !important;
+  font-size: 0.71rem !important;
+  line-height: 1.3 !important;
+}
+
 .item-total {
   text-align: center;
   font-size: 0.75rem;
@@ -245,15 +258,17 @@
   grid-column: 3;
   grid-row: 2;
   justify-self: end;
+  min-width: 78px;
   border: 1px solid #fecdd3;
   background: #fff5f7;
   color: #e11d48;
   border-radius: 10px;
   font-size: 0.72rem;
   font-weight: 700;
-  padding: 6px 10px;
+  padding: 7px 12px;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.2s ease;
+  white-space: nowrap;
 }
 
 .remove-btn:hover {

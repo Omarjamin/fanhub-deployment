@@ -1,9 +1,24 @@
 import fetchThreads from "../../services/bini_services/thread/thread-api.js";
-import { formatUserTimestamp } from "../../utils/user-time.js";
 import { getActiveSiteSlug } from "../../lib/site-context.js";
+import { formatFriendlyDateTime, formatUserTimestamp } from "../../utils/user-time.js";
+import { escapeHtml, sanitizeCommunityText } from "../../utils/community-text.js";
 
-function formatThreadDate(value) {
-  return formatUserTimestamp(value) || "No date";
+function formatThreadDate(dateValue, createdAtValue) {
+  const explicitDate = sanitizeCommunityText(dateValue, { maxLength: 80 });
+  const formattedExplicitDate = explicitDate ? formatFriendlyDateTime(explicitDate, { dateOnly: true }) : "";
+  if (formattedExplicitDate) {
+    return escapeHtml(formattedExplicitDate);
+  }
+  if (explicitDate) {
+    return escapeHtml(explicitDate);
+  }
+
+  const formattedCreatedAt = formatFriendlyDateTime(createdAtValue) || formatUserTimestamp(createdAtValue);
+  return formattedCreatedAt || "No date";
+}
+
+function getSafeThreadText(value, fallback) {
+  return escapeHtml(sanitizeCommunityText(value, { maxLength: 120 }) || fallback);
 }
 
 export async function renderThreadsSidebar() {
@@ -11,27 +26,27 @@ export async function renderThreadsSidebar() {
 
   const html = `
     <div class="threads-sidebar">
-      <button class="events-panel-close" aria-label="Close threads panel">×</button>
+      <button class="events-panel-close" aria-label="Close threads panel">&times;</button>
       <h3 class="threads-header">Community Threads</h3>
 
       <ul class="threads-list">
         ${threads
-          ?.map(
-            (thread) => `
+          ?.map((thread) => `
           <li
             class="thread-item ${thread.isPinned ? "pinned" : ""}"
             data-thread-id="${thread.id}"
             style="cursor: pointer;"
           >
             <div class="thread-item-meta">
-              <div class="thread-date">${formatThreadDate(thread.date || thread.created_at)}</div>
+              <div class="thread-date">${formatThreadDate(thread.date, thread.created_at)}</div>
               ${thread.isPinned ? '<span class="thread-pin-tag">Pinned</span>' : ""}
             </div>
-            <div class="thread-title">${thread.title || "Untitled thread"}</div>
-            <div class="thread-venue">${thread.venue || "No venue"}</div>
+            <div class="thread-item-content">
+              <div class="thread-title">${getSafeThreadText(thread.title, "Untitled thread")}</div>
+              <div class="thread-venue">${getSafeThreadText(thread.venue, "No venue")}</div>
+            </div>
           </li>
-        `,
-          )
+        `)
           .join("")}
       </ul>
     </div>

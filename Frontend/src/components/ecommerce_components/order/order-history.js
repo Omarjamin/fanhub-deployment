@@ -3,6 +3,7 @@ import Footer from '../footer.js';
 import { api } from '../../../services/ecommerce_services/config.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
 import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
+import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
 import '../../../styles/ecommerce_styles/order_history.css';
 
 function resolveItemWeightGrams(item) {
@@ -22,9 +23,33 @@ function resolveVariantLabel(item) {
 }
 
 function resolveItemDimensions(item) {
-  const length = Number(item?.length_cm ?? item?.length ?? 0);
-  const width = Number(item?.width_cm ?? item?.width ?? 0);
-  const height = Number(item?.height_cm ?? item?.height ?? 0);
+  const length = toSafeNumber(
+    item?.length_cm ??
+    item?.lengthCm ??
+    item?.length_cm_snapshot ??
+    item?.package_length_cm ??
+    item?.packageLengthCm ??
+    item?.length,
+    0,
+  );
+  const width = toSafeNumber(
+    item?.width_cm ??
+    item?.widthCm ??
+    item?.width_cm_snapshot ??
+    item?.package_width_cm ??
+    item?.packageWidthCm ??
+    item?.width,
+    0,
+  );
+  const height = toSafeNumber(
+    item?.height_cm ??
+    item?.heightCm ??
+    item?.height_cm_snapshot ??
+    item?.package_height_cm ??
+    item?.packageHeightCm ??
+    item?.height,
+    0,
+  );
   return {
     length: Number.isFinite(length) && length > 0 ? length : 0,
     width: Number.isFinite(width) && width > 0 ? width : 0,
@@ -41,18 +66,14 @@ function getItemShippingMeta(item) {
     parts.push(`Weight: ${weight.toLocaleString()}g each`);
   }
   if (dimensions.length > 0 || dimensions.width > 0 || dimensions.height > 0) {
-    parts.push(`Package Size: ${dimensions.length} x ${dimensions.width} x ${dimensions.height} cm`);
+    parts.push(`Package Size: ${formatPackageDimensions(dimensions.length, dimensions.width, dimensions.height)}`);
   }
 
   return parts.join('<br>');
 }
 
 function formatPackageSize(length = 0, width = 0, height = 0) {
-  const resolvedLength = Number(length || 0);
-  const resolvedWidth = Number(width || 0);
-  const resolvedHeight = Number(height || 0);
-  if (resolvedLength <= 0 && resolvedWidth <= 0 && resolvedHeight <= 0) return '';
-  return `${resolvedLength} x ${resolvedWidth} x ${resolvedHeight} cm`;
+  return formatPackageDimensions(length, width, height, { emptyLabel: '' });
 }
 
 function calculateOrderPackageMetrics(items = []) {
@@ -74,6 +95,32 @@ function getOrderPackageLabel(order = {}) {
 function getDisplayOrderNumber(order = {}) {
   const sequence = Number(order?.userSequence || 0);
   return sequence > 0 ? String(sequence) : String(order?.order_id || order?.id || '');
+}
+
+function getOrderSequenceValue(order = {}) {
+  const numericId = Number(order?.order_id ?? order?.id ?? 0);
+  if (Number.isFinite(numericId) && numericId > 0) return numericId;
+
+  const createdAtValue = new Date(
+    order?.created_at ??
+    order?.createdAt ??
+    order?.updated_at ??
+    order?.updatedAt ??
+    0,
+  ).getTime();
+  return Number.isFinite(createdAtValue) ? createdAtValue : 0;
+}
+
+function getOrderDisplaySortValue(order = {}) {
+  const createdAtValue = new Date(
+    order?.created_at ??
+    order?.createdAt ??
+    order?.updated_at ??
+    order?.updatedAt ??
+    0,
+  ).getTime();
+  if (Number.isFinite(createdAtValue) && createdAtValue > 0) return createdAtValue;
+  return getOrderSequenceValue(order);
 }
 
 function escapeHtml(value) {
@@ -324,12 +371,12 @@ export default function OrderHistory(payload = null) {
 
   // Add user sequence numbers to orders (1st, 2nd, 3rd, etc.)
   function addUserSequenceNumbers(orders) {
-    const sortedOrders = [...orders].sort((a, b) => (a.order_id || a.id) - (b.order_id || b.id));
-    const ordersWithSequence = sortedOrders.map((order, index) => ({
+    const ascendingOrders = [...orders].sort((a, b) => getOrderSequenceValue(a) - getOrderSequenceValue(b));
+    const ordersWithSequence = ascendingOrders.map((order, index) => ({
       ...order,
       userSequence: index + 1
     }));
-    return ordersWithSequence;
+    return ordersWithSequence.sort((a, b) => getOrderDisplaySortValue(b) - getOrderDisplaySortValue(a));
   }
 
   function updateStats() {

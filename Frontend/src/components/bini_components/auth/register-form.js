@@ -1,6 +1,11 @@
 import { registerUser } from '../../../services/bini_services/user/User-Api.js';
 import api from '../../../services/bini_services/api.js';
 import { getActiveSiteSlug, setActiveSiteSlug, setSessionToken } from '../../../lib/site-context.js';
+import {
+  DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+  IMAGE_UPLOAD_ACCEPT_ATTR,
+  validateSingleImageFile,
+} from '../../../utils/image-upload.js';
 
 export default function RegisterformComponent(root) {
   const siteSlug = getActiveSiteSlug();
@@ -25,7 +30,7 @@ export default function RegisterformComponent(root) {
           <input type="password" id="password" name="password" placeholder="Password" required />
           <label>Confirm password</label>
           <input type="password" id="confirmPass" name="confirmPass" placeholder="Confirm Password" required />
-          <input type="file" id="imageFile" accept="image/*" />
+          <input type="file" id="imageFile" accept="${IMAGE_UPLOAD_ACCEPT_ATTR}" />
           <button type="submit" class="sign-btn">Sign In</button>
         </form>
       </div>
@@ -54,6 +59,15 @@ export default function RegisterformComponent(root) {
     try {
       let imageUrl = '';
       if (imageFile) {
+        const imageValidation = validateSingleImageFile(imageFile, {
+          label: 'Profile image',
+          maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+        });
+        if (!imageValidation.isValid) {
+          alert(imageValidation.errorMessage);
+          return;
+        }
+
         const imageData = new FormData();
         imageData.append('file', imageFile);
 

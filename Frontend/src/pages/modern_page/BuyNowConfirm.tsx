@@ -11,6 +11,7 @@ import {
   toExternalUrl,
 } from "@/lib/ecommerceApi";
 import { toast } from "@/hooks/use-toast";
+import { formatPackageDimensions } from "@/utils/package-dimensions.js";
 
 type Product = {
   product_id?: number;
@@ -89,8 +90,7 @@ function resolveVariantMetric(...values: Array<number | string | undefined>) {
 }
 
 function formatVariantPackage(length = 0, width = 0, height = 0) {
-  if (length <= 0 && width <= 0 && height <= 0) return "Not set";
-  return `${length} x ${width} x ${height} cm`;
+  return formatPackageDimensions(length, width, height, { emptyLabel: "Not set" });
 }
 
 const BuyNowConfirm = () => {

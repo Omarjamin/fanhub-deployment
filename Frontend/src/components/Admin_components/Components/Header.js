@@ -5,6 +5,7 @@ const API_BASE = (import.meta.env.VITE_API_URL || "https://fanhub-deployment-pro
 const POLL_MS = 5000;
 const READ_STORE_KEY = "admin_report_notif_reads_v1";
 const PENDING_SUGGESTIONS_KEY = "admin_pending_suggestions_v1";
+const HEADER_CLOCK_SKEW_TOLERANCE_MS = 12 * 60 * 60 * 1000;
 
 function buildApiUrl(path) {
   return `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`;
@@ -37,7 +38,17 @@ function toRelativeTime(dateValue) {
   const date = new Date(dateValue);
   if (Number.isNaN(date.getTime())) return "Just now";
 
-  const diffMs = Date.now() - date.getTime();
+  const rawDiffMs = Date.now() - date.getTime();
+  if (rawDiffMs < 0 && Math.abs(rawDiffMs) > HEADER_CLOCK_SKEW_TOLERANCE_MS) {
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  }
+
+  const diffMs = rawDiffMs < 0 ? Math.abs(rawDiffMs) : rawDiffMs;
   const mins = Math.floor(diffMs / 60000);
   if (mins < 1) return "Just now";
   if (mins < 60) return `${mins}m ago`;

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
 import { fetchOrderHistory, toExternalUrl } from "@/lib/ecommerceApi";
+import { formatPackageDimensions } from "@/utils/package-dimensions.js";
 
 type HistoryItem = {
   order_id: number;
@@ -198,7 +199,7 @@ function resolveItemShippingMeta(item: NonNullable<HistoryItem["items"]>[number]
     parts.push(`${weight}g each`);
   }
   if (length > 0 || width > 0 || height > 0) {
-    parts.push(`${length} x ${width} x ${height} cm`);
+    parts.push(formatPackageDimensions(length, width, height));
   }
 
   return parts.join(" • ");

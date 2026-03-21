@@ -7,6 +7,10 @@ import {
     saveCheckoutDraft,
     setCheckoutDraftStep,
 } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
+import {
+    sanitizeShippingAddress,
+    validateShippingAddress,
+} from '../../../utils/shipping-address.js';
 
 function getAddressElements() {
     return {
@@ -48,10 +52,22 @@ function resetZipField(zipInput, placeholder = 'Auto-filled after selecting a ci
     zipInput.readOnly = true;
 }
 
+function applySanitizedAddressToForm(address = {}) {
+    const { street, zip } = getAddressElements();
+
+    if (street && typeof address.street === 'string' && street.value !== address.street) {
+        street.value = address.street;
+    }
+
+    if (zip && typeof address.zip === 'string' && zip.value !== address.zip) {
+        zip.value = address.zip;
+    }
+}
+
 function buildShippingDataFromForm() {
     const { street, region, province, city, barangay, zip } = getAddressElements();
 
-    return {
+    const shippingData = sanitizeShippingAddress({
         street: street?.value || '',
         region: region?.value || '',
         regionText: region?.options?.[region.selectedIndex]?.text || '',
@@ -62,7 +78,10 @@ function buildShippingDataFromForm() {
         barangay: barangay?.value || '',
         barangayText: barangay?.options?.[barangay.selectedIndex]?.text || '',
         zip: zip?.value || '',
-    };
+    });
+
+    applySanitizedAddressToForm(shippingData);
+    return shippingData;
 }
 
 function getCheckoutWeightGrams() {
@@ -216,8 +235,9 @@ async function autoFillZipCode(api, state) {
             provinceCode: state.provinceCode || '',
         });
 
-        if (String(detectedZip || '').trim()) {
-            zip.value = String(detectedZip).trim();
+        const sanitizedZip = sanitizeShippingAddress({ zip: detectedZip }).zip;
+        if (sanitizedZip) {
+            zip.value = sanitizedZip;
             zip.placeholder = 'ZIP code detected';
             zip.readOnly = true;
             return zip.value;
@@ -241,8 +261,9 @@ async function hydrateShippingForm(api, state) {
         }
     }
 
-    const address = draft.shipping_address;
-    if (!address) return;
+    if (!draft.shipping_address) return;
+
+    const address = sanitizeShippingAddress(draft.shipping_address);
 
     const { street, region, province, city, barangay, zip, provinceGroup } = getAddressElements();
     if (street) street.value = address.street || '';
@@ -311,12 +332,24 @@ function setupEvents(api, state) {
 
     if (street && !street.hasAttribute('data-draft-handler')) {
         street.setAttribute('data-draft-handler', 'true');
-        street.addEventListener('blur', savePartialAddress);
+        street.addEventListener('blur', () => {
+            const sanitizedStreet = sanitizeShippingAddress({ street: street.value }).street;
+            if (street.value !== sanitizedStreet) {
+                street.value = sanitizedStreet;
+            }
+            savePartialAddress();
+        });
     }
 
     if (zip && !zip.hasAttribute('data-draft-handler')) {
         zip.setAttribute('data-draft-handler', 'true');
-        zip.addEventListener('blur', savePartialAddress);
+        zip.addEventListener('blur', () => {
+            const sanitizedZip = sanitizeShippingAddress({ zip: zip.value }).zip;
+            if (zip.value !== sanitizedZip) {
+                zip.value = sanitizedZip;
+            }
+            savePartialAddress();
+        });
     }
 
     if (region && !region.hasAttribute('data-shipping-handler')) {
@@ -434,30 +467,31 @@ function setupEvents(api, state) {
             nextBtn.textContent = 'Validating...';
 
             try {
-                const inputs = document.querySelectorAll('#shippingSection input, #shippingSection select, #shippingSection textarea');
-                const missingFields = [];
-
-                inputs.forEach((input) => {
-                    if (input.disabled || input.style.display === 'none') return;
-                    const value = String(input.value || '').trim();
-                    if (input.required && !value) {
-                        const label = input.closest('.form-group')?.querySelector('label')?.textContent || input.id;
-                        missingFields.push(label.replace(':', '').trim());
-                        input.style.borderColor = '#ff3d8b';
-                        input.addEventListener('input', function resetBorder() {
-                            this.style.borderColor = '';
-                        }, { once: true });
-                    }
+                const shippingValidation = validateShippingAddress(buildShippingDataFromForm(), {
+                    requireProvince: !province.disabled,
                 });
 
-                if (missingFields.length > 0) {
-                    alert(`Please fill in the following fields:\n${missingFields.join('\n')}`);
+                shippingValidation.errors.forEach(({ field }) => {
+                    const input = document.getElementById(field);
+                    if (!input || input.disabled) return;
+                    input.style.borderColor = '#ff3d8b';
+                    input.addEventListener('input', function resetBorder() {
+                        this.style.borderColor = '';
+                    }, { once: true });
+                    input.addEventListener('change', function resetBorder() {
+                        this.style.borderColor = '';
+                    }, { once: true });
+                });
+
+                if (!shippingValidation.isValid) {
+                    alert(shippingValidation.errors.map(({ message }) => message).join('\n'));
                     nextBtn.disabled = false;
                     nextBtn.textContent = originalText;
                     return;
                 }
 
-                const shippingData = buildShippingDataFromForm();
+                const shippingData = shippingValidation.sanitized;
+                applySanitizedAddressToForm(shippingData);
                 const checkoutWeightGrams = getCheckoutWeightGrams();
                 const draft = getCachedCheckoutDraft();
                 const shippingFee = draft.shipping_fee;
@@ -494,7 +528,7 @@ export default async function ShippingForm(root) {
             <form id="shippingForm">
                 <div class="form-group">
                     <label for="street">Street Address</label>
-                    <textarea id="street" name="street" rows="4" required></textarea>
+                    <textarea id="street" name="street" rows="4" required maxlength="160" minlength="5" autocomplete="street-address"></textarea>
                 </div>
 
                 <div class="form-row">
@@ -532,7 +566,7 @@ export default async function ShippingForm(root) {
                 <div class="form-row">
                     <div class="form-group">
                         <label for="zip">ZIP Code</label>
-                        <input type="text" id="zip" name="zip" required readonly inputmode="numeric" autocomplete="postal-code" placeholder="Auto-filled after selecting a city">
+                        <input type="text" id="zip" name="zip" required readonly maxlength="4" pattern="[0-9]{4}" inputmode="numeric" autocomplete="postal-code" placeholder="Auto-filled after selecting a city">
                     </div>
 
                     <div class="form-group">

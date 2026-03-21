@@ -360,7 +360,7 @@ function renderAbout(root, groupInfo, membersData) {
 
     const bannerSection = root.querySelector('#home.banner');
     if (bannerSection) {
-        bannerSection.insertAdjacentHTML('afterend', aboutMarkup);
+        bannerSection.insertAdjacentHTML('beforebegin', aboutMarkup);
     } else {
         root.insertAdjacentHTML('beforeend', aboutMarkup);
     }

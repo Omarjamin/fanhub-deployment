@@ -1,4 +1,8 @@
 import api from "../api.js";
+import {
+  resolveCommunitySubmissionError,
+  validateCommunityText,
+} from "../../../utils/community-text.js";
 
 function normalizeComments(payload) {
   if (Array.isArray(payload)) return payload;
@@ -8,6 +12,14 @@ function normalizeComments(payload) {
 }
 
 export async function createComment(postId, content) {
+  const validation = validateCommunityText(content, {
+    label: "Comment",
+    maxLength: 1000,
+  });
+  if (!validation.isValid) {
+    throw new Error(validation.errors[0]);
+  }
+
   const endpoints = [
     `/bini/comments/create/${postId}`,
     `/bini/posts/${postId}/comments/create`,
@@ -16,7 +28,7 @@ export async function createComment(postId, content) {
   let lastError = null;
   for (const endpoint of endpoints) {
     try {
-      const res = await api.post(endpoint, { content });
+      const res = await api.post(endpoint, { content: validation.sanitized });
       return res.data;
     } catch (error) {
       lastError = error;
@@ -28,11 +40,7 @@ export async function createComment(postId, content) {
     "Failed to create comment:",
     lastError?.response?.data || lastError?.message,
   );
-  throw new Error(
-    lastError?.response?.data?.message ||
-      lastError?.message ||
-      "Comment creation failed",
-  );
+  throw new Error(resolveCommunitySubmissionError(lastError, "Comment creation failed"));
 }
 
 export async function getComments(postId) {

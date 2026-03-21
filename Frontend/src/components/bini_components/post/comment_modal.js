@@ -4,6 +4,36 @@ import { socket, setupSocket } from '../../../hooks/bini_hooks/socket.js';
 import '../../../styles/bini_styles/comment.css';
 import { getActiveSiteSlug, getSessionToken } from '../../../lib/site-context.js';
 import { formatUserTimestamp } from '../../../utils/user-time.js';
+import {
+  escapeHtml,
+  resolveCommunitySubmissionError,
+  sanitizeCommunityText,
+  validateCommunityText,
+} from '../../../utils/community-text.js';
+
+const COMMUNITY_TEXT_MAX_LENGTH = 1000;
+
+function getTextValidation(value, label = 'Content') {
+  return validateCommunityText(value, {
+    label,
+    maxLength: COMMUNITY_TEXT_MAX_LENGTH,
+  });
+}
+
+function syncSanitizedTextareaValue(textarea, label = 'Content') {
+  if (!textarea) {
+    return getTextValidation('', label);
+  }
+
+  const validation = getTextValidation(textarea.value, label);
+  const sanitized = sanitizeCommunityText(textarea.value, {
+    maxLength: COMMUNITY_TEXT_MAX_LENGTH,
+  });
+  if (textarea.value !== sanitized) {
+    textarea.value = sanitized;
+  }
+  return validation;
+}
 
 function getStoredItem(key) {
   if (key === 'authToken') {
@@ -146,7 +176,7 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
       <div class="modal-body">
         <div id="commentList" class="comment-list"></div>
         <div class="add-comment">
-          <textarea id="newCommentText" placeholder="Write a comment..."></textarea>
+          <textarea id="newCommentText" placeholder="Write a comment..." maxlength="${COMMUNITY_TEXT_MAX_LENGTH}"></textarea>
           <button id="addCommentBtn" disabled>Post Comment</button>
           <p class="error-message" style="display: none; color: red;">Error</p>
         </div>
@@ -165,11 +195,16 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
   loadComments();
 
   newCommentText.addEventListener('input', () => {
-    addCommentBtn.disabled = !newCommentText.value.trim();
+    errorMessage.style.display = 'none';
+    addCommentBtn.disabled = !getTextValidation(newCommentText.value, 'Comment').isValid;
+  });
+  newCommentText.addEventListener('blur', () => {
+    const validation = syncSanitizedTextareaValue(newCommentText, 'Comment');
+    addCommentBtn.disabled = !validation.isValid;
   });
 
   addCommentBtn.addEventListener('click', async () => {
-    const content = newCommentText.value.trim();
+    const commentValidation = syncSanitizedTextareaValue(newCommentText, 'Comment');
     const authToken = getStoredItem('authToken');
     
     if (!authToken) {
@@ -177,6 +212,15 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
       errorMessage.style.display = 'block';
       return;
     }
+
+    if (!commentValidation.isValid) {
+      errorMessage.textContent = commentValidation.errors[0];
+      errorMessage.style.display = 'block';
+      return;
+    }
+
+    const content = commentValidation.sanitized;
+    newCommentText.value = content;
 
     try {
       await createComment(postId, content, authToken);
@@ -218,12 +262,12 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
   commentBox.innerHTML = `
     <div class="comment-content-wrapper">
       <div class="comment-header">
-        <h4 class="comment-fullname comment-profile-link" data-user-id="${comment.user_id || ''}">${comment.fullname}</h4>
-        <span class="comment-time">${timeString}</span>
+        <h4 class="comment-fullname comment-profile-link" data-user-id="${escapeHtml(comment.user_id || '')}">${escapeHtml(comment.fullname || 'User')}</h4>
+        <span class="comment-time">${escapeHtml(timeString)}</span>
       </div>
-      <p class="comment-content">${comment.content}</p>
+      <p class="comment-content"></p>
       <div class="comment-actions">
-        <button class="reply-button" data-comment-id="${comment.comment_id}">
+        <button class="reply-button" data-comment-id="${escapeHtml(comment.comment_id)}">
           <span class="material-icons" style="font-size: 1rem;">reply</span>
           <span>Reply</span>
         </button>
@@ -235,11 +279,15 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
         <!-- Replies will be dynamically rendered here -->
       </div>
       <div class="reply-input">
-        <textarea class="reply-text" placeholder="Write a reply..."></textarea>
+        <textarea class="reply-text" placeholder="Write a reply..." maxlength="${COMMUNITY_TEXT_MAX_LENGTH}"></textarea>
         <button class="submit-reply-btn" disabled>Submit Reply</button>
       </div>
     </div>
   `;
+  const commentContent = commentBox.querySelector('.comment-content');
+  if (commentContent) {
+    commentContent.textContent = sanitizeCommunityText(comment.content);
+  }
 
   const replyButton = commentBox.querySelector('.reply-button');
   const repliesContainer = commentBox.querySelector('.replies');
@@ -294,10 +342,14 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
             const replyDate = formatCommentTime(new Date(reply.created_at));
             replyElement.innerHTML = `
               <div>
-                <h5 class="reply-profile-link" data-user-id="${reply.user_id || ''}">${reply.fullname} <span style="font-size: 0.8rem; color: #65676b; font-weight: 400;">${replyDate}</span></h5>
-                <p>${reply.content}</p>
+                <h5 class="reply-profile-link" data-user-id="${escapeHtml(reply.user_id || '')}">${escapeHtml(reply.fullname || 'User')} <span style="font-size: 0.8rem; color: #65676b; font-weight: 400;">${escapeHtml(replyDate)}</span></h5>
+                <p class="reply-content"></p>
               </div>
             `;
+            const replyContent = replyElement.querySelector('.reply-content');
+            if (replyContent) {
+              replyContent.textContent = sanitizeCommunityText(reply.content);
+            }
             repliesContainer.appendChild(replyElement);
           });
           repliesContainer.querySelectorAll('.reply-profile-link').forEach((el) => {
@@ -310,7 +362,7 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
           });
         }
       } catch (err) {
-        repliesContainer.innerHTML = '<p style="color: #c53030;">Error fetching replies: ' + err.message + '</p>';
+        repliesContainer.innerHTML = `<p style="color: #c53030;">Error fetching replies: ${escapeHtml(err.message)}</p>`;
       }
     } else {
       repliesContainer.classList.remove('show');
@@ -321,14 +373,23 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
 
   // REPLY TEXT INPUT HANDLER
   replyText.addEventListener('input', () => {
-    submitReplyBtn.disabled = !replyText.value.trim();
+    submitReplyBtn.disabled = !getTextValidation(replyText.value, 'Reply').isValid;
+  });
+  replyText.addEventListener('blur', () => {
+    const validation = syncSanitizedTextareaValue(replyText, 'Reply');
+    submitReplyBtn.disabled = !validation.isValid;
   });
 
   
   submitReplyBtn.addEventListener('click', async () => {
-    const content = replyText.value.trim();
+    const replyValidation = syncSanitizedTextareaValue(replyText, 'Reply');
     try {
+      if (!replyValidation.isValid) {
+        throw new Error(replyValidation.errors[0]);
+      }
       if (comment.comment_id === null || comment.comment_id === undefined) throw new Error('Invalid comment id');
+      const content = replyValidation.sanitized;
+      replyText.value = content;
       await postReply(comment.comment_id, content, token);
       replyText.value = ''; 
       submitReplyBtn.disabled = true;
@@ -349,14 +410,20 @@ export default function createCommentModal(postId, onCommentSubmitted = null) {
 // POST REPLY FUNCTION
 async function postReply(commentId, content, token) {
   if (commentId === null || commentId === undefined) throw new Error('Invalid comment id');
-  if (!content || !content.trim()) throw new Error('Reply content is required');
+  const replyValidation = validateCommunityText(content, {
+    label: 'Reply',
+    maxLength: COMMUNITY_TEXT_MAX_LENGTH,
+  });
+  if (!replyValidation.isValid) throw new Error(replyValidation.errors[0]);
   if (!token) throw new Error('Authentication required to post replies');
 
   try {
-    const response = await api.post(`/bini/comments/reply/${commentId}`, { content });
+    const response = await api.post(`/bini/comments/reply/${commentId}`, {
+      content: replyValidation.sanitized,
+    });
     return response.data;
   } catch (error) {
-    const details = error.response?.data?.message || error.message;
+    const details = resolveCommunitySubmissionError(error, 'Failed to post reply.');
     throw new Error(`Failed to post reply: ${details}`);
   }
 }

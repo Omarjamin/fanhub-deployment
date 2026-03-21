@@ -3,6 +3,7 @@ import { ShoppingCart, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import { formatPackageDimensions } from "@/utils/package-dimensions.js";
 import {
   buildEcommerceLoginUrl,
   fetchCartItems,
@@ -22,6 +23,10 @@ type CartItem = {
   variant: string;
   quantity: number;
   price: number;
+  weight?: number;
+  length?: number;
+  width?: number;
+  height?: number;
 };
 
 function formatPeso(price: number) {
@@ -31,6 +36,12 @@ function formatPeso(price: number) {
     currency: "PHP",
     maximumFractionDigits: 2,
   }).format(price);
+}
+
+function formatItemPackageSize(item: CartItem) {
+  return formatPackageDimensions(item.length || 0, item.width || 0, item.height || 0, {
+    emptyLabel: "",
+  });
 }
 
 const Cart = () => {
@@ -163,61 +174,73 @@ const Cart = () => {
           {!loading && !error && items.length > 0 ? (
             <div className="grid lg:grid-cols-[1fr_320px] gap-6">
               <section className="space-y-4">
-                {items.map((item) => (
-                  <article
-                    key={`${item.itemId}-${item.variantId}`}
-                    className="rounded-2xl border border-border/60 bg-card/70 p-4"
-                  >
-                    <div className="flex gap-4">
-                      <div className="h-24 w-24 rounded-xl bg-accent/40 border border-border/40 overflow-hidden shrink-0">
-                        {item.image ? (
-                          <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
-                        ) : null}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-body font-semibold text-foreground">{item.name}</h3>
-                        <p className="text-xs text-muted-foreground font-body mt-1">
-                          {item.category || "General"} • {item.variant}
-                        </p>
-                        <p className="text-primary font-display text-lg mt-2">{formatPeso(item.price)}</p>
+                {items.map((item) => {
+                  const packageSize = formatItemPackageSize(item);
 
-                        <div className="mt-3 flex items-center justify-between gap-3">
-                          <div className="inline-flex items-center rounded-xl border border-border/60 overflow-hidden">
+                  return (
+                    <article
+                      key={`${item.itemId}-${item.variantId}`}
+                      className="rounded-2xl border border-border/60 bg-card/70 p-4"
+                    >
+                      <div className="flex gap-4">
+                        <div className="h-24 w-24 rounded-xl bg-accent/40 border border-border/40 overflow-hidden shrink-0">
+                          {item.image ? (
+                            <img src={item.image} alt={item.name} className="h-full w-full object-cover" />
+                          ) : null}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-body font-semibold text-foreground">{item.name}</h3>
+                          <p className="text-xs text-muted-foreground font-body mt-1">
+                            {item.category || "General"} • {item.variant}
+                          </p>
+                          {Number(item.weight || 0) > 0 ? (
+                            <p className="text-xs text-muted-foreground font-body mt-1">
+                              {Number(item.weight || 0)}g each
+                            </p>
+                          ) : null}
+                          {packageSize ? (
+                            <p className="text-xs text-muted-foreground font-body mt-1">{packageSize}</p>
+                          ) : null}
+                          <p className="text-primary font-display text-lg mt-2">{formatPeso(item.price)}</p>
+
+                          <div className="mt-3 flex items-center justify-between gap-3">
+                            <div className="inline-flex items-center rounded-xl border border-border/60 overflow-hidden">
+                              <button
+                                type="button"
+                                disabled={busyVariantId === item.variantId}
+                                onClick={() => handleQuantityChange(item, item.quantity - 1)}
+                                className="h-9 w-9 bg-card hover:bg-accent transition"
+                              >
+                                -
+                              </button>
+                              <span className="h-9 min-w-10 px-2 inline-flex items-center justify-center text-sm font-body">
+                                {item.quantity}
+                              </span>
+                              <button
+                                type="button"
+                                disabled={busyVariantId === item.variantId}
+                                onClick={() => handleQuantityChange(item, item.quantity + 1)}
+                                className="h-9 w-9 bg-card hover:bg-accent transition"
+                              >
+                                +
+                              </button>
+                            </div>
+
                             <button
                               type="button"
                               disabled={busyVariantId === item.variantId}
-                              onClick={() => handleQuantityChange(item, item.quantity - 1)}
-                              className="h-9 w-9 bg-card hover:bg-accent transition"
+                              onClick={() => handleRemove(item)}
+                              className="h-9 w-9 rounded-xl border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40 inline-flex items-center justify-center transition"
+                              aria-label="Remove item"
                             >
-                              -
-                            </button>
-                            <span className="h-9 min-w-10 px-2 inline-flex items-center justify-center text-sm font-body">
-                              {item.quantity}
-                            </span>
-                            <button
-                              type="button"
-                              disabled={busyVariantId === item.variantId}
-                              onClick={() => handleQuantityChange(item, item.quantity + 1)}
-                              className="h-9 w-9 bg-card hover:bg-accent transition"
-                            >
-                              +
+                              <Trash2 size={16} />
                             </button>
                           </div>
-
-                          <button
-                            type="button"
-                            disabled={busyVariantId === item.variantId}
-                            onClick={() => handleRemove(item)}
-                            className="h-9 w-9 rounded-xl border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40 inline-flex items-center justify-center transition"
-                            aria-label="Remove item"
-                          >
-                            <Trash2 size={16} />
-                          </button>
                         </div>
                       </div>
-                    </div>
-                  </article>
-                ))}
+                    </article>
+                  );
+                })}
               </section>
 
               <aside className="rounded-2xl border border-border/60 bg-card/70 p-5 h-fit sticky top-24">

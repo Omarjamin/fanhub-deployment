@@ -1,8 +1,15 @@
 import '../../../styles/bini_styles/EditProfileModal.css';
 import api from '../../../services/bini_services/api.js';
 import { showToast } from '../../../utils/toast.js';
+import {
+  DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+  IMAGE_UPLOAD_ACCEPT_ATTR,
+  validateSingleImageFile,
+} from '../../../utils/image-upload.js';
+import { validateProfileFullname } from '../../../utils/profile-name.js';
 
 const DEFAULT_PROFILE_IMAGE = "/circle-user.png";
+const PROFILE_IMAGE_LABEL = "Profile image";
 
 export default function showEditProfileModal(user, token, onUpdate) {
   const existing = document.getElementById('editProfileModal');
@@ -20,7 +27,7 @@ export default function showEditProfileModal(user, token, onUpdate) {
       <form id="editProfileForm" class="edit-profile-form">
         <div class="form-group">
           <label for="editFullname">Full Name:</label>
-          <input type="text" id="editFullname" value="${user.fullname || ''}" required>
+          <input type="text" id="editFullname" value="${user.fullname || ''}" maxlength="80" autocomplete="name" required>
         </div>
         
         <div class="form-group">
@@ -41,7 +48,7 @@ export default function showEditProfileModal(user, token, onUpdate) {
             <input type="file" 
                    id="editProfilePicFile" 
                    class="file-upload-input" 
-                   accept="image/*">
+                   accept="${IMAGE_UPLOAD_ACCEPT_ATTR}">
           </div>
         </div>
         
@@ -63,15 +70,29 @@ export default function showEditProfileModal(user, token, onUpdate) {
   let removePhotoRequested = false;
 
   fileInput.addEventListener('change', () => {
-    if (fileInput.files && fileInput.files[0]) {
-      const reader = new FileReader();
-      reader.onload = e => {
-        previewImg.src = e.target.result;
-      };
-      reader.readAsDataURL(fileInput.files[0]);
-      removePhotoRequested = false;
-      if (removeButton) removeButton.disabled = false;
+    const selectedFile = fileInput.files?.[0] || null;
+    if (!selectedFile) return;
+
+    const imageValidation = validateSingleImageFile(selectedFile, {
+      label: PROFILE_IMAGE_LABEL,
+      maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+    });
+    if (!imageValidation.isValid) {
+      showToast(imageValidation.errorMessage, 'error');
+      fileInput.value = "";
+      previewImg.src = removePhotoRequested
+        ? DEFAULT_PROFILE_IMAGE
+        : (user.profile_picture || DEFAULT_PROFILE_IMAGE);
+      return;
     }
+
+    const reader = new FileReader();
+    reader.onload = e => {
+      previewImg.src = e.target.result;
+    };
+    reader.readAsDataURL(selectedFile);
+    removePhotoRequested = false;
+    if (removeButton) removeButton.disabled = false;
   });
 
   if (removeButton) {
@@ -97,11 +118,30 @@ export default function showEditProfileModal(user, token, onUpdate) {
   // Handle form submit with backend integration and image upload
   modal.querySelector('#editProfileForm').onsubmit = async (e) => {
     e.preventDefault();
-    const newFullname = modal.querySelector('#editFullname').value;
+    const fullNameInput = modal.querySelector('#editFullname');
+    const nameValidation = validateProfileFullname(fullNameInput.value, {
+      label: 'Full name',
+    });
+    if (!nameValidation.isValid) {
+      showToast(nameValidation.errors[0], 'error');
+      return;
+    }
+
+    const newFullname = nameValidation.sanitized;
+    fullNameInput.value = newFullname;
     let newProfilePic = user.profile_picture || "";
 
     // Upload new profile picture if selected
     if (fileInput.files && fileInput.files[0]) {
+      const imageValidation = validateSingleImageFile(fileInput.files[0], {
+        label: PROFILE_IMAGE_LABEL,
+        maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+      });
+      if (!imageValidation.isValid) {
+        showToast(imageValidation.errorMessage, 'error');
+        return;
+      }
+
       const imageData = new FormData();
       imageData.append('file', fileInput.files[0]);
 
@@ -151,7 +191,11 @@ export default function showEditProfileModal(user, token, onUpdate) {
       modal.remove();
       showToast('Profile updated successfully!', 'success');
     } catch (error) {
-      showToast("Error updating profile: " + error.message, 'error');
+      const message =
+        error.response?.data?.error ||
+        error.message ||
+        'Failed to update profile';
+      showToast("Error updating profile: " + message, 'error');
     }
   };
 }

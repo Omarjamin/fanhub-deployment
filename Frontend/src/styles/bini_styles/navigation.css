@@ -103,6 +103,12 @@
   padding: 0;
 }
 
+.nav-logo-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .nav-logo-img {
   width: var(--bini-nav-logo-size);
   height: var(--bini-nav-logo-size);
@@ -348,6 +354,11 @@
     width: 100%;
     margin: 0 0 2.2rem;
     display: flex;
+    justify-content: center;
+  }
+
+  body.has-community-side-nav .nav-logo-link {
+    width: 100%;
     justify-content: center;
   }
 

@@ -17,7 +17,24 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from '../../../
 import { formatUserTimestamp } from '../../../utils/user-time.js';
 import { showToast } from '../../../utils/toast.js';
 import { isTemplatePreviewMode } from '../../../lib/template-preview.js';
+import { escapeHtml, sanitizeCommunityText } from '../../../utils/community-text.js';
 let isLoading = false;
+
+function sanitizePostTags(tags = []) {
+  return (Array.isArray(tags) ? tags : (tags ? [].concat(tags) : []))
+    .map((tag) => sanitizeCommunityText(tag, { maxLength: 80 }))
+    .filter(Boolean);
+}
+
+function getSafePostContent(post = {}) {
+  const tags = sanitizePostTags(post.tags);
+  const text = sanitizeCommunityText(post.content, { maxLength: 1000 });
+  return text || (tags.length > 0 ? tags.join(' ') : 'No content available');
+}
+
+function getSafeDisplayName(value, fallback = 'You') {
+  return escapeHtml(sanitizeCommunityText(value, { maxLength: 120 }) || fallback);
+}
 
 function resolveCommunityType(dataCommunityType = '', data = null) {
   const fromData = String(dataCommunityType || '').trim().toLowerCase();
@@ -433,15 +450,11 @@ function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeC
     ? `<img src="${post.img_url}" data-full="${post.img_url}" alt="Post Image" class="post-image" />`
     : '';
 
-  const tags = Array.isArray(post.tags) ? post.tags : (post.tags ? [].concat(post.tags) : []);
+  const tags = sanitizePostTags(post.tags);
   const tagsHtml = tags.length > 0
-    ? `<div class="post-tags">${tags.join(', ')}</div>`
+    ? `<div class="post-tags">${escapeHtml(tags.join(', '))}</div>`
     : '';
-//
-  const displayContent =
-    post.content && String(post.content).trim() !== ''
-      ? post.content
-      : (tags.length > 0 ? tags.join(' ') : 'No content available');
+  const displayContent = escapeHtml(getSafePostContent(post));
 
   return `
     <div class="post-card" data-post-id="${post.post_id}" data-owner-id="${postOwnerId}">
@@ -450,7 +463,7 @@ function buildPostCardHtml(post, { postCreationTime, isLiked, isCommented, likeC
           <img src="${post.profile_picture || '/circle-user.png'}" class="profile-picture" onerror="this.src='/circle-user.png';">
         </a>
         <a href="#" class="profile-link" data-user-id="${postOwnerId}">
-          <span class="post-fullname">${post.fullname || 'You'}</span>
+          <span class="post-fullname">${getSafeDisplayName(post.fullname, 'You')}</span>
         </a>
         <span class="post-time">${postCreationTime}</span>
         ${buildPostMenuHtml({ postId: post.post_id, isOwnPost })}
@@ -612,7 +625,7 @@ function attachPostActions(feed, token, scope = null, communityType = '') {
       const contentEl = card.querySelector('.post-content');
       const existingImg = card.querySelector('.post-image');
       if (contentEl) {
-        contentEl.textContent = updatedPost.content || 'No content available';
+        contentEl.textContent = getSafePostContent(updatedPost);
       }
       if (updatedPost.img_url) {
         if (existingImg) {
