@@ -11,13 +11,11 @@ import {
     setCheckoutDraftStep,
 } from '../../../services/ecommerce_services/checkout/checkout_draft.js';
 import { formatPeso, toSafeNumber } from '../../../lib/number-format.js';
+import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
+import { sanitizeShippingAddress } from '../../../utils/shipping-address.js';
 
 function formatPackageSize(length = 0, width = 0, height = 0) {
-    const resolvedLength = Number(length || 0);
-    const resolvedWidth = Number(width || 0);
-    const resolvedHeight = Number(height || 0);
-    if (resolvedLength <= 0 && resolvedWidth <= 0 && resolvedHeight <= 0) return 'Not set';
-    return `${resolvedLength} x ${resolvedWidth} x ${resolvedHeight} cm`;
+    return formatPackageDimensions(length, width, height, { emptyLabel: 'Not set' });
 }
 
 function resolveVariantLabel(item) {
@@ -41,6 +39,15 @@ function cleanAddressValue(value, options = {}) {
     if (!raw) return '';
     if (!allowNumericOnly && looksLikeAddressCode(raw)) return '';
     return raw;
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
 }
 
 function getCommunityTypeFromPath() {
@@ -79,14 +86,17 @@ function getReviewState() {
 }
 
 function renderAddress(address) {
-    const street = cleanAddressValue(address?.street);
-    const barangay = cleanAddressValue(address?.barangayText || address?.barangay);
-    const city = cleanAddressValue(address?.cityText || address?.city);
-    const province = cleanAddressValue(address?.provinceText || address?.province);
-    const region = cleanAddressValue(address?.regionText || address?.region);
-    const zip = cleanAddressValue(address?.zip, { allowNumericOnly: true });
-    const fullAddress = address
-        ? (cleanAddressValue(address.fullAddress)
+    const sanitizedAddress = address ? sanitizeShippingAddress(address) : null;
+    const street = cleanAddressValue(sanitizedAddress?.street);
+    const barangay = cleanAddressValue(sanitizedAddress?.barangayText || sanitizedAddress?.barangay);
+    const city = cleanAddressValue(sanitizedAddress?.cityText || sanitizedAddress?.city);
+    const province = cleanAddressValue(sanitizedAddress?.provinceText || sanitizedAddress?.province);
+    const region = cleanAddressValue(sanitizedAddress?.regionText || sanitizedAddress?.region);
+    const zip = cleanAddressValue(sanitizedAddress?.zip, { allowNumericOnly: true });
+    const recipientName = String(sanitizedAddress?.recipient_name || '').trim();
+    const phone = String(sanitizedAddress?.phone || '').trim();
+    const fullAddress = sanitizedAddress
+        ? (cleanAddressValue(sanitizedAddress.fullAddress)
             || [
                 street,
                 barangay,
@@ -116,18 +126,18 @@ function renderAddress(address) {
                     ? `
                         <div class="info-item">
                             <span class="info-label">Delivery Address</span>
-                            <span class="info-value">${fullAddress}</span>
+                            <span class="info-value">${escapeHtml(fullAddress)}</span>
                         </div>
-                        ${address.recipient_name ? `
+                        ${recipientName ? `
                             <div class="info-item">
                                 <span class="info-label">Recipient</span>
-                                <span class="info-value">${address.recipient_name}</span>
+                                <span class="info-value">${escapeHtml(recipientName)}</span>
                             </div>
                         ` : ''}
-                        ${address.phone ? `
+                        ${phone ? `
                             <div class="info-item">
                                 <span class="info-label">Contact</span>
-                                <span class="info-value">${address.phone}</span>
+                                <span class="info-value">${escapeHtml(phone)}</span>
                             </div>
                         ` : ''}
                     `

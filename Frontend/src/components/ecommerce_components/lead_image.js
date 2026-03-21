@@ -1,5 +1,7 @@
 import api from '../../lib/api.js';
 import { getActiveSiteSlug } from '../../lib/site-context.js';
+import { getAuthToken } from '../../services/ecommerce_services/auth/auth.js';
+import { showToast } from '../../utils/toast.js';
 
 const SOCIAL_ICONS = {
   instagram: 'https://res.cloudinary.com/dy5u1ccgi/image/upload/v1772980429/instagram_zwwjvb.png',
@@ -9,6 +11,16 @@ const SOCIAL_ICONS = {
   x: 'https://res.cloudinary.com/dy5u1ccgi/image/upload/v1772980413/twitter_jzfvjn.png',
   youtube: 'https://res.cloudinary.com/dy5u1ccgi/image/upload/v1772980408/youtube_mrubg2.png',
 };
+
+function redirectToSigninWithDelay(signinPath) {
+  try {
+    sessionStorage.setItem('postLoginRedirect', window.location.pathname + window.location.search);
+  } catch (_) {}
+
+  setTimeout(() => {
+    window.location.href = signinPath;
+  }, 2000);
+}
 
 function resolveSiteSlug(data = {}) {
   const candidate = String(
@@ -24,6 +36,20 @@ function resolveSiteSlug(data = {}) {
   return getActiveSiteSlug(candidate) || candidate;
 }
 
+function getSiteDisplayName(data = {}) {
+  const candidate = String(
+    data?.site_name ||
+    data?.community_name ||
+    data?.name ||
+    ''
+  ).trim();
+
+  if (candidate) return candidate;
+
+  const siteSlug = resolveSiteSlug(data);
+  return siteSlug ? siteSlug.toUpperCase() : 'Community';
+}
+
 function normalizeSocials(payload = {}) {
   return [
     { key: 'instagram', href: String(payload?.instagram_url || '').trim(), label: 'Instagram' },
@@ -35,7 +61,32 @@ function normalizeSocials(payload = {}) {
   ].filter((item) => item.href);
 }
 
-function renderSection(root, leadImage, socials, siteLabel) {
+function buildHeroCopy(payload = {}, siteName = 'Community', siteSlug = '') {
+  const rawDescription = String(
+    payload?.short_bio ||
+    payload?.description ||
+    payload?.about ||
+    payload?.tagline ||
+    ''
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+  const description = rawDescription
+    ? rawDescription.slice(0, 180).trim()
+    : `Shop curated merch, catch the latest highlights, and stay close to ${siteName} through one polished fan experience.`;
+
+  return {
+    kicker: 'Official Fan Hub',
+    title: `Step Into ${siteName}`,
+    description,
+    primaryLabel: 'Shop Now',
+    primaryHref: siteSlug ? `/fanhub/${encodeURIComponent(siteSlug)}/shop` : '/shop',
+    secondaryLabel: 'View Gallery',
+    secondaryHref: '#home',
+  };
+}
+
+function renderSection(root, leadImage, socials, siteName, heroCopy) {
   const existing = root.querySelector('.ec-lead-image');
   if (!leadImage && socials.length === 0) {
     existing?.remove();
@@ -47,15 +98,25 @@ function renderSection(root, leadImage, socials, siteLabel) {
       <img
         class="ec-lead-image__img"
         src="${leadImage}"
-        alt="${siteLabel} lead visual"
+        alt="${siteName} lead visual"
         loading="eager"
         decoding="async"
       />
     ` : ''}
+    <div class="ec-lead-image__scrim" aria-hidden="true"></div>
+    <div class="ec-lead-image__content">
+      <span class="ec-lead-image__kicker">${heroCopy.kicker}</span>
+      <h1 class="ec-lead-image__title">${heroCopy.title}</h1>
+      <p class="ec-lead-image__description">${heroCopy.description}</p>
+      <div class="ec-lead-image__actions">
+        <a href="${heroCopy.primaryHref}" class="ec-lead-image__cta ec-lead-image__cta--primary">${heroCopy.primaryLabel}</a>
+        <a href="${heroCopy.secondaryHref}" class="ec-lead-image__cta ec-lead-image__cta--secondary">${heroCopy.secondaryLabel}</a>
+      </div>
+    </div>
     ${socials.length ? `
-      <div class="ec-lead-image__socials" aria-label="${siteLabel} social links">
+      <div class="ec-lead-image__socials" aria-label="${siteName} social links">
         ${socials.map((item) => `
-          <a href="${item.href}" target="_blank" rel="noopener noreferrer" class="ec-lead-image__social" data-platform="${item.key}" aria-label="${siteLabel} ${item.label}">
+          <a href="${item.href}" target="_blank" rel="noopener noreferrer" class="ec-lead-image__social" data-platform="${item.key}" aria-label="${siteName} ${item.label}">
             <img src="${SOCIAL_ICONS[item.key]}" alt="${item.label}">
           </a>
         `).join('')}
@@ -64,7 +125,7 @@ function renderSection(root, leadImage, socials, siteLabel) {
   `;
 
   if (existing) {
-    existing.setAttribute('aria-label', `${siteLabel} lead image section`);
+    existing.setAttribute('aria-label', `${siteName} lead image section`);
     existing.innerHTML = markup;
     if (root.firstElementChild !== existing) {
       root.insertBefore(existing, root.firstElementChild);
@@ -74,18 +135,38 @@ function renderSection(root, leadImage, socials, siteLabel) {
 
   const section = document.createElement('section');
   section.className = 'ec-lead-image';
-  section.setAttribute('aria-label', `${siteLabel} lead image section`);
+  section.setAttribute('aria-label', `${siteName} lead image section`);
   section.innerHTML = markup;
   root.insertBefore(section, root.firstElementChild);
 }
 
 export default function LeadImage(root, data = {}) {
   const siteSlug = resolveSiteSlug(data);
-  const siteLabel = String(siteSlug || data?.site_name || 'Community').trim().toUpperCase();
+  const siteName = getSiteDisplayName(data);
   const initialLeadImage = String(data?.lead_image || '').trim();
   const initialSocials = normalizeSocials(data);
+  const initialHeroCopy = buildHeroCopy(data, siteName, siteSlug);
 
-  renderSection(root, initialLeadImage, initialSocials, siteLabel);
+  root.dataset.leadImageSiteSlug = siteSlug;
+
+  renderSection(root, initialLeadImage, initialSocials, siteName, initialHeroCopy);
+
+  if (!root.dataset.leadImageAuthBound) {
+    root.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const shopNowLink = target?.closest('.ec-lead-image__cta--primary');
+      if (!shopNowLink || !root.contains(shopNowLink)) return;
+      const currentSiteSlug = getActiveSiteSlug(root.dataset.leadImageSiteSlug || '');
+      const currentSigninPath = currentSiteSlug ? `/fanhub/${encodeURIComponent(currentSiteSlug)}/signin` : '/signin';
+      if (getAuthToken(currentSiteSlug)) return;
+
+      event.preventDefault();
+      showToast('You need an account to access this feature. Please sign in or sign up.', 'error');
+      redirectToSigninWithDelay(currentSigninPath);
+    });
+
+    root.dataset.leadImageAuthBound = 'true';
+  }
 
   (async () => {
     try {
@@ -95,10 +176,11 @@ export default function LeadImage(root, data = {}) {
       const leadImage = String(payload?.lead_image || initialLeadImage).trim();
       const socials = normalizeSocials(payload);
       const resolvedSocials = socials.length ? socials : initialSocials;
-      renderSection(root, leadImage, resolvedSocials, siteLabel);
+      const heroCopy = buildHeroCopy(payload, getSiteDisplayName(payload) || siteName, siteSlug);
+      renderSection(root, leadImage, resolvedSocials, siteName, heroCopy);
     } catch (error) {
       console.error('Lead image fetch failed:', error?.response?.data || error?.message || error);
-      renderSection(root, initialLeadImage, initialSocials, siteLabel);
+      renderSection(root, initialLeadImage, initialSocials, siteName, initialHeroCopy);
     }
   })();
 }

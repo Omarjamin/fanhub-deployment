@@ -29,8 +29,8 @@ export default function HOMEPAGE(data = {}) {
   const { navigation, main, footer} = Layouts(this.root);
   Navigation(navigation, data);
   LeadImage(main, data);
-  Banner(main, data);
   About(main, data);
+  Banner(main, data);
   Discography(main, data);
   event_section(main, data);
   announcement(main, data);

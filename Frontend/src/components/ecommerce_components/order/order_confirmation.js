@@ -2,6 +2,8 @@ import Navigation from '../navigation.js';
 import Footer from '../footer.js';
 import { api } from '../../../services/ecommerce_services/config.js';
 import { authHeaders } from '../../../services/ecommerce_services/auth/auth.js';
+import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
+import { sanitizeShippingAddress, sanitizeShippingText } from '../../../utils/shipping-address.js';
 import '../../../styles/ecommerce_styles/order_confirmation.css';
 
 const moneyFormatter = new Intl.NumberFormat('en-PH', {
@@ -29,11 +31,7 @@ function resolveItemDimensions(item) {
 }
 
 function formatPackageSize(length = 0, width = 0, height = 0) {
-  const resolvedLength = Number(length || 0);
-  const resolvedWidth = Number(width || 0);
-  const resolvedHeight = Number(height || 0);
-  if (resolvedLength <= 0 && resolvedWidth <= 0 && resolvedHeight <= 0) return '';
-  return `${resolvedLength} x ${resolvedWidth} x ${resolvedHeight} cm`;
+  return formatPackageDimensions(length, width, height, { emptyLabel: '' });
 }
 
 function getItemPackageSize(item) {
@@ -70,7 +68,7 @@ function looksLikeAddressCode(value) {
 
 function cleanAddressValue(value, options = {}) {
   const allowNumericOnly = Boolean(options.allowNumericOnly);
-  const raw = String(value || '').trim();
+  const raw = sanitizeShippingText(value, allowNumericOnly ? 32 : 260);
   if (!raw) return '';
   if (!allowNumericOnly && looksLikeAddressCode(raw)) return '';
   return raw;
@@ -136,7 +134,7 @@ function getStatusIndex(value) {
 function buildAddressLines(address) {
   if (!address) return [];
   if (typeof address === 'string') {
-    const raw = address.trim();
+    const raw = sanitizeShippingText(address, 260);
     if (!raw) return [];
     if (raw.startsWith('{') || raw.startsWith('[')) {
       try {
@@ -148,12 +146,13 @@ function buildAddressLines(address) {
     return [raw];
   }
 
-  const street = cleanAddressValue(address.street || address.streetAddress || address.address_line1 || '');
-  const barangay = cleanAddressValue(address.barangayText || address.barangay || '');
-  const city = cleanAddressValue(address.cityText || address.city_municipality || address.cityMunicipality || address.city || '');
-  const province = cleanAddressValue(address.provinceText || address.province || '');
-  const region = cleanAddressValue(address.regionText || address.region_name || address.region || '');
-  const zip = cleanAddressValue(address.zipCode || address.zip_code || address.zip || '', { allowNumericOnly: true });
+  const sanitizedAddress = sanitizeShippingAddress(address);
+  const street = cleanAddressValue(sanitizedAddress.street || sanitizedAddress.streetAddress || sanitizedAddress.address_line1 || '');
+  const barangay = cleanAddressValue(sanitizedAddress.barangayText || sanitizedAddress.barangay || '');
+  const city = cleanAddressValue(sanitizedAddress.cityText || sanitizedAddress.city_municipality || sanitizedAddress.cityMunicipality || sanitizedAddress.city || '');
+  const province = cleanAddressValue(sanitizedAddress.provinceText || sanitizedAddress.province || '');
+  const region = cleanAddressValue(sanitizedAddress.regionText || sanitizedAddress.region_name || sanitizedAddress.region || '');
+  const zip = cleanAddressValue(sanitizedAddress.zipCode || sanitizedAddress.zip_code || sanitizedAddress.zip || '', { allowNumericOnly: true });
 
   const locality = [barangay, city, province].filter(Boolean).join(', ');
   const finalLine = [region, zip ? `ZIP ${zip}` : ''].filter(Boolean).join(' • ');

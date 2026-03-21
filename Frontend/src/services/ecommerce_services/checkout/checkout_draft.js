@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { authHeaders } from '../auth/auth.js';
 import { toSafeNumber } from '../../../lib/number-format.js';
+import { sanitizeShippingAddress } from '../../../utils/shipping-address.js';
 
 const CHECKOUT_DRAFT_EVENT = 'checkoutDraftUpdated';
 const CHECKOUT_DRAFT_ENDPOINT = '/checkout-draft';
@@ -138,6 +139,10 @@ export function normalizeCheckoutDraft(rawDraft = {}) {
     ),
   );
 
+  const rawShippingAddress = isPlainObject(rawDraft?.shipping_address)
+    ? clone(rawDraft.shipping_address)
+    : (isPlainObject(rawDraft?.shippingAddress) ? clone(rawDraft.shippingAddress) : null);
+
   return {
     ...baseDraft,
     current_step: clampStep(rawDraft?.current_step ?? rawDraft?.currentStep),
@@ -150,9 +155,7 @@ export function normalizeCheckoutDraft(rawDraft = {}) {
       total_weight_grams: checkoutWeightGrams,
       total: subtotal + summaryShippingFee,
     },
-    shipping_address: isPlainObject(rawDraft?.shipping_address)
-      ? clone(rawDraft.shipping_address)
-      : (isPlainObject(rawDraft?.shippingAddress) ? clone(rawDraft.shippingAddress) : null),
+    shipping_address: rawShippingAddress ? sanitizeShippingAddress(rawShippingAddress) : null,
     payment_data: isPlainObject(rawDraft?.payment_data)
       ? clone(rawDraft.payment_data)
       : (isPlainObject(rawDraft?.paymentData) ? clone(rawDraft.paymentData) : null),
@@ -218,13 +221,23 @@ export async function fetchCheckoutDraft(options = {}) {
 
 export async function saveCheckoutDraft(patch = {}) {
   const previousStep = getCachedCheckoutDraft().current_step;
+  const normalizedPatch = isPlainObject(patch) ? { ...patch } : {};
+
+  if (isPlainObject(normalizedPatch.shipping_address)) {
+    normalizedPatch.shipping_address = sanitizeShippingAddress(normalizedPatch.shipping_address);
+  }
+
+  if (isPlainObject(normalizedPatch.shippingAddress)) {
+    normalizedPatch.shippingAddress = sanitizeShippingAddress(normalizedPatch.shippingAddress);
+  }
+
   const response = await api(CHECKOUT_DRAFT_ENDPOINT, {
     method: 'PUT',
     headers: {
       'Content-Type': 'application/json',
       ...authHeaders(),
     },
-    body: JSON.stringify(patch || {}),
+    body: JSON.stringify(normalizedPatch),
   });
 
   checkoutDraftCache = await parseDraftResponse(response, 'Failed to save checkout draft');

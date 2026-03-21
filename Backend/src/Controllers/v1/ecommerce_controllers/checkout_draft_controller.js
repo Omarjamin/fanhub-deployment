@@ -1,6 +1,7 @@
 import CheckoutDraftModel from '../../../Models/ecommerce_model/checkout_draft_model.js';
 import { resolveSiteSlug } from '../../../utils/site-scope.js';
 import { resolveCommunityContext } from '../../../core/database.js';
+import { sanitizeShippingAddress } from '../../../utils/shipping-address.js';
 
 class CheckoutDraftController {
   constructor() {
@@ -38,7 +39,9 @@ class CheckoutDraftController {
 
     allowedKeys.forEach((key) => {
       if (Object.prototype.hasOwnProperty.call(body, key)) {
-        patch[key] = body[key];
+        patch[key] = key === 'shipping_address'
+          ? sanitizeShippingAddress(body[key] || {})
+          : body[key];
       }
     });
 

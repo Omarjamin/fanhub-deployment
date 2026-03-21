@@ -1464,6 +1464,10 @@ body {
   }
 }
 
+body:has(.search-container) #footer {
+  display: none !important;
+}
+
 /* Search page threads theme guard */
 body:has(.search-container) .search-container > .homepage-right .threads-sidebar {
   background: linear-gradient(180deg, #fff7fb 0%, #fffdfd 100%) !important;
@@ -1569,4 +1573,44 @@ body:has(.search-container) .search-container > .homepage-right .thread-venue {
 
 body:has(.search-container) .search-container > .homepage-right .thread-venue::before {
   content: "\1F4CD" !important;
+}
+
+body:has(.search-container) .search-container > .homepage-right .threads-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  box-sizing: border-box;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+body:has(.search-container) .search-container > .homepage-right .threads-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+body:has(.search-container) .search-container > .homepage-right .thread-item {
+  display: grid;
+  flex: 0 0 auto;
+  gap: 12px;
+}
+
+body:has(.search-container) .search-container > .homepage-right .thread-item-content {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+body:has(.search-container) .search-container > .homepage-right .thread-item-meta {
+  align-items: flex-start !important;
+  flex-wrap: wrap !important;
+}
+
+body:has(.search-container) .search-container > .homepage-right .thread-title,
+body:has(.search-container) .search-container > .homepage-right .thread-venue {
+  margin: 0 !important;
 }

@@ -7,8 +7,24 @@ import follow from '../../../services/bini_services/post/fetchFollow.js';
 import { renderThreadsSidebar } from '../threadsSidebar.js';
 import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from '../../../lib/site-context.js';
 import { showToast } from '../../../utils/toast.js';
+import { formatUserTimestamp } from '../../../utils/user-time.js';
+import { escapeHtml, sanitizeCommunityText } from '../../../utils/community-text.js';
 
 const DEFAULT_PROFILE_IMAGE = '/circle-user.png';
+
+function sanitizePostTags(tags = []) {
+  return (Array.isArray(tags) ? tags : (tags ? String(tags).split(',') : []))
+    .map((tag) => sanitizeCommunityText(tag, { maxLength: 80 }))
+    .filter(Boolean);
+}
+
+function getSafePostContent(post = {}) {
+  return sanitizeCommunityText(post.content, { maxLength: 1000 });
+}
+
+function getSafeDisplayName(value, fallback = 'Unknown User') {
+  return escapeHtml(sanitizeCommunityText(value, { maxLength: 120 }) || fallback);
+}
 
 function resolveCommunityType(data = {}) {
   const fromData = String(data?.community_type || data?.communityType || data?.communityData?.community_type || "").trim().toLowerCase();
@@ -335,19 +351,19 @@ export default async function Search_(root, data = {}) {
         body.innerHTML = `
           <div class="search-post-grid">
             ${safePosts.map((post) => {
-              const tags = Array.isArray(post.tags) ? post.tags : [];
+              const tags = sanitizePostTags(post.tags);
               return `
                 <article class="search-post-card" data-post-id="${post.post_id}" data-user-id="${post.user_id || ''}">
                   <div class="search-post-author">
-                    <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" class="search-post-avatar search-profile-link" data-user-id="${post.user_id || ''}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${post.fullname || 'User'}">
+                    <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" class="search-post-avatar search-profile-link" data-user-id="${post.user_id || ''}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${getSafeDisplayName(post.fullname, 'User')}">
                     <div class="search-post-meta">
-                      <strong class="search-profile-link" data-user-id="${post.user_id || ''}">${post.fullname || 'Unknown User'}</strong>
+                      <strong class="search-profile-link" data-user-id="${post.user_id || ''}">${getSafeDisplayName(post.fullname)}</strong>
                       <span>${formatRelativeTime(post.created_at)}</span>
                     </div>
                   </div>
-                  <p class="search-post-content">${post.content || ''}</p>
+                  <p class="search-post-content">${escapeHtml(getSafePostContent(post))}</p>
                   ${post.img_url ? `<img src="${post.img_url}" class="search-post-image" alt="Post image">` : ''}
-                  ${tags.length ? `<div class="search-post-tags">${tags.join(' ')}</div>` : ''}
+                  ${tags.length ? `<div class="search-post-tags">${escapeHtml(tags.join(' '))}</div>` : ''}
                 </article>
               `;
             }).join('')}
@@ -369,16 +385,7 @@ export default async function Search_(root, data = {}) {
   }
 
   function formatRelativeTime(timestamp) {
-    const date = new Date(timestamp);
-    const diff = Date.now() - date.getTime();
-    const mins = Math.floor(diff / 60000);
-    if (mins < 1) return 'Just now';
-    if (mins < 60) return `${mins}m ago`;
-    const hrs = Math.floor(mins / 60);
-    if (hrs < 24) return `${hrs}h ago`;
-    const days = Math.floor(hrs / 24);
-    if (days < 7) return `${days}d ago`;
-    return date.toLocaleDateString();
+    return formatUserTimestamp(timestamp);
   }
 
   function renderInlinePostPreview(posts, query, label = 'Posts') {
@@ -397,10 +404,10 @@ export default async function Search_(root, data = {}) {
         </div>
         ${preview.map((post, index) => `
           <button type="button" class="search-live-preview-item" data-preview-index="${index}" data-post-id="${post.post_id}">
-            <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${post.fullname || 'User'}" class="search-live-preview-avatar search-profile-link" data-user-id="${post.user_id || ''}">
+            <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${getSafeDisplayName(post.fullname, 'User')}" class="search-live-preview-avatar search-profile-link" data-user-id="${post.user_id || ''}">
             <div style="min-width:0;">
-              <div class="search-live-preview-name search-profile-link" data-user-id="${post.user_id || ''}">${post.fullname || 'Unknown User'}</div>
-              <div class="search-live-preview-text">${post.content || ''}</div>
+              <div class="search-live-preview-name search-profile-link" data-user-id="${post.user_id || ''}">${getSafeDisplayName(post.fullname)}</div>
+              <div class="search-live-preview-text">${escapeHtml(getSafePostContent(post))}</div>
             </div>
           </button>
         `).join('')}
@@ -437,10 +444,10 @@ export default async function Search_(root, data = {}) {
         </div>
         ${safePosts.map((post, index) => `
           <button type="button" class="search-live-preview-item" data-result-index="${index}" data-post-id="${post.post_id}">
-            <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${post.fullname || 'User'}" class="search-live-preview-avatar search-profile-link" data-user-id="${post.user_id || ''}">
+            <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${getSafeDisplayName(post.fullname, 'User')}" class="search-live-preview-avatar search-profile-link" data-user-id="${post.user_id || ''}">
             <div style="min-width:0;">
-              <div class="search-live-preview-name search-profile-link" data-user-id="${post.user_id || ''}">${post.fullname || 'Unknown User'}</div>
-              <div class="search-live-preview-text">${post.content || ''}</div>
+              <div class="search-live-preview-name search-profile-link" data-user-id="${post.user_id || ''}">${getSafeDisplayName(post.fullname)}</div>
+              <div class="search-live-preview-text">${escapeHtml(getSafePostContent(post))}</div>
             </div>
           </button>
         `).join('')}
@@ -511,10 +518,10 @@ export default async function Search_(root, data = {}) {
             <div class="search-result-list">
               ${postPreview.map((post, index) => `
                 <button type="button" class="search-live-preview-item search-post-result-item" data-result-index="${index}" data-post-id="${post.post_id}">
-                  <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${post.fullname || 'User'}" class="search-live-preview-avatar search-profile-link" data-user-id="${post.user_id || ''}">
+                  <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${getSafeDisplayName(post.fullname, 'User')}" class="search-live-preview-avatar search-profile-link" data-user-id="${post.user_id || ''}">
                   <div style="min-width:0;">
-                    <div class="search-live-preview-name search-profile-link" data-user-id="${post.user_id || ''}">${post.fullname || 'Unknown User'}</div>
-                    <div class="search-live-preview-text">${post.content || ''}</div>
+                    <div class="search-live-preview-name search-profile-link" data-user-id="${post.user_id || ''}">${getSafeDisplayName(post.fullname)}</div>
+                    <div class="search-live-preview-text">${escapeHtml(getSafePostContent(post))}</div>
                   </div>
                 </button>
               `).join('')}
@@ -576,22 +583,22 @@ export default async function Search_(root, data = {}) {
     if (!post) return;
     const modal = ensurePostViewerModal();
     const body = modal.querySelector('.search-post-viewer-body');
-    const tags = Array.isArray(post.tags) ? post.tags : (post.tags ? String(post.tags).split(',') : []);
+    const tags = sanitizePostTags(post.tags);
     const likeCount = Number(post.likeCount ?? post.like_count ?? post.likes ?? 0) || 0;
     const commentCount = Number(post.commentCount ?? post.comment_count ?? post.comments ?? 0) || 0;
     const repostCount = Number(post.repostCount ?? post.repost_count ?? post.reposts ?? 0) || 0;
     body.innerHTML = `
       <article class="search-post-viewer-card">
         <div class="search-post-author">
-          <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" class="search-post-avatar" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${post.fullname || 'User'}">
+          <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" class="search-post-avatar" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${getSafeDisplayName(post.fullname, 'User')}">
           <div class="search-post-meta">
-            <strong>${post.fullname || 'Unknown User'}</strong>
+            <strong>${getSafeDisplayName(post.fullname)}</strong>
             <span>${formatRelativeTime(post.created_at)}</span>
           </div>
         </div>
-        <p class="search-post-content">${post.content || ''}</p>
+        <p class="search-post-content">${escapeHtml(getSafePostContent(post))}</p>
         ${post.img_url ? `<img src="${post.img_url}" class="search-post-image" alt="Post image">` : ''}
-        ${tags.length ? `<div class="search-post-tags">${tags.join(' ')}</div>` : ''}
+        ${tags.length ? `<div class="search-post-tags">${escapeHtml(tags.join(' '))}</div>` : ''}
         <div class="search-post-viewer-actions">
           <div class="search-post-viewer-action"><span class="material-icons">favorite_border</span><span>${likeCount}</span></div>
           <div class="search-post-viewer-action"><span class="material-icons">chat_bubble_outline</span><span>${commentCount}</span></div>
@@ -614,16 +621,16 @@ export default async function Search_(root, data = {}) {
       <div class="hashtag-results">
         <h4 style="margin:12px 0;">Results for ${hashtag}</h4>
         ${safePosts.map((post) => {
-          const tags = Array.isArray(post.tags) ? post.tags : [];
+          const tags = sanitizePostTags(post.tags);
           return `
             <div class="post-card" style="margin-bottom:12px;padding:12px;border:1px solid #eee;border-radius:10px;">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-                <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" alt="${post.fullname || 'User'}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">
-                <strong>${post.fullname || 'Unknown User'}</strong>
+                <img src="${post.profile_picture || DEFAULT_PROFILE_IMAGE}" alt="${getSafeDisplayName(post.fullname, 'User')}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'">
+                <strong>${getSafeDisplayName(post.fullname)}</strong>
               </div>
-              <div>${post.content || ''}</div>
+              <div>${escapeHtml(getSafePostContent(post))}</div>
               ${post.img_url ? `<img src="${post.img_url}" alt="Post image" style="max-width:100%;margin-top:8px;border-radius:8px;">` : ''}
-              ${tags.length ? `<div style="margin-top:8px;color:#666;">${tags.join(' ')}</div>` : ''}
+              ${tags.length ? `<div style="margin-top:8px;color:#666;">${escapeHtml(tags.join(' '))}</div>` : ''}
             </div>
           `;
         }).join('')}

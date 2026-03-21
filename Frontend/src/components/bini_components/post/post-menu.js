@@ -2,8 +2,15 @@ import api from "../../../services/bini_services/api.js";
 import { reportPost } from "../../../services/bini_services/post/post-interactions.js";
 import { getActiveSiteSlug } from "../../../lib/site-context.js";
 import { showToast } from "../../../utils/toast.js";
+import {
+  DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+  IMAGE_UPLOAD_ACCEPT_ATTR,
+  validateSingleImageFile,
+} from "../../../utils/image-upload.js";
 
 let outsideHandlerBound = false;
+const EDIT_POST_IMAGE_LABEL = "Post image";
+const REPORT_PROOF_IMAGE_LABEL = "Proof image";
 const REPORT_CATEGORY_OPTIONS = [
   { value: "spam", label: "Spam / Scam" },
   { value: "harassment", label: "Harassment" },
@@ -59,7 +66,7 @@ function ensureEditModal() {
       <div class="search-post-modal-body">
         <form class="edit-post-form">
           <textarea name="content" rows="5" class="edit-post-textarea" placeholder="Update your post"></textarea>
-          <input type="file" name="image_file" accept="image/*" class="edit-post-file" />
+          <input type="file" name="image_file" accept="${IMAGE_UPLOAD_ACCEPT_ATTR}" class="edit-post-file" />
           <img class="edit-post-preview" alt="Post image preview" />
           <button type="button" class="edit-post-remove-image report-post-option">Remove image</button>
           <div class="edit-post-actions">
@@ -114,7 +121,7 @@ function ensureReportModal() {
           </div>
           <div class="report-form-group">
             <label class="report-form-label" for="report-post-proof">Proof of report</label>
-            <input id="report-post-proof" class="report-form-input" type="file" name="proof_file" accept="image/*" required />
+            <input id="report-post-proof" class="report-form-input" type="file" name="proof_file" accept="${IMAGE_UPLOAD_ACCEPT_ATTR}" required />
             <small class="report-form-helper">Proof image is required and will be uploaded securely for admin review.</small>
             <img class="report-post-preview report-form-preview" alt="Report proof preview" />
           </div>
@@ -159,6 +166,18 @@ async function openReportPostModal(postId, communityType = "") {
       preview.style.display = "none";
       return;
     }
+
+    const proofValidation = validateSingleImageFile(file, {
+      label: REPORT_PROOF_IMAGE_LABEL,
+      maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+    });
+    if (!proofValidation.isValid) {
+      showToast(proofValidation.errorMessage, "error");
+      proofInput.value = "";
+      preview.src = "";
+      preview.style.display = "none";
+      return;
+    }
     preview.src = URL.createObjectURL(file);
     preview.style.display = "block";
   };
@@ -183,6 +202,18 @@ async function openReportPostModal(postId, communityType = "") {
     try {
       if (!proofFile) {
         showToast("Proof image is required.", "error");
+        return;
+      }
+
+      const proofValidation = validateSingleImageFile(proofFile, {
+        label: REPORT_PROOF_IMAGE_LABEL,
+        maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+      });
+      if (!proofValidation.isValid) {
+        showToast(proofValidation.errorMessage, "error");
+        proofInput.value = "";
+        preview.src = "";
+        preview.style.display = "none";
         return;
       }
 
@@ -236,6 +267,20 @@ async function openEditPostModal(post, onSaved) {
   fileInput.onchange = () => {
     const file = fileInput.files?.[0];
     if (!file) return;
+
+    const imageValidation = validateSingleImageFile(file, {
+      label: EDIT_POST_IMAGE_LABEL,
+      maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+    });
+    if (!imageValidation.isValid) {
+      showToast(imageValidation.errorMessage, "error");
+      fileInput.value = "";
+      preview.src = currentImage || "";
+      preview.style.display = currentImage ? "block" : "none";
+      removeBtn.style.display = currentImage ? "inline-flex" : "none";
+      return;
+    }
+
     removedImage = false;
     currentImage = "";
     preview.src = URL.createObjectURL(file);
@@ -251,6 +296,15 @@ async function openEditPostModal(post, onSaved) {
       const imageFile = fileInput.files?.[0];
 
       if (imageFile) {
+        const imageValidation = validateSingleImageFile(imageFile, {
+          label: EDIT_POST_IMAGE_LABEL,
+          maxSizeBytes: DEFAULT_IMAGE_UPLOAD_MAX_SIZE_BYTES,
+        });
+        if (!imageValidation.isValid) {
+          showToast(imageValidation.errorMessage, "error");
+          return;
+        }
+
         const imageData = new FormData();
         imageData.append("file", imageFile);
         const uploadResponse = await api.post("/bini/cloudinary/upload", imageData);

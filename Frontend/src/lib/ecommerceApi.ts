@@ -5,6 +5,7 @@ import { addToCart, getCart, removeFromCart, updateCartItem } from "@/components
 import { fetchProductDetails } from "@/services/ecommerce_services/shop/product_details.js";
 import { getModernSiteData, getModernSiteSlug } from "@/lib/modern-react/context";
 import { getActiveSiteSlug } from "@/lib/site-context.js";
+import { formatPackageDimensions } from "@/utils/package-dimensions.js";
 import { api as apiUrl } from "@/services/ecommerce_services/config.js";
 
 type GenericRecord = Record<string, any>;
@@ -236,6 +237,43 @@ function normalizeNumericValue(value: unknown, fallback = 0) {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function resolvePackageDimensionValue(source: GenericRecord, keys: string[]) {
+  for (const key of keys) {
+    const value = normalizeNumericValue(source?.[key], 0);
+    if (value > 0) return value;
+  }
+  return 0;
+}
+
+function resolveProductPackageSize(row: GenericRecord, variants: GenericRecord[]) {
+  const directPackageSize = formatPackageDimensions(
+    resolvePackageDimensionValue(row, ["length_cm", "length", "package_length_cm"]),
+    resolvePackageDimensionValue(row, ["width_cm", "width", "package_width_cm"]),
+    resolvePackageDimensionValue(row, ["height_cm", "height", "package_height_cm"]),
+    { emptyLabel: "" },
+  );
+  if (directPackageSize) return directPackageSize;
+
+  const variantPackageSizes = Array.from(
+    new Set(
+      (Array.isArray(variants) ? variants : [])
+        .map((variant) =>
+          formatPackageDimensions(
+            resolvePackageDimensionValue(variant, ["length_cm", "length", "package_length_cm"]),
+            resolvePackageDimensionValue(variant, ["width_cm", "width", "package_width_cm"]),
+            resolvePackageDimensionValue(variant, ["height_cm", "height", "package_height_cm"]),
+            { emptyLabel: "" },
+          ),
+        )
+        .filter(Boolean),
+    ),
+  );
+
+  if (variantPackageSizes.length === 1) return variantPackageSizes[0];
+  if (variantPackageSizes.length > 1) return `${variantPackageSizes[0]} (varies)`;
+  return "";
+}
+
 function normalizeExternalLink(value: unknown) {
   const raw = String(value || "").trim();
   if (!raw || raw === "#") return "";
@@ -430,6 +468,7 @@ function normalizeProduct(row: GenericRecord) {
       "",
     "",
   );
+  const packageSize = resolveProductPackageSize(row, variants as GenericRecord[]);
 
   return {
     id: String(row.product_id || row.id || ""),
@@ -441,6 +480,7 @@ function normalizeProduct(row: GenericRecord) {
     collectionId,
     collectionName,
     variantLabel: variantSummary,
+    packageSize,
   };
 }
 

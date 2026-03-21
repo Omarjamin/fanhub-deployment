@@ -2,35 +2,10 @@ import fetchProductDetails from '../../../services/ecommerce_services/shop/produ
 import { addToCart } from '../cart/cart.js';
 import { formatPHP, toSafeNumber } from '../../../lib/number-format.js';
 import { getActiveSiteSlug } from '../../../lib/site-context.js';
+import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
 import { showToast } from '../../../utils/toast.js';
 
-const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
-
-function resolveBackendOrigin() {
-  try {
-    return new URL(BASE_V1).origin;
-  } catch (_) {
-    return '';
-  }
-}
-
-function resolveImageUrl(rawValue = '') {
-  const fallback = '/placeholder.svg?height=420&width=420';
-  const value = String(rawValue || '').trim();
-  if (!value) return fallback;
-  const lowered = value.toLowerCase();
-  if (lowered === 'null' || lowered === 'undefined' || lowered === 'none') {
-    return fallback;
-  }
-  if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
-    return value;
-  }
-  const base = resolveBackendOrigin();
-  if (value.startsWith('/')) {
-    return base ? `${base}${value}` : value;
-  }
-  return base ? `${base}/${value}` : value;
-}
+const PRODUCT_IMAGE_FALLBACK = '/placeholder.svg?height=720&width=720';
 
 function resolveVariantWeight(variant) {
   const explicitWeight = toSafeNumber(variant?.weight_g ?? variant?.weightG ?? variant?.weight_grams ?? variant?.weight);
@@ -64,9 +39,7 @@ function formatVariantPackage(variant) {
   const length = resolveVariantLength(variant);
   const width = resolveVariantWidth(variant);
   const height = resolveVariantHeight(variant);
-
-  if (length <= 0 && width <= 0 && height <= 0) return 'Not set';
-  return `${length} x ${width} x ${height} cm`;
+  return formatPackageDimensions(length, width, height, { emptyLabel: 'Not set' });
 }
 
 function renderVariantSpecs(variant, index = 0) {
@@ -117,29 +90,117 @@ function resolveDisplayPrice(product, variant) {
   return toSafeNumber(variant?.price ?? product?.price, 0);
 }
 
-function resolveProductImage(product, variants = [], productId = '') {
-  const direct =
-    product?.img_url ||
-    product?.image_url ||
-    product?.image ||
-    product?.imageUrl ||
-    (Array.isArray(product?.images) && product.images[0]) ||
-    '';
-  if (direct) return resolveImageUrl(direct);
+function getProductApiOrigin() {
+  try {
+    return new URL(import.meta.env.VITE_API_URL || '').origin;
+  } catch (_) {
+    return '';
+  }
+}
 
-  const fromVariant = Array.isArray(variants)
-    ? variants
-        .map((variant) =>
-          variant?.img_url ||
-          variant?.image_url ||
-          variant?.image ||
-          variant?.imageUrl ||
-          (Array.isArray(variant?.images) && variant.images[0]) ||
-          ''
-        )
-        .find((value) => String(value || '').trim())
-    : '';
-  if (fromVariant) return resolveImageUrl(fromVariant);
+function resolveProductImageUrl(rawUrl) {
+  const value = String(rawUrl || '').trim();
+  if (!value) return '';
+
+  if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
+    return value;
+  }
+
+  const apiOrigin = getProductApiOrigin();
+  if (value.startsWith('/')) {
+    return apiOrigin ? `${apiOrigin}${value}` : value;
+  }
+
+  return apiOrigin ? `${apiOrigin}/${value}` : value;
+}
+
+function parseProductImageList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .flatMap((item) => parseProductImageList(item))
+      .filter(Boolean);
+  }
+
+  const raw = String(value || '').trim();
+  if (!raw) return [];
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed
+        .flatMap((item) => parseProductImageList(item))
+        .filter(Boolean);
+    }
+  } catch (_) {
+    // Keep raw fallback below.
+  }
+
+  return [raw];
+}
+
+function collectProductImageSources(entity) {
+  if (!entity || typeof entity !== 'object') return [];
+
+  return [
+    entity.img_url,
+    entity.image_url,
+    entity.image,
+    entity.imageUrl,
+    entity.image_gallery,
+    entity.imageGallery,
+    entity.images,
+  ].flatMap((value) => parseProductImageList(value));
+}
+
+function readStoredProductSnapshot(storageKey, productId = '') {
+  try {
+    const raw = sessionStorage.getItem(storageKey);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+
+    if (Array.isArray(parsed)) {
+      return parsed.find(
+        (item) => String(item?.product_id || item?.id || '') === String(productId || '')
+      ) || null;
+    }
+
+    if (
+      parsed &&
+      String(parsed?.product_id || parsed?.id || '') === String(productId || '')
+    ) {
+      return parsed;
+    }
+  } catch (_) {
+    // ignore storage errors
+  }
+
+  return null;
+}
+
+function buildProductImageGallery(product, variants = [], productId = '') {
+  const gallery = [];
+  const seen = new Set();
+
+  const pushImage = (candidate) => {
+    const resolved = resolveProductImageUrl(candidate);
+    if (!resolved || seen.has(resolved)) return;
+    seen.add(resolved);
+    gallery.push(resolved);
+  };
+
+  collectProductImageSources(product).forEach(pushImage);
+
+  if (Array.isArray(variants)) {
+    variants.forEach((variant) => {
+      collectProductImageSources(variant).forEach(pushImage);
+    });
+  }
+
+  const selectedSnapshot = readStoredProductSnapshot('selectedProductSnapshot', productId);
+  collectProductImageSources(selectedSnapshot).forEach(pushImage);
+
+  const collectionSnapshot = readStoredProductSnapshot('collectionProductSnapshots', productId);
+  collectProductImageSources(collectionSnapshot).forEach(pushImage);
 
   try {
     const related = JSON.parse(sessionStorage.getItem('collectionProducts') || '[]');
@@ -147,57 +208,25 @@ function resolveProductImage(product, variants = [], productId = '') {
       const match = related.find(
         (item) => String(item?.product_id || item?.id || '') === String(productId || '')
       );
-      const fromSession =
-        match?.image_url ||
-        match?.img_url ||
-        match?.image ||
-        (Array.isArray(match?.images) && match.images[0]) ||
-        '';
-      if (fromSession) return resolveImageUrl(fromSession);
+      collectProductImageSources(match).forEach(pushImage);
     }
   } catch (_) {
     // ignore storage errors
   }
 
-  return resolveImageUrl('');
-}
-
-function normalizeImageList(value) {
-  if (!value) return [];
-  if (Array.isArray(value)) return value.map((item) => String(item || '').trim()).filter(Boolean);
-  if (typeof value === 'string') {
-    const raw = value.trim();
-    if (!raw) return [];
-    try {
-      const parsed = JSON.parse(raw);
-      if (Array.isArray(parsed)) {
-        return parsed.map((item) => String(item || '').trim()).filter(Boolean);
-      }
-    } catch (_) {}
-    if (raw.includes(',')) {
-      return raw.split(',').map((item) => item.trim()).filter(Boolean);
-    }
-    return [raw];
+  if (!gallery.length) {
+    gallery.push(PRODUCT_IMAGE_FALLBACK);
   }
-  return [];
-}
 
-function resolveProductImages(product) {
-  const sources = [
-    product?.images,
-    product?.image_urls,
-    product?.imageUrls,
-    product?.image_url_list,
-    product?.imageList,
-  ];
-  for (const source of sources) {
-    const list = normalizeImageList(source);
-    if (list.length) return list;
-  }
-  return [];
+  return gallery.slice(0, 3);
 }
 
 export default async function ProductDetail(root, productId, explicitCommunityType = '') {
+  if (root.__productDetailEscapeHandler) {
+    document.removeEventListener('keydown', root.__productDetailEscapeHandler);
+    delete root.__productDetailEscapeHandler;
+  }
+
   try {
     root.innerHTML = `<div class="loading">Loading product...</div>`;
 
@@ -217,13 +246,8 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
       return;
     }
 
-    const resolvedPrimary = resolveProductImage(product, variants, productId);
-    const galleryImages = resolveProductImages(product)
-      .map((value) => resolveImageUrl(value))
-      .filter((value) => value);
-    const imageList = galleryImages.length ? galleryImages : [resolvedPrimary];
-    let currentImageIndex = 0;
-
+    const gallery = buildProductImageGallery(product, variants, productId);
+    let selectedImageIndex = 0;
     let selectedVariant = variants.length > 0 ? variants[0] : null;
 
     root.innerHTML = `
@@ -232,10 +256,32 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
           <span class="product-detail-back-label">Back to shop</span>
         </button>
         <div class="product-detail-grid">
-          <div class="product-media ${imageList.length > 1 ? 'has-gallery' : ''}">
-            ${imageList.length > 1 ? '<button class="media-nav-btn prev" type="button" aria-label="Previous image">&#10094;</button>' : ''}
-            <img src="${imageList[0]}" alt="${product.name || ''}" class="product-detail-img" data-full-image="${imageList[0]}" />
-            ${imageList.length > 1 ? '<button class="media-nav-btn next" type="button" aria-label="Next image">&#10095;</button>' : ''}
+          <div class="product-media">
+            <button type="button" class="product-media-stage" id="product-media-stage" aria-label="View product image">
+              <img src="${gallery[0]}" alt="${product.name || ''}" class="product-detail-img" data-full-image="${gallery[0]}" />
+            </button>
+            ${
+              gallery.length > 1
+                ? `
+                  <div class="product-media-thumbs" aria-label="Product gallery">
+                    ${gallery
+                      .map(
+                        (image, index) => `
+                          <button
+                            type="button"
+                            class="product-media-thumb ${index === 0 ? 'is-active' : ''}"
+                            data-gallery-index="${index}"
+                            aria-label="View image ${index + 1}"
+                          >
+                            <img src="${image}" alt="${product.name || ''} view ${index + 1}" />
+                          </button>
+                        `
+                      )
+                      .join('')}
+                  </div>
+                `
+                : ''
+            }
           </div>
           <div class="product-meta">
             <h1 class="product-title">${product.name || ''}</h1>
@@ -263,7 +309,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
             <div class="cart-controls">
               <label class="product-option-title" for="qty-input">Quantity <span>(1 in cart)</span></label>
               <div class="qty-stepper">
-                <button type="button" class="qty-step-btn" id="qty-decrease" aria-label="Decrease quantity">−</button>
+                <button type="button" class="qty-step-btn" id="qty-decrease" aria-label="Decrease quantity">&#8722;</button>
                 <input type="text" id="qty-input" value="1" inputmode="numeric" pattern="[0-9]*" class="qty-input" />
                 <button type="button" class="qty-step-btn" id="qty-increase" aria-label="Increase quantity">+</button>
               </div>
@@ -280,15 +326,15 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
       <div class="lightbox" id="product-lightbox" aria-hidden="true">
         <div class="lightbox-backdrop" data-lightbox-close="true"></div>
         <div class="lightbox-dialog" role="dialog" aria-modal="true" aria-label="Product image">
-          <button class="lightbox-close" type="button" aria-label="Close image" data-lightbox-close="true">×</button>
+          <button class="lightbox-close" type="button" aria-label="Close image" data-lightbox-close="true">&times;</button>
           <img class="lightbox-image" alt="${product.name || ''}" />
         </div>
       </div>
     `;
 
+    const mediaStage = root.querySelector('#product-media-stage');
     const detailImage = root.querySelector('.product-detail-img');
-    const prevBtn = root.querySelector('.media-nav-btn.prev');
-    const nextBtn = root.querySelector('.media-nav-btn.next');
+    const galleryThumbs = [...root.querySelectorAll('.product-media-thumb')];
     const lightbox = root.querySelector('#product-lightbox');
     const lightboxImg = root.querySelector('.lightbox-image');
     const closeTargets = root.querySelectorAll('[data-lightbox-close="true"]');
@@ -323,28 +369,53 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
       document.body.classList.remove('lightbox-open');
     };
 
+    const syncSelectedImage = (nextIndex) => {
+      const normalizedIndex = Math.max(0, Math.min(gallery.length - 1, Number(nextIndex) || 0));
+      selectedImageIndex = normalizedIndex;
+      const currentImage = gallery[selectedImageIndex] || PRODUCT_IMAGE_FALLBACK;
+
+      if (detailImage) {
+        detailImage.src = currentImage;
+        detailImage.dataset.fullImage = currentImage;
+      }
+
+      if (mediaStage) {
+        mediaStage.dataset.fullImage = currentImage;
+      }
+
+      galleryThumbs.forEach((thumb, index) => {
+        thumb.classList.toggle('is-active', index === selectedImageIndex);
+      });
+    };
+
     const openLightbox = () => {
-      const current = getCurrentImage();
-      if (!lightbox || !lightboxImg || !current) return;
-      lightboxImg.src = current;
+      const currentImage = gallery[selectedImageIndex] || '';
+      if (!lightbox || !lightboxImg || !currentImage) return;
+      lightboxImg.src = currentImage;
       lightbox.classList.add('is-open');
       lightbox.setAttribute('aria-hidden', 'false');
       document.body.classList.add('lightbox-open');
     };
 
-    if (detailImage && getCurrentImage()) {
-      detailImage.addEventListener('click', openLightbox);
-    }
+    syncSelectedImage(0);
+
+    mediaStage?.addEventListener('click', openLightbox);
+    galleryThumbs.forEach((thumb) => {
+      thumb.addEventListener('click', () => {
+        syncSelectedImage(thumb.dataset.galleryIndex);
+      });
+    });
 
     closeTargets.forEach((target) => {
       target.addEventListener('click', closeLightbox);
     });
 
-    document.addEventListener('keydown', (event) => {
+    const handleEscapeKey = (event) => {
       if (event.key === 'Escape') closeLightbox();
-    });
+    };
+    root.__productDetailEscapeHandler = handleEscapeKey;
+    document.addEventListener('keydown', handleEscapeKey);
 
-    // Render related products from current collection (stored in session)
     try {
       const rawRelated = JSON.parse(sessionStorage.getItem('collectionProducts') || '[]');
       const related = Array.isArray(rawRelated)
@@ -360,7 +431,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
                 .map((p) => {
                   const id = p.product_id;
                   const name = p.name || '';
-                  const imgUrl = p.image_url || '';
+                  const imgUrl = buildProductImageGallery(p, [], id)[0] || PRODUCT_IMAGE_FALLBACK;
                   const priceVal = toSafeNumber(p.price, 0);
                   return `
                     <button class="related-card" data-product-id="${id}">
@@ -397,7 +468,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     const variantBtns = root.querySelectorAll('.variant-option');
     variantBtns.forEach((btn, idx) => {
       btn.addEventListener('click', () => {
-        variantBtns.forEach((b) => b.classList.remove('active'));
+        variantBtns.forEach((button) => button.classList.remove('active'));
         btn.classList.add('active');
         selectedVariant = variants[idx];
 
@@ -459,8 +530,8 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     });
 
     const backBtn = root.querySelector('#product-back-to-shop');
-    backBtn?.addEventListener('click', (e) => {
-      e.preventDefault();
+    backBtn?.addEventListener('click', (event) => {
+      event.preventDefault();
       window.location.href = shopPath;
     });
   } catch (err) {

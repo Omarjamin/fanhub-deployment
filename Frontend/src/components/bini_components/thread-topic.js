@@ -5,7 +5,13 @@ import {
 } from "../../services/bini_services/post/create-comment-api.js";
 import api from "../../services/bini_services/api.js";
 import { getActiveSiteSlug, getSessionToken } from "../../lib/site-context.js";
-import { formatUserTimestamp } from "../../utils/user-time.js";
+import { formatFriendlyDateTime, formatUserTimestamp } from "../../utils/user-time.js";
+import {
+  sanitizeCommunityText,
+  validateCommunityText,
+} from "../../utils/community-text.js";
+
+const COMMUNITY_TEXT_MAX_LENGTH = 1000;
 
 function navigateHome() {
   history.back();
@@ -16,9 +22,24 @@ function attachCloseButton(root) {
   if (btn) btn.addEventListener("click", navigateHome);
 }
 
-function formatDateDisplay(value) {
+function formatThreadHeaderDate(value) {
   if (!value) return "";
-  return formatUserTimestamp(value);
+  return (
+    formatFriendlyDateTime(value) ||
+    formatUserTimestamp(value) ||
+    sanitizeCommunityText(value, { maxLength: 80 }) ||
+    ""
+  );
+}
+
+function formatCommentTimestamp(value) {
+  if (!value) return "";
+  return (
+    formatUserTimestamp(value) ||
+    formatFriendlyDateTime(value) ||
+    sanitizeCommunityText(value, { maxLength: 80 }) ||
+    ""
+  );
 }
 
 export default async function ThreadTopic(params) {
@@ -59,7 +80,7 @@ export default async function ThreadTopic(params) {
         <button type="button" class="thread-topic-close" aria-label="Close">&times;</button>
         <div class="thread-topic-header">
           <div class="thread-topic-meta">
-            <div class="thread-topic-date">${formatDateDisplay(thread.date || thread.created_at)}</div>
+            <div class="thread-topic-date">${formatThreadHeaderDate(thread.date || thread.created_at)}</div>
             <div class="thread-topic-venue">${thread.venue}</div>
           </div>
           <h1 class="thread-topic-title">
@@ -75,7 +96,7 @@ export default async function ThreadTopic(params) {
               <div class="comments-list" aria-live="polite"></div>
 
               <form class="create-comment-form" style="margin-top:12px;">
-                <textarea name="comment" class="create-comment-input" rows="3" placeholder="Write a comment..." style="width:100%;padding:8px;resize:vertical;"></textarea>
+                <textarea name="comment" class="create-comment-input" rows="3" placeholder="Write a comment..." maxlength="${COMMUNITY_TEXT_MAX_LENGTH}" style="width:100%;padding:8px;resize:vertical;"></textarea>
                 <div style="text-align:right;margin-top:6px;">
                   <button type="submit" class="btn btn-primary btn-sm">Comment</button>
                 </div>
@@ -151,9 +172,9 @@ export default async function ThreadTopic(params) {
     function normalizeReply(reply) {
       return {
         id: reply?.id ?? reply?.reply_id ?? reply?.comment_id ?? `reply-${Date.now()}`,
-        content: reply?.content ?? reply?.reply_content ?? "",
+        content: sanitizeCommunityText(reply?.content ?? reply?.reply_content ?? ""),
         author: reply?.author ?? reply?.fullname ?? reply?.username ?? "You",
-        date: reply?.date ?? formatDateDisplay(reply?.created_at ?? reply?.createdAt),
+        date: reply?.date ?? formatCommentTimestamp(reply?.created_at ?? reply?.createdAt),
         createdAt: reply?.createdAt ?? reply?.created_at ?? null,
         pending: Boolean(reply?.pending),
       };
@@ -164,9 +185,9 @@ export default async function ThreadTopic(params) {
       return {
         ...comment,
         id: comment?.id ?? comment?.comment_id ?? `comment-${Date.now()}`,
-        content: comment?.content ?? comment?.comment_content ?? "",
+        content: sanitizeCommunityText(comment?.content ?? comment?.comment_content ?? ""),
         author: comment?.author ?? comment?.fullname ?? comment?.username ?? "You",
-        date: comment?.date ?? formatDateDisplay(comment?.created_at ?? comment?.createdAt),
+        date: comment?.date ?? formatCommentTimestamp(comment?.created_at ?? comment?.createdAt),
         createdAt: comment?.createdAt ?? comment?.created_at ?? null,
         pending: Boolean(comment?.pending),
         replies: repliesRaw.map(normalizeReply),
@@ -332,16 +353,25 @@ export default async function ThreadTopic(params) {
       form = document.createElement("form");
       form.className = "reply-form";
       form.innerHTML = `
-        <textarea name="reply" placeholder="Write a reply..." rows="2"></textarea>
+        <textarea name="reply" placeholder="Write a reply..." rows="2" maxlength="${COMMUNITY_TEXT_MAX_LENGTH}"></textarea>
         <div><button type="submit">Reply</button></div>
       `;
 
       form.addEventListener("submit", async (ev) => {
         ev.preventDefault();
-        const content = form
-          .querySelector('textarea[name="reply"]')
-          .value.trim();
-        if (!content) return;
+        const replyValidation = validateCommunityText(
+          form.querySelector('textarea[name="reply"]').value,
+          {
+            label: "Reply",
+            maxLength: COMMUNITY_TEXT_MAX_LENGTH,
+          },
+        );
+        if (!replyValidation.isValid) {
+          alert(replyValidation.errors[0]);
+          return;
+        }
+        const content = replyValidation.sanitized;
+        form.querySelector('textarea[name="reply"]').value = content;
         await submitReply(commentId, content);
         form.remove();
         await loadComments();
@@ -352,10 +382,18 @@ export default async function ThreadTopic(params) {
     }
 
     async function submitReply(commentId, content) {
+      const replyValidation = validateCommunityText(content, {
+        label: "Reply",
+        maxLength: COMMUNITY_TEXT_MAX_LENGTH,
+      });
+      if (!replyValidation.isValid) {
+        return null;
+      }
+
       const pendingReply = {
         tempId: createPendingId("reply"),
         commentId,
-        content,
+        content: replyValidation.sanitized,
         createdAt: new Date().toISOString(),
       };
       const pendingState = readPendingState();
@@ -374,7 +412,9 @@ export default async function ThreadTopic(params) {
       renderComments(nextComments);
 
       try {
-        const resp = await api.post(`/bini/comments/reply/${commentId}`, { content });
+        const resp = await api.post(`/bini/comments/reply/${commentId}`, {
+          content: replyValidation.sanitized,
+        });
         return resp.data;
       } catch (err) {
         return null;
@@ -382,9 +422,17 @@ export default async function ThreadTopic(params) {
     }
 
     async function submitComment(content) {
+      const commentValidation = validateCommunityText(content, {
+        label: "Comment",
+        maxLength: COMMUNITY_TEXT_MAX_LENGTH,
+      });
+      if (!commentValidation.isValid) {
+        return null;
+      }
+
       const optimisticComment = {
         tempId: createPendingId("comment"),
-        content,
+        content: commentValidation.sanitized,
         createdAt: new Date().toISOString(),
       };
       const pendingState = readPendingState();
@@ -396,7 +444,7 @@ export default async function ThreadTopic(params) {
 
       try {
         const token = getSessionToken(getActiveSiteSlug());
-        const result = await apiCreateComment(threadId, content, token);
+        const result = await apiCreateComment(threadId, commentValidation.sanitized, token);
         return result;
       } catch (err) {
         return optimisticComment;
@@ -428,8 +476,16 @@ export default async function ThreadTopic(params) {
     createForm.addEventListener("submit", async (e) => {
       e.preventDefault();
       const ta = createForm.querySelector('textarea[name="comment"]');
-      const content = ta.value.trim();
-      if (!content) return;
+      const commentValidation = validateCommunityText(ta.value, {
+        label: "Comment",
+        maxLength: COMMUNITY_TEXT_MAX_LENGTH,
+      });
+      if (!commentValidation.isValid) {
+        alert(commentValidation.errors[0]);
+        return;
+      }
+      const content = commentValidation.sanitized;
+      ta.value = content;
       await submitComment(content);
       ta.value = "";
       await loadComments();

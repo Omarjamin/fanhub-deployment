@@ -289,12 +289,8 @@ class MarketplaceController {
         collection_id: collectionId,
         product_category: body.product_category || 'Apparel',
         image_url: body.image_url || null,
-        image_urls:
-          body.image_urls ||
-          body.images ||
-          body.imageUrls ||
-          body.image_url_list ||
-          undefined,
+        img_url: body.img_url ?? body.image_gallery ?? body.images ?? [],
+        image_gallery: body.image_gallery ?? body.images ?? [],
         variants: body.variants || [],
       };
       const { product_id } = await this.marketplaceModel.createProduct(
@@ -349,12 +345,8 @@ class MarketplaceController {
         collection_id: collectionId,
         product_category: body.product_category,
         image_url: body.image_url,
-        image_urls:
-          body.image_urls ||
-          body.images ||
-          body.imageUrls ||
-          body.image_url_list ||
-          undefined,
+        img_url: body.img_url ?? body.image_gallery ?? body.images,
+        image_gallery: body.image_gallery ?? body.images,
         variants: body.variants,
       };
       Object.keys(payload).forEach((k) => {

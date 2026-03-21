@@ -12,6 +12,7 @@ import {
   fetchCityZipCode,
 } from "@/lib/ecommerceApi";
 import ShippingRates from "@/services/ecommerce_services/shipping/shipping_rates.js";
+import { sanitizeShippingAddress, validateShippingAddress } from "@/utils/shipping-address.js";
 import { toast } from "@/hooks/use-toast";
 import CheckoutHeader from "@/components/checkout/CheckoutHeader";
 import ShippingDetailsForm from "@/components/checkout/ShippingDetailsForm";
@@ -327,17 +328,34 @@ const Checkout = () => {
       return;
     }
 
-    if (
-      !region.trim() ||
-      (!isNcrRegion && !province.trim()) ||
-      !cityMunicipality.trim() ||
-      !barangay.trim() ||
-      !zipCode.trim() ||
-      !streetAddress.trim()
-    ) {
+    const shippingValidation = validateShippingAddress(
+      {
+        street: streetAddress,
+        region,
+        regionText: regionName,
+        province,
+        provinceText: province,
+        city: cityMunicipality,
+        cityText: cityMunicipality,
+        barangay,
+        barangayText: barangay,
+        zip: zipCode,
+      },
+      { requireProvince: !isNcrRegion },
+    );
+    const sanitizedShipping = shippingValidation.sanitized;
+
+    if (streetAddress !== sanitizedShipping.street) setStreetAddress(sanitizedShipping.street);
+    if (regionName !== sanitizedShipping.regionText) setRegionName(sanitizedShipping.regionText);
+    if (province !== sanitizedShipping.province) setProvince(sanitizedShipping.province);
+    if (cityMunicipality !== sanitizedShipping.city) setCityMunicipality(sanitizedShipping.city);
+    if (barangay !== sanitizedShipping.barangay) setBarangay(sanitizedShipping.barangay);
+    if (zipCode !== sanitizedShipping.zip) setZipCode(sanitizedShipping.zip);
+
+    if (!shippingValidation.isValid) {
       toast({
         title: "Missing details",
-        description: "Please complete shipping details.",
+        description: shippingValidation.errors[0]?.message || "Please complete shipping details.",
         variant: "destructive",
       });
       return;
@@ -367,13 +385,13 @@ const Checkout = () => {
         courier: shippingCourier || null,
         status: "pending",
         shipping_address: {
-          region,
-          region_name: regionName,
-          province,
-          city_municipality: cityMunicipality,
-          barangay,
-          zip_code: zipCode,
-          street_address: streetAddress,
+          region: sanitizedShipping.region,
+          region_name: sanitizedShipping.regionText || regionName,
+          province: sanitizedShipping.province,
+          city_municipality: sanitizedShipping.city,
+          barangay: sanitizedShipping.barangay,
+          zip_code: sanitizedShipping.zip,
+          street_address: sanitizedShipping.street,
         },
       });
 
@@ -391,12 +409,12 @@ const Checkout = () => {
           courier: shippingCourier || null,
           paymentMethod,
           shippingAddress: {
-            region: regionName || region,
-            province,
-            cityMunicipality,
-            barangay,
-            zipCode,
-            streetAddress,
+            region: sanitizedShipping.regionText || regionName || region,
+            province: sanitizedShipping.province,
+            cityMunicipality: sanitizedShipping.city,
+            barangay: sanitizedShipping.barangay,
+            zipCode: sanitizedShipping.zip,
+            streetAddress: sanitizedShipping.street,
           },
         },
       });
@@ -425,12 +443,12 @@ const Checkout = () => {
             courier: shippingCourier || null,
             paymentMethod,
             shippingAddress: {
-              region: regionName || region,
-              province,
-              cityMunicipality,
-              barangay,
-              zipCode,
-              streetAddress,
+              region: sanitizedShipping.regionText || regionName || region,
+              province: sanitizedShipping.province,
+              cityMunicipality: sanitizedShipping.city,
+              barangay: sanitizedShipping.barangay,
+              zipCode: sanitizedShipping.zip,
+              streetAddress: sanitizedShipping.street,
             },
           },
         });
@@ -488,7 +506,9 @@ const Checkout = () => {
                   loadingCities={loadingCities}
                   loadingBarangays={loadingBarangays}
                   isNcrRegion={isNcrRegion}
-                  onStreetAddressChange={setStreetAddress}
+                  onStreetAddressChange={(value) =>
+                    setStreetAddress(sanitizeShippingAddress({ street: value }).street)
+                  }
                   onRegionChange={setRegion}
                   onProvinceChange={setProvince}
                   onCityMunicipalityChange={setCityMunicipality}

@@ -1,6 +1,7 @@
 import { api } from '../api.js';
 import { authHeaders } from '../auth/auth.js';
 import { toSafeNumber } from '../../../lib/number-format.js';
+import { validateShippingAddress } from '../../../utils/shipping-address.js';
 import {
   calculateCheckoutSummary,
   clearCheckoutDraft,
@@ -16,7 +17,8 @@ export async function placeOrder() {
 
     const draft = await fetchCheckoutDraft({ force: true });
     const checkoutItems = Array.isArray(draft.checkout_items) ? draft.checkout_items : [];
-    const shippingData = draft.shipping_address;
+    const shippingValidation = validateShippingAddress(draft.shipping_address || {});
+    const shippingData = shippingValidation.sanitized;
     const paymentData = draft.payment_data;
     const shippingFee = draft.shipping_fee ?? 0;
     const shippingCourier = String(
@@ -35,8 +37,11 @@ export async function placeOrder() {
     if (!checkoutItems || checkoutItems.length === 0) {
       throw new Error('No items in checkout');
     }
-    if (!shippingData) {
+    if (!draft.shipping_address) {
       throw new Error('Shipping address is required');
+    }
+    if (!shippingValidation.isValid) {
+      throw new Error(shippingValidation.errors[0]?.message || 'Shipping address is invalid');
     }
     if (!paymentData) {
       throw new Error('Payment method is required');
