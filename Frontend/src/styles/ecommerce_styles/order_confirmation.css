@@ -45,18 +45,6 @@ body.ec-order-confirmation-page #main {
   overflow: hidden;
 }
 
-.ec-order-confirmation-page .order-confirm-section::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto auto 0;
-  width: 220px;
-  height: 220px;
-  border-radius: 50%;
-  background: color-mix(in srgb, var(--ec-accent) 10%, transparent);
-  transform: translate(-30%, -42%);
-  pointer-events: none;
-}
-
 .ec-order-confirmation-page .confirmation-container {
   position: relative;
   z-index: 1;
@@ -390,8 +378,9 @@ body.ec-order-confirmation-page #main {
 }
 
 .ec-order-confirmation-page .action-buttons {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   gap: 14px;
   margin-top: 24px;
 }
@@ -404,6 +393,7 @@ body.ec-order-confirmation-page #main {
   font-weight: 800;
   text-decoration: none;
   box-shadow: 0 14px 28px color-mix(in srgb, var(--ec-button-bg) 18%, transparent);
+  width: min(320px, 100%);
 }
 
 .ec-order-confirmation-page .order-confirm-section .btn-secondary {

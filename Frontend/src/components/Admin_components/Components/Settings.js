@@ -24,6 +24,19 @@ const EVENT_POSTER_PLACEHOLDER = `data:image/svg+xml;charset=UTF-8,${encodeURICo
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 180"><rect width="320" height="180" rx="18" fill="#f3f4f6"/><rect x="24" y="24" width="272" height="132" rx="14" fill="#e5e7eb"/><circle cx="110" cy="78" r="18" fill="#cbd5e1"/><path d="M54 138l48-42 30 24 38-36 60 54H54z" fill="#94a3b8"/><text x="160" y="90" fill="#6b7280" font-family="Arial, sans-serif" font-size="16" text-anchor="middle">No poster yet</text></svg>',
 )}`;
 
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function stripHtmlTags(value = '') {
+  return String(value).replace(/<[^>]*>/g, '').trim();
+}
+
 function createDefaultEventPoster(index) {
   const slotId = index + 1;
   return {
@@ -415,11 +428,11 @@ export default function createSettings() {
             data-event-id="${event.id}"
             aria-label="${event.image ? 'Change event poster' : 'Upload event poster'}"
           >
-            <img class="event-poster-preview" src="${event.image || EVENT_POSTER_PLACEHOLDER}" alt="${event.title}">
+            <img class="event-poster-preview" src="${event.image || EVENT_POSTER_PLACEHOLDER}" alt="${escapeHtml(event.title)}">
             <span class="event-poster-preview-badge">${event.image ? 'Change Poster' : 'Upload Poster'}</span>
           </button>
           <div class="event-poster-meta">
-            <strong>${event.title}</strong>
+            <strong>${escapeHtml(event.title)}</strong>
             <small>${event.image ? 'Poster and ticket link are saved per site in DB.' : 'This event slot is ready for poster upload and ticket link.'}</small>
             <div class="event-poster-actions">
               <input class="event-file-input" type="file" accept="image/*" data-event-id="${event.id}">
@@ -433,7 +446,7 @@ export default function createSettings() {
                 class="event-link-input"
                 data-event-id="${event.id}"
                 placeholder="https://..."
-                value="${String(event.href || '').replace(/"/g, '&quot;')}"
+                value="${escapeHtml(event.href || '')}"
               >
             </label>
             <p class="event-upload-status" data-status-id="${event.id}"></p>
@@ -729,7 +742,7 @@ export default function createSettings() {
     }, {});
 
     try {
-      shippingCourierName = String(section.querySelector('#shippingCourierName')?.value || '').trim();
+      shippingCourierName = stripHtmlTags(section.querySelector('#shippingCourierName')?.value || '');
       await saveShippingRegionOverrides(
         getShippingScope(),
         provinceShippingCategory,
@@ -740,7 +753,11 @@ export default function createSettings() {
       if (selectedSite) {
         await saveEventPosters(
           selectedSite,
-          eventPosters.slice(0, getEventPosterSlotLimit(selectedSite)),
+          eventPosters.slice(0, getEventPosterSlotLimit(selectedSite)).map((poster) => ({
+            ...poster,
+            title: stripHtmlTags(poster.title || ''),
+            href: stripHtmlTags(poster.href || ''),
+          })),
           selectedCommunityId,
         );
       }
@@ -814,8 +831,12 @@ export default function createSettings() {
         const eventId = input.dataset.eventId;
         if (!eventId) return;
         const idx = eventPosters.findIndex((x) => x.id === eventId);
+        const sanitized = stripHtmlTags(input.value || '');
+        if (sanitized !== input.value) {
+          input.value = sanitized;
+        }
         if (idx >= 0) {
-          eventPosters[idx] = { ...eventPosters[idx], href: String(input.value || '').trim() };
+          eventPosters[idx] = { ...eventPosters[idx], href: sanitized };
         }
       });
     });
@@ -916,7 +937,11 @@ export default function createSettings() {
     };
 
     courierInput?.addEventListener('input', () => {
-      shippingCourierName = String(courierInput.value || '').trim();
+      const sanitized = stripHtmlTags(courierInput.value || '');
+      if (sanitized !== courierInput.value) {
+        courierInput.value = sanitized;
+      }
+      shippingCourierName = sanitized;
     });
 
     addRuleBtn?.addEventListener('click', appendShippingRule);
