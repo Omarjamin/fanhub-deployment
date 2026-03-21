@@ -238,6 +238,49 @@ class MarketplaceModel {
     `);
   }
 
+  normalizeImageUrls(imageUrls) {
+    if (Array.isArray(imageUrls)) {
+      return imageUrls
+        .map((url) => String(url || '').trim())
+        .filter((url) => Boolean(url));
+    }
+    if (typeof imageUrls === 'string') {
+      const raw = imageUrls.trim();
+      if (!raw) return [];
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          return parsed
+            .map((url) => String(url || '').trim())
+            .filter((url) => Boolean(url));
+        }
+      } catch (_) {}
+      if (raw.includes(',')) {
+        return raw.split(',').map((url) => url.trim()).filter(Boolean);
+      }
+      return [raw];
+    }
+    return [];
+  }
+
+  async insertProductImages(db, productId, imageUrls = []) {
+    if (!Array.isArray(imageUrls) || !imageUrls.length) return;
+    for (let i = 0; i < imageUrls.length; i += 1) {
+      const imageUrl = String(imageUrls[i] || '').trim();
+      if (!imageUrl) continue;
+      await db.query(
+        `INSERT INTO product_images (product_id, image_url, sort_order)
+         VALUES (?, ?, ?)`,
+        [productId, imageUrl, i],
+      );
+    }
+  }
+
+  async replaceProductImages(db, productId, imageUrls = []) {
+    await db.query('DELETE FROM product_images WHERE product_id = ?', [productId]);
+    await this.insertProductImages(db, productId, imageUrls);
+  }
+
   /**
    * Get products with variants for admin marketplace view.
    * Currently uses the primary ecommerce DB (shared fanhubdb).
@@ -299,6 +342,28 @@ class MarketplaceModel {
 
     if (!products || products.length === 0) return [];
 
+    const productIds = products
+      .map((row) => Number(row?.product_id || 0))
+      .filter((id) => id > 0);
+    const imagesByProduct = new Map();
+    if (productIds.length) {
+      const placeholders = productIds.map(() => '?').join(',');
+      const [images] = await db.query(
+        `
+          SELECT product_id, image_url, sort_order, image_id
+          FROM product_images
+          WHERE product_id IN (${placeholders})
+          ORDER BY product_id ASC, sort_order ASC, image_id ASC
+        `,
+        productIds,
+      );
+      for (const row of images || []) {
+        const list = imagesByProduct.get(row.product_id) || [];
+        if (row.image_url) list.push(row.image_url);
+        imagesByProduct.set(row.product_id, list);
+      }
+    }
+
     // Fetch all variants once and group by product_id
     const [variants] = await db.query(
       `
@@ -346,6 +411,16 @@ class MarketplaceModel {
         prodVariants.length > 0
           ? Math.min(...prodVariants.map(v => Number(v.price || 0)))
           : 0;
+
+      const baseImage = row.image_url ? String(row.image_url).trim() : '';
+      let images = imagesByProduct.get(row.product_id) || [];
+      if (baseImage) {
+        if (!images.length) {
+          images = [baseImage];
+        } else if (!images.includes(baseImage)) {
+          images = [baseImage, ...images];
+        }
+      }
 
       result.push({
         product_id: row.product_id,
@@ -639,6 +714,10 @@ class MarketplaceModel {
     const productId = prodResult?.insertId;
     if (!productId) throw new Error('Failed to create product');
 
+    if (normalizedImageUrls.length) {
+      await this.insertProductImages(db, productId, normalizedImageUrls);
+    }
+
     const variantList = Array.isArray(variants) ? variants : [];
     for (const v of variantList) {
       const vName = String(v.variant_name || v.variantName || 'Variant').trim();
@@ -741,6 +820,10 @@ class MarketplaceModel {
         `UPDATE products SET ${updates.join(', ')} WHERE product_id = ?`,
         values,
       );
+    }
+
+    if (image_urls !== undefined) {
+      await this.replaceProductImages(db, id, normalizedImageUrls);
     }
 
     if (Array.isArray(variants)) {

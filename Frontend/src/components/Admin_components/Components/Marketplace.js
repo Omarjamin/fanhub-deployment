@@ -941,6 +941,82 @@ export default function createMarketplace() {
       return uploadedImages;
     }
 
+    let selectedImageFiles = [];
+    let existingImageUrls = [];
+    let imagesDirty = false;
+
+    function getImageFileKey(file) {
+      return `${file.name}::${file.size}::${file.lastModified}`;
+    }
+
+    function getImageLabel(url) {
+      const raw = String(url || '').trim();
+      if (!raw) return 'image';
+      try {
+        const parsed = new URL(raw);
+        const name = parsed.pathname.split('/').pop();
+        return name || raw;
+      } catch (_) {
+        return raw.split('/').pop() || raw;
+      }
+    }
+
+    function renderImagePreview() {
+      if (!imagePreview) return;
+      const fileItems = selectedImageFiles.map(file => ({
+        kind: 'file',
+        key: getImageFileKey(file),
+        label: file.name,
+      }));
+      const urlItems = existingImageUrls.map((url, index) => ({
+        kind: 'url',
+        key: `url-${index}`,
+        label: getImageLabel(url),
+        url,
+      }));
+      const items = [...urlItems, ...fileItems];
+
+      if (!items.length) {
+        imagePreview.innerHTML = '';
+        imagePreview.classList.add('hidden');
+        return;
+      }
+
+      imagePreview.classList.remove('hidden');
+      imagePreview.innerHTML = items
+        .map(item => `
+          <div class="image-preview-item" data-kind="${item.kind}" data-key="${item.key}">
+            <span class="image-preview-label">${item.label}</span>
+            <button type="button" class="remove-image-btn" aria-label="Remove image">Remove</button>
+          </div>
+        `)
+        .join('');
+    }
+
+    function resetImageState() {
+      selectedImageFiles = [];
+      existingImageUrls = [];
+      imagesDirty = false;
+      if (imageInput) imageInput.value = '';
+      renderImagePreview();
+    }
+
+    function addImageFiles(fileList) {
+      const incoming = Array.from(fileList || []).filter(file => file && file.type?.startsWith('image/'));
+      if (!incoming.length) return;
+      const existingKeys = new Set(selectedImageFiles.map(getImageFileKey));
+      incoming.forEach(file => {
+        const key = getImageFileKey(file);
+        if (!existingKeys.has(key)) {
+          selectedImageFiles.push(file);
+          existingKeys.add(key);
+        }
+      });
+      imagesDirty = true;
+      if (imageInput) imageInput.value = '';
+      renderImagePreview();
+    }
+
     function closeModal() {
       clearPreviewUrls();
       pendingImageFiles = [];
@@ -950,6 +1026,7 @@ export default function createMarketplace() {
     async function openAddModal() {
       editingProductId = null;
       form.reset();
+      resetImageState();
       loadAddProductCommunities();
       const selectedCommunity = getSelectedCommunity();
       if (selectedCommunity && selectedCommunity !== 'all') {
@@ -1102,6 +1179,26 @@ export default function createMarketplace() {
       removeBtn.closest('.variant-input-row')?.remove();
     });
 
+    imagePreview.addEventListener('click', (event) => {
+      const removeBtn = event.target.closest('.remove-image-btn');
+      if (!removeBtn) return;
+      const item = removeBtn.closest('.image-preview-item');
+      if (!item) return;
+      const kind = item.dataset.kind;
+      const key = item.dataset.key;
+      if (kind === 'file') {
+        selectedImageFiles = selectedImageFiles.filter(file => getImageFileKey(file) !== key);
+        imagesDirty = true;
+      } else if (kind === 'url') {
+        const index = Number(String(key || '').replace('url-', ''));
+        if (!Number.isNaN(index)) {
+          existingImageUrls.splice(index, 1);
+          imagesDirty = true;
+        }
+      }
+      renderImagePreview();
+    });
+
     modal.addEventListener('click', event => {
       if (event.target === modal) closeModal();
     });
@@ -1143,6 +1240,11 @@ export default function createMarketplace() {
           height_cm: v.height_cm
         }))
       };
+
+      const uploadedUrls = selectedImageFiles.length
+        ? (await Promise.all(selectedImageFiles.map(file => uploadMarketplaceImage(file)))).filter(Boolean)
+        : [];
+      const combinedImageUrls = [...existingImageUrls, ...uploadedUrls];
 
       if (editingProductId) {
         const product = findProductById(editingProductId);
