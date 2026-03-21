@@ -1,5 +1,6 @@
 import '../../../styles/Admin_styles/UserManagement.css';
 import { formatAdminDate } from './admin-date.js';
+import { sanitizeAdminSearch } from '../../../utils/admin-form-validation.js';
 
 export default function Users() {
   const section = document.createElement('section');
@@ -21,6 +22,7 @@ export default function Users() {
           placeholder="Search users..." 
           class="search-users" 
           id="userSearch"
+          maxlength="80"
         >
         <select class="status-filter" id="userStatusFilter">
           <option value="">All Status</option>
@@ -81,7 +83,13 @@ export default function Users() {
   }
 
   function filterUsers() {
-    const search = section.querySelector("#userSearch").value.toLowerCase();
+    const searchInput = section.querySelector("#userSearch");
+    const sanitizedSearch = sanitizeAdminSearch(searchInput?.value || "", { maxLength: 80 });
+    if (searchInput && searchInput.value !== sanitizedSearch) {
+      searchInput.value = sanitizedSearch;
+    }
+
+    const search = sanitizedSearch.toLowerCase();
     const statusFilter = section.querySelector("#userStatusFilter").value.toLowerCase();
 
     section.querySelectorAll("#usersTableBody tr").forEach(row => {

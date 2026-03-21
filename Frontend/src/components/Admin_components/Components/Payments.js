@@ -1,5 +1,6 @@
 import '../../../styles/Admin_styles/Payments.css';
 import { formatAdminDate } from './admin-date.js';
+import { sanitizeAdminSearch } from '../../../utils/admin-form-validation.js';
 
 export default function createPayments() {
   const section = document.createElement('section');
@@ -17,6 +18,7 @@ export default function createPayments() {
         placeholder="Search payments..." 
         class="filter-input" 
         id="paymentSearch"
+        maxlength="80"
       >
 
       <select class="filter-select" id="paymentStatusFilter">
@@ -87,7 +89,13 @@ export default function createPayments() {
   }
 
   function filterPayments() {
-    const q = section.querySelector("#paymentSearch").value.toLowerCase();
+    const searchInput = section.querySelector("#paymentSearch");
+    const sanitizedQuery = sanitizeAdminSearch(searchInput?.value || "", { maxLength: 80 });
+    if (searchInput && searchInput.value !== sanitizedQuery) {
+      searchInput.value = sanitizedQuery;
+    }
+
+    const q = sanitizedQuery.toLowerCase();
     const method = section.querySelector("#paymentMethodFilter").value.toLowerCase();
     const status = section.querySelector("#paymentStatusFilter").value.toLowerCase();
 

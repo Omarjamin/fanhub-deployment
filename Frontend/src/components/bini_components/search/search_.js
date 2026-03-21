@@ -9,6 +9,7 @@ import { getActiveSiteSlug, getSessionToken, setActiveSiteSlug } from '../../../
 import { showToast } from '../../../utils/toast.js';
 import { formatUserTimestamp } from '../../../utils/user-time.js';
 import { escapeHtml, sanitizeCommunityText } from '../../../utils/community-text.js';
+import { SEARCH_QUERY_MAX_LENGTH, sanitizeSearchQuery, validateSearchQuery } from '../../../utils/search-query.js';
 
 const DEFAULT_PROFILE_IMAGE = '/circle-user.png';
 
@@ -24,6 +25,10 @@ function getSafePostContent(post = {}) {
 
 function getSafeDisplayName(value, fallback = 'Unknown User') {
   return escapeHtml(sanitizeCommunityText(value, { maxLength: 120 }) || fallback);
+}
+
+function getSafeSearchLabel(value, fallback = 'your search') {
+  return escapeHtml(sanitizeSearchQuery(value, { maxLength: SEARCH_QUERY_MAX_LENGTH }) || fallback);
 }
 
 function resolveCommunityType(data = {}) {
@@ -62,7 +67,7 @@ export default async function Search_(root, data = {}) {
     <div class="search-container" id="searchContainer" style="position:relative;">
       <div class="search-bar" style="position:relative;">
         <img src="/search.png" alt="Search Icon" class="search-icon" id="searchIcon">
-        <input type="text" id="searchInput" autocomplete="off">
+        <input type="text" id="searchInput" autocomplete="off" maxlength="${SEARCH_QUERY_MAX_LENGTH}" placeholder="Search users, posts, or hashtags">
         <button id="searchBtn" style="display:none"></button>
       </div>
       <div class="homepage-right">
@@ -142,9 +147,17 @@ export default async function Search_(root, data = {}) {
   });
 
   searchInput.addEventListener('input', async () => {
-    const query = searchInput.value.trim();
+    const validation = validateSearchQuery(searchInput.value);
+    searchInput.value = validation.sanitized;
+    const query = validation.sanitized;
     if (!query) {
       searchIcon.style.display = '';
+      overlay.style.display = 'none';
+      searchResults.innerHTML = '';
+      setSuggestionsVisible(true);
+      return;
+    }
+    if (!validation.isValid) {
       overlay.style.display = 'none';
       searchResults.innerHTML = '';
       setSuggestionsVisible(true);
@@ -186,19 +199,29 @@ export default async function Search_(root, data = {}) {
 
   // Search button click
   searchBtn.addEventListener('click', async () => {
-    const query = searchInput.value.trim();
-    if (query) {
+    const validation = validateSearchQuery(searchInput.value);
+    searchInput.value = validation.sanitized;
+    const query = validation.sanitized;
+    if (validation.isValid && query) {
       setSuggestionsVisible(false);
       await handleSearchQuery(query, { live: false });
     } else {
-      searchResults.innerHTML = '<p>Please enter a search term.</p>';
+      searchResults.innerHTML = `<p>${escapeHtml(validation.errors[0] || 'Please enter a search term.')}</p>`;
       setSuggestionsVisible(true);
     }
   });
 
   async function handleSearchQuery(query, options = {}) {
     const { live = false } = options;
-    const normalizedQuery = String(query || '').trim();
+    const validation = validateSearchQuery(query);
+    if (!validation.isValid) {
+      overlay.style.display = 'none';
+      searchResults.innerHTML = live ? '' : `<p style="margin-top:8px;color:#555;">${escapeHtml(validation.errors[0])}</p>`;
+      if (!live) setSuggestionsVisible(true);
+      return;
+    }
+
+    const normalizedQuery = validation.sanitized;
     const hashtagOnlyQuery = normalizedQuery.replace(/^#+/, '');
 
     if (normalizedQuery.startsWith('#')) {
@@ -270,7 +293,7 @@ export default async function Search_(root, data = {}) {
   }
 
   async function fallbackHashtagSearch(hashtagQuery) {
-    const raw = String(hashtagQuery || '').trim();
+    const raw = sanitizeSearchQuery(hashtagQuery);
     const target = raw.startsWith('#') ? raw.toLowerCase() : `#${raw.toLowerCase()}`;
     const targetWithoutHash = target.replace(/^#/, '');
     try {
@@ -293,7 +316,7 @@ export default async function Search_(root, data = {}) {
   }
 
   async function fallbackPostSearch(searchQuery) {
-    const query = String(searchQuery || '').trim().toLowerCase();
+    const query = sanitizeSearchQuery(searchQuery).toLowerCase();
     if (!query) return [];
     try {
       const response = await fetchrandomposts(token, 120, 0, communityType);
@@ -390,9 +413,10 @@ export default async function Search_(root, data = {}) {
 
   function renderInlinePostPreview(posts, query, label = 'Posts') {
     const safePosts = Array.isArray(posts) ? posts : [];
+    const safeQuery = getSafeSearchLabel(query);
     const preview = safePosts.slice(0, 3);
     if (!preview.length) {
-      searchResults.innerHTML = `<p style="margin-top:8px;color:#555;">No ${label.toLowerCase()} found for <strong>${query}</strong>.</p>`;
+      searchResults.innerHTML = `<p style="margin-top:8px;color:#555;">No ${label.toLowerCase()} found for <strong>${safeQuery}</strong>.</p>`;
       return;
     }
 
@@ -431,8 +455,9 @@ export default async function Search_(root, data = {}) {
 
   function renderFullPostResults(posts, query, label = 'Posts') {
     const safePosts = Array.isArray(posts) ? posts : [];
+    const safeQuery = getSafeSearchLabel(query);
     if (!safePosts.length) {
-      searchResults.innerHTML = `<p style="margin-top:8px;color:#555;">No ${label.toLowerCase()} found for <strong>${query}</strong>.</p>`;
+      searchResults.innerHTML = `<p style="margin-top:8px;color:#555;">No ${label.toLowerCase()} found for <strong>${safeQuery}</strong>.</p>`;
       return;
     }
 
@@ -473,9 +498,10 @@ export default async function Search_(root, data = {}) {
   function renderCombinedResults({ users = [], posts = [], query = '', live = false, postLabel = 'Posts' }) {
     const safeUsers = Array.isArray(users) ? users : [];
     const safePosts = Array.isArray(posts) ? posts : [];
+    const safeQuery = getSafeSearchLabel(query);
 
     if (!safeUsers.length && !safePosts.length) {
-      searchResults.innerHTML = `<p style="margin-top:8px;color:#555;">No results found for <strong>${query}</strong>.</p>`;
+      searchResults.innerHTML = `<p style="margin-top:8px;color:#555;">No results found for <strong>${safeQuery}</strong>.</p>`;
       return;
     }
 
@@ -495,10 +521,10 @@ export default async function Search_(root, data = {}) {
             <div class="search-result-list">
               ${userPreview.map((user) => `
                 <button type="button" class="search-live-preview-item search-user-result-item" data-user-id="${user.user_id}">
-                  <img src="${user.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${user.fullname || 'User'}" class="search-live-preview-avatar">
+                  <img src="${user.profile_picture || DEFAULT_PROFILE_IMAGE}" onerror="this.src='${DEFAULT_PROFILE_IMAGE}'" alt="${getSafeDisplayName(user.fullname, 'User')}" class="search-live-preview-avatar">
                   <div style="min-width:0;">
-                    <div class="search-live-preview-name">${user.fullname || 'Unknown User'}</div>
-                    <div class="search-live-preview-text">${user.username || 'User profile'}</div>
+                    <div class="search-live-preview-name">${getSafeDisplayName(user.fullname)}</div>
+                    <div class="search-live-preview-text">${escapeHtml(sanitizeCommunityText(user.username || 'User profile', { maxLength: 120 }))}</div>
                   </div>
                 </button>
               `).join('')}
@@ -611,15 +637,16 @@ export default async function Search_(root, data = {}) {
 
   function renderHashtagResults(posts, hashtag) {
     const safePosts = Array.isArray(posts) ? posts : [];
+    const safeHashtag = getSafeSearchLabel(hashtag, '#');
 
     if (!safePosts.length) {
-      searchResults.innerHTML = `<p>No posts found for <strong>${hashtag}</strong>.</p>`;
+      searchResults.innerHTML = `<p>No posts found for <strong>${safeHashtag}</strong>.</p>`;
       return;
     }
 
     searchResults.innerHTML = `
       <div class="hashtag-results">
-        <h4 style="margin:12px 0;">Results for ${hashtag}</h4>
+        <h4 style="margin:12px 0;">Results for ${safeHashtag}</h4>
         ${safePosts.map((post) => {
           const tags = sanitizePostTags(post.tags);
           return `

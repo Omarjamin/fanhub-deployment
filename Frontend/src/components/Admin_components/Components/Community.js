@@ -3,6 +3,13 @@ import '../../../styles/Admin_styles/Community.css';
 import { fetchAdminSites, getAdminHeaders } from './admin-sites.js';
 import { normalizeBannerGallery } from '../../../lib/banner-gallery.js';
 import { showToast } from '../../../utils/toast.js';
+import {
+  hasMinLength,
+  isValidHexColor,
+  isValidHttpUrl,
+  isValidSlug,
+  reportValidationError,
+} from '../../../utils/admin-form-validation.js';
 
 export default function Community() {
   const section = document.createElement('section');
@@ -927,10 +934,110 @@ export default function Community() {
       typography,
     };
 
-    if (!site_name || !domain) return;
+    const isAcceptableMediaUrl = (value = '') => {
+      const normalized = String(value || '').trim();
+      return !normalized ||
+        isValidHttpUrl(normalized) ||
+        normalized.startsWith('/') ||
+        normalized.startsWith('data:') ||
+        normalized.startsWith('blob:');
+    };
+
+    if (!hasMinLength(site_name, 2)) {
+      return reportValidationError(section.querySelector('#siteName'), 'Site name is required and must be at least 2 characters.');
+    }
+
+    if (!domain) {
+      return reportValidationError(section.querySelector('#siteDomain'), 'Domain is required.');
+    }
+
+    if (!isValidSlug(domain)) {
+      return reportValidationError(section.querySelector('#siteDomain'), 'Domain must use lowercase letters, numbers, and hyphens only.');
+    }
+
+    const duplicateDomain = allSites.some((site) =>
+      Number(site.id || 0) !== Number(editingId || 0) &&
+      String(site.domain || '').trim().toLowerCase() === domain
+    );
+    if (duplicateDomain) {
+      return reportValidationError(section.querySelector('#siteDomain'), 'That domain is already assigned to another site.');
+    }
+
+    if (short_bio.length > 180) {
+      return reportValidationError(section.querySelector('#shortBio'), 'Short description must be 180 characters or less.');
+    }
+
+    const optionalExternalLinks = [
+      ['#instagramUrl', 'Instagram URL', instagram_url],
+      ['#facebookUrl', 'Facebook URL', facebook_url],
+      ['#tiktokUrl', 'TikTok URL', tiktok_url],
+      ['#spotifyUrl', 'Spotify URL', spotify_url],
+      ['#xUrl', 'X URL', x_url],
+      ['#youtubeUrl', 'YouTube URL', youtube_url],
+    ];
+
+    for (const [selector, label, value] of optionalExternalLinks) {
+      if (value && !isValidHttpUrl(value)) {
+        return reportValidationError(section.querySelector(selector), `${label} must be a valid http:// or https:// link.`);
+      }
+    }
+
+    const optionalMediaLinks = [
+      ['#siteLogo', 'Logo URL', logo],
+      ['#groupPhoto', 'Group Photo URL', group_photo],
+      ['#leadImage', 'Lead Image URL', lead_image],
+    ];
+
+    for (const [selector, label, value] of optionalMediaLinks) {
+      if (!isAcceptableMediaUrl(value)) {
+        return reportValidationError(section.querySelector(selector), `${label} must be a valid image URL.`);
+      }
+    }
+
+    if ((banner_gallery || []).some((url) => !isAcceptableMediaUrl(url))) {
+      return reportValidationError(section.querySelector('#bannerGalleryUrls'), 'Each gallery image must use a valid URL or uploaded image path.');
+    }
+
+    const optionalColorFields = [
+      ['#primaryColor', 'Primary color', primary_color],
+      ['#secondaryColor', 'Secondary color', secondary_color],
+      ['#accentColor', 'Accent color', accent_color],
+    ];
+
+    for (const [selector, label, value] of optionalColorFields) {
+      if (!isValidHexColor(value)) {
+        return reportValidationError(section.querySelector(selector), `${label} must be a valid hex color like #ec4899.`);
+      }
+    }
 
     // Sync members from editor controls
     const memberRows = section.querySelectorAll('.cm-member-row');
+    const memberKeys = new Set();
+    for (let idx = 0; idx < memberRows.length; idx += 1) {
+      const row = memberRows[idx];
+      const nameInput = row.querySelector('.cm-member-name');
+      const birthdateInput = row.querySelector('.cm-member-birthdate');
+      const name = String(nameInput?.value || '').trim();
+      const birthdate = String(birthdateInput?.value || '').trim();
+      const existingImage = String(editingMembers[idx]?.image_profile || editingMembers[idx]?.image || '').trim();
+      const hasDraftImage = Boolean(row.querySelector('.cm-member-image-file')?.files?.[0]);
+      const hasAnyValue = Boolean(name || birthdate || existingImage || hasDraftImage);
+
+      if (!hasAnyValue) continue;
+      if (!hasMinLength(name, 1)) {
+        return reportValidationError(nameInput, `Member ${idx + 1} name is required.`);
+      }
+      if (!birthdate) {
+        return reportValidationError(birthdateInput, `Member ${idx + 1} birthdate is required.`);
+      }
+
+      const key = `${name.toLowerCase()}::${normalizeBirthdateInput(birthdate)}`;
+      if (memberKeys.has(key)) {
+        return reportValidationError(nameInput, `Member "${name}" is duplicated. Please keep only one entry.`);
+      }
+      memberKeys.add(key);
+    }
+
     editingMembers = Array.from(memberRows).map((row, idx) => ({
       name: String(row.querySelector('.cm-member-name')?.value || '').trim(),
       birthdate: String(row.querySelector('.cm-member-birthdate')?.value || '').trim(),

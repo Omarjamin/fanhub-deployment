@@ -295,7 +295,8 @@ async function fetchMembersByCommunity(siteSlug = '', siteId = 0) {
 function renderAbout(root, groupInfo, membersData) {
     root.querySelectorAll('#about').forEach((node) => node.remove());
 
-    const allItems = [groupInfo, ...membersData];
+    const showAllButton = membersData.length !== 1;
+    const allItems = showAllButton ? [groupInfo, ...membersData] : [...membersData];
     const totalImages = allItems.length;
     const memberHeaderLabel = String(groupInfo.title || '')
         .replace(/^About\s+/i, '')
@@ -347,9 +348,9 @@ function renderAbout(root, groupInfo, membersData) {
                 </div>
                 <div class="about-column about-members-column">
                     <div class="members-list">
-                        <button class="member-name active" type="button" data-index="1">ALL</button>
+                        ${showAllButton ? '<button class="member-name active" type="button" data-index="1">ALL</button>' : ''}
                         ${membersData.map((member, index) => `
-                            <button class="member-name" type="button" data-index="${index + 2}">${member.name}</button>
+                            <button class="member-name${!showAllButton && index === 0 ? ' active' : ''}" type="button" data-index="${index + (showAllButton ? 2 : 1)}">${member.name}</button>
                         `).join('')}
                         ${membersData.length === 0 ? '<p class="about-description">No members available for this community yet.</p>' : ''}
                     </div>
@@ -370,6 +371,7 @@ function renderAbout(root, groupInfo, membersData) {
         allItems,
         membersData,
         totalImages,
+        showAllButton,
     };
 
     if (!root.__aboutBound) {
@@ -569,7 +571,7 @@ function updateCarousel(root) {
         return;
     }
 
-    const { currentImage, totalImages, allItems, membersData } = state;
+    const { currentImage, totalImages, allItems, membersData, showAllButton } = state;
     const indicator = section.querySelector('.pagination-indicator');
     const images = section.querySelectorAll('.carousel-image');
     const groupInfoDiv = section.querySelector('#groupInfo');
@@ -602,14 +604,15 @@ function updateCarousel(root) {
         images[2].alt = `${allItems[mainIndex]?.name || 'Group'} photo`;
     }
 
-    if (currentImage === 1) {
+    if (showAllButton && currentImage === 1) {
         if (groupInfoDiv) groupInfoDiv.style.display = 'block';
         if (memberInfoDiv) memberInfoDiv.style.display = 'none';
     } else {
         if (groupInfoDiv) groupInfoDiv.style.display = 'none';
         if (memberInfoDiv) memberInfoDiv.style.display = 'block';
 
-        const currentMember = membersData[currentImage - 2];
+        const currentMemberIndex = showAllButton ? currentImage - 2 : currentImage - 1;
+        const currentMember = membersData[currentMemberIndex] || membersData[0];
         if (currentMember) {
             if (nameDisplay) nameDisplay.textContent = currentMember.name;
             if (primaryLabelDisplay) primaryLabelDisplay.textContent = currentMember.primaryLabel || 'Full Name';

@@ -1,4 +1,5 @@
 import '../../../styles/Admin_styles/GroupManagement.css';
+import { sanitizeAdminSearch } from '../../../utils/admin-form-validation.js';
 
 export default function createGroupManagement() {
   const section = document.createElement('section');
@@ -21,6 +22,7 @@ export default function createGroupManagement() {
             placeholder="Search groups..." 
             class="filter-input" 
             id="groupSearch"
+            maxlength="80"
           >
           <select class="filter-select" id="groupStatusFilter">
             <option value="">All Status</option>
@@ -82,9 +84,9 @@ export default function createGroupManagement() {
     },
   ];
 
-  function loadGroups() {
+  function loadGroups(groups = mockGroups) {
     const grid = section.querySelector("#groupsGrid");
-    grid.innerHTML = mockGroups.map(g => `
+    grid.innerHTML = groups.map(g => `
       <div class="group-card" data-group-id="${g.id}">
         <div class="group-header">
           <img src="/placeholder.svg" class="group-avatar">
@@ -109,6 +111,31 @@ export default function createGroupManagement() {
         </div>  
       </div>
     `).join("");
+  }
+
+  function filterGroups() {
+    const searchInput = section.querySelector("#groupSearch");
+    const statusInput = section.querySelector("#groupStatusFilter");
+    const sanitizedSearch = sanitizeAdminSearch(searchInput?.value || "", { maxLength: 80 });
+    if (searchInput && searchInput.value !== sanitizedSearch) {
+      searchInput.value = sanitizedSearch;
+    }
+
+    const search = sanitizedSearch.toLowerCase();
+    const status = String(statusInput?.value || "").trim().toLowerCase();
+
+    const filteredGroups = mockGroups.filter((group) => {
+      const name = String(group.name || "").toLowerCase();
+      const description = String(group.description || "").toLowerCase();
+      const groupStatus = String(group.status || "").toLowerCase();
+      const privacy = String(group.privacy || "").toLowerCase();
+
+      const matchesSearch = !search || name.includes(search) || description.includes(search);
+      const matchesStatus = !status || groupStatus === status || privacy === status;
+      return matchesSearch && matchesStatus;
+    });
+
+    loadGroups(filteredGroups);
   }
 
   function openModal(id) {
@@ -150,7 +177,16 @@ export default function createGroupManagement() {
       });
   }
 
+  function setupGroupFilters() {
+    section.querySelector("#groupSearch")
+      ?.addEventListener("input", filterGroups);
+
+    section.querySelector("#groupStatusFilter")
+      ?.addEventListener("change", filterGroups);
+  }
+
   loadGroups();
+  setupGroupFilters();
   setupGroupActions();
   return section;
 }

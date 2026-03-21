@@ -1,6 +1,13 @@
 import '../../../styles/Admin_styles/Reports.css';
 import { getAdminHeaders } from './admin-sites.js';
 import { formatAdminDate, formatAdminTime } from './admin-date.js';
+import {
+  hasMinLength,
+  reportValidationError,
+  sanitizeAdminSearch,
+  sanitizeAdminText,
+  showValidationMessage,
+} from '../../../utils/admin-form-validation.js';
 import { showToast } from '../../../utils/toast.js';
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1').trim().replace(/\/$/, '');
@@ -45,7 +52,7 @@ export default function ReportsComponent() {
       </div>
 
       <div class="reports-filters">
-        <input type="text" class="search-reports" placeholder="Search reported users..." id="searchReports">
+        <input type="text" class="search-reports" placeholder="Search reported users..." id="searchReports" maxlength="80">
         <select class="status-filter" id="statusFilter">
           <option value="all">All Status</option>
           <option value="pending">Pending</option>
@@ -530,7 +537,13 @@ function setupEventListeners(section) {
 }
 
 function applyFilters() {
-  const searchTerm = String(document.getElementById('searchReports')?.value || '').toLowerCase();
+  const searchInput = document.getElementById('searchReports');
+  const sanitizedSearch = sanitizeAdminSearch(searchInput?.value || '', { maxLength: 80 });
+  if (searchInput && searchInput.value !== sanitizedSearch) {
+    searchInput.value = sanitizedSearch;
+  }
+
+  const searchTerm = sanitizedSearch.toLowerCase();
   const selectedStatus = String(document.getElementById('statusFilter')?.value || 'all').toLowerCase();
 
   filteredData = routeScopedData.filter((report) => {
@@ -755,6 +768,7 @@ function openWarningModal(userId) {
               id="warningContentInput"
               class="warning-form-textarea"
               rows="5"
+              maxlength="500"
               placeholder="Type warning content..."
             >${defaultCategory.template}</textarea>
           </div>
@@ -793,11 +807,13 @@ function openWarningModal(userId) {
 
     sendBtn?.addEventListener('click', () => {
       const category = String(categorySelect?.value || defaultCategory.value).trim();
-      const content = String(contentInput?.value || '').trim();
-      if (!content) {
-        showToast('Warning content is required.', 'error');
-        return;
+      const content = sanitizeAdminText(contentInput?.value || '', { maxLength: 500 });
+      if (contentInput) contentInput.value = content;
+
+      if (!hasMinLength(content, 10)) {
+        return reportValidationError(contentInput, 'Warning content is required and must be at least 10 characters.');
       }
+
       close({ category, content });
     });
 
@@ -811,8 +827,14 @@ async function handleSuspend(userId, community = '') {
   const confirmed = confirm(`Are you sure you want to suspend user ${userId}?`);
   if (!confirmed) return;
 
-  const reason = window.prompt(`Reason for suspending user ${userId}:`);
-  if (!reason) return;
+  const rawReason = window.prompt(`Reason for suspending user ${userId}:`);
+  if (rawReason === null) return;
+
+  const reason = sanitizeAdminText(rawReason, { maxLength: 240 });
+  if (!hasMinLength(reason, 6)) {
+    showValidationMessage('Suspension reason must be at least 6 characters.');
+    return;
+  }
 
   try {
     const result = await requestJson(`/admin/reports/users/${userId}/action`, {

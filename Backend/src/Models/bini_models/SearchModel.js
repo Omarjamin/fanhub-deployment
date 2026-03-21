@@ -1,4 +1,5 @@
 import { connect, resolveCommunityContext } from '../../core/database.js';
+import { sanitizeSearchKeyword } from '../../utils/search-query.js';
 
 class SearchModel {
   constructor() {
@@ -47,6 +48,9 @@ class SearchModel {
   // search users by keyword in fullname or username
   async searchUser(keyword) {
     try {
+      const sanitizedKeyword = sanitizeSearchKeyword(keyword);
+      if (!sanitizedKeyword) return { users: [] };
+
       const hasUsername = await this.hasColumn('users', 'username');
       const scoped = await this.getScopedCondition('users');
       if (this.activeCommunityType && !this.activeCommunityId && (await this.hasColumn('users', 'community_id'))) {
@@ -68,8 +72,8 @@ class SearchModel {
         LIMIT 5
       `;
       const baseParams = hasUsername
-        ? [`%${keyword}%`, `%${keyword}%`]
-        : [`%${keyword}%`];
+        ? [`%${sanitizedKeyword}%`, `%${sanitizedKeyword}%`]
+        : [`%${sanitizedKeyword}%`];
       const userParams = [...baseParams, ...scoped.params];
       const [userResults] = await this.db.query(userQuery, userParams);
 
@@ -84,7 +88,7 @@ class SearchModel {
 
   async searchPostsByHashtag(keyword) {
     try {
-      const raw = String(keyword || '').trim();
+      const raw = sanitizeSearchKeyword(keyword);
       if (!raw) return { posts: [] };
 
       const hashtag = raw.startsWith('#') ? raw : `#${raw}`;
@@ -140,7 +144,7 @@ class SearchModel {
 
   async searchPosts(keyword) {
     try {
-      const raw = String(keyword || '').trim();
+      const raw = sanitizeSearchKeyword(keyword);
       if (!raw) return { posts: [] };
 
       const likeValue = `%${raw}%`;

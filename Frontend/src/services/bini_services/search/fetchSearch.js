@@ -1,13 +1,15 @@
 // Fetch users based on search keyword
 import api from "../api.js";
+import { sanitizeSearchQuery, validateSearchQuery } from "../../../utils/search-query.js";
 
 const SEARCH_ENDPOINT = (keyword) => `/bini/search/users?keyword=${encodeURIComponent(keyword)}`;
 
 export async function fetchSearchAll(token, keyword) {
-  const query = String(keyword || "").trim();
-  if (!query) {
+  const validation = validateSearchQuery(keyword);
+  if (!validation.isValid) {
     return { users: [] };
   }
+  const query = sanitizeSearchQuery(validation.sanitized);
 
   try {
     const response = await api.get(SEARCH_ENDPOINT(query));
@@ -21,10 +23,11 @@ export async function fetchSearchAll(token, keyword) {
 }
 
 export async function fetchHashtagPosts(token, keyword) {
-  const query = String(keyword || "").trim();
-  if (!query) {
+  const validation = validateSearchQuery(keyword);
+  if (!validation.isValid) {
     return { posts: [] };
   }
+  const query = sanitizeSearchQuery(validation.sanitized);
 
   const endpoints = [
     (value) => `/bini/search/hashtags?keyword=${encodeURIComponent(value)}`,
@@ -51,8 +54,9 @@ export async function fetchHashtagPosts(token, keyword) {
 }
 
 export async function fetchPostsByQuery(token, keyword) {
-  const query = String(keyword || "").trim();
-  if (!query) return { posts: [] };
+  const validation = validateSearchQuery(keyword);
+  if (!validation.isValid) return { posts: [] };
+  const query = sanitizeSearchQuery(validation.sanitized);
 
   const endpoints = [
     (value) => `/bini/search/posts?keyword=${encodeURIComponent(value)}`,

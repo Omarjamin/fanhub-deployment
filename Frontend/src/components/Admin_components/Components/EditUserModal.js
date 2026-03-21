@@ -1,4 +1,16 @@
 import '../../../styles/Admin_styles/EditUserModal.css';
+import {
+  hasMinLength,
+  isValidEmail,
+  reportValidationError,
+  sanitizeAdminText,
+} from '../../../utils/admin-form-validation.js';
+import { showToast } from '../../../utils/toast.js';
+
+const MAX_AVATAR_FILE_SIZE = 2 * 1024 * 1024;
+const ALLOWED_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+const ALLOWED_ROLES = new Set(['user', 'moderator', 'admin']);
+const ALLOWED_STATUSES = new Set(['active', 'inactive', 'suspended']);
 
 export default class EditUserModal {
   constructor() {
@@ -15,12 +27,12 @@ export default class EditUserModal {
           <form id="editUserForm">
             <div class="form-group">
               <label for="editUserName">Full Name</label>
-              <input type="text" id="editUserName" class="form-control" required>
+              <input type="text" id="editUserName" class="form-control" maxlength="120" required>
             </div>
             
             <div class="form-group">
               <label for="editUserEmail">Email</label>
-              <input type="email" id="editUserEmail" class="form-control" required>
+              <input type="email" id="editUserEmail" class="form-control" maxlength="254" required>
             </div>
             
             <div class="form-row">
@@ -45,7 +57,7 @@ export default class EditUserModal {
             
             <div class="form-group">
               <label for="editUserBio">Bio</label>
-              <textarea id="editUserBio" class="form-control" rows="3"></textarea>
+              <textarea id="editUserBio" class="form-control" rows="3" maxlength="500"></textarea>
             </div>
             
             <div class="form-group">
@@ -76,6 +88,40 @@ export default class EditUserModal {
   }
 
   initEditUserModal() {
+    const form = this.element.querySelector("#editUserForm");
+    const nameInput = this.element.querySelector("#editUserName");
+    const emailInput = this.element.querySelector("#editUserEmail");
+    const roleInput = this.element.querySelector("#editUserRole");
+    const statusInput = this.element.querySelector("#editUserStatus");
+    const bioInput = this.element.querySelector("#editUserBio");
+    const fileInput = this.element.querySelector("#editUserAvatar");
+    const fileNameSpan = this.element.querySelector("#avatarFileName");
+    const previewImg = this.element.querySelector("#avatarPreviewImg");
+
+    const resetAvatarPreview = () => {
+      if (fileNameSpan) fileNameSpan.textContent = "No file chosen";
+      if (previewImg) previewImg.src = "/placeholder.svg";
+      if (fileInput) fileInput.value = "";
+    };
+
+    const validateAvatarFile = (file) => {
+      if (!file) return true;
+
+      if (!ALLOWED_AVATAR_TYPES.has(String(file.type || "").toLowerCase())) {
+        showToast("Profile picture must be a JPG, PNG, WEBP, or GIF image.", "error");
+        resetAvatarPreview();
+        return false;
+      }
+
+      if (Number(file.size || 0) > MAX_AVATAR_FILE_SIZE) {
+        showToast("Profile picture must be 2 MB or smaller.", "error");
+        resetAvatarPreview();
+        return false;
+      }
+
+      return true;
+    };
+
     this.element.querySelector(".modal-close")?.addEventListener("click", () => {
       closeModal("editUserModal");
     });
@@ -84,19 +130,62 @@ export default class EditUserModal {
       closeModal("editUserModal");
     });
 
-    this.element.querySelector("#editUserForm")?.addEventListener("submit", (e) => {
+    form?.addEventListener("submit", (e) => {
       e.preventDefault();
-      console.log("[EditUserModal] Saving changes...");
+
+      const name = sanitizeAdminText(nameInput?.value || "", { maxLength: 120 });
+      const email = sanitizeAdminText(emailInput?.value || "", { maxLength: 254 });
+      const role = String(roleInput?.value || "user").trim().toLowerCase();
+      const status = String(statusInput?.value || "active").trim().toLowerCase();
+      const bio = sanitizeAdminText(bioInput?.value || "", { maxLength: 500 });
+      const avatarFile = fileInput?.files?.[0] || null;
+
+      if (nameInput) nameInput.value = name;
+      if (emailInput) emailInput.value = email;
+      if (bioInput) bioInput.value = bio;
+
+      if (!hasMinLength(name, 2)) {
+        return reportValidationError(nameInput, "Full name is required and must be at least 2 characters.");
+      }
+
+      if (!isValidEmail(email)) {
+        return reportValidationError(emailInput, "Please enter a valid email address.");
+      }
+
+      if (!ALLOWED_ROLES.has(role)) {
+        return reportValidationError(roleInput, "Please select a valid user role.");
+      }
+
+      if (!ALLOWED_STATUSES.has(status)) {
+        return reportValidationError(statusInput, "Please select a valid user status.");
+      }
+
+      if (avatarFile && !validateAvatarFile(avatarFile)) {
+        return;
+      }
+
+      const payload = {
+        name,
+        email,
+        role,
+        status,
+        bio,
+        avatar: avatarFile,
+      };
+
+      this.element.dispatchEvent(new CustomEvent("edit-user-submit", {
+        bubbles: true,
+        detail: payload,
+      }));
+
+      console.log("[EditUserModal] Saving changes...", payload);
       closeModal("editUserModal");
     });
-    
-    const fileInput = this.element.querySelector("#editUserAvatar");
-    const fileNameSpan = this.element.querySelector("#avatarFileName");
-    const previewImg = this.element.querySelector("#avatarPreviewImg");
 
     fileInput?.addEventListener("change", (e) => {
       const file = e.target.files[0];
       if (file) {
+        if (!validateAvatarFile(file)) return;
         fileNameSpan.textContent = file.name;
         const reader = new FileReader();
         reader.onload = (ev) => {
@@ -104,8 +193,7 @@ export default class EditUserModal {
         };
         reader.readAsDataURL(file);
       } else {
-        fileNameSpan.textContent = "No file chosen";
-        previewImg.src = "/placeholder.svg";
+        resetAvatarPreview();
       }
     });
   }

@@ -8,6 +8,12 @@ import {
   resolveAdminSiteFromPath,
 } from './admin-sites.js';
 import { formatAdminDate, formatAdminDateInput, formatAdminDateTime } from './admin-date.js';
+import {
+  isValidTrackingNumber,
+  reportValidationError,
+  sanitizeAdminText,
+  sanitizeTrackingNumber,
+} from '../../../utils/admin-form-validation.js';
 // import { adminApi } from '../../../services/admin_services/auth.js';
 
 export default function createOrders() {
@@ -209,12 +215,12 @@ export default function createOrders() {
   }
 
   function normalizeTrackingNumber(value) {
-    const normalized = String(value ?? '').trim();
+    const normalized = sanitizeTrackingNumber(value, { maxLength: 120 });
     return normalized || '';
   }
 
   function normalizeCourier(value) {
-    const normalized = String(value ?? '').trim();
+    const normalized = sanitizeAdminText(value, { maxLength: 120 });
     return normalized || '';
   }
 
@@ -653,6 +659,12 @@ export default function createOrders() {
       if (event.target === modal) closeModal();
     });
     statusSelect.addEventListener('change', syncShippingMetaRequirement);
+    trackingInput.addEventListener('input', () => {
+      const sanitized = sanitizeTrackingNumber(trackingInput.value, { maxLength: 120 });
+      if (trackingInput.value !== sanitized) {
+        trackingInput.value = sanitized;
+      }
+    });
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
@@ -663,11 +675,17 @@ export default function createOrders() {
 
       const selectedStatus = statusSelect.value;
       const trackingNumber = normalizeTrackingNumber(trackingInput.value);
+      trackingInput.value = trackingNumber;
 
       if (normalizeStatusValue(selectedStatus) === 'shipped' && !trackingNumber) {
-        alert('Tracking number is required before marking an order as shipped.');
-        trackingInput.focus();
-        return;
+        return reportValidationError(trackingInput, 'Tracking number is required before marking an order as shipped.');
+      }
+
+      if (trackingNumber && !isValidTrackingNumber(trackingNumber, { allowBlank: true })) {
+        return reportValidationError(
+          trackingInput,
+          'Tracking number must be 4 to 120 characters and can only use letters, numbers, spaces, and - _ / . : #.',
+        );
       }
 
       try {

@@ -4,6 +4,13 @@ import { getAdminHeaders } from './admin-sites.js';
 import { applyTypographyConfig } from '../../../lib/theme/font-loader.js';
 import { normalizeBannerGallery } from '../../../lib/banner-gallery.js';
 import { clearTemplatePreviewDraft, writeTemplatePreviewDraft } from '../../../lib/template-preview.js';
+import {
+  hasMinLength,
+  isValidHttpUrl,
+  isValidSlug,
+  reportValidationError,
+  showValidationMessage,
+} from '../../../utils/admin-form-validation.js';
 
 export default function GenerateWebsite() {
   const section = document.createElement('section');
@@ -1784,7 +1791,7 @@ export default function GenerateWebsite() {
       if (e.target.files[0]) {
         const maxSize = 2 * 1024 * 1024; // 2MB
         if (e.target.files[0].size > maxSize) {
-          alert('Member image must be less than 2MB');
+          showValidationMessage('Member image must be less than 2MB.');
           e.target.value = '';
           return;
         }
@@ -1809,10 +1816,8 @@ export default function GenerateWebsite() {
       const name = modal.querySelector('.gw-member-name').value?.trim();
       const birthdate = modal.querySelector('.gw-member-birthdate').value?.trim();
 
-      if (!name || !birthdate) {
-        alert('Member name and birthdate are required');
-        return;
-      }
+      if (!name) return reportValidationError(modal.querySelector('.gw-member-name'), 'Member name is required.');
+      if (!birthdate) return reportValidationError(modal.querySelector('.gw-member-birthdate'), 'Birthdate is required.');
 
       member.name = name;
       member.birthdate = birthdate;
@@ -2220,30 +2225,81 @@ export default function GenerateWebsite() {
   };
 
   const validateForm = () => {
-    const errors = [];
-    
     if (!selectedTemplate) {
-      errors.push('Please select a template');
+      return showValidationMessage('Please select a template before generating the website.');
     }
-    if (!formData.siteName?.trim()) {
-      errors.push('Site name is required');
+
+    const siteNameInput = section.querySelector('#siteName');
+    const domainInput = section.querySelector('#domain');
+    const shortBioInput = section.querySelector('#shortBio');
+    const siteName = String(formData.siteName || '').trim();
+    const domain = String(formData.domain || '').trim().toLowerCase();
+    const shortBio = String(formData.shortBio || '').trim();
+
+    if (!hasMinLength(siteName, 2)) {
+      return reportValidationError(siteNameInput, 'Site name is required and must be at least 2 characters.');
     }
-    if (!formData.domain?.trim()) {
-      errors.push('Domain is required');
+
+    if (!domain) {
+      return reportValidationError(domainInput, 'Domain is required.');
     }
-    
-    return errors;
+
+    if (!isValidSlug(domain)) {
+      return reportValidationError(domainInput, 'Domain must use lowercase letters, numbers, and hyphens only.');
+    }
+
+    if (shortBio.length > 180) {
+      return reportValidationError(shortBioInput, 'Short bio must be 180 characters or less.');
+    }
+
+    const optionalUrlFields = [
+      ['#instagramUrl', 'Instagram URL', formData.instagramUrl],
+      ['#facebookUrl', 'Facebook URL', formData.facebookUrl],
+      ['#tiktokUrl', 'TikTok URL', formData.tiktokUrl],
+      ['#spotifyUrl', 'Spotify URL', formData.spotifyUrl],
+      ['#xUrl', 'X URL', formData.xUrl],
+      ['#youtubeUrl', 'YouTube URL', formData.youtubeUrl],
+    ];
+
+    for (const [selector, label, value] of optionalUrlFields) {
+      const normalized = String(value || '').trim();
+      if (normalized && !isValidHttpUrl(normalized)) {
+        return reportValidationError(
+          section.querySelector(selector),
+          `${label} must be a valid http:// or https:// link.`,
+        );
+      }
+    }
+
+    const memberKeys = new Set();
+    for (let index = 0; index < members.length; index += 1) {
+      const member = members[index] || {};
+      const name = String(member.name || '').trim();
+      const birthdate = String(member.birthdate || '').trim();
+
+      if (!hasMinLength(name, 1)) {
+        return showValidationMessage(`Member ${index + 1} is missing a name.`);
+      }
+
+      if (!birthdate) {
+        return showValidationMessage(`Member ${index + 1} is missing a birthdate.`);
+      }
+
+      const memberKey = `${name.toLowerCase()}::${birthdate}`;
+      if (memberKeys.has(memberKey)) {
+        return showValidationMessage(`Member "${name}" is duplicated. Please keep only one entry.`);
+      }
+      memberKeys.add(memberKey);
+    }
+
+    return true;
   };
 
   const setupGenerateButton = () => {
     section.querySelector('#generateBtn')?.addEventListener('click', async () => {
       if (isSubmitting) return;
 
-      const errors = validateForm();
-      if (errors.length > 0) {
-        alert(errors.join('\n'));
-        return;
-      }
+      if (!validateForm()) return;
 
       // Call API
       await createWebsite();

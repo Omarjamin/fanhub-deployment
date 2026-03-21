@@ -6,6 +6,11 @@ import {
   formatAdminDateTime,
   formatAdminRelativeTime,
 } from './admin-date.js';
+import {
+  hasMinLength,
+  reportValidationError,
+  sanitizeAdminText,
+} from '../../../utils/admin-form-validation.js';
 
 export default function Threads() {
   const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
@@ -451,14 +456,20 @@ export default function Threads() {
   }
 
   function validatePayload(payload) {
-    if (!payload.title || !payload.venue || !payload.date || !payload.site_id) {
-      showNotification('Please complete all required fields', 'error');
-      return false;
+    if (!hasMinLength(payload.title, 2)) {
+      return reportValidationError(section.querySelector('#threadTitle'), 'Thread title is required and must be at least 2 characters.');
     }
 
-    if (Number.isNaN(payload.site_id)) {
-      showNotification('Please select a valid site', 'error');
-      return false;
+    if (!hasMinLength(payload.venue, 5)) {
+      return reportValidationError(section.querySelector('#threadVenue'), 'Venue or thread details must be at least 5 characters.');
+    }
+
+    if (!payload.date) {
+      return reportValidationError(section.querySelector('#threadDate'), 'Please select a thread date.');
+    }
+
+    if (!payload.site_id || Number.isNaN(payload.site_id)) {
+      return reportValidationError(section.querySelector('#threadSite'), 'Please select a valid site.');
     }
 
     return true;
@@ -513,11 +524,18 @@ export default function Threads() {
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
+    const titleInput = section.querySelector('#threadTitle');
+    const venueInput = section.querySelector('#threadVenue');
     const selectedSiteId = Number.parseInt(section.querySelector('#threadSite').value, 10);
+    const title = sanitizeAdminText(titleInput.value, { maxLength: 160 });
+    const venue = sanitizeAdminText(venueInput.value, { maxLength: 500 });
+
+    titleInput.value = title;
+    venueInput.value = venue;
 
     const payload = {
-      title: section.querySelector('#threadTitle').value.trim(),
-      venue: section.querySelector('#threadVenue').value.trim(),
+      title,
+      venue,
       date: section.querySelector('#threadDate').value,
       site_id: selectedSiteId,
       community: resolveCommunityForSiteId(selectedSiteId),

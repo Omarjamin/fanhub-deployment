@@ -1,5 +1,11 @@
 import '../../../styles/Admin_styles/Admin-landing_page.css';
 import { resolvePrimaryBannerImage } from '../../../lib/banner-gallery.js';
+import {
+  hasMinLength,
+  isValidEmail,
+  reportValidationError,
+  sanitizeAdminText,
+} from '../../../utils/admin-form-validation.js';
 
 const API_BASE = (import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1').trim().replace(/\/$/, '');
 const API_KEY = (import.meta.env.VITE_API_KEY || 'thread').trim() || 'thread';
@@ -164,15 +170,15 @@ export default function AdminLandingPage() {
               </div>
               <div class="form-group">
                 <label class="form-label" for="suggestCommunityName">Community Name</label>
-                <input type="text" id="suggestCommunityName" class="form-input suggestion-input" placeholder="Enter community name" required>
+                <input type="text" id="suggestCommunityName" class="form-input suggestion-input" placeholder="Enter community name" maxlength="80" required>
               </div>
               <div class="form-group">
                 <label class="form-label" for="suggestNote">Suggestion Details</label>
-                <textarea id="suggestNote" class="form-input suggestion-input suggestion-textarea" rows="5" placeholder="Describe the site idea, content, and features you want to see" required></textarea>
+                <textarea id="suggestNote" class="form-input suggestion-input suggestion-textarea" rows="5" maxlength="500" placeholder="Describe the site idea, content, and features you want to see" required></textarea>
               </div>
               <div class="form-group">
                 <label class="form-label" for="suggestEmail">Contact Email (optional)</label>
-                <input type="email" id="suggestEmail" class="form-input suggestion-input" placeholder="name@example.com">
+                <input type="email" id="suggestEmail" class="form-input suggestion-input" placeholder="name@example.com" maxlength="254">
               </div>
               <p class="suggestion-helper">After submit, the request will appear in the admin notification bell.</p>
               <button type="submit" class="btn btn-primary btn-full">Submit Suggestion</button>
@@ -254,13 +260,24 @@ export default function AdminLandingPage() {
       const emailInput = section.querySelector('#suggestEmail');
       if (!communityInput || !noteInput) return;
 
-      const communityName = communityInput.value.trim();
-      const note = noteInput.value.trim();
-      const contactEmail = emailInput ? emailInput.value.trim() : '';
+      const communityName = sanitizeAdminText(communityInput.value, { maxLength: 80 });
+      const note = sanitizeAdminText(noteInput.value, { maxLength: 500 });
+      const contactEmail = sanitizeAdminText(emailInput ? emailInput.value : '', { maxLength: 254 });
 
-      if (!communityName || !note) {
-        showToast('Please provide both community name and suggestion details.', 'error');
-        return;
+      communityInput.value = communityName;
+      noteInput.value = note;
+      if (emailInput) emailInput.value = contactEmail;
+
+      if (!hasMinLength(communityName, 2)) {
+        return reportValidationError(communityInput, 'Community name is required and must be at least 2 characters.');
+      }
+
+      if (!hasMinLength(note, 10)) {
+        return reportValidationError(noteInput, 'Suggestion details must be at least 10 characters.');
+      }
+
+      if (contactEmail && !isValidEmail(contactEmail, { allowBlank: true })) {
+        return reportValidationError(emailInput, 'Please enter a valid contact email address.');
       }
 
       const submitBtn = suggestionForm.querySelector('button[type="submit"]');

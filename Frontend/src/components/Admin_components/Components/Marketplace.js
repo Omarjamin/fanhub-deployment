@@ -10,6 +10,12 @@ import {
   deleteMarketplaceProduct,
   uploadMarketplaceImage,
 } from '../../../services/admin_services/marketplace/marketplace-service.js';
+import {
+  hasMinLength,
+  isNonNegativeNumber,
+  reportValidationError,
+  showValidationMessage,
+} from '../../../utils/admin-form-validation.js';
 
 export default function createMarketplace() {
   const ADMIN_SELECTED_COMMUNITY_KEY = 'admin_selected_site';
@@ -746,11 +752,25 @@ export default function createMarketplace() {
       const selectedOption = collectionModalCommunity.options?.[collectionModalCommunity.selectedIndex];
       const community_id = Number(selectedOption?.dataset?.communityId || 0) || getCommunityIdByKey(community) || null;
       const name = String(collectionModalName.value || '').trim();
-      if (!community || !name) return;
+      if (!community) {
+        return reportValidationError(collectionModalCommunity, 'Please select a site for this collection.');
+      }
+      if (!hasMinLength(name, 2)) {
+        return reportValidationError(collectionModalName, 'Collection name is required and must be at least 2 characters.');
+      }
 
       let imgUrl = null;
       const imageFile = collectionModalImage.files?.[0];
       if (imageFile) {
+        const type = String(imageFile.type || '').trim().toLowerCase();
+        const fileName = String(imageFile.name || '').trim().toLowerCase();
+        const isAllowedImage = type === 'image/jpeg' || type === 'image/png' || /\.(jpe?g|png)$/i.test(fileName);
+        if (!isAllowedImage) {
+          return showValidationMessage('Collection image must be a JPG or PNG file.');
+        }
+        if (Number(imageFile.size || 0) > 5 * 1024 * 1024) {
+          return showValidationMessage('Collection image must be 5 MB or smaller.');
+        }
         imgUrl = await uploadMarketplaceImage(imageFile);
       }
 
@@ -1115,16 +1135,78 @@ export default function createMarketplace() {
       const collection = collectionSelect.value;
       const productCategory = productCategorySelect.value.trim();
       const productName = productNameInput.value.trim();
-      const variants = collectVariants();
+      const variantInputRows = [...variantRows.querySelectorAll('.variant-input-row')];
 
-      if (!productName) {
-        alert('Product name is required.');
-        return;
+      if (!community) {
+        return reportValidationError(communitySelect, 'Please select a site for this product.');
+      }
+      if (!collection) {
+        return reportValidationError(collectionSelect, 'Please select a collection.');
+      }
+      if (!hasMinLength(productName, 2)) {
+        return reportValidationError(productNameInput, 'Product name is required and must be at least 2 characters.');
       }
       if (!productCategory) {
-        alert('Please select a product category.');
-        return;
+        return reportValidationError(productCategorySelect, 'Please select a product category.');
       }
+      if (!variantInputRows.length) {
+        return showValidationMessage('Please add at least one product variant.');
+      }
+
+      const variantKeys = new Set();
+      for (let index = 0; index < variantInputRows.length; index += 1) {
+        const row = variantInputRows[index];
+        const variantNameInput = row.querySelector('.variant-name');
+        const variantValueInput = row.querySelector('.variant-value');
+        const variantStockInput = row.querySelector('.variant-stock');
+        const variantPriceInput = row.querySelector('.variant-price');
+        const variantWeightInput = row.querySelector('.variant-weight');
+        const variantLengthInput = row.querySelector('.variant-length');
+        const variantWidthInput = row.querySelector('.variant-width');
+        const variantHeightInput = row.querySelector('.variant-height');
+
+        const variantName = String(variantNameInput?.value || '').trim();
+        const variantValue = String(variantValueInput?.value || '').trim();
+        const variantStock = String(variantStockInput?.value || '').trim();
+        const variantPrice = String(variantPriceInput?.value || '').trim();
+        const variantWeight = String(variantWeightInput?.value || '').trim();
+        const variantLength = String(variantLengthInput?.value || '').trim();
+        const variantWidth = String(variantWidthInput?.value || '').trim();
+        const variantHeight = String(variantHeightInput?.value || '').trim();
+
+        if (!hasMinLength(variantName, 1)) {
+          return reportValidationError(variantNameInput, `Variant ${index + 1} name is required.`);
+        }
+        if (!hasMinLength(variantValue, 1)) {
+          return reportValidationError(variantValueInput, `Variant ${index + 1} value is required.`);
+        }
+        if (!isNonNegativeNumber(variantStock, { integer: true })) {
+          return reportValidationError(variantStockInput, `Variant ${index + 1} stock must be a whole number of 0 or higher.`);
+        }
+        if (!isNonNegativeNumber(variantPrice)) {
+          return reportValidationError(variantPriceInput, `Variant ${index + 1} price must be 0 or higher.`);
+        }
+        if (!isNonNegativeNumber(variantWeight)) {
+          return reportValidationError(variantWeightInput, `Variant ${index + 1} weight must be 0 or higher.`);
+        }
+        if (!isNonNegativeNumber(variantLength, { allowBlank: true })) {
+          return reportValidationError(variantLengthInput, `Variant ${index + 1} length must be 0 or higher.`);
+        }
+        if (!isNonNegativeNumber(variantWidth, { allowBlank: true })) {
+          return reportValidationError(variantWidthInput, `Variant ${index + 1} width must be 0 or higher.`);
+        }
+        if (!isNonNegativeNumber(variantHeight, { allowBlank: true })) {
+          return reportValidationError(variantHeightInput, `Variant ${index + 1} height must be 0 or higher.`);
+        }
+
+        const variantKey = `${variantName.toLowerCase()}::${variantValue.toLowerCase()}`;
+        if (variantKeys.has(variantKey)) {
+          return reportValidationError(variantValueInput, `Duplicate variant "${variantName} - ${variantValue}" detected.`);
+        }
+        variantKeys.add(variantKey);
+      }
+
+      const variants = collectVariants();
 
       const payload = {
         name: productName,

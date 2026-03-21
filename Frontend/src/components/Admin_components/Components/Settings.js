@@ -8,6 +8,12 @@ import {
   resolveAdminSiteFromPath,
 } from './admin-sites.js';
 import { getActiveSiteSlug } from '../../../lib/site-context.js';
+import {
+  isNonNegativeNumber,
+  isValidHttpUrl,
+  reportValidationError,
+  showValidationMessage,
+} from '../../../utils/admin-form-validation.js';
 
 const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 const ADMIN_API_BASE = getAdminApiBase();
@@ -685,10 +691,36 @@ export default function createSettings() {
 
   async function saveSettings() {
     const saveBtn = section.querySelector('#saveSettingsBtn');
+    const luzonInput = section.querySelector('#shippingRateLuzon');
+    const visMinInput = section.querySelector('#shippingRateVisMin');
+    const courierInput = section.querySelector('#shippingCourierName');
+    const luzonValue = String(luzonInput?.value || '').trim();
+    const visMinValue = String(visMinInput?.value || '').trim();
+
+    if (!isNonNegativeNumber(luzonValue)) {
+      return reportValidationError(luzonInput, 'Luzon shipping rate must be 0 or higher.');
+    }
+
+    if (!isNonNegativeNumber(visMinValue)) {
+      return reportValidationError(visMinInput, 'VisMin shipping rate must be 0 or higher.');
+    }
+
+    const invalidEventLinkInput = [...section.querySelectorAll('.event-link-input')].find((input) => {
+      const value = String(input?.value || '').trim();
+      return value && !isValidHttpUrl(value);
+    });
+    if (invalidEventLinkInput) {
+      return reportValidationError(invalidEventLinkInput, 'Ticket link must be a valid http:// or https:// URL.');
+    }
+
+    if (courierInput && String(courierInput.value || '').trim().length > 120) {
+      return reportValidationError(courierInput, 'Courier name must be 120 characters or less.');
+    }
+
     if (saveBtn) saveBtn.disabled = true;
     const shippingRates = {
-      Luzon: Number(section.querySelector('#shippingRateLuzon').value),
-      VisMin: Number(section.querySelector('#shippingRateVisMin').value),
+      Luzon: Number(luzonValue),
+      VisMin: Number(visMinValue),
     };
 
     const provinceShipping = Object.entries(provinceShippingCategory).reduce((acc, [province, category]) => {
@@ -727,7 +759,7 @@ export default function createSettings() {
       }
     } catch (error) {
       console.error('[Settings] Save failed:', error);
-      alert(error?.message || 'Failed to save settings.');
+      showValidationMessage(error?.message || 'Failed to save settings.');
     } finally {
       if (saveBtn) saveBtn.disabled = false;
     }

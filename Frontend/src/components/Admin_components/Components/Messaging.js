@@ -1,4 +1,9 @@
 import '../../../styles/Admin_styles//Messaging.css';
+import {
+  sanitizeAdminSearch,
+  sanitizeAdminText,
+  showValidationMessage,
+} from '../../../utils/admin-form-validation.js';
 
 export default function createMessaging() {
   const section = document.createElement('section');
@@ -14,7 +19,7 @@ export default function createMessaging() {
       <!-- Sidebar -->
       <div class="conversation-sidebar">
         <div class="conversation-search">
-          <input type="text" placeholder="Search conversations..." id="messageSearch">
+          <input type="text" placeholder="Search conversations..." id="messageSearch" maxlength="80">
         </div>
         <div class="conversation-list" id="conversationList">
           <div class="conversation-item active">
@@ -59,6 +64,7 @@ export default function createMessaging() {
               id="messageInput"
               placeholder="Type a message..."
               rows="1"
+              maxlength="500"
             ></textarea>
             <button class="btn-icon btn-send" id="sendMessageBtn">➤</button>
           </div>
@@ -88,7 +94,13 @@ export default function createMessaging() {
   }
 
   function filterMessages() {
-    const value = section.querySelector("#messageSearch").value.toLowerCase();
+    const searchInput = section.querySelector("#messageSearch");
+    const sanitizedValue = sanitizeAdminSearch(searchInput?.value || "", { maxLength: 80 });
+    if (searchInput && searchInput.value !== sanitizedValue) {
+      searchInput.value = sanitizedValue;
+    }
+
+    const value = sanitizedValue.toLowerCase();
 
     section.querySelectorAll(".conversation-item").forEach(conv => {
       const name = conv.querySelector("h4").textContent.toLowerCase();
@@ -101,19 +113,27 @@ export default function createMessaging() {
 
   function sendMessage() {
     const input = section.querySelector("#messageInput");
-    const text = input.value.trim();
-    if (!text) return;
+    const text = sanitizeAdminText(input.value, { maxLength: 500 });
+    input.value = text;
+
+    if (!text) {
+      showValidationMessage("Message cannot be empty.");
+      return;
+    }
 
     const list = section.querySelector("#messagesList");
+    const message = document.createElement("div");
+    message.className = "message outgoing";
 
-    list.insertAdjacentHTML("beforeend", `
-      <div class="message outgoing">
-        <p>${text}</p>
-        <small>
-          ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-        </small>
-      </div>
-    `);
+    const paragraph = document.createElement("p");
+    paragraph.textContent = text;
+
+    const timestamp = document.createElement("small");
+    timestamp.textContent = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    message.appendChild(paragraph);
+    message.appendChild(timestamp);
+    list.appendChild(message);
 
     input.value = "";
     list.scrollTop = list.scrollHeight;

@@ -1,5 +1,12 @@
 import '../../../styles/Admin_styles/Discography.css';
 import { fetchAdminSites, getAdminHeaders, resolveAdminSiteFromPath } from './admin-sites.js';
+import {
+  hasMinLength,
+  isPositiveInteger,
+  isValidHttpUrl,
+  reportValidationError,
+  showValidationMessage,
+} from '../../../utils/admin-form-validation.js';
 
 const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 
@@ -384,16 +391,51 @@ function loadCommunityFilter() {
       event.preventDefault();
 
       const imageFile = imageInput.files?.[0];
+      const siteValue = String(communityInput.value || '').trim();
+      const albumName = String(nameInput.value || '').trim();
+      const songsValue = String(songsInput.value || '').trim();
+      const yearValue = String(yearInput.value || '').trim();
+      const albumLinkValue = String(albumLinkInput.value || '').trim();
+
+      if (!siteValue) {
+        return reportValidationError(communityInput, 'Please select a site.');
+      }
+      if (!hasMinLength(albumName, 2)) {
+        return reportValidationError(nameInput, 'Album name is required and must be at least 2 characters.');
+      }
+      if (!isPositiveInteger(songsValue)) {
+        return reportValidationError(songsInput, 'Number of songs must be a whole number greater than 0.');
+      }
+      if (!isPositiveInteger(yearValue)) {
+        return reportValidationError(yearInput, 'Year must be a valid 4-digit number.');
+      }
+      if (Number(yearValue) < 1900 || Number(yearValue) > 2100) {
+        return reportValidationError(yearInput, 'Year must be between 1900 and 2100.');
+      }
+      if (albumLinkValue && !isValidHttpUrl(albumLinkValue)) {
+        return reportValidationError(albumLinkInput, 'Album link must be a valid http:// or https:// URL.');
+      }
+      if (imageFile) {
+        const fileType = String(imageFile.type || '').trim().toLowerCase();
+        const fileName = String(imageFile.name || '').trim().toLowerCase();
+        const isAllowedImage = fileType.startsWith('image/') || /\.(png|jpe?g|gif|webp)$/i.test(fileName);
+        if (!isAllowedImage) {
+          return reportValidationError(imageInput, 'Album image must be a valid image file.');
+        }
+        if (Number(imageFile.size || 0) > 5 * 1024 * 1024) {
+          return reportValidationError(imageInput, 'Album image must be 5 MB or smaller.');
+        }
+      }
 
       // Build payload expected by backend
       // For your DB schema we send numeric year, count_songs, and album_link
       const body = {
-        site_id: Number(communityInput.value) || null,
-        title: nameInput.value.trim(),
-        count_songs: songsInput.value ? Number(songsInput.value) : null,
-        year: yearInput.value ? Number(yearInput.value) : null,
-        album_link: albumLinkInput.value.trim() || null,
-        album_lnk: albumLinkInput.value.trim() || null,
+        site_id: Number(siteValue) || null,
+        title: albumName,
+        count_songs: songsValue ? Number(songsValue) : null,
+        year: yearValue ? Number(yearValue) : null,
+        album_link: albumLinkValue || null,
+        album_lnk: albumLinkValue || null,
         description: descriptionInput.value.trim() || null,
         img_url: null
       };
@@ -402,7 +444,7 @@ function loadCommunityFilter() {
           body.img_url = await uploadImage(imageFile);
         } catch (error) {
           console.error('Failed to upload album image:', error);
-          alert(error.message || 'Failed to upload image.');
+          showValidationMessage(error.message || 'Failed to upload image.');
           return;
         }
       } else if (editingAlbumId) {
@@ -424,7 +466,7 @@ function loadCommunityFilter() {
         closeModal();
       } catch (err) {
         console.error('Error saving album', err);
-        alert('Failed to save album');
+        showValidationMessage('Failed to save album.');
       }
     });
 
@@ -468,7 +510,7 @@ function loadCommunityFilter() {
         await fetchAlbums();
       } catch (err) {
         console.error('Error deleting album', err);
-        alert('Failed to delete album');
+        showValidationMessage('Failed to delete album.');
       }
       closeModal();
     });
