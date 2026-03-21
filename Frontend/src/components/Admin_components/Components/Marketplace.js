@@ -16,6 +16,7 @@ import {
   reportValidationError,
   showValidationMessage,
 } from '../../../utils/admin-form-validation.js';
+import { showToast } from '../../../utils/toast.js';
 
 export default function createMarketplace() {
   const ADMIN_SELECTED_COMMUNITY_KEY = 'admin_selected_site';
@@ -181,6 +182,7 @@ export default function createMarketplace() {
 
   let editingProductId = null;
   let deleteProductId = null;
+  let loadErrorMessage = '';
 
   function formatPrice(value) {
     return `PHP ${Number(value).toLocaleString()}`;
@@ -635,6 +637,11 @@ export default function createMarketplace() {
 
   function loadProducts() {
     const grid = section.querySelector('#productsGrid');
+    if (loadErrorMessage) {
+      grid.innerHTML = `<p class="no-products">${loadErrorMessage}</p>`;
+      return;
+    }
+
     if (!products.length) {
       grid.innerHTML = '<p class="no-products">No products found for the selected site yet.</p>';
       return;
@@ -1431,6 +1438,7 @@ export default function createMarketplace() {
       const normalizedCommunity =
         String(communityKey || 'all').trim().toLowerCase() || 'all';
       let rows = [];
+      loadErrorMessage = '';
 
       if (normalizedCommunity === 'all') {
         const communityPairs = communityOptions
@@ -1548,7 +1556,10 @@ export default function createMarketplace() {
       await applyMarketplaceSelection();
     } catch (error) {
       console.error('Error fetching marketplace products:', error);
-      // Leave products as-is (could be empty) on failure
+      products = [];
+      loadErrorMessage = 'Marketplace products could not be loaded. Check the backend server or admin API connection.';
+      loadProducts();
+      showToast(loadErrorMessage, 'error');
     }
   }
 

@@ -1,4 +1,5 @@
 import { api } from '../../ecommerce_services/api.js';
+import { fetchAdminJsonWithFallback, getAdminHeaders } from '../../../components/Admin_components/Components/admin-sites.js';
 
 const DEFAULT_ADMIN_API_BASE = 'https://fanhub-deployment-production.up.railway.app/v1/admin';
 function resolveAdminApiBase() {
@@ -57,26 +58,26 @@ export async function fetchAdminCommunities() {
 }
 
 export async function fetchMarketplaceProducts(community, communityId = null) {
-  const params = new URLSearchParams();
-  if (community) params.append('community', String(community).toLowerCase());
-  if (communityId && Number(communityId) > 0) params.append('community_id', String(communityId));
-  const url = `${ADMIN_API_BASE}/marketplace${
-    params.toString() ? `?${params.toString()}` : ''
-  }`;
-  const res = await api(url, getAdminRequestOptions());
-  const payload = await readJsonOrThrow(res);
+  const payload = await fetchAdminJsonWithFallback(
+    'marketplace',
+    {
+      ...(community ? { community: String(community).toLowerCase() } : {}),
+      ...(communityId && Number(communityId) > 0 ? { community_id: String(communityId) } : {}),
+    },
+    { headers: getAdminHeaders() },
+  );
   return Array.isArray(payload?.data) ? payload.data : [];
 }
 
 export async function fetchMarketplaceCollections(community, communityId = null) {
-  const params = new URLSearchParams();
-  if (community) params.append('community', String(community).toLowerCase());
-  if (communityId && Number(communityId) > 0) params.append('community_id', String(communityId));
-  const res = await api(
-    `${ADMIN_API_BASE}/marketplace/collections?${params.toString()}`,
-    getAdminRequestOptions(),
+  const payload = await fetchAdminJsonWithFallback(
+    'marketplace/collections',
+    {
+      ...(community ? { community: String(community).toLowerCase() } : {}),
+      ...(communityId && Number(communityId) > 0 ? { community_id: String(communityId) } : {}),
+    },
+    { headers: getAdminHeaders() },
   );
-  const payload = await readJsonOrThrow(res);
   return Array.isArray(payload?.data) ? payload.data : [];
 }
 
@@ -90,15 +91,15 @@ export async function createMarketplaceCollection({ community, community_id, nam
 }
 
 export async function fetchMarketplaceCategories({ community, community_id, collectionId }) {
-  const params = new URLSearchParams();
-  params.append('community', String(community || '').toLowerCase());
-  if (community_id && Number(community_id) > 0) params.append('community_id', String(community_id));
-  if (collectionId) params.append('collection_id', String(collectionId));
-  const res = await api(
-    `${ADMIN_API_BASE}/marketplace/categories?${params.toString()}`,
-    getAdminRequestOptions(),
+  const payload = await fetchAdminJsonWithFallback(
+    'marketplace/categories',
+    {
+      community: String(community || '').toLowerCase(),
+      ...(community_id && Number(community_id) > 0 ? { community_id: String(community_id) } : {}),
+      ...(collectionId ? { collection_id: String(collectionId) } : {}),
+    },
+    { headers: getAdminHeaders() },
   );
-  const payload = await readJsonOrThrow(res);
   return Array.isArray(payload?.data) ? payload.data : [];
 }
 
