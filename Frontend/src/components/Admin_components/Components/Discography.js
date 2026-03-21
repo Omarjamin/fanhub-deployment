@@ -447,23 +447,13 @@ function loadCommunityFilter() {
       const sanitizedAlbumLink = stripHtmlTags(albumLinkInput.value);
 
       const body = {
-<<<<<<< Updated upstream
         site_id: Number(siteValue) || null,
-        title: albumName,
+        title: sanitizedTitle || albumName,
         count_songs: songsValue ? Number(songsValue) : null,
         year: yearValue ? Number(yearValue) : null,
-        album_link: albumLinkValue || null,
-        album_lnk: albumLinkValue || null,
-        description: descriptionInput.value.trim() || null,
-=======
-        site_id: Number(communityInput.value) || null,
-        title: sanitizedTitle,
-        count_songs: songsInput.value ? Number(songsInput.value) : null,
-        year: yearInput.value ? Number(yearInput.value) : null,
-        album_link: sanitizedAlbumLink || null,
         album_lnk: sanitizedAlbumLink || null,
         description: sanitizedDescription || null,
->>>>>>> Stashed changes
+        album_link: sanitizedAlbumLink || albumLinkValue || null,
         img_url: null
       };
       if (imageFile) {

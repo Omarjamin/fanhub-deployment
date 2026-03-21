@@ -315,6 +315,76 @@ export default function createMarketplace() {
     return products.find(product => product.id === productId);
   }
 
+  function normalizeIdentityText(value = '') {
+    return String(value || '').trim().toLowerCase();
+  }
+
+  function buildVariantIdentitySignature(variants = []) {
+    return (Array.isArray(variants) ? variants : [])
+      .map((variant) => ({
+        name: normalizeIdentityText(variant?.variantName ?? variant?.variant_name),
+        value: normalizeIdentityText(variant?.variantValue ?? variant?.variant_values),
+        stock: Number(variant?.stock || 0),
+        price: Number(variant?.price || 0),
+      }))
+      .sort((left, right) => {
+        const leftKey = `${left.name}::${left.value}::${left.stock}::${left.price}`;
+        const rightKey = `${right.name}::${right.value}::${right.stock}::${right.price}`;
+        return leftKey.localeCompare(rightKey);
+      })
+      .map((variant) => `${variant.name}::${variant.value}::${variant.stock}::${variant.price}`)
+      .join('|');
+  }
+
+  function findPersistedProductAfterCreate({
+    community,
+    collection,
+    productName,
+    productCategory,
+    variants,
+  }) {
+    const expectedVariantSignature = buildVariantIdentitySignature(variants);
+    return products.find((product) => {
+      if (normalizeIdentityText(product?.communityKey) !== normalizeIdentityText(community)) return false;
+      if (normalizeIdentityText(product?.collectionName) !== normalizeIdentityText(collection)) return false;
+      if (normalizeIdentityText(product?.name) !== normalizeIdentityText(productName)) return false;
+      if (normalizeIdentityText(product?.productCategory) !== normalizeIdentityText(productCategory)) return false;
+      return buildVariantIdentitySignature(product?.variants || []) === expectedVariantSignature;
+    });
+  }
+
+  function didProductReflectUpdate(product, {
+    productId,
+    community,
+    collection,
+    productName,
+    productCategory,
+    variants,
+    expectedImageGallery = [],
+  }) {
+    if (!product) return false;
+    if (Number(product?.productId || 0) !== Number(productId || 0)) return false;
+    if (normalizeIdentityText(product?.communityKey) !== normalizeIdentityText(community)) return false;
+    if (normalizeIdentityText(product?.collectionName) !== normalizeIdentityText(collection)) return false;
+    if (normalizeIdentityText(product?.name) !== normalizeIdentityText(productName)) return false;
+    if (normalizeIdentityText(product?.productCategory) !== normalizeIdentityText(productCategory)) return false;
+    if (buildVariantIdentitySignature(product?.variants || []) !== buildVariantIdentitySignature(variants)) {
+      return false;
+    }
+
+    const normalizedExpectedImages = buildResolvedProductGallery(expectedImageGallery);
+    if (!normalizedExpectedImages.length) return true;
+
+    const normalizedActualImages = buildResolvedProductGallery(
+      product,
+      product?.imageGallery,
+      product?.image,
+      product?.image_url,
+    );
+
+    return normalizedExpectedImages.every((imageUrl) => normalizedActualImages.includes(imageUrl));
+  }
+
   function getCommunityIdByKey(key = '') {
     const normalized = String(key || '').trim().toLowerCase();
     const found = communityOptions.find((option) => String(option.key || '').trim().toLowerCase() === normalized);
@@ -1060,6 +1130,7 @@ export default function createMarketplace() {
     let pendingImageFiles = [];
     let previewUrls = [];
     let hasImageChanges = false;
+    let isSavingProduct = false;
 
     function getImageFileKey(file) {
       return [file?.name || '', file?.size || 0, file?.lastModified || 0].join('::');
@@ -1324,6 +1395,7 @@ export default function createMarketplace() {
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
+      if (isSavingProduct) return;
 
       const community = communitySelect.value;
       const selectedCommunityOption = communitySelect.options?.[communitySelect.selectedIndex];
@@ -1433,47 +1505,141 @@ export default function createMarketplace() {
           height_cm: v.height_cm
         }))
       };
+      const existingProductIdsBeforeSave = new Set(
+        products
+          .filter(product => normalizeIdentityText(product?.communityKey) === normalizeIdentityText(community))
+          .map(product => Number(product?.productId || 0))
+          .filter(id => Number.isFinite(id) && id > 0),
+      );
+      const submitDefaultLabel = editingProductId ? 'Update Product' : 'Save Product';
+      isSavingProduct = true;
+      submitBtn.disabled = true;
+      submitBtn.textContent = 'Saving...';
 
       if (editingProductId) {
         const product = findProductById(editingProductId);
-        if (!product) return;
-
-        if (hasImageChanges) {
-          const uploadedImages = await uploadSelectedProductImages(pendingImageFiles);
-
-          const finalImageGallery = [...existingImageGallery, ...uploadedImages].slice(0, MAX_PRODUCT_IMAGES);
-          payload.img_url = finalImageGallery;
-          payload.image_gallery = finalImageGallery;
-          payload.image_url = finalImageGallery[0] || null;
+        if (!product) {
+          isSavingProduct = false;
+          submitBtn.disabled = false;
+          submitBtn.textContent = submitDefaultLabel;
+          return;
         }
         const dbProductId =
           product.productId ??
           Number(String(editingProductId || '').match(/(\d+)$/)?.[1] || 0);
+        let expectedImageGallery = Array.isArray(product.imageGallery)
+          ? product.imageGallery.slice(0, MAX_PRODUCT_IMAGES)
+          : [];
+
         try {
+          if (hasImageChanges) {
+            const uploadedImages = await uploadSelectedProductImages(pendingImageFiles);
+
+            const finalImageGallery = [...existingImageGallery, ...uploadedImages].slice(0, MAX_PRODUCT_IMAGES);
+            payload.img_url = finalImageGallery;
+            payload.image_gallery = finalImageGallery;
+            payload.image_url = finalImageGallery[0] || null;
+            expectedImageGallery = finalImageGallery;
+          }
           await updateMarketplaceProduct(dbProductId, payload, community, community_id);
           persistSelectedCommunity(community || getSelectedCommunity());
           await fetchProducts(getSelectedCommunity());
           closeModal();
+          showToast('Product updated successfully.', 'success');
         } catch (error) {
           console.error('Failed to update product:', error);
-          alert(error.message || 'Failed to update product. Please try again.');
+          persistSelectedCommunity(community || getSelectedCommunity());
+          await fetchProducts(getSelectedCommunity());
+          const refreshedProduct = products.find(
+            (item) => Number(item?.productId || 0) === Number(dbProductId || 0),
+          );
+          const updatePersisted = didProductReflectUpdate(refreshedProduct, {
+            productId: dbProductId,
+            community,
+            collection,
+            productName,
+            productCategory,
+            variants: payload.variants,
+            expectedImageGallery,
+          });
+
+          if (updatePersisted) {
+            closeModal();
+            showToast('Product updated successfully.', 'success');
+          } else {
+            alert(error.message || 'Failed to update product. Please try again.');
+          }
+        } finally {
+          isSavingProduct = false;
+          submitBtn.disabled = false;
+          submitBtn.textContent = submitDefaultLabel;
         }
       } else {
-        if (pendingImageFiles.length) {
-          const uploadedImages = await uploadSelectedProductImages(pendingImageFiles);
-
-          payload.img_url = uploadedImages;
-          payload.image_gallery = uploadedImages;
-          payload.image_url = uploadedImages[0] || null;
-        }
         try {
-          await createMarketplaceProduct(payload, community, community_id);
+          let uploadedImages = [];
+          if (pendingImageFiles.length) {
+            uploadedImages = await uploadSelectedProductImages(pendingImageFiles);
+          }
+
+          const createPayload = { ...payload };
+          delete createPayload.img_url;
+          delete createPayload.image_gallery;
+          delete createPayload.image_url;
+
+          const createResult = await createMarketplaceProduct(createPayload, community, community_id);
+          const createdProductId =
+            Number(createResult?.data?.product_id || createResult?.product_id || 0) || null;
+
+          if (createdProductId && uploadedImages.length) {
+            const imagePayload = {
+              image_url: uploadedImages[0] || null,
+              img_url: uploadedImages,
+              image_gallery: uploadedImages,
+            };
+
+            try {
+              await updateMarketplaceProduct(createdProductId, imagePayload, community, community_id);
+            } catch (imageSyncError) {
+              console.warn('Product was created but image sync returned an error:', imageSyncError);
+            }
+          }
+
           persistSelectedCommunity(community || getSelectedCommunity());
           await fetchProducts(getSelectedCommunity());
           closeModal();
+          showToast('Product created successfully.', 'success');
         } catch (error) {
           console.error('Failed to create product:', error);
-          alert(error.message || 'Failed to create product. Please try again.');
+          persistSelectedCommunity(community || getSelectedCommunity());
+          await fetchProducts(getSelectedCommunity());
+          const newlyCreatedProduct = products.find((product) => {
+            const productId = Number(product?.productId || 0);
+            if (!Number.isFinite(productId) || productId <= 0 || existingProductIdsBeforeSave.has(productId)) {
+              return false;
+            }
+            if (normalizeIdentityText(product?.communityKey) !== normalizeIdentityText(community)) {
+              return false;
+            }
+            return normalizeIdentityText(product?.name) === normalizeIdentityText(productName);
+          });
+          const persistedProduct = newlyCreatedProduct || findPersistedProductAfterCreate({
+            community,
+            collection,
+            productName,
+            productCategory,
+            variants: payload.variants,
+          });
+
+          if (persistedProduct) {
+            closeModal();
+            showToast('Product created successfully.', 'success');
+          } else {
+            alert(error.message || 'Failed to create product. Please try again.');
+          }
+        } finally {
+          isSavingProduct = false;
+          submitBtn.disabled = false;
+          submitBtn.textContent = submitDefaultLabel;
         }
       }
     });
