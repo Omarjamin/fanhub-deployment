@@ -289,6 +289,8 @@ class MarketplaceController {
       const body = req.body || {};
       const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
       const preferredCommunityId = this.getRequestedCommunityId(req);
+      const name = String(body.name || '').trim();
+      const variants = Array.isArray(body.variants) ? body.variants : [];
       let collectionId = body.collection_id;
       if (collectionId == null && scopedCommunity && body.collection) {
         collectionId = await this.marketplaceModel.resolveCollectionId(
@@ -303,21 +305,42 @@ class MarketplaceController {
           error: 'community is required',
         });
       }
+      if (name.length < 2) {
+        return res.status(400).json({
+          success: false,
+          error: 'Product name is required',
+          details: 'Please enter a product name with at least 2 characters.',
+        });
+      }
+      if (!collectionId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Valid collection is required',
+          details: 'Please select a collection that belongs to the selected site.',
+        });
+      }
+      if (!variants.length) {
+        return res.status(400).json({
+          success: false,
+          error: 'At least one variant is required',
+          details: 'Add at least one product variant before saving.',
+        });
+      }
       debugLog('createProduct:start', {
         scopedCommunity,
-        name: body.name,
+        name,
         collectionId,
-        variantCount: Array.isArray(body.variants) ? body.variants.length : 0,
+        variantCount: variants.length,
         imageCount: Array.isArray(body.image_urls) ? body.image_urls.length : 0,
       });
       const payload = {
-        name: body.name,
+        name,
         collection_id: collectionId,
         product_category: body.product_category || 'Apparel',
         image_url: body.image_url || null,
         img_url: body.img_url ?? body.image_gallery ?? body.images ?? [],
         image_gallery: body.image_gallery ?? body.images ?? [],
-        variants: body.variants || [],
+        variants,
       };
       const { product_id } = await this.marketplaceModel.createProduct(
         payload,
@@ -335,7 +358,7 @@ class MarketplaceController {
       return res.status(500).json({
         success: false,
         error: 'Failed to create product',
-        details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+        details: error?.message || 'Unknown marketplace create error',
       });
     }
   }

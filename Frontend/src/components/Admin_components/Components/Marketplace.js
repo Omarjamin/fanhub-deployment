@@ -4,6 +4,9 @@ import {
   fetchMarketplaceProducts,
   fetchMarketplaceCollections,
   fetchMarketplaceCategories,
+  fetchStorefrontCollections,
+  fetchStorefrontProductDetails,
+  fetchStorefrontProductsByCollection,
   createMarketplaceCollection,
   createMarketplaceProduct,
   updateMarketplaceProduct,
@@ -318,6 +321,137 @@ export default function createMarketplace() {
     return Number(found?.community_id || 0) || null;
   }
 
+  async function fetchMarketplaceProductsForCommunity(key = '') {
+    const normalized = String(key || '').trim().toLowerCase();
+    const community_id = getCommunityIdByKey(normalized);
+    let list = await fetchMarketplaceProducts(normalized, community_id);
+
+    if ((!Array.isArray(list) || list.length === 0) && community_id) {
+      list = await fetchMarketplaceProducts(normalized, null);
+    }
+
+    return {
+      community_id,
+      list: Array.isArray(list) ? list : [],
+    };
+  }
+
+  async function fetchStorefrontMarketplaceRows(key = '') {
+    const normalized = String(key || '').trim().toLowerCase();
+    if (!normalized) return [];
+
+    const selectedCommunityId = getCommunityIdByKey(normalized);
+    let collections = [];
+
+    try {
+      collections = await fetchMarketplaceCollections(normalized, selectedCommunityId);
+    } catch (_) {
+      collections = [];
+    }
+
+    if (!collections.length) {
+      try {
+        collections = await fetchStorefrontCollections(normalized);
+      } catch (error) {
+        console.warn('Failed loading storefront collection fallback:', error);
+        collections = [];
+      }
+    }
+
+    const uniqueCollections = Array.from(
+      new Map(
+        (collections || [])
+          .map((collection) => {
+            const collectionId = Number(collection?.collection_id || 0) || null;
+            if (!collectionId) return null;
+            return [
+              collectionId,
+              {
+                collection_id: collectionId,
+                name: String(collection?.name || '').trim(),
+              },
+            ];
+          })
+          .filter(Boolean),
+      ).values(),
+    );
+
+    if (!uniqueCollections.length) return [];
+
+    const responses = await Promise.allSettled(
+      uniqueCollections.map(async (collection) => {
+        const list = await fetchStorefrontProductsByCollection(collection.collection_id, normalized);
+        const detailedRows = await Promise.allSettled(
+          (Array.isArray(list) ? list : []).map(async (item) => {
+            const productId = Number(item?.product_id || 0) || null;
+            if (!productId) {
+              return {
+                ...item,
+                collection_id: Number(item?.collection_id || collection.collection_id || 0) || null,
+                collection_name: String(item?.collection_name || collection.name || '').trim(),
+                variants: Array.isArray(item?.variants) ? item.variants : [],
+                __community_key: normalized,
+                __community_id: Number(item?.community_id || selectedCommunityId || 0) || null,
+              };
+            }
+
+            let detailPayload = { product: null, variants: [] };
+            try {
+              detailPayload = await fetchStorefrontProductDetails(productId, normalized);
+            } catch (error) {
+              console.warn(`Failed loading storefront product details for ${productId}:`, error);
+            }
+
+            const detailedProduct = detailPayload?.product || {};
+            const variants = Array.isArray(detailPayload?.variants)
+              ? detailPayload.variants
+              : (Array.isArray(item?.variants) ? item.variants : []);
+
+            return {
+              ...item,
+              ...detailedProduct,
+              product_id: productId,
+              collection_id: Number(
+                detailedProduct?.collection_id || item?.collection_id || collection.collection_id || 0,
+              ) || null,
+              collection_name: String(
+                detailedProduct?.collection_name || item?.collection_name || collection.name || '',
+              ).trim(),
+              product_category: String(
+                detailedProduct?.product_category || item?.product_category || '',
+              ).trim(),
+              image_url: detailedProduct?.image_url || item?.image_url || null,
+              image_gallery: detailedProduct?.image_gallery || item?.image_gallery || item?.images || [],
+              images: detailedProduct?.images || item?.images || item?.image_gallery || [],
+              variants,
+              __community_key: normalized,
+              __community_id: Number(
+                detailedProduct?.community_id || item?.community_id || selectedCommunityId || 0,
+              ) || null,
+            };
+          }),
+        );
+
+        return detailedRows
+          .filter((result) => result.status === 'fulfilled')
+          .map((result) => result.value);
+      }),
+    );
+
+    const rows = responses
+      .filter((result) => result.status === 'fulfilled')
+      .flatMap((result) => result.value);
+
+    return Array.from(
+      new Map(
+        rows.map((row) => [
+          Number(row?.product_id || 0) || `${normalized}:${row?.name || ''}:${row?.collection_id || ''}`,
+          row,
+        ]),
+      ).values(),
+    );
+  }
+
   function normalizeVariantForForm(variant) {
     const variantName = String(
       variant.variant_name ?? variant.variantName ?? 'Variant'
@@ -458,6 +592,57 @@ export default function createMarketplace() {
     `;
   }
 
+  function cacheCollectionRows(communityKey, rows = []) {
+    const community = String(communityKey || '').trim().toLowerCase();
+    const names = [];
+    const seen = new Set();
+
+    (Array.isArray(rows) ? rows : []).forEach(row => {
+      const cname = String(row?.name || '').trim();
+      const cid = Number(row?.collection_id ?? row?.id ?? 0);
+      const loweredName = cname.toLowerCase();
+
+      if (cname && !seen.has(loweredName)) {
+        seen.add(loweredName);
+        names.push(cname);
+      }
+      if (cname && Number.isFinite(cid) && cid > 0) {
+        collectionIdByCommunityAndName.set(`${community}::${loweredName}`, cid);
+      }
+    });
+
+    const finalNames = names.length ? names : ['General'];
+    collectionOptionsByCommunity.set(community, finalNames);
+    return finalNames;
+  }
+
+  async function ensureCollectionIdForSelection(communityKey, communityId, collectionName) {
+    const community = String(communityKey || '').trim().toLowerCase();
+    const normalizedName = String(collectionName || '').trim();
+    if (!community || !normalizedName) return null;
+
+    const cacheKey = `${community}::${normalizedName.toLowerCase()}`;
+    const cachedId = Number(collectionIdByCommunityAndName.get(cacheKey) || 0);
+    if (cachedId > 0) return cachedId;
+
+    try {
+      let rows = await fetchMarketplaceCollections(community, communityId);
+      if (!rows.length) {
+        rows = await fetchStorefrontCollections(community);
+      }
+      cacheCollectionRows(community, rows);
+    } catch (error) {
+      console.warn('Failed to refresh collection mapping before saving product:', error);
+      try {
+        const fallbackRows = await fetchStorefrontCollections(community);
+        cacheCollectionRows(community, fallbackRows);
+      } catch (_) {}
+    }
+
+    const resolvedId = Number(collectionIdByCommunityAndName.get(cacheKey) || 0);
+    return resolvedId > 0 ? resolvedId : null;
+  }
+
   async function loadCollectionOptions(communityOverride) {
     const community = String(
       communityOverride ?? section.querySelector('#newProductCommunity').value
@@ -480,20 +665,11 @@ export default function createMarketplace() {
     if (!community || cachedCollections) return;
 
     try {
-      const rows = await fetchMarketplaceCollections(community, community_id);
-      let names = rows
-        .map(row => String(row?.name || '').trim())
-        .filter(Boolean);
-      rows.forEach(row => {
-        const cname = String(row?.name || '').trim();
-        const cid = Number(row?.collection_id);
-        if (!cname || Number.isNaN(cid) || cid <= 0) return;
-        collectionIdByCommunityAndName.set(`${community}::${cname.toLowerCase()}`, cid);
-      });
-      if (!names.length) {
-        names = ['General'];
+      let rows = await fetchMarketplaceCollections(community, community_id);
+      if (!rows.length) {
+        rows = await fetchStorefrontCollections(community);
       }
-      collectionOptionsByCommunity.set(community, names);
+      const names = cacheCollectionRows(community, rows);
 
       const isSameSelection =
         section.querySelector('#newProductCommunity').value === community;
@@ -506,7 +682,12 @@ export default function createMarketplace() {
       }
     } catch (error) {
       console.error('Failed to load collection options:', error);
-      collectionOptionsByCommunity.set(community, ['General']);
+      try {
+        const fallbackRows = await fetchStorefrontCollections(community);
+        cacheCollectionRows(community, fallbackRows);
+      } catch (_) {
+        collectionOptionsByCommunity.set(community, ['General']);
+      }
     }
   }
 
@@ -973,92 +1154,18 @@ export default function createMarketplace() {
       return uploadedImages;
     }
 
-    let selectedImageFiles = [];
-    let existingImageUrls = [];
-    let imagesDirty = false;
-
-    function getImageFileKey(file) {
-      return `${file.name}::${file.size}::${file.lastModified}`;
-    }
-
-    function getImageLabel(url) {
-      const raw = String(url || '').trim();
-      if (!raw) return 'image';
-      try {
-        const parsed = new URL(raw);
-        const name = parsed.pathname.split('/').pop();
-        return name || raw;
-      } catch (_) {
-        return raw.split('/').pop() || raw;
-      }
-    }
-
-    function renderImagePreview() {
-      if (!imagePreview) return;
-      const fileItems = selectedImageFiles.map(file => ({
-        kind: 'file',
-        key: getImageFileKey(file),
-        label: file.name,
-      }));
-      const urlItems = existingImageUrls.map((url, index) => ({
-        kind: 'url',
-        key: `url-${index}`,
-        label: getImageLabel(url),
-        url,
-      }));
-      const items = [...urlItems, ...fileItems];
-
-      if (!items.length) {
-        imagePreview.innerHTML = '';
-        imagePreview.classList.add('hidden');
-        return;
-      }
-
-      imagePreview.classList.remove('hidden');
-      imagePreview.innerHTML = items
-        .map(item => `
-          <div class="image-preview-item" data-kind="${item.kind}" data-key="${item.key}">
-            <span class="image-preview-label">${item.label}</span>
-            <button type="button" class="remove-image-btn" aria-label="Remove image">Remove</button>
-          </div>
-        `)
-        .join('');
-    }
-
-    function resetImageState() {
-      selectedImageFiles = [];
-      existingImageUrls = [];
-      imagesDirty = false;
-      if (imageInput) imageInput.value = '';
-      renderImagePreview();
-    }
-
-    function addImageFiles(fileList) {
-      const incoming = Array.from(fileList || []).filter(file => file && file.type?.startsWith('image/'));
-      if (!incoming.length) return;
-      const existingKeys = new Set(selectedImageFiles.map(getImageFileKey));
-      incoming.forEach(file => {
-        const key = getImageFileKey(file);
-        if (!existingKeys.has(key)) {
-          selectedImageFiles.push(file);
-          existingKeys.add(key);
-        }
-      });
-      imagesDirty = true;
-      if (imageInput) imageInput.value = '';
-      renderImagePreview();
-    }
-
     function closeModal() {
       clearPreviewUrls();
+      existingImageGallery = [];
       pendingImageFiles = [];
+      hasImageChanges = false;
+      if (imageInput) imageInput.value = '';
       modal.classList.add('hidden');
     }
 
     async function openAddModal() {
       editingProductId = null;
       form.reset();
-      resetImageState();
       loadAddProductCommunities();
       const selectedCommunity = getSelectedCommunity();
       if (selectedCommunity && selectedCommunity !== 'all') {
@@ -1211,26 +1318,6 @@ export default function createMarketplace() {
       removeBtn.closest('.variant-input-row')?.remove();
     });
 
-    imagePreview.addEventListener('click', (event) => {
-      const removeBtn = event.target.closest('.remove-image-btn');
-      if (!removeBtn) return;
-      const item = removeBtn.closest('.image-preview-item');
-      if (!item) return;
-      const kind = item.dataset.kind;
-      const key = item.dataset.key;
-      if (kind === 'file') {
-        selectedImageFiles = selectedImageFiles.filter(file => getImageFileKey(file) !== key);
-        imagesDirty = true;
-      } else if (kind === 'url') {
-        const index = Number(String(key || '').replace('url-', ''));
-        if (!Number.isNaN(index)) {
-          existingImageUrls.splice(index, 1);
-          imagesDirty = true;
-        }
-      }
-      renderImagePreview();
-    });
-
     modal.addEventListener('click', event => {
       if (event.target === modal) closeModal();
     });
@@ -1251,6 +1338,17 @@ export default function createMarketplace() {
       }
       if (!collection) {
         return reportValidationError(collectionSelect, 'Please select a collection.');
+      }
+      const collection_id = await ensureCollectionIdForSelection(
+        community,
+        community_id,
+        collection,
+      );
+      if (!collection_id) {
+        return reportValidationError(
+          collectionSelect,
+          'Please select a valid collection for the chosen site.',
+        );
       }
       if (!hasMinLength(productName, 2)) {
         return reportValidationError(productNameInput, 'Product name is required and must be at least 2 characters.');
@@ -1322,6 +1420,7 @@ export default function createMarketplace() {
         community,
         community_id,
         collection,
+        collection_id,
         product_category: productCategory,
         variants: variants.map(v => ({
           variantName: v.variantName,
@@ -1334,11 +1433,6 @@ export default function createMarketplace() {
           height_cm: v.height_cm
         }))
       };
-
-      const uploadedUrls = selectedImageFiles.length
-        ? (await Promise.all(selectedImageFiles.map(file => uploadMarketplaceImage(file)))).filter(Boolean)
-        : [];
-      const combinedImageUrls = [...existingImageUrls, ...uploadedUrls];
 
       if (editingProductId) {
         const product = findProductById(editingProductId);
@@ -1418,7 +1512,7 @@ export default function createMarketplace() {
         const normalized = String(row?.site_name || row?.domain || '').trim();
         if (!key || !normalized || seen.has(key)) return;
         seen.add(key);
-        const community_id = Number(row?.community_id || row?.id || row?.site_id || 0) || null;
+        const community_id = Number(row?.community_id || 0) || null;
         options.push({ key, label: normalized, community_id });
       });
 
@@ -1450,8 +1544,12 @@ export default function createMarketplace() {
         } else {
           const responses = await Promise.allSettled(
             communityPairs.map(async ({ key, community_id }) => {
-              const list = await fetchMarketplaceProducts(key, community_id);
-              return list.map(item => ({ ...item, __community_key: key, __community_id: community_id }));
+              const { list } = await fetchMarketplaceProductsForCommunity(key);
+              return list.map(item => ({
+                ...item,
+                __community_key: key,
+                __community_id: Number(item?.community_id || community_id || 0) || null,
+              }));
             })
           );
           rows = responses
@@ -1465,19 +1563,35 @@ export default function createMarketplace() {
         }
       } else {
         let list = [];
+        const selectedCommunityId = getCommunityIdByKey(normalizedCommunity);
         try {
-          list = await fetchMarketplaceProducts(normalizedCommunity, getCommunityIdByKey(normalizedCommunity));
+          const response = await fetchMarketplaceProductsForCommunity(normalizedCommunity);
+          list = response.list;
+          if (!list.length) {
+            rows = await fetchStorefrontMarketplaceRows(normalizedCommunity);
+          }
         } catch (error) {
+          const normalizedMessage = String(
+            error?.message || 'Marketplace products could not be loaded. Check the backend server or admin API connection.',
+          ).trim();
           console.warn(
             `[Marketplace] Community "${normalizedCommunity}" fetch failed:`,
             error,
           );
           products = [];
+          loadErrorMessage = normalizedMessage;
           loadProducts();
+          showToast(normalizedMessage, 'error');
           await applyMarketplaceSelection();
           return;
         }
-        rows = list.map(item => ({ ...item, __community_key: normalizedCommunity, __community_id: getCommunityIdByKey(normalizedCommunity) }));
+        if (!rows.length) {
+          rows = list.map(item => ({
+            ...item,
+            __community_key: normalizedCommunity,
+            __community_id: Number(item?.community_id || selectedCommunityId || 0) || null,
+          }));
+        }
       }
 
       products = rows.map(row => {
@@ -1557,7 +1671,9 @@ export default function createMarketplace() {
     } catch (error) {
       console.error('Error fetching marketplace products:', error);
       products = [];
-      loadErrorMessage = 'Marketplace products could not be loaded. Check the backend server or admin API connection.';
+      loadErrorMessage = String(
+        error?.message || 'Marketplace products could not be loaded. Check the backend server or admin API connection.',
+      ).trim();
       loadProducts();
       showToast(loadErrorMessage, 'error');
     }

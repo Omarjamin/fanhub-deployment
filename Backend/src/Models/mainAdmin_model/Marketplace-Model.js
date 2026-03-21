@@ -6,11 +6,6 @@ class MarketplaceModel {
     const scoped = String(communityType || '').trim().toLowerCase();
     const candidates = [];
 
-    try {
-      const defaultDb = await connect();
-      if (defaultDb) candidates.push(defaultDb);
-    } catch (_) {}
-
     if (scoped) {
       try {
         const scopedDb = await connect(scoped);
@@ -20,6 +15,13 @@ class MarketplaceModel {
       } catch (_) {}
     }
 
+    try {
+      const defaultDb = await connect();
+      if (defaultDb && !candidates.includes(defaultDb)) {
+        candidates.push(defaultDb);
+      }
+    } catch (_) {}
+
     for (const db of candidates) {
       const hasProducts = await this.hasAdminTable(db, 'products');
       const hasCollections = await this.hasAdminTable(db, 'collections');
@@ -28,7 +30,7 @@ class MarketplaceModel {
       }
     }
 
-    return candidates[0] || connect(scoped);
+    return candidates[0] || await connect(scoped);
   }
 
   async getCollectionCommunityScopeColumn(db) {
@@ -52,16 +54,110 @@ class MarketplaceModel {
     return new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
   }
 
+  async getDistinctPositiveIds(db, tableName, columnName, limit = 2) {
+    if (!db || !tableName || !columnName) return [];
+    if (!await this.hasAdminTable(db, tableName)) return [];
+    if (!await this.hasColumn(db, tableName, columnName)) return [];
+
+    const safeLimit = Math.max(1, Number(limit) || 2);
+    const [rows] = await db.query(
+      `
+        SELECT DISTINCT COALESCE(${columnName}, 0) AS scope_id
+        FROM ${tableName}
+        WHERE COALESCE(${columnName}, 0) > 0
+        ORDER BY scope_id ASC
+        LIMIT ${safeLimit}
+      `,
+    );
+
+    return Array.from(
+      new Set(
+        (rows || [])
+          .map((row) => Number(row?.scope_id || 0))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    );
+  }
+
+  async resolveSingleCollectionScopeId(db, columnName = '') {
+    const ids = await this.getDistinctPositiveIds(db, 'collections', columnName, 2);
+    return ids.length === 1 ? ids[0] : null;
+  }
+
+  async isSingleCommunityDatabase(db, collectionScopeColumn = '') {
+    const collectionScopeId = await this.resolveSingleCollectionScopeId(db, collectionScopeColumn);
+    if (collectionScopeId) return true;
+
+    const communityIds = await this.getDistinctPositiveIds(db, 'communities', 'community_id', 2);
+    return communityIds.length === 1;
+  }
+
+  buildCommunityLookupVariants(value = '') {
+    const scoped = String(value || '').trim().toLowerCase();
+    if (!scoped) return [];
+
+    const set = new Set([scoped]);
+    const withoutWebsite = scoped.replace(/-website$/i, '');
+    if (withoutWebsite) set.add(withoutWebsite);
+    if (!/-website$/i.test(scoped)) set.add(`${scoped}-website`);
+
+    return Array.from(set).filter(Boolean);
+  }
+
+  async resolveCommunityIdFromDb(db, communityType = '') {
+    if (!db) return null;
+
+    const variants = this.buildCommunityLookupVariants(communityType);
+    if (!variants.length) return null;
+
+    const communityCols = await this.getAdminTableColumns(db, 'communities');
+    if (!communityCols.has('community_id')) return null;
+
+    const lookupCols = ['community_type', 'site_slug', 'domain', 'site_name', 'name']
+      .filter((col) => communityCols.has(col));
+    if (!lookupCols.length) return null;
+
+    const placeholders = variants.map(() => '?').join(', ');
+    const whereSql = lookupCols
+      .map((col) => `LOWER(TRIM(${col})) IN (${placeholders})`)
+      .join(' OR ');
+    const params = lookupCols.flatMap(() => variants);
+
+    const [rows] = await db.query(
+      `
+        SELECT community_id
+        FROM communities
+        WHERE ${whereSql}
+        ORDER BY community_id ASC
+        LIMIT 20
+      `,
+      params,
+    );
+
+    const ids = Array.from(
+      new Set(
+        (rows || [])
+          .map((row) => Number(row?.community_id || 0))
+          .filter((id) => Number.isFinite(id) && id > 0),
+      ),
+    );
+
+    return ids[0] || null;
+  }
+
   async resolveCommunityId(communityType = '', preferredCommunityId = null) {
     const forcedCommunityId = Number(preferredCommunityId || 0);
-    if (Number.isFinite(forcedCommunityId) && forcedCommunityId > 0) {
-      return forcedCommunityId;
-    }
+    const fallbackCommunityId =
+      Number.isFinite(forcedCommunityId) && forcedCommunityId > 0
+        ? forcedCommunityId
+        : null;
 
     const scoped = String(communityType || '').trim().toLowerCase();
-    if (!scoped) return null;
+    if (!scoped) return fallbackCommunityId;
     const numeric = Number(scoped);
     if (Number.isFinite(numeric) && numeric > 0) return numeric;
+
+    let resolvedCommunityId = null;
 
     // Priority: community_table-based resolution.
     try {
@@ -106,12 +202,28 @@ class MarketplaceModel {
 
         const [rows] = await adminDB.query(query, params);
         const communityId = Number(rows?.[0]?.community_id || 0);
-        if (communityId > 0) return communityId;
+        if (communityId > 0) {
+          resolvedCommunityId = communityId;
+        }
       }
     } catch (_) {}
 
-    const ctx = await resolveCommunityContext(scoped);
-    return Number(ctx?.community_id || 0) || null;
+    if (!resolvedCommunityId) {
+      try {
+      const db = await this.getMarketplaceDb(scoped);
+      const communityId = await this.resolveCommunityIdFromDb(db, scoped);
+      if (communityId) {
+        resolvedCommunityId = communityId;
+      }
+      } catch (_) {}
+    }
+
+    if (!resolvedCommunityId) {
+      const ctx = await resolveCommunityContext(scoped);
+      resolvedCommunityId = Number(ctx?.community_id || 0) || null;
+    }
+
+    return resolvedCommunityId || fallbackCommunityId || null;
   }
 
   async hasColumn(db, tableName, columnName) {
@@ -289,6 +401,21 @@ class MarketplaceModel {
     `);
   }
 
+  async ensureProductImagesTable(db) {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS product_images (
+        image_id INT(11) NOT NULL AUTO_INCREMENT,
+        product_id INT(11) NOT NULL,
+        image_url VARCHAR(500) NOT NULL,
+        sort_order INT(11) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (image_id),
+        KEY idx_product_images_product_id (product_id),
+        KEY idx_product_images_sort_order (sort_order)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+    `);
+  }
+
   normalizeImageUrls(imageUrls) {
     if (Array.isArray(imageUrls)) {
       return imageUrls
@@ -316,20 +443,38 @@ class MarketplaceModel {
 
   async insertProductImages(db, productId, imageUrls = []) {
     if (!Array.isArray(imageUrls) || !imageUrls.length) return;
-    for (let i = 0; i < imageUrls.length; i += 1) {
-      const imageUrl = String(imageUrls[i] || '').trim();
-      if (!imageUrl) continue;
-      await db.query(
-        `INSERT INTO product_images (product_id, image_url, sort_order)
-         VALUES (?, ?, ?)`,
-        [productId, imageUrl, i],
-      );
+    try {
+      await this.ensureProductImagesTable(db);
+      for (let i = 0; i < imageUrls.length; i += 1) {
+        const imageUrl = String(imageUrls[i] || '').trim();
+        if (!imageUrl) continue;
+        await db.query(
+          `INSERT INTO product_images (product_id, image_url, sort_order)
+           VALUES (?, ?, ?)`,
+          [productId, imageUrl, i],
+        );
+      }
+    } catch (error) {
+      console.warn('Failed to mirror product images into product_images table:', {
+        productId,
+        code: error?.code || null,
+        message: error?.message || String(error || ''),
+      });
     }
   }
 
   async replaceProductImages(db, productId, imageUrls = []) {
-    await db.query('DELETE FROM product_images WHERE product_id = ?', [productId]);
-    await this.insertProductImages(db, productId, imageUrls);
+    try {
+      await this.ensureProductImagesTable(db);
+      await db.query('DELETE FROM product_images WHERE product_id = ?', [productId]);
+      await this.insertProductImages(db, productId, imageUrls);
+    } catch (error) {
+      console.warn('Failed to replace product_images rows:', {
+        productId,
+        code: error?.code || null,
+        message: error?.message || String(error || ''),
+      });
+    }
   }
 
   /**
@@ -341,11 +486,13 @@ class MarketplaceModel {
     const scoped = String(communityType || '').trim().toLowerCase();
     const db = await this.getMarketplaceDb(scoped);
     const scopedCommunityId = await this.resolveCommunityId(scoped, preferredCommunityId);
-    const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
-    const hasProductImgUrlColumn = await this.ensureProductImgUrlColumn(db);
-    const hasImageGalleryColumn = await this.hasColumn(db, 'products', 'image_gallery');
     const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
     const hasCollectionCommunityId = Boolean(collectionCommunityScopeColumn);
+    const hadProductCommunityId = await this.hasColumn(db, 'products', 'community_id');
+    const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
+    const canScopeByProductCommunity = hadProductCommunityId;
+    const hasProductImgUrlColumn = await this.ensureProductImgUrlColumn(db);
+    const hasImageGalleryColumn = await this.hasColumn(db, 'products', 'image_gallery');
     const {
       hasWeightColumn,
       hasLengthColumn,
@@ -353,40 +500,66 @@ class MarketplaceModel {
       hasHeightColumn,
     } = await this.ensureVariantShippingColumns(db);
 
-    // Fetch products with collection info
-    const queryParams = [];
-    let scopeWhere = '';
-    if (scopedCommunityId && hasCollectionCommunityId && hasProductCommunityId) {
-      scopeWhere = `WHERE (COALESCE(c.${collectionCommunityScopeColumn}, 0) = ? OR COALESCE(p.community_id, 0) = ?)`;
-      queryParams.push(scopedCommunityId, scopedCommunityId);
-    } else if (scopedCommunityId && hasCollectionCommunityId) {
-      scopeWhere = `WHERE COALESCE(c.${collectionCommunityScopeColumn}, 0) = ?`;
-      queryParams.push(scopedCommunityId);
-    } else if (scopedCommunityId && hasProductCommunityId) {
-      scopeWhere = 'WHERE COALESCE(p.community_id, 0) = ?';
-      queryParams.push(scopedCommunityId);
+    const buildProductScope = (communityId = null, { useProductCommunityScope = canScopeByProductCommunity } = {}) => {
+      const params = [];
+      let whereSql = '';
+      if (communityId && hasCollectionCommunityId && useProductCommunityScope) {
+        whereSql = `WHERE (COALESCE(c.${collectionCommunityScopeColumn}, 0) = ? OR COALESCE(p.community_id, 0) = ?)`;
+        params.push(communityId, communityId);
+      } else if (communityId && hasCollectionCommunityId) {
+        whereSql = `WHERE COALESCE(c.${collectionCommunityScopeColumn}, 0) = ?`;
+        params.push(communityId);
+      } else if (communityId && useProductCommunityScope) {
+        whereSql = 'WHERE COALESCE(p.community_id, 0) = ?';
+        params.push(communityId);
+      }
+      return { whereSql, params };
+    };
+
+    const runProductsQuery = async (communityId = null, options = {}) => {
+      const { whereSql, params } = buildProductScope(communityId, options);
+      const [rows] = await db.query(
+        `
+          SELECT
+            p.product_id,
+            p.name,
+            p.collection_id,
+            p.product_category,
+            p.image_url,
+            ${hasProductImgUrlColumn ? 'p.img_url,' : 'NULL AS img_url,'}
+            ${hasImageGalleryColumn ? 'p.image_gallery,' : 'NULL AS image_gallery,'}
+            ${hasProductCommunityId ? 'p.community_id,' : 'NULL AS community_id,'}
+            p.created_at,
+            c.name AS collection_name
+          FROM products p
+          LEFT JOIN collections c ON c.collection_id = p.collection_id
+          ${whereSql}
+          ORDER BY p.created_at DESC
+        `,
+        params,
+      );
+      return rows || [];
+    };
+
+    let products = await runProductsQuery(scopedCommunityId);
+
+    if (!products.length && scoped && hasCollectionCommunityId) {
+      const isolatedCollectionScopeId = await this.resolveSingleCollectionScopeId(
+        db,
+        collectionCommunityScopeColumn,
+      );
+      if (isolatedCollectionScopeId && isolatedCollectionScopeId !== scopedCommunityId) {
+        products = await runProductsQuery(isolatedCollectionScopeId, {
+          useProductCommunityScope: false,
+        });
+      }
     }
 
-    const [products] = await db.query(
-      `
-        SELECT
-          p.product_id,
-          p.name,
-          p.collection_id,
-          p.product_category,
-          p.image_url,
-          ${hasProductImgUrlColumn ? 'p.img_url,' : 'NULL AS img_url,'}
-          ${hasImageGalleryColumn ? 'p.image_gallery,' : 'NULL AS image_gallery,'}
-          ${hasProductCommunityId ? 'p.community_id,' : 'NULL AS community_id,'}
-          p.created_at,
-          c.name AS collection_name
-        FROM products p
-        LEFT JOIN collections c ON c.collection_id = p.collection_id
-        ${scopeWhere}
-        ORDER BY p.created_at DESC
-      `,
-      queryParams,
-    );
+    if (!products.length && scoped && await this.isSingleCommunityDatabase(db, collectionCommunityScopeColumn)) {
+      products = await runProductsQuery(null, {
+        useProductCommunityScope: false,
+      });
+    }
 
     if (!products || products.length === 0) return [];
 
@@ -394,7 +567,8 @@ class MarketplaceModel {
       .map((row) => Number(row?.product_id || 0))
       .filter((id) => id > 0);
     const imagesByProduct = new Map();
-    if (productIds.length) {
+    const hasProductImagesTable = await this.hasAdminTable(db, 'product_images');
+    if (productIds.length && hasProductImagesTable) {
       const placeholders = productIds.map(() => '?').join(',');
       const [images] = await db.query(
         `
@@ -503,24 +677,40 @@ class MarketplaceModel {
     const scopedCommunityId = await this.resolveCommunityId(scoped, preferredCommunityId);
     const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
     const hasCommunityColumn = Boolean(collectionCommunityScopeColumn);
-    const whereSql =
-      scopedCommunityId && hasCommunityColumn ? `WHERE ${collectionCommunityScopeColumn} = ?` : '';
-    const params = whereSql ? [scopedCommunityId] : [];
-    let rows = [];
-    try {
-      const [withImage] = await db.query(
-        `SELECT collection_id, name, img_url FROM collections ${whereSql} ORDER BY name ASC`,
-        params,
+    const runCollectionsQuery = async (communityId = null) => {
+      const whereSql =
+        communityId && hasCommunityColumn ? `WHERE ${collectionCommunityScopeColumn} = ?` : '';
+      const params = whereSql ? [communityId] : [];
+      try {
+        const [withImage] = await db.query(
+          `SELECT collection_id, name, img_url FROM collections ${whereSql} ORDER BY name ASC`,
+          params,
+        );
+        return withImage || [];
+      } catch (error) {
+        if (error?.code !== 'ER_BAD_FIELD_ERROR') throw error;
+        const [legacy] = await db.query(
+          `SELECT collection_id, name FROM collections ${whereSql} ORDER BY name ASC`,
+          params,
+        );
+        return legacy || [];
+      }
+    };
+
+    let rows = await runCollectionsQuery(scopedCommunityId);
+    if (!rows.length && scoped && hasCommunityColumn) {
+      const isolatedCollectionScopeId = await this.resolveSingleCollectionScopeId(
+        db,
+        collectionCommunityScopeColumn,
       );
-      rows = withImage || [];
-    } catch (error) {
-      if (error?.code !== 'ER_BAD_FIELD_ERROR') throw error;
-      const [legacy] = await db.query(
-        `SELECT collection_id, name FROM collections ${whereSql} ORDER BY name ASC`,
-        params,
-      );
-      rows = legacy || [];
+      if (isolatedCollectionScopeId && isolatedCollectionScopeId !== scopedCommunityId) {
+        rows = await runCollectionsQuery(isolatedCollectionScopeId);
+      }
     }
+    if (!rows.length && scoped && await this.isSingleCommunityDatabase(db, collectionCommunityScopeColumn)) {
+      rows = await runCollectionsQuery(null);
+    }
+
     return (rows || []).map((r) => ({
       collection_id: r.collection_id,
       name: r.name?.trim(),
@@ -607,20 +797,38 @@ class MarketplaceModel {
     }
 
     const queryParams = [];
-    const whereSql =
-      scopedCommunityId && hasCommunityColumn
-        ? `WHERE cc.collection_id IN (
-             SELECT c.collection_id FROM collections c WHERE COALESCE(c.${collectionCommunityScopeColumn}, 0) = ?
-           )`
-        : '';
-    if (whereSql) queryParams.push(scopedCommunityId);
-    const [rows] = await db.query(
-      `SELECT cc.category_id, cc.collection_id, cc.category_name
-       FROM collection_categories cc
-       ${whereSql}
-       ORDER BY cc.category_name ASC`,
-      queryParams,
-    );
+    const runCategoriesQuery = async (communityId = null) => {
+      const params = [];
+      const whereSql =
+        communityId && hasCommunityColumn
+          ? `WHERE cc.collection_id IN (
+               SELECT c.collection_id FROM collections c WHERE COALESCE(c.${collectionCommunityScopeColumn}, 0) = ?
+             )`
+          : '';
+      if (whereSql) params.push(communityId);
+      const [rows] = await db.query(
+        `SELECT cc.category_id, cc.collection_id, cc.category_name
+         FROM collection_categories cc
+         ${whereSql}
+         ORDER BY cc.category_name ASC`,
+        params,
+      );
+      return rows || [];
+    };
+
+    let rows = await runCategoriesQuery(scopedCommunityId);
+    if (!rows.length && scoped && hasCommunityColumn) {
+      const isolatedCollectionScopeId = await this.resolveSingleCollectionScopeId(
+        db,
+        collectionCommunityScopeColumn,
+      );
+      if (isolatedCollectionScopeId && isolatedCollectionScopeId !== scopedCommunityId) {
+        rows = await runCategoriesQuery(isolatedCollectionScopeId);
+      }
+    }
+    if (!rows.length && scoped && await this.isSingleCommunityDatabase(db, collectionCommunityScopeColumn)) {
+      rows = await runCategoriesQuery(null);
+    }
     return rows || [];
   }
 
@@ -670,20 +878,38 @@ class MarketplaceModel {
     const name = String(collectionName || '').trim();
     if (!name) return null;
 
-    const params = [name];
-    let scopeWhere = '';
-    if (scopedCommunityId && hasCommunityColumn) {
-      scopeWhere = `AND COALESCE(${collectionCommunityScopeColumn}, 0) = ?`;
-      params.push(scopedCommunityId);
+    const runResolveQuery = async (communityId = null) => {
+      const params = [name];
+      let scopeWhere = '';
+      if (communityId && hasCommunityColumn) {
+        scopeWhere = `AND COALESCE(${collectionCommunityScopeColumn}, 0) = ?`;
+        params.push(communityId);
+      }
+      const [rows] = await db.query(
+        `SELECT collection_id FROM collections
+         WHERE LOWER(TRIM(name)) = LOWER(?)
+         ${scopeWhere}
+         LIMIT 1`,
+        params,
+      );
+      return rows?.[0]?.collection_id ?? null;
+    };
+
+    let resolvedId = await runResolveQuery(scopedCommunityId);
+    if (!resolvedId && scoped && hasCommunityColumn) {
+      const isolatedCollectionScopeId = await this.resolveSingleCollectionScopeId(
+        db,
+        collectionCommunityScopeColumn,
+      );
+      if (isolatedCollectionScopeId && isolatedCollectionScopeId !== scopedCommunityId) {
+        resolvedId = await runResolveQuery(isolatedCollectionScopeId);
+      }
     }
-    const [rows] = await db.query(
-      `SELECT collection_id FROM collections
-       WHERE LOWER(TRIM(name)) = LOWER(?)
-       ${scopeWhere}
-       LIMIT 1`,
-      params,
-    );
-    return rows?.[0]?.collection_id ?? null;
+    if (!resolvedId && scoped && await this.isSingleCommunityDatabase(db, collectionCommunityScopeColumn)) {
+      resolvedId = await runResolveQuery(null);
+    }
+
+    return resolvedId;
   }
 
   /**

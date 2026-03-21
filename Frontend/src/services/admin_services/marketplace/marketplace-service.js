@@ -16,6 +16,10 @@ function resolveAdminApiBase() {
 }
 const ADMIN_API_BASE = resolveAdminApiBase();
 const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
+const API_V1_BASE = String(BASE_V1 || 'https://fanhub-deployment-production.up.railway.app/v1')
+  .trim()
+  .replace(/\/+$/, '');
+const STOREFRONT_API_BASE = `${API_V1_BASE}/ecommerce`;
 const API_KEY = import.meta.env.VITE_API_KEY || 'thread';
 
 function getAuthToken() {
@@ -36,10 +40,44 @@ function getAdminRequestOptions() {
 async function readJsonOrThrow(res) {
   const payload = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const message = payload?.error || payload?.message || `HTTP ${res.status}`;
+    const baseMessage = payload?.error || payload?.message || `HTTP ${res.status}`;
+    const details = String(payload?.details || '').trim();
+    const message = details && !baseMessage.includes(details)
+      ? `${baseMessage}: ${details}`
+      : baseMessage;
     throw new Error(message);
   }
   return payload;
+}
+
+function buildStorefrontHeaders(siteSlug = '') {
+  const normalizedSiteSlug = String(siteSlug || '').trim().toLowerCase();
+  const headers = {
+    apikey: API_KEY,
+    ...getAdminHeaders(),
+  };
+  if (normalizedSiteSlug) {
+    headers['x-site-slug'] = normalizedSiteSlug;
+    headers['x-community-type'] = normalizedSiteSlug;
+  }
+  return headers;
+}
+
+async function fetchStorefrontJson(path, siteSlug = '') {
+  const normalizedPath = String(path || '').trim();
+  const normalizedSiteSlug = String(siteSlug || '').trim().toLowerCase();
+  const query = new URLSearchParams();
+  if (normalizedSiteSlug) {
+    query.set('site_slug', normalizedSiteSlug);
+  }
+  const url = `${STOREFRONT_API_BASE}${normalizedPath.startsWith('/') ? '' : '/'}${normalizedPath}${
+    query.toString() ? `?${query.toString()}` : ''
+  }`;
+  const response = await fetch(url, {
+    method: 'GET',
+    headers: buildStorefrontHeaders(normalizedSiteSlug),
+  });
+  return readJsonOrThrow(response);
 }
 
 export async function fetchAdminCommunities() {
@@ -101,6 +139,32 @@ export async function fetchMarketplaceCategories({ community, community_id, coll
     { headers: getAdminHeaders() },
   );
   return Array.isArray(payload?.data) ? payload.data : [];
+}
+
+export async function fetchStorefrontCollections(community) {
+  const payload = await fetchStorefrontJson('/shop/getCollections', community);
+  return Array.isArray(payload?.data) ? payload.data : [];
+}
+
+export async function fetchStorefrontProductsByCollection(collectionId, community) {
+  const payload = await fetchStorefrontJson(
+    `/shop/getProductCollection/${encodeURIComponent(collectionId)}`,
+    community,
+  );
+  return Array.isArray(payload?.data) ? payload.data : [];
+}
+
+export async function fetchStorefrontProductDetails(productId, community) {
+  const payload = await fetchStorefrontJson(
+    `/shop/getProductDetails/${encodeURIComponent(productId)}`,
+    community,
+  );
+  return {
+    product: payload?.data?.product || payload?.product || null,
+    variants: Array.isArray(payload?.data?.variants)
+      ? payload.data.variants
+      : (Array.isArray(payload?.variants) ? payload.variants : []),
+  };
 }
 
 export async function createMarketplaceCategory(payload) {

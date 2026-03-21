@@ -89,6 +89,11 @@ function buildQueryString(params = {}) {
   return query.toString();
 }
 
+function isLocalAdminBase(value = '') {
+  const normalized = String(value || '').trim().toLowerCase();
+  return /^https?:\/\/(?:localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/.test(normalized);
+}
+
 export function resolveAdminEndpointUrls(endpointPath, params = {}, rawBase = ADMIN_API_BASE) {
   const urls = [];
   const push = (value) => {
@@ -124,12 +129,15 @@ export function resolveAdminEndpointUrls(endpointPath, params = {}, rawBase = AD
   }
 
   const apiOrigin = String(window.__API_ORIGIN__ || '').trim().replace(/\/+$/, '');
+  const prefersLocalApi = isLocalAdminBase(trimmedBase) || isLocalAdminBase(apiOrigin);
   if (apiOrigin) {
     push(`${apiOrigin}/v1/admin/${pathWithQuery}`);
     push(`${apiOrigin}/admin/${pathWithQuery}`);
   }
 
-  push(`https://fanhub-deployment-production.up.railway.app/v1/admin/${pathWithQuery}`);
+  if (!prefersLocalApi) {
+    push(`https://fanhub-deployment-production.up.railway.app/v1/admin/${pathWithQuery}`);
+  }
   return urls;
 }
 
@@ -207,6 +215,13 @@ export async function fetchAdminJsonWithFallback(endpointPath, params = {}, requ
   }
 
   if (!response) {
+    const primaryUrl = String(candidateUrls?.[0] || '').trim();
+    if (isLocalAdminBase(primaryUrl)) {
+      throw (
+        lastError ||
+        new Error(`Unable to reach the local admin API at ${primaryUrl}. Start the backend server and try again.`)
+      );
+    }
     throw (lastError || new Error('Unable to reach admin API endpoint.'));
   }
 
@@ -244,6 +259,40 @@ function mergeAdminSiteRow(baseRow = {}, incomingRow = {}) {
   });
 
   return merged;
+}
+
+function toPositiveId(...candidates) {
+  for (const candidate of candidates) {
+    const numeric = Number(candidate);
+    if (Number.isFinite(numeric) && numeric > 0) {
+      return numeric;
+    }
+  }
+  return null;
+}
+
+function extractCommunityId(row = {}) {
+  return toPositiveId(
+    row?.community_id,
+    row?.communityId,
+    row?.community?.community_id,
+    row?.community?.communityId,
+    row?.community?.id,
+  );
+}
+
+function extractSiteId(row = {}) {
+  return toPositiveId(
+    row?.site_id,
+    row?.siteId,
+  );
+}
+
+function extractGeneratedWebsiteId(row = {}) {
+  return toPositiveId(
+    row?.generated_website_id,
+    row?.generatedWebsiteId,
+  );
 }
 
 export async function fetchAdminSites() {
@@ -320,14 +369,16 @@ export async function fetchAdminSites() {
         row?.domain || row?.community_type || row?.community_name || row?.site_name || '',
       );
       const siteName = String(row?.site_name || row?.name || row?.community_name || domain).trim();
-      const parsedCommunityId = Number(row?.community_id ?? row?.id ?? 0);
-      const parsedSiteId = Number(row?.site_id ?? 0);
-      const parsedGeneratedId = Number(row?.generated_website_id ?? 0);
+      const parsedCommunityId = extractCommunityId(row);
+      const parsedSiteId = extractSiteId(row);
+      const parsedGeneratedId = extractGeneratedWebsiteId(row);
       const parsedId = Number.isFinite(parsedGeneratedId) && parsedGeneratedId > 0
         ? parsedGeneratedId
-        : (Number.isFinite(parsedCommunityId) && parsedCommunityId > 0
-          ? parsedCommunityId
-          : (Number.isFinite(parsedSiteId) && parsedSiteId > 0 ? parsedSiteId : Number(row?.id ?? 0)));
+        : (Number.isFinite(parsedSiteId) && parsedSiteId > 0
+          ? parsedSiteId
+          : (Number.isFinite(parsedCommunityId) && parsedCommunityId > 0
+            ? parsedCommunityId
+            : Number(row?.id ?? 0)));
       return {
         id: Number.isFinite(parsedId) && parsedId > 0 ? parsedId : index + 1,
         generated_website_id: Number.isFinite(parsedGeneratedId) && parsedGeneratedId > 0 ? parsedGeneratedId : null,
