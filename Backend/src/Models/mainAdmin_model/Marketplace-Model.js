@@ -225,6 +225,13 @@ class MarketplaceModel {
     return unique.slice(0, 3);
   }
 
+  normalizeProductImageUrls(...sources) {
+    const galleryImages = this.buildProductImageGallery(...sources);
+    return galleryImages
+      .map((url) => String(url || '').trim())
+      .filter(Boolean);
+  }
+
   async ensureCollectionCategoriesTable(db) {
     await db.query(`
       CREATE TABLE IF NOT EXISTS collection_categories (
@@ -671,7 +678,8 @@ class MarketplaceModel {
     const { name, collection_id, product_category, image_url, image_gallery, img_url, variants } = data;
     const collectionId = collection_id ?? null;
     const productCategory = String(product_category || 'Apparel').trim();
-    const galleryImages = this.buildProductImageGallery(img_url, image_url, image_gallery);
+    const normalizedImageUrls = this.normalizeProductImageUrls(img_url, image_url, image_gallery);
+    const galleryImages = [...normalizedImageUrls];
     if (galleryImages.length > 1 && !hasImageGalleryColumn && !hasProductImgUrlColumn) {
       throw new Error('Multiple product images are not available on this database yet. Please contact support or retry after the img_url/image_gallery column is enabled.');
     }
@@ -780,6 +788,13 @@ class MarketplaceModel {
     const { name, collection_id, product_category, image_url, image_gallery, img_url, variants } = data;
     const updates = [];
     const values = [];
+    const hasImagePayload =
+      image_url !== undefined ||
+      image_gallery !== undefined ||
+      img_url !== undefined;
+    const normalizedImageUrls = hasImagePayload
+      ? this.normalizeProductImageUrls(img_url, image_url, image_gallery)
+      : [];
 
     if (name !== undefined) {
       updates.push('name = ?');
@@ -793,8 +808,8 @@ class MarketplaceModel {
       updates.push('product_category = ?');
       values.push(String(product_category).trim());
     }
-    if (image_url !== undefined || image_gallery !== undefined || img_url !== undefined) {
-      const galleryImages = this.buildProductImageGallery(img_url, image_url, image_gallery);
+    if (hasImagePayload) {
+      const galleryImages = [...normalizedImageUrls];
       if (galleryImages.length > 1 && !hasImageGalleryColumn && !hasProductImgUrlColumn) {
         throw new Error('Multiple product images are not available on this database yet. Please contact support or retry after the img_url/image_gallery column is enabled.');
       }
@@ -822,7 +837,7 @@ class MarketplaceModel {
       );
     }
 
-    if (image_urls !== undefined) {
+    if (hasImagePayload) {
       await this.replaceProductImages(db, id, normalizedImageUrls);
     }
 

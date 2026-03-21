@@ -177,6 +177,49 @@ class ShopModel {
     return map;
   }
 
+  parseProductImageGallery(value) {
+    if (Array.isArray(value)) {
+      return value
+        .flatMap((item) => this.parseProductImageGallery(item))
+        .filter(Boolean);
+    }
+
+    const raw = String(value || '').trim();
+    if (!raw) return [];
+
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .flatMap((item) => this.parseProductImageGallery(item))
+          .filter(Boolean);
+      }
+    } catch (_) {
+      // keep raw fallback below
+    }
+
+    return [raw];
+  }
+
+  buildProductImageGallery(...sources) {
+    const gallery = [];
+    const seen = new Set();
+
+    const pushImage = (candidate) => {
+      const normalized = String(candidate || '').trim();
+      if (!normalized || seen.has(normalized)) return;
+      seen.add(normalized);
+      gallery.push(normalized);
+    };
+
+    sources.forEach((source) => {
+      if (!source) return;
+      this.parseProductImageGallery(source).forEach(pushImage);
+    });
+
+    return gallery.slice(0, 3);
+  }
+
 
   // Get all collections for a community
   async getCollections(community_type) {
@@ -233,11 +276,16 @@ class ShopModel {
     console.log('sa shop models Fetched products!:', rows);
     const imageMap = await this.getImagesByProductIds(db, rows.map((row) => row.product_id));
     return (rows || []).map((row) => {
-      const images = imageMap.get(row.product_id) || [];
+      const images = this.buildProductImageGallery(
+        row.image_url,
+        row.img_url,
+        row.image_gallery,
+        imageMap.get(row.product_id) || [],
+      );
       if (!row.image_url && images.length) {
-        return { ...row, image_url: images[0], images };
+        return { ...row, image_url: images[0], images, image_gallery: row.image_gallery || images };
       }
-      return { ...row, images };
+      return { ...row, images, image_gallery: row.image_gallery || images };
     });
 
   }
@@ -384,11 +432,19 @@ class ShopModel {
     const [rows] = await db.query(query, params);
     if (!rows || !rows.length) return rows;
     const imageMap = await this.getImagesByProductIds(db, [product_id]);
-    const images = imageMap.get(Number(product_id)) || [];
+    const images = this.buildProductImageGallery(
+      rows[0].image_url,
+      rows[0].img_url,
+      rows[0].image_gallery,
+      imageMap.get(Number(product_id)) || [],
+    );
     if (!rows[0].image_url && images.length) {
       rows[0].image_url = images[0];
     }
     rows[0].images = images;
+    if (!rows[0].image_gallery && images.length) {
+      rows[0].image_gallery = images;
+    }
     return rows;
   }
 
