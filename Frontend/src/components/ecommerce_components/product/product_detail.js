@@ -339,6 +339,29 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     const lightboxImg = root.querySelector('.lightbox-image');
     const closeTargets = root.querySelectorAll('[data-lightbox-close="true"]');
 
+    const getCurrentImage = () => imageList[currentImageIndex] || imageList[0] || '';
+
+    const updateDisplayedImage = () => {
+      const current = getCurrentImage();
+      if (!detailImage) return;
+      detailImage.src = current;
+      detailImage.dataset.fullImage = current;
+    };
+
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        currentImageIndex = (currentImageIndex - 1 + imageList.length) % imageList.length;
+        updateDisplayedImage();
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        currentImageIndex = (currentImageIndex + 1) % imageList.length;
+        updateDisplayedImage();
+      });
+    }
+
     const closeLightbox = () => {
       if (!lightbox) return;
       lightbox.classList.remove('is-open');

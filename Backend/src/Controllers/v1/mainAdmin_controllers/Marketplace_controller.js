@@ -258,7 +258,7 @@ class MarketplaceController {
 
   /**
    * POST /v1/admin/marketplace
-   * Body: { name, collection_id?, community?, collection?, product_category?, image_url?, variants[] }
+   * Body: { name, collection_id?, community?, collection?, product_category?, image_url?, image_urls?, variants[] }
    */
   async createProduct(req, res) {
     try {
@@ -282,6 +282,7 @@ class MarketplaceController {
         name: body.name,
         collectionId,
         variantCount: Array.isArray(body.variants) ? body.variants.length : 0,
+        imageCount: Array.isArray(body.image_urls) ? body.image_urls.length : 0,
       });
       const payload = {
         name: body.name,
@@ -314,7 +315,7 @@ class MarketplaceController {
 
   /**
    * PUT /v1/admin/marketplace/:productId
-   * Body: { name?, collection_id?, community?, collection?, product_category?, image_url?, variants[] }
+   * Body: { name?, collection_id?, community?, collection?, product_category?, image_url?, image_urls?, variants[] }
    */
   async updateProduct(req, res) {
     try {
