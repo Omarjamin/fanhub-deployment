@@ -12,6 +12,15 @@ class MarketplaceController {
     this.marketplaceModel = new MarketplaceModel();
   }
 
+  getRequestedCommunityId(req) {
+    const numericCommunityId = Number(
+      req.query?.community_id ?? req.body?.community_id ?? 0,
+    );
+    return Number.isFinite(numericCommunityId) && numericCommunityId > 0
+      ? numericCommunityId
+      : null;
+  }
+
   resolveCommunity(req, res, { fallbackAll = true } = {}) {
     const scoped = String(
       req.query?.community ||
@@ -43,8 +52,12 @@ class MarketplaceController {
     try {
       const communityKey = this.resolveCommunity(req, res, { fallbackAll: true });
       const scopedCommunity = communityKey === 'all' ? '' : communityKey;
+      const preferredCommunityId = this.getRequestedCommunityId(req);
       debugLog('listProducts:start', { communityKey, scopedCommunity });
-      const filtered = await this.marketplaceModel.getProducts(scopedCommunity);
+      const filtered = await this.marketplaceModel.getProducts(
+        scopedCommunity,
+        preferredCommunityId,
+      );
       debugLog('listProducts:done', { scopedCommunity, count: filtered.length });
 
       return res.status(200).json({
@@ -84,8 +97,12 @@ class MarketplaceController {
     try {
       const communityKey = this.resolveCommunity(req, res, { fallbackAll: true });
       const scopedCommunity = communityKey === 'all' ? '' : communityKey;
+      const preferredCommunityId = this.getRequestedCommunityId(req);
       debugLog('listCollections:start', { communityKey, scopedCommunity });
-      const data = await this.marketplaceModel.getCollections(scopedCommunity);
+      const data = await this.marketplaceModel.getCollections(
+        scopedCommunity,
+        preferredCommunityId,
+      );
       debugLog('listCollections:done', { scopedCommunity, count: data.length });
       return res.status(200).json({ success: true, data });
     } catch (error) {
@@ -116,6 +133,7 @@ class MarketplaceController {
     try {
       const body = req.body || {};
       const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
+      const preferredCommunityId = this.getRequestedCommunityId(req);
       const name = String(body.name || '').trim();
       if (!scopedCommunity) {
         return res.status(400).json({
@@ -135,6 +153,7 @@ class MarketplaceController {
         scopedCommunity,
         name,
         imgUrl,
+        preferredCommunityId,
       );
       debugLog('createCollection:done', data);
       return res.status(201).json({
@@ -160,6 +179,7 @@ class MarketplaceController {
   async listCategories(req, res) {
     try {
       const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
+      const preferredCommunityId = this.getRequestedCommunityId(req);
       const collectionId = req.query.collection_id;
       debugLog('listCategories:start', { scopedCommunity, collectionId });
       if (!scopedCommunity) {
@@ -172,6 +192,7 @@ class MarketplaceController {
       const data = await this.marketplaceModel.getCategories(
         scopedCommunity,
         collectionId,
+        preferredCommunityId,
       );
       debugLog('listCategories:done', { scopedCommunity, collectionId, count: data.length });
       return res.status(200).json({ success: true, data });
@@ -196,6 +217,7 @@ class MarketplaceController {
     try {
       const body = req.body || {};
       const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
+      const preferredCommunityId = this.getRequestedCommunityId(req);
       const categoryName = String(body.category_name || body.category || '')
         .trim();
       let collectionId = body.collection_id;
@@ -211,6 +233,7 @@ class MarketplaceController {
         collectionId = await this.marketplaceModel.resolveCollectionId(
           scopedCommunity,
           body.collection,
+          preferredCommunityId,
         );
       }
 
@@ -237,6 +260,7 @@ class MarketplaceController {
         scopedCommunity,
         collectionId,
         categoryName,
+        preferredCommunityId,
       );
       debugLog('createCategory:done', data);
       return res.status(201).json({
@@ -264,11 +288,13 @@ class MarketplaceController {
     try {
       const body = req.body || {};
       const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
+      const preferredCommunityId = this.getRequestedCommunityId(req);
       let collectionId = body.collection_id;
       if (collectionId == null && scopedCommunity && body.collection) {
         collectionId = await this.marketplaceModel.resolveCollectionId(
           scopedCommunity,
           body.collection,
+          preferredCommunityId,
         );
       }
       if (!scopedCommunity) {
@@ -296,6 +322,7 @@ class MarketplaceController {
       const { product_id } = await this.marketplaceModel.createProduct(
         payload,
         scopedCommunity,
+        preferredCommunityId,
       );
       debugLog('createProduct:done', { product_id, scopedCommunity });
       return res.status(201).json({
@@ -322,11 +349,13 @@ class MarketplaceController {
       const productId = req.params.productId;
       const body = req.body || {};
       const scopedCommunity = this.resolveCommunity(req, res, { fallbackAll: false });
+      const preferredCommunityId = this.getRequestedCommunityId(req);
       let collectionId = body.collection_id;
       if (collectionId == null && scopedCommunity && body.collection) {
         collectionId = await this.marketplaceModel.resolveCollectionId(
           scopedCommunity,
           body.collection,
+          preferredCommunityId,
         );
       }
       if (!scopedCommunity) {
@@ -356,6 +385,7 @@ class MarketplaceController {
         productId,
         payload,
         scopedCommunity,
+        preferredCommunityId,
       );
       debugLog('updateProduct:done', { productId, scopedCommunity });
       return res.status(200).json({

@@ -2,6 +2,35 @@ import { connect, connectAdmin } from '../../core/database.js';
 import { resolveCommunityContext } from '../../core/database.js';
 
 class MarketplaceModel {
+  async getMarketplaceDb(communityType = '') {
+    const scoped = String(communityType || '').trim().toLowerCase();
+    const candidates = [];
+
+    try {
+      const defaultDb = await connect();
+      if (defaultDb) candidates.push(defaultDb);
+    } catch (_) {}
+
+    if (scoped) {
+      try {
+        const scopedDb = await connect(scoped);
+        if (scopedDb && !candidates.includes(scopedDb)) {
+          candidates.push(scopedDb);
+        }
+      } catch (_) {}
+    }
+
+    for (const db of candidates) {
+      const hasProducts = await this.hasAdminTable(db, 'products');
+      const hasCollections = await this.hasAdminTable(db, 'collections');
+      if (hasProducts || hasCollections) {
+        return db;
+      }
+    }
+
+    return candidates[0] || connect(scoped);
+  }
+
   async getCollectionCommunityScopeColumn(db) {
     if (await this.hasColumn(db, 'collections', 'group_community_id')) {
       return 'group_community_id';
@@ -23,7 +52,12 @@ class MarketplaceModel {
     return new Set((rows || []).map((row) => String(row?.Field || '').trim().toLowerCase()));
   }
 
-  async resolveCommunityId(communityType = '') {
+  async resolveCommunityId(communityType = '', preferredCommunityId = null) {
+    const forcedCommunityId = Number(preferredCommunityId || 0);
+    if (Number.isFinite(forcedCommunityId) && forcedCommunityId > 0) {
+      return forcedCommunityId;
+    }
+
     const scoped = String(communityType || '').trim().toLowerCase();
     if (!scoped) return null;
     const numeric = Number(scoped);
@@ -303,10 +337,10 @@ class MarketplaceModel {
    * Currently uses the primary ecommerce DB (shared fanhubdb).
    * @returns {Promise<Array>}
    */
-  async getProducts(communityType = '') {
+  async getProducts(communityType = '', preferredCommunityId = null) {
     const scoped = String(communityType || '').trim().toLowerCase();
-    const db = await connect(scoped);
-    const scopedCommunityId = await this.resolveCommunityId(scoped);
+    const db = await this.getMarketplaceDb(scoped);
+    const scopedCommunityId = await this.resolveCommunityId(scoped, preferredCommunityId);
     const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
     const hasProductImgUrlColumn = await this.ensureProductImgUrlColumn(db);
     const hasImageGalleryColumn = await this.hasColumn(db, 'products', 'image_gallery');
@@ -463,10 +497,10 @@ class MarketplaceModel {
   /**
    * Get collections for admin product form.
    */
-  async getCollections(communityType = '') {
+  async getCollections(communityType = '', preferredCommunityId = null) {
     const scoped = String(communityType || '').trim().toLowerCase();
-    const db = await connect(scoped);
-    const scopedCommunityId = await this.resolveCommunityId(scoped);
+    const db = await this.getMarketplaceDb(scoped);
+    const scopedCommunityId = await this.resolveCommunityId(scoped, preferredCommunityId);
     const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
     const hasCommunityColumn = Boolean(collectionCommunityScopeColumn);
     const whereSql =
@@ -494,10 +528,10 @@ class MarketplaceModel {
     }));
   }
 
-  async createCollection(communityType = '', name = '', imgUrl = null) {
+  async createCollection(communityType = '', name = '', imgUrl = null, preferredCommunityId = null) {
     const scoped = String(communityType || '').trim().toLowerCase();
-    const db = await connect(scoped);
-    const scopedCommunityId = await this.resolveCommunityId(scoped);
+    const db = await this.getMarketplaceDb(scoped);
+    const scopedCommunityId = await this.resolveCommunityId(scoped, preferredCommunityId);
     const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
     const hasCommunityColumn = Boolean(collectionCommunityScopeColumn);
     const normalizedName = String(name || '').trim();
@@ -552,10 +586,10 @@ class MarketplaceModel {
     return { collection_id: result?.insertId, created: true };
   }
 
-  async getCategories(communityType = '', collectionId = null) {
+  async getCategories(communityType = '', collectionId = null, preferredCommunityId = null) {
     const scoped = String(communityType || '').trim().toLowerCase();
-    const db = await connect(scoped);
-    const scopedCommunityId = await this.resolveCommunityId(scoped);
+    const db = await this.getMarketplaceDb(scoped);
+    const scopedCommunityId = await this.resolveCommunityId(scoped, preferredCommunityId);
     const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
     const hasCommunityColumn = Boolean(collectionCommunityScopeColumn);
     await this.ensureCollectionCategoriesTable(db);
@@ -590,9 +624,9 @@ class MarketplaceModel {
     return rows || [];
   }
 
-  async createCategory(communityType = '', collectionId, categoryName = '') {
+  async createCategory(communityType = '', collectionId, categoryName = '', preferredCommunityId = null) {
     const scoped = String(communityType || '').trim().toLowerCase();
-    const db = await connect(scoped);
+    const db = await this.getMarketplaceDb(scoped);
     await this.ensureCollectionCategoriesTable(db);
 
     const parsedCollectionId = Number(collectionId);
@@ -627,10 +661,10 @@ class MarketplaceModel {
    * @param {string} communityLabel - e.g. 'BINI', 'SB19'
    * @param {string} collectionName - e.g. 'Biniverse', 'BINI World'
    */
-  async resolveCollectionId(communityLabel, collectionName) {
+  async resolveCollectionId(communityLabel, collectionName, preferredCommunityId = null) {
     const scoped = String(communityLabel || '').trim().toLowerCase();
-    const db = await connect(scoped);
-    const scopedCommunityId = await this.resolveCommunityId(scoped);
+    const db = await this.getMarketplaceDb(scoped);
+    const scopedCommunityId = await this.resolveCommunityId(scoped, preferredCommunityId);
     const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
     const hasCommunityColumn = Boolean(collectionCommunityScopeColumn);
     const name = String(collectionName || '').trim();
@@ -657,10 +691,10 @@ class MarketplaceModel {
    * @param {Object} data - { name, collection_id, product_category, image_url, variants[] }
    * @returns {Promise<{ product_id: number }>}
    */
-  async createProduct(data, communityType = '') {
+  async createProduct(data, communityType = '', preferredCommunityId = null) {
     const scoped = String(communityType || '').trim().toLowerCase();
-    const db = await connect(scoped);
-    const scopedCommunityId = await this.resolveCommunityId(scoped);
+    const db = await this.getMarketplaceDb(scoped);
+    const scopedCommunityId = await this.resolveCommunityId(scoped, preferredCommunityId);
     const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
     const hasProductImgUrlColumn = await this.ensureProductImgUrlColumn(db);
     const hasImageGalleryColumn = await this.ensureProductImageGalleryColumn(db);
@@ -764,10 +798,10 @@ class MarketplaceModel {
    * @param {number|string} productId
    * @param {Object} data - { name, collection_id, product_category, image_url, variants[] }
    */
-  async updateProduct(productId, data, communityType = '') {
+  async updateProduct(productId, data, communityType = '', preferredCommunityId = null) {
     const scoped = String(communityType || '').trim().toLowerCase();
-    const db = await connect(scoped);
-    const scopedCommunityId = await this.resolveCommunityId(scoped);
+    const db = await this.getMarketplaceDb(scoped);
+    const scopedCommunityId = await this.resolveCommunityId(scoped, preferredCommunityId);
     const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
     const hasProductImgUrlColumn = await this.ensureProductImgUrlColumn(db);
     const hasImageGalleryColumn = await this.ensureProductImageGalleryColumn(db);
@@ -884,7 +918,7 @@ class MarketplaceModel {
    */
   async deleteProduct(productId, communityType = '') {
     const scoped = String(communityType || '').trim().toLowerCase();
-    const db = await connect(scoped);
+    const db = await this.getMarketplaceDb(scoped);
     const id = Number(productId);
     if (Number.isNaN(id)) {
       throw new Error('Invalid product ID');
