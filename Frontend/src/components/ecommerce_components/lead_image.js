@@ -1,5 +1,7 @@
 import api from '../../lib/api.js';
 import { getActiveSiteSlug } from '../../lib/site-context.js';
+import { getAuthToken } from '../../services/ecommerce_services/auth/auth.js';
+import { showToast } from '../../utils/toast.js';
 
 const SOCIAL_ICONS = {
   instagram: 'https://res.cloudinary.com/dy5u1ccgi/image/upload/v1772980429/instagram_zwwjvb.png',
@@ -9,6 +11,16 @@ const SOCIAL_ICONS = {
   x: 'https://res.cloudinary.com/dy5u1ccgi/image/upload/v1772980413/twitter_jzfvjn.png',
   youtube: 'https://res.cloudinary.com/dy5u1ccgi/image/upload/v1772980408/youtube_mrubg2.png',
 };
+
+function redirectToSigninWithDelay(signinPath) {
+  try {
+    sessionStorage.setItem('postLoginRedirect', window.location.pathname + window.location.search);
+  } catch (_) {}
+
+  setTimeout(() => {
+    window.location.href = signinPath;
+  }, 2000);
+}
 
 function resolveSiteSlug(data = {}) {
   const candidate = String(
@@ -135,7 +147,26 @@ export default function LeadImage(root, data = {}) {
   const initialSocials = normalizeSocials(data);
   const initialHeroCopy = buildHeroCopy(data, siteName, siteSlug);
 
+  root.dataset.leadImageSiteSlug = siteSlug;
+
   renderSection(root, initialLeadImage, initialSocials, siteName, initialHeroCopy);
+
+  if (!root.dataset.leadImageAuthBound) {
+    root.addEventListener('click', (event) => {
+      const target = event.target instanceof Element ? event.target : null;
+      const shopNowLink = target?.closest('.ec-lead-image__cta--primary');
+      if (!shopNowLink || !root.contains(shopNowLink)) return;
+      const currentSiteSlug = getActiveSiteSlug(root.dataset.leadImageSiteSlug || '');
+      const currentSigninPath = currentSiteSlug ? `/fanhub/${encodeURIComponent(currentSiteSlug)}/signin` : '/signin';
+      if (getAuthToken(currentSiteSlug)) return;
+
+      event.preventDefault();
+      showToast('You need an account to access this feature. Please sign in or sign up.', 'error');
+      redirectToSigninWithDelay(currentSigninPath);
+    });
+
+    root.dataset.leadImageAuthBound = 'true';
+  }
 
   (async () => {
     try {
