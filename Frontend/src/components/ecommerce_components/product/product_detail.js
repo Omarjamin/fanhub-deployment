@@ -6,6 +6,7 @@ import { formatPackageDimensions } from '../../../utils/package-dimensions.js';
 import { showToast } from '../../../utils/toast.js';
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 const BASE_V1 = import.meta.env.VITE_API_URL || 'https://fanhub-deployment-production.up.railway.app/v1';
 
 function resolveBackendOrigin() {
@@ -36,6 +37,9 @@ function resolveImageUrl(rawValue = '') {
 =======
 const PRODUCT_IMAGE_FALLBACK = '/placeholder.svg?height=720&width=720';
 >>>>>>> origin/main
+=======
+const PRODUCT_IMAGE_FALLBACK = '/placeholder.svg?height=720&width=720';
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
 
 function resolveVariantWeight(variant) {
   const explicitWeight = toSafeNumber(variant?.weight_g ?? variant?.weightG ?? variant?.weight_grams ?? variant?.weight);
@@ -121,6 +125,7 @@ function resolveDisplayPrice(product, variant) {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 function resolveProductImage(product, variants = [], productId = '') {
   const direct =
     product?.img_url ||
@@ -145,6 +150,8 @@ function resolveProductImage(product, variants = [], productId = '') {
     : '';
   if (fromVariant) return resolveImageUrl(fromVariant);
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
 function getProductApiOrigin() {
   try {
     return new URL(import.meta.env.VITE_API_URL || '').origin;
@@ -256,7 +263,10 @@ function buildProductImageGallery(product, variants = [], productId = '') {
 
   const collectionSnapshot = readStoredProductSnapshot('collectionProductSnapshots', productId);
   collectProductImageSources(collectionSnapshot).forEach(pushImage);
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
 
   try {
     const related = JSON.parse(sessionStorage.getItem('collectionProducts') || '[]');
@@ -264,6 +274,7 @@ function buildProductImageGallery(product, variants = [], productId = '') {
       const match = related.find(
         (item) => String(item?.product_id || item?.id || '') === String(productId || '')
       );
+<<<<<<< HEAD
 <<<<<<< HEAD
       const fromSession =
         match?.image_url ||
@@ -275,11 +286,15 @@ function buildProductImageGallery(product, variants = [], productId = '') {
 =======
       collectProductImageSources(match).forEach(pushImage);
 >>>>>>> origin/main
+=======
+      collectProductImageSources(match).forEach(pushImage);
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     }
   } catch (_) {
     // ignore storage errors
   }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
   return resolveImageUrl('');
 }
@@ -318,12 +333,17 @@ function resolveProductImages(product) {
   }
   return [];
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
   if (!gallery.length) {
     gallery.push(PRODUCT_IMAGE_FALLBACK);
   }
 
   return gallery.slice(0, 3);
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
 }
 
 export default async function ProductDetail(root, productId, explicitCommunityType = '') {
@@ -352,6 +372,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     const resolvedPrimary = resolveProductImage(product, variants, productId);
     const galleryImages = resolveProductImages(product)
       .map((value) => resolveImageUrl(value))
@@ -363,6 +384,10 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     const gallery = buildProductImageGallery(product, variants, productId);
     let selectedImageIndex = 0;
 >>>>>>> origin/main
+=======
+    const gallery = buildProductImageGallery(product, variants, productId);
+    let selectedImageIndex = 0;
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     let selectedVariant = variants.length > 0 ? variants[0] : null;
 
     root.innerHTML = `
@@ -372,11 +397,14 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
         </button>
         <div class="product-detail-grid">
 <<<<<<< HEAD
+<<<<<<< HEAD
           <div class="product-media ${imageList.length > 1 ? 'has-gallery' : ''}">
             ${imageList.length > 1 ? '<button class="media-nav-btn prev" type="button" aria-label="Previous image">&#10094;</button>' : ''}
             <img src="${imageList[0]}" alt="${product.name || ''}" class="product-detail-img" data-full-image="${imageList[0]}" />
             ${imageList.length > 1 ? '<button class="media-nav-btn next" type="button" aria-label="Next image">&#10095;</button>' : ''}
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
           <div class="product-media">
             <button type="button" class="product-media-stage" id="product-media-stage" aria-label="View product image">
               <img src="${gallery[0]}" alt="${product.name || ''}" class="product-detail-img" data-full-image="${gallery[0]}" />
@@ -403,7 +431,10 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
                 `
                 : ''
             }
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
           </div>
           <div class="product-meta">
             <h1 class="product-title">${product.name || ''}</h1>
@@ -457,11 +488,15 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
     const mediaStage = root.querySelector('#product-media-stage');
     const detailImage = root.querySelector('.product-detail-img');
 <<<<<<< HEAD
+<<<<<<< HEAD
     const prevBtn = root.querySelector('.media-nav-btn.prev');
     const nextBtn = root.querySelector('.media-nav-btn.next');
 =======
     const galleryThumbs = [...root.querySelectorAll('.product-media-thumb')];
 >>>>>>> origin/main
+=======
+    const galleryThumbs = [...root.querySelectorAll('.product-media-thumb')];
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     const lightbox = root.querySelector('#product-lightbox');
     const lightboxImg = root.querySelector('.lightbox-image');
     const closeTargets = root.querySelectorAll('[data-lightbox-close="true"]');
@@ -517,6 +552,7 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
 
     const openLightbox = () => {
 <<<<<<< HEAD
+<<<<<<< HEAD
       const current = getCurrentImage();
       if (!lightbox || !lightboxImg || !current) return;
       lightboxImg.src = current;
@@ -525,16 +561,24 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
       if (!lightbox || !lightboxImg || !currentImage) return;
       lightboxImg.src = currentImage;
 >>>>>>> origin/main
+=======
+      const currentImage = gallery[selectedImageIndex] || '';
+      if (!lightbox || !lightboxImg || !currentImage) return;
+      lightboxImg.src = currentImage;
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
       lightbox.classList.add('is-open');
       lightbox.setAttribute('aria-hidden', 'false');
       document.body.classList.add('lightbox-open');
     };
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     if (detailImage && getCurrentImage()) {
       detailImage.addEventListener('click', openLightbox);
     }
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     syncSelectedImage(0);
 
     mediaStage?.addEventListener('click', openLightbox);
@@ -543,7 +587,10 @@ export default async function ProductDetail(root, productId, explicitCommunityTy
         syncSelectedImage(thumb.dataset.galleryIndex);
       });
     });
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
 
     closeTargets.forEach((target) => {
       target.addEventListener('click', closeLightbox);

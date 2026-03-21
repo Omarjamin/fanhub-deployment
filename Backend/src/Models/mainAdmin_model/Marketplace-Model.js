@@ -429,15 +429,21 @@ class MarketplaceModel {
         collection_name: row.collection_name,
         product_category: row.product_category,
 <<<<<<< HEAD
+<<<<<<< HEAD
         image_url: row.image_url,
         images,
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
         image_url: imageGallery[0] || row.image_url,
         img_url: hasProductImgUrlColumn
           ? (row.img_url || (imageGallery.length ? JSON.stringify(imageGallery) : null))
           : null,
         image_gallery: imageGallery,
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
         created_at: row.created_at,
         community_id: Number(row.community_id || scopedCommunityId || 0) || null,
         community_key: community.key,
@@ -674,6 +680,7 @@ class MarketplaceModel {
       hasHeightColumn,
     } = await this.ensureVariantShippingColumns(db);
 <<<<<<< HEAD
+<<<<<<< HEAD
     const { name, collection_id, product_category, image_url, variants, image_urls } = data;
     const collectionId = collection_id ?? null;
     const productCategory = String(product_category || 'Apparel').trim();
@@ -706,13 +713,18 @@ class MarketplaceModel {
         [String(name || '').trim(), collectionId, productCategory, imageUrl],
       );
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     const { name, collection_id, product_category, image_url, image_gallery, img_url, variants } = data;
     const collectionId = collection_id ?? null;
     const productCategory = String(product_category || 'Apparel').trim();
     const galleryImages = this.buildProductImageGallery(img_url, image_url, image_gallery);
     if (galleryImages.length > 1 && !hasImageGalleryColumn && !hasProductImgUrlColumn) {
       throw new Error('Multiple product images are not available on this database yet. Please contact support or retry after the img_url/image_gallery column is enabled.');
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     }
     const imageUrl = galleryImages[0] || (image_url ? String(image_url).trim() : null);
     const productImgUrlPayload =
@@ -817,6 +829,7 @@ class MarketplaceModel {
     if (Number.isNaN(id)) throw new Error('Invalid product ID');
 
 <<<<<<< HEAD
+<<<<<<< HEAD
     const { name, collection_id, product_category, image_url, variants, image_urls } = data;
     const normalizedImageUrls = this.normalizeImageUrls(image_urls);
     let resolvedImageUrl = image_url;
@@ -826,6 +839,9 @@ class MarketplaceModel {
 =======
     const { name, collection_id, product_category, image_url, image_gallery, img_url, variants } = data;
 >>>>>>> origin/main
+=======
+    const { name, collection_id, product_category, image_url, image_gallery, img_url, variants } = data;
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     const updates = [];
     const values = [];
 
@@ -842,10 +858,13 @@ class MarketplaceModel {
       values.push(String(product_category).trim());
     }
 <<<<<<< HEAD
+<<<<<<< HEAD
     if (resolvedImageUrl !== undefined) {
       updates.push('image_url = ?');
       values.push(resolvedImageUrl ? String(resolvedImageUrl).trim() : null);
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     if (image_url !== undefined || image_gallery !== undefined || img_url !== undefined) {
       const galleryImages = this.buildProductImageGallery(img_url, image_url, image_gallery);
       if (galleryImages.length > 1 && !hasImageGalleryColumn && !hasProductImgUrlColumn) {
@@ -861,7 +880,10 @@ class MarketplaceModel {
         updates.push('image_gallery = ?');
         values.push(galleryImages.length ? JSON.stringify(galleryImages) : null);
       }
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     }
     if (hasProductCommunityId && scopedCommunityId) {
       updates.push('community_id = ?');

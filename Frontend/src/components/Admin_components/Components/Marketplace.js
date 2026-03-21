@@ -124,15 +124,21 @@ export default function createMarketplace() {
           <label class="marketplace-form-group">
             <span>Product Images</span>
 <<<<<<< HEAD
+<<<<<<< HEAD
             <input id="newProductImage" type="file" accept="image/*" multiple>
             <div id="productImagePreview" class="product-image-preview hidden"></div>
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
             <input id="newProductImage" type="file" accept=".jpg,.jpeg,.png,image/jpeg,image/png" multiple>
             <p class="marketplace-form-helper">Upload up to 3 images total. JPG and PNG only, max 5 MB each. The first image becomes the main product cover.</p>
             <div id="newProductImagePreview" class="product-image-preview-grid">
               <div class="product-image-preview-empty">Add a cover image plus up to 2 extra shots for the product detail gallery.</div>
             </div>
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
           </label>
           <div class="marketplace-form-group">
             <div class="variant-header">
@@ -253,6 +259,7 @@ export default function createMarketplace() {
   function resolveProductImageCandidate(rawUrl) {
     const value = String(rawUrl || '').trim();
 <<<<<<< HEAD
+<<<<<<< HEAD
     if (!value) return fallback;
     const lowered = value.toLowerCase();
     if (lowered === 'null' || lowered === 'undefined' || lowered === 'none') {
@@ -261,6 +268,9 @@ export default function createMarketplace() {
 =======
     if (!value) return '';
 >>>>>>> origin/main
+=======
+    if (!value) return '';
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
 
     if (/^https?:\/\//i.test(value) || value.startsWith('data:') || value.startsWith('blob:')) {
       return value;
@@ -851,10 +861,14 @@ export default function createMarketplace() {
     const productNameInput = section.querySelector('#newProductName');
     const imageInput = section.querySelector('#newProductImage');
 <<<<<<< HEAD
+<<<<<<< HEAD
     const imagePreview = section.querySelector('#productImagePreview');
 =======
     const imagePreview = section.querySelector('#newProductImagePreview');
 >>>>>>> origin/main
+=======
+    const imagePreview = section.querySelector('#newProductImagePreview');
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     const addVariantBtn = section.querySelector('#addVariantBtn');
     const variantRows = section.querySelector('#variantRows');
     const MAX_PRODUCT_IMAGES = 3;
@@ -1074,6 +1088,7 @@ export default function createMarketplace() {
       await loadCategoryOptions(product.productCategory || '');
       productNameInput.value = product.name;
 <<<<<<< HEAD
+<<<<<<< HEAD
       existingImageUrls = Array.isArray(product.images) ? [...product.images] : [];
       if (!existingImageUrls.length && product.image) {
         existingImageUrls = [product.image];
@@ -1083,6 +1098,8 @@ export default function createMarketplace() {
       if (imageInput) imageInput.value = '';
       renderImagePreview();
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
       imageInput.value = '';
       existingImageGallery = Array.isArray(product.imageGallery)
         ? product.imageGallery.slice(0, MAX_PRODUCT_IMAGES)
@@ -1090,7 +1107,10 @@ export default function createMarketplace() {
       pendingImageFiles = [];
       hasImageChanges = false;
       syncImagePreview();
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
       variantRows.innerHTML = '';
       (product.variants || []).forEach(variant => {
         addVariantRow(normalizeVariantForForm(variant));
@@ -1130,9 +1150,12 @@ export default function createMarketplace() {
     });
     addVariantBtn.addEventListener('click', () => addVariantRow());
 <<<<<<< HEAD
+<<<<<<< HEAD
     imageInput.addEventListener('change', (event) => {
       addImageFiles(event.target.files);
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     imageInput.addEventListener('change', () => {
       const selectedFiles = Array.from(imageInput.files || []);
       imageInput.value = '';
@@ -1202,7 +1225,10 @@ export default function createMarketplace() {
       }
 
       syncImagePreview();
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
     });
 
     variantRows.addEventListener('click', event => {
@@ -1263,10 +1289,13 @@ export default function createMarketplace() {
         collection,
         product_category: productCategory,
 <<<<<<< HEAD
+<<<<<<< HEAD
         image_url: null,
         image_urls: undefined,
 =======
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
         variants: variants.map(v => ({
           variantName: v.variantName,
           variantValue: v.variantValue,
@@ -1288,6 +1317,7 @@ export default function createMarketplace() {
         const product = findProductById(editingProductId);
         if (!product) return;
 <<<<<<< HEAD
+<<<<<<< HEAD
         if (imagesDirty || uploadedUrls.length) {
           if (combinedImageUrls.length) {
             payload.image_url = combinedImageUrls[0];
@@ -1296,6 +1326,8 @@ export default function createMarketplace() {
         } else if (typeof product.image === 'string' && product.image.startsWith('http')) {
           payload.image_url = product.image;
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
 
         if (hasImageChanges) {
           const uploadedImages = await uploadSelectedProductImages(pendingImageFiles);
@@ -1304,7 +1336,10 @@ export default function createMarketplace() {
           payload.img_url = finalImageGallery;
           payload.image_gallery = finalImageGallery;
           payload.image_url = finalImageGallery[0] || null;
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
         }
         const dbProductId =
           product.productId ??
@@ -1320,17 +1355,23 @@ export default function createMarketplace() {
         }
       } else {
 <<<<<<< HEAD
+<<<<<<< HEAD
         if (combinedImageUrls.length) {
           payload.image_url = combinedImageUrls[0];
           payload.image_urls = combinedImageUrls;
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
         if (pendingImageFiles.length) {
           const uploadedImages = await uploadSelectedProductImages(pendingImageFiles);
 
           payload.img_url = uploadedImages;
           payload.image_gallery = uploadedImages;
           payload.image_url = uploadedImages[0] || null;
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
         }
         try {
           await createMarketplaceProduct(payload, community, community_id);
@@ -1432,6 +1473,7 @@ export default function createMarketplace() {
       products = rows.map(row => {
         const variants = Array.isArray(row.variants) ? row.variants : [];
 <<<<<<< HEAD
+<<<<<<< HEAD
         const rowImages = Array.isArray(row.images)
           ? row.images.filter(Boolean)
           : [];
@@ -1439,6 +1481,9 @@ export default function createMarketplace() {
 =======
         const imageGallery = buildResolvedProductGallery(row, row.image_gallery, row.images, row.image_url);
 >>>>>>> origin/main
+=======
+        const imageGallery = buildResolvedProductGallery(row, row.image_gallery, row.images, row.image_url);
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
         const communityKeyValue = String(
           row.__community_key || row.community_key || normalizedCommunity || 'all'
         )
@@ -1462,6 +1507,7 @@ export default function createMarketplace() {
           productCategory: String(row.product_category || 'Apparel').trim(),
           sold: 0,
 <<<<<<< HEAD
+<<<<<<< HEAD
           image: resolveProductImage(primaryImage),
           images: rowImages.length
             ? rowImages
@@ -1470,6 +1516,10 @@ export default function createMarketplace() {
           image: imageGallery[0] || resolveProductImage(row.image_url),
           imageGallery,
 >>>>>>> origin/main
+=======
+          image: imageGallery[0] || resolveProductImage(row.image_url),
+          imageGallery,
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
           variants,
         };
       });

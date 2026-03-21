@@ -179,6 +179,7 @@
 
   .ec-lead-image__content {
     left: 50%;
+    top: auto;
     bottom: 76px;
     transform: translateX(-50%);
     width: auto;
@@ -205,10 +206,16 @@
   }
 
   .ec-lead-image__socials {
-    right: 10px;
+    left: 50%;
+    right: auto;
     bottom: 10px;
+    transform: translateX(-50%);
+    width: max-content;
     gap: 8px;
     padding: 5px 6px;
+    max-width: calc(100% - 20px);
+    justify-content: center;
+    flex-wrap: nowrap;
   }
 
   .ec-lead-image__social {
@@ -233,14 +240,98 @@
 
   .ec-lead-image__socials {
     bottom: max(10px, env(safe-area-inset-bottom));
-    right: max(10px, env(safe-area-inset-right));
+    left: 50%;
+    right: auto;
+    transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 18px);
   }
 
   .ec-lead-image__content {
     left: 50%;
+    top: auto;
     bottom: 74px;
     transform: translateX(-50%);
     width: calc(100% - 24px);
     padding: 16px;
+  }
+}
+
+@media (max-width: 360px) {
+  .ec-lead-image__content {
+    bottom: 88px;
+    width: calc(100% - 18px);
+    padding: 14px;
+    gap: 0.8rem;
+  }
+
+  .ec-lead-image__title {
+    font-size: clamp(1.75rem, 11vw, 2.5rem);
+  }
+
+  .ec-lead-image__description {
+    font-size: 0.9rem;
+    line-height: 1.55;
+  }
+
+  .ec-lead-image__actions {
+    width: 100%;
+  }
+
+  .ec-lead-image__cta {
+    flex-basis: 100%;
+    width: 100%;
+    min-height: 44px;
+    padding: 0.76rem 1rem;
+  }
+
+  .ec-lead-image__socials {
+    gap: 6px;
+    padding: 5px;
+  }
+
+  .ec-lead-image__social {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 425px) and (max-height: 700px) {
+  .ec-lead-image__content {
+    width: calc(100% - 20px);
+    padding: 14px;
+    gap: 0.72rem;
+  }
+
+  .ec-lead-image__kicker {
+    min-height: 28px;
+    padding: 0.32rem 0.72rem;
+    font-size: 0.66rem;
+    letter-spacing: 0.12em;
+  }
+
+  .ec-lead-image__title {
+    font-size: clamp(1.8rem, 10.2vw, 2.7rem);
+  }
+
+  .ec-lead-image__description {
+    font-size: 0.88rem;
+    line-height: 1.5;
+    max-width: 28ch;
+  }
+
+  .ec-lead-image__actions {
+    width: 100%;
+    gap: 0.62rem;
+  }
+
+  .ec-lead-image__cta {
+    min-height: 42px;
+    padding: 0.72rem 0.95rem;
+    font-size: 0.9rem;
+  }
+
+  .ec-lead-image__socials {
+    bottom: max(8px, env(safe-area-inset-bottom));
   }
 }

@@ -1,4 +1,4 @@
-﻿.marketplace {
+.marketplace {
   background: #f9fafb;
   min-height: 100%;
   width: calc(100% - 260px);
@@ -339,6 +339,7 @@ body:has(.admin-sidebar) .add-product-btn:focus-visible {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 .product-image-preview {
   display: flex;
   flex-direction: column;
@@ -386,6 +387,8 @@ body:has(.admin-sidebar) .add-product-btn:focus-visible {
 .remove-image-btn:hover {
   background: #dc2626;
 =======
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
 .marketplace-form-group input[type="file"] {
   height: auto;
   padding: 0.55rem 0.7rem;
@@ -474,7 +477,10 @@ body:has(.admin-sidebar) .add-product-btn:focus-visible {
   line-height: 1.6;
   text-align: center;
   border-style: dashed;
+<<<<<<< HEAD
 >>>>>>> origin/main
+=======
+>>>>>>> 6e168e1e568b737b4139d180f677d3c2a28f8d7c
 }
 
 .variant-header {
