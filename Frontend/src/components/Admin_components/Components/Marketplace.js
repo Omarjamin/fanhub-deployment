@@ -635,6 +635,11 @@ export default function createMarketplace() {
 
   function loadProducts() {
     const grid = section.querySelector('#productsGrid');
+    if (!products.length) {
+      grid.innerHTML = '<p class="no-products">No products found for the selected site yet.</p>';
+      return;
+    }
+
     grid.innerHTML = products.map(product => `
       <div class="product-card" data-product-id="${product.id}" data-community="${product.communityKey}">
         <div class="product-image-frame">
@@ -1431,15 +1436,25 @@ export default function createMarketplace() {
         const communityPairs = communityOptions
           .filter(option => option.key && option.key !== 'all')
           .map(option => ({ key: option.key, community_id: option.community_id }));
-        const responses = await Promise.allSettled(
-          communityPairs.map(async ({ key, community_id }) => {
-            const list = await fetchMarketplaceProducts(key, community_id);
-            return list.map(item => ({ ...item, __community_key: key, __community_id: community_id }));
-          })
-        );
-        rows = responses
-          .filter(r => r.status === 'fulfilled')
-          .flatMap(r => r.value);
+        if (!communityPairs.length) {
+          rows = (await fetchMarketplaceProducts('', null))
+            .map(item => ({ ...item, __community_key: item.community_key || 'all', __community_id: item.community_id || null }));
+        } else {
+          const responses = await Promise.allSettled(
+            communityPairs.map(async ({ key, community_id }) => {
+              const list = await fetchMarketplaceProducts(key, community_id);
+              return list.map(item => ({ ...item, __community_key: key, __community_id: community_id }));
+            })
+          );
+          rows = responses
+            .filter(r => r.status === 'fulfilled')
+            .flatMap(r => r.value);
+
+          if (!rows.length) {
+            rows = (await fetchMarketplaceProducts('', null))
+              .map(item => ({ ...item, __community_key: item.community_key || 'all', __community_id: item.community_id || null }));
+          }
+        }
       } else {
         let list = [];
         try {

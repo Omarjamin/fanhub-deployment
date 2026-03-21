@@ -2,6 +2,16 @@ import { connect, connectAdmin } from '../../core/database.js';
 import { resolveCommunityContext } from '../../core/database.js';
 
 class MarketplaceModel {
+  async getCollectionCommunityScopeColumn(db) {
+    if (await this.hasColumn(db, 'collections', 'group_community_id')) {
+      return 'group_community_id';
+    }
+    if (await this.hasColumn(db, 'collections', 'community_id')) {
+      return 'community_id';
+    }
+    return '';
+  }
+
   async hasAdminTable(db, tableName) {
     const [rows] = await db.query('SHOW TABLES LIKE ?', [tableName]);
     return Array.isArray(rows) && rows.length > 0;
@@ -300,11 +310,8 @@ class MarketplaceModel {
     const hasProductCommunityId = await this.ensureProductCommunityColumn(db);
     const hasProductImgUrlColumn = await this.ensureProductImgUrlColumn(db);
     const hasImageGalleryColumn = await this.hasColumn(db, 'products', 'image_gallery');
-    const hasCollectionCommunityId = await this.hasColumn(
-      db,
-      'collections',
-      'group_community_id',
-    );
+    const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
+    const hasCollectionCommunityId = Boolean(collectionCommunityScopeColumn);
     const {
       hasWeightColumn,
       hasLengthColumn,
@@ -316,10 +323,10 @@ class MarketplaceModel {
     const queryParams = [];
     let scopeWhere = '';
     if (scopedCommunityId && hasCollectionCommunityId && hasProductCommunityId) {
-      scopeWhere = 'WHERE (COALESCE(c.group_community_id, 0) = ? OR COALESCE(p.community_id, 0) = ?)';
+      scopeWhere = `WHERE (COALESCE(c.${collectionCommunityScopeColumn}, 0) = ? OR COALESCE(p.community_id, 0) = ?)`;
       queryParams.push(scopedCommunityId, scopedCommunityId);
     } else if (scopedCommunityId && hasCollectionCommunityId) {
-      scopeWhere = 'WHERE COALESCE(c.group_community_id, 0) = ?';
+      scopeWhere = `WHERE COALESCE(c.${collectionCommunityScopeColumn}, 0) = ?`;
       queryParams.push(scopedCommunityId);
     } else if (scopedCommunityId && hasProductCommunityId) {
       scopeWhere = 'WHERE COALESCE(p.community_id, 0) = ?';
@@ -460,13 +467,10 @@ class MarketplaceModel {
     const scoped = String(communityType || '').trim().toLowerCase();
     const db = await connect(scoped);
     const scopedCommunityId = await this.resolveCommunityId(scoped);
-    const hasCommunityColumn = await this.hasColumn(
-      db,
-      'collections',
-      'group_community_id',
-    );
+    const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
+    const hasCommunityColumn = Boolean(collectionCommunityScopeColumn);
     const whereSql =
-      scopedCommunityId && hasCommunityColumn ? 'WHERE group_community_id = ?' : '';
+      scopedCommunityId && hasCommunityColumn ? `WHERE ${collectionCommunityScopeColumn} = ?` : '';
     const params = whereSql ? [scopedCommunityId] : [];
     let rows = [];
     try {
@@ -494,11 +498,8 @@ class MarketplaceModel {
     const scoped = String(communityType || '').trim().toLowerCase();
     const db = await connect(scoped);
     const scopedCommunityId = await this.resolveCommunityId(scoped);
-    const hasCommunityColumn = await this.hasColumn(
-      db,
-      'collections',
-      'group_community_id',
-    );
+    const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
+    const hasCommunityColumn = Boolean(collectionCommunityScopeColumn);
     const normalizedName = String(name || '').trim();
     const normalizedImage = imgUrl ? String(imgUrl).trim() : null;
     if (!normalizedName) throw new Error('Collection name is required');
@@ -506,7 +507,7 @@ class MarketplaceModel {
     const existsParams = [normalizedName];
     let existsScopeWhere = '';
     if (scopedCommunityId && hasCommunityColumn) {
-      existsScopeWhere = 'AND COALESCE(group_community_id, 0) = ?';
+      existsScopeWhere = `AND COALESCE(${collectionCommunityScopeColumn}, 0) = ?`;
       existsParams.push(scopedCommunityId);
     }
     const [exists] = await db.query(
@@ -525,7 +526,7 @@ class MarketplaceModel {
     try {
       if (hasCommunityColumn) {
         [result] = await db.query(
-          `INSERT INTO collections (group_community_id, name, img_url) VALUES (?, ?, ?)`,
+          `INSERT INTO collections (${collectionCommunityScopeColumn}, name, img_url) VALUES (?, ?, ?)`,
           [scopedCommunityId || 0, normalizedName, normalizedImage],
         );
       } else {
@@ -538,7 +539,7 @@ class MarketplaceModel {
       if (error?.code !== 'ER_BAD_FIELD_ERROR') throw error;
       if (hasCommunityColumn) {
         [result] = await db.query(
-          `INSERT INTO collections (group_community_id, name) VALUES (?, ?)`,
+          `INSERT INTO collections (${collectionCommunityScopeColumn}, name) VALUES (?, ?)`,
           [scopedCommunityId || 0, normalizedName],
         );
       } else {
@@ -555,11 +556,8 @@ class MarketplaceModel {
     const scoped = String(communityType || '').trim().toLowerCase();
     const db = await connect(scoped);
     const scopedCommunityId = await this.resolveCommunityId(scoped);
-    const hasCommunityColumn = await this.hasColumn(
-      db,
-      'collections',
-      'group_community_id',
-    );
+    const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
+    const hasCommunityColumn = Boolean(collectionCommunityScopeColumn);
     await this.ensureCollectionCategoriesTable(db);
 
     const parsedCollectionId = Number(collectionId);
@@ -578,7 +576,7 @@ class MarketplaceModel {
     const whereSql =
       scopedCommunityId && hasCommunityColumn
         ? `WHERE cc.collection_id IN (
-             SELECT c.collection_id FROM collections c WHERE COALESCE(c.group_community_id, 0) = ?
+             SELECT c.collection_id FROM collections c WHERE COALESCE(c.${collectionCommunityScopeColumn}, 0) = ?
            )`
         : '';
     if (whereSql) queryParams.push(scopedCommunityId);
@@ -633,18 +631,15 @@ class MarketplaceModel {
     const scoped = String(communityLabel || '').trim().toLowerCase();
     const db = await connect(scoped);
     const scopedCommunityId = await this.resolveCommunityId(scoped);
-    const hasCommunityColumn = await this.hasColumn(
-      db,
-      'collections',
-      'group_community_id',
-    );
+    const collectionCommunityScopeColumn = await this.getCollectionCommunityScopeColumn(db);
+    const hasCommunityColumn = Boolean(collectionCommunityScopeColumn);
     const name = String(collectionName || '').trim();
     if (!name) return null;
 
     const params = [name];
     let scopeWhere = '';
     if (scopedCommunityId && hasCommunityColumn) {
-      scopeWhere = 'AND COALESCE(group_community_id, 0) = ?';
+      scopeWhere = `AND COALESCE(${collectionCommunityScopeColumn}, 0) = ?`;
       params.push(scopedCommunityId);
     }
     const [rows] = await db.query(
