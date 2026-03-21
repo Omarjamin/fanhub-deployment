@@ -205,6 +205,10 @@ export default function createOrders() {
   let editingOrderId = null;
   let deletingOrderId = null;
 
+  function stripHtmlTags(value = '') {
+    return String(value).replace(/<[^>]*>/g, '').trim();
+  }
+
   function normalizeStatusValue(value) {
     const normalized = String(value || '').trim().toLowerCase();
     if (!normalized) return 'pending';
@@ -215,12 +219,20 @@ export default function createOrders() {
   }
 
   function normalizeTrackingNumber(value) {
+<<<<<<< Updated upstream
     const normalized = sanitizeTrackingNumber(value, { maxLength: 120 });
+=======
+    const normalized = stripHtmlTags(value ?? '');
+>>>>>>> Stashed changes
     return normalized || '';
   }
 
   function normalizeCourier(value) {
+<<<<<<< Updated upstream
     const normalized = sanitizeAdminText(value, { maxLength: 120 });
+=======
+    const normalized = stripHtmlTags(value ?? '');
+>>>>>>> Stashed changes
     return normalized || '';
   }
 
@@ -659,9 +671,15 @@ export default function createOrders() {
       if (event.target === modal) closeModal();
     });
     statusSelect.addEventListener('change', syncShippingMetaRequirement);
+<<<<<<< Updated upstream
     trackingInput.addEventListener('input', () => {
       const sanitized = sanitizeTrackingNumber(trackingInput.value, { maxLength: 120 });
       if (trackingInput.value !== sanitized) {
+=======
+    trackingInput?.addEventListener('input', () => {
+      const sanitized = stripHtmlTags(trackingInput.value || '');
+      if (sanitized !== trackingInput.value) {
+>>>>>>> Stashed changes
         trackingInput.value = sanitized;
       }
     });

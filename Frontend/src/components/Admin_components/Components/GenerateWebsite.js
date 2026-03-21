@@ -88,6 +88,14 @@ export default function GenerateWebsite() {
     festive: 'Seasonal',
   };
   const googleFontFilterGroups = ['Feeling', 'Appearance', 'Calligraphy', 'Serif', 'Sans Serif', 'Technology', 'Seasonal'];
+  const escapeHtml = (value = '') => String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+  const stripHtmlTags = (value = '') => String(value).replace(/<[^>]*>/g, '').trim();
+  const sanitizeTextInput = (value = '') => stripHtmlTags(value);
 
   let templates = [];
   let selectedPaletteId = defaultPalettes[0].id;
@@ -644,15 +652,15 @@ export default function GenerateWebsite() {
       formData.domain || formData.siteName || `${selectedTemplateData.key}-preview`,
       `${selectedTemplateData.key}-preview`,
     );
-    const siteName = String(formData.siteName || selectedTemplateData.name || 'Preview Community').trim() || 'Preview Community';
+    const siteName = sanitizeTextInput(formData.siteName || selectedTemplateData.name || 'Preview Community') || 'Preview Community';
     const logoUrl = previewMediaUrls.logo || '';
     const leadImageUrl = previewMediaUrls.leadImage || String(formData.leadImage || '').trim();
     const groupPhotoUrl = previewMediaUrls.groupPhoto || '';
     const bannerGallery = normalizeBannerGallery(previewMediaUrls.bannerGallery).slice(0, GALLERY_IMAGE_LIMIT);
     const safeMembers = members.map((member, index) => ({
       id: member?.id || `preview-member-${index + 1}`,
-      name: String(member?.name || '').trim(),
-      fullname: String(member?.name || '').trim(),
+      name: sanitizeTextInput(member?.name || ''),
+      fullname: sanitizeTextInput(member?.name || ''),
       birthdate: String(member?.birthdate || '').trim(),
       role: '',
       description: '',
@@ -675,20 +683,20 @@ export default function GenerateWebsite() {
         template: selectedTemplateData.key,
         template_key: selectedTemplateData.key,
         template_name: selectedTemplateData.name || selectedTemplateData.key,
-        short_bio: String(formData.shortBio || '').trim(),
-        description: String(formData.description || '').trim(),
+        short_bio: sanitizeTextInput(formData.shortBio || ''),
+        description: sanitizeTextInput(formData.description || ''),
         logo: logoUrl,
         logo_url: logoUrl,
         lead_image: leadImageUrl,
         group_photo: groupPhotoUrl,
         banner: bannerGallery,
         banner_gallery: bannerGallery,
-        instagram_url: String(formData.instagramUrl || '').trim(),
-        facebook_url: String(formData.facebookUrl || '').trim(),
-        tiktok_url: String(formData.tiktokUrl || '').trim(),
-        spotify_url: String(formData.spotifyUrl || '').trim(),
-        x_url: String(formData.xUrl || '').trim(),
-        youtube_url: String(formData.youtubeUrl || '').trim(),
+        instagram_url: sanitizeTextInput(formData.instagramUrl || ''),
+        facebook_url: sanitizeTextInput(formData.facebookUrl || ''),
+        tiktok_url: sanitizeTextInput(formData.tiktokUrl || ''),
+        spotify_url: sanitizeTextInput(formData.spotifyUrl || ''),
+        x_url: sanitizeTextInput(formData.xUrl || ''),
+        youtube_url: sanitizeTextInput(formData.youtubeUrl || ''),
         palette: [...(formData.palette || [])],
         primaryColor: formData.primaryColor,
         secondaryColor: formData.secondaryColor,
@@ -760,15 +768,15 @@ export default function GenerateWebsite() {
         .replace(/-+/g, '-')
         .replace(/^-|-$/g, '') || communitySlug;
 
-      submitData.append('siteName', formData.siteName);
+      submitData.append('siteName', sanitizeTextInput(formData.siteName));
       submitData.append('domain', resolvedDomain);
       submitData.append('communityType', resolvedDomain);
       submitData.append('dbName', resolvedDbName);
       submitData.append('dbUser', 'root');
       submitData.append('dbHost', 'localhost');
       submitData.append('dbPassword', '');
-      submitData.append('shortBio', formData.shortBio);
-      submitData.append('description', formData.description);
+      submitData.append('shortBio', sanitizeTextInput(formData.shortBio));
+      submitData.append('description', sanitizeTextInput(formData.description));
       submitData.append('templateId', selectedTemplate);
       const selectedTemplateData = templates.find((template) => Number(template.id) === Number(selectedTemplate));
       if (selectedTemplateData?.key) submitData.append('template', selectedTemplateData.key);
@@ -794,12 +802,12 @@ export default function GenerateWebsite() {
       if (formData.leadImage) {
         submitData.append('lead_image', formData.leadImage);
       }
-      submitData.append('instagram_url', formData.instagramUrl);
-      submitData.append('facebook_url', formData.facebookUrl);
-      submitData.append('tiktok_url', formData.tiktokUrl);
-      submitData.append('spotify_url', formData.spotifyUrl);
-      submitData.append('x_url', formData.xUrl);
-      submitData.append('youtube_url', formData.youtubeUrl);
+      submitData.append('instagram_url', sanitizeTextInput(formData.instagramUrl));
+      submitData.append('facebook_url', sanitizeTextInput(formData.facebookUrl));
+      submitData.append('tiktok_url', sanitizeTextInput(formData.tiktokUrl));
+      submitData.append('spotify_url', sanitizeTextInput(formData.spotifyUrl));
+      submitData.append('x_url', sanitizeTextInput(formData.xUrl));
+      submitData.append('youtube_url', sanitizeTextInput(formData.youtubeUrl));
       submitData.append('theme', JSON.stringify({
         palette: formData.palette || [],
         primaryColor: formData.primaryColor,
@@ -824,7 +832,11 @@ export default function GenerateWebsite() {
       if (formData.customFontFile) submitData.append('fontFile', formData.customFontFile);
       
       // Add members data as JSON
-      submitData.append('members', JSON.stringify(members));
+      submitData.append('members', JSON.stringify(members.map((member) => ({
+        ...member,
+        name: sanitizeTextInput(member?.name || ''),
+        fullname: sanitizeTextInput(member?.name || ''),
+      }))));
 
       // API call - adjust endpoint based on your backend
       const response = await api.post('/admin/generate/generate-website', submitData, {
@@ -1711,10 +1723,10 @@ export default function GenerateWebsite() {
     container.innerHTML = members.map((member, idx) => `
       <div class="gw-member-card">
         <div class="gw-member-preview">
-          ${member.image ? `<img src="${member.image}" alt="${member.name}">` : '<div class="gw-member-placeholder">📷</div>'}
+          ${member.image ? `<img src="${member.image}" alt="${escapeHtml(member.name)}">` : '<div class="gw-member-placeholder">📷</div>'}
         </div>
         <div class="gw-member-info">
-          <h4>${member.name || 'Unnamed'}</h4>
+          <h4>${escapeHtml(member.name || 'Unnamed')}</h4>
           <p class="gw-member-role">Birthdate</p>
           <p class="gw-member-description">${formatMemberBirthdate(member.birthdate)}</p>
         </div>
@@ -1754,12 +1766,12 @@ export default function GenerateWebsite() {
         <div class="gw-modal-body">
           <div class="gw-member-modal-grid">
             <div class="gw-member-modal-preview">
-              ${member.image ? `<img src="${member.image}" alt="${member.name || 'Member'} preview" class="gw-member-modal-image">` : '<div class="gw-member-modal-placeholder">No image selected</div>'}
+              ${member.image ? `<img src="${member.image}" alt="${escapeHtml(member.name || 'Member')} preview" class="gw-member-modal-image">` : '<div class="gw-member-modal-placeholder">No image selected</div>'}
             </div>
             <div class="gw-member-modal-fields">
               <div class="gw-form-group">
                 <label>Member Name</label>
-                <input type="text" class="gw-member-name" value="${member.name}" placeholder="Enter member name" required>
+                <input type="text" class="gw-member-name" value="${escapeHtml(member.name)}" placeholder="Enter member name" required>
               </div>
               <div class="gw-form-group">
                 <label>Birthdate</label>
@@ -1799,7 +1811,7 @@ export default function GenerateWebsite() {
         reader.onload = (event) => {
           member.image = event.target.result;
           if (previewContainer) {
-            previewContainer.innerHTML = `<img src="${member.image}" alt="${member.name || 'Member'} preview" class="gw-member-modal-image">`;
+            previewContainer.innerHTML = `<img src="${member.image}" alt="${escapeHtml(member.name || 'Member')} preview" class="gw-member-modal-image">`;
           }
           if (fileNameLabel) {
             fileNameLabel.textContent = e.target.files[0].name;
@@ -1813,7 +1825,11 @@ export default function GenerateWebsite() {
     modal.querySelector('.gw-btn-close-member').addEventListener('click', () => modal.remove());
 
     modal.querySelector('.gw-btn-save-member').addEventListener('click', () => {
-      const name = modal.querySelector('.gw-member-name').value?.trim();
+      const rawName = modal.querySelector('.gw-member-name').value || '';
+      const name = sanitizeTextInput(rawName);
+      if (name !== rawName) {
+        modal.querySelector('.gw-member-name').value = name;
+      }
       const birthdate = modal.querySelector('.gw-member-birthdate').value?.trim();
 
       if (!name) return reportValidationError(modal.querySelector('.gw-member-name'), 'Member name is required.');
@@ -1829,22 +1845,30 @@ export default function GenerateWebsite() {
 
   const setupFormListeners = () => {
     section.querySelector('#siteName')?.addEventListener('input', (e) => {
-      formData.siteName = e.target.value;
+      const sanitized = sanitizeTextInput(e.target.value || '');
+      if (sanitized !== e.target.value) e.target.value = sanitized;
+      formData.siteName = sanitized;
       applyTypographyPreview();
     });
 
     section.querySelector('#domain')?.addEventListener('input', (e) => {
-      formData.domain = e.target.value;
+      const sanitized = sanitizeTextInput(e.target.value || '');
+      if (sanitized !== e.target.value) e.target.value = sanitized;
+      formData.domain = sanitized;
       applyTypographyPreview();
     });
 
     section.querySelector('#shortBio')?.addEventListener('input', (e) => {
-      formData.shortBio = e.target.value;
+      const sanitized = sanitizeTextInput(e.target.value || '');
+      if (sanitized !== e.target.value) e.target.value = sanitized;
+      formData.shortBio = sanitized;
       applyTypographyPreview();
     });
 
     section.querySelector('#description')?.addEventListener('input', (e) => {
-      formData.description = e.target.value;
+      const sanitized = sanitizeTextInput(e.target.value || '');
+      if (sanitized !== e.target.value) e.target.value = sanitized;
+      formData.description = sanitized;
       applyTypographyPreview();
     });
 
@@ -2156,32 +2180,44 @@ export default function GenerateWebsite() {
     });
 
     section.querySelector('#instagramUrl')?.addEventListener('input', (e) => {
-      formData.instagramUrl = e.target.value.trim();
+      const sanitized = sanitizeTextInput(e.target.value || '');
+      if (sanitized !== e.target.value) e.target.value = sanitized;
+      formData.instagramUrl = sanitized.trim();
       applyTypographyPreview();
     });
 
     section.querySelector('#facebookUrl')?.addEventListener('input', (e) => {
-      formData.facebookUrl = e.target.value.trim();
+      const sanitized = sanitizeTextInput(e.target.value || '');
+      if (sanitized !== e.target.value) e.target.value = sanitized;
+      formData.facebookUrl = sanitized.trim();
       applyTypographyPreview();
     });
 
     section.querySelector('#tiktokUrl')?.addEventListener('input', (e) => {
-      formData.tiktokUrl = e.target.value.trim();
+      const sanitized = sanitizeTextInput(e.target.value || '');
+      if (sanitized !== e.target.value) e.target.value = sanitized;
+      formData.tiktokUrl = sanitized.trim();
       applyTypographyPreview();
     });
 
     section.querySelector('#spotifyUrl')?.addEventListener('input', (e) => {
-      formData.spotifyUrl = e.target.value.trim();
+      const sanitized = sanitizeTextInput(e.target.value || '');
+      if (sanitized !== e.target.value) e.target.value = sanitized;
+      formData.spotifyUrl = sanitized.trim();
       applyTypographyPreview();
     });
 
     section.querySelector('#xUrl')?.addEventListener('input', (e) => {
-      formData.xUrl = e.target.value.trim();
+      const sanitized = sanitizeTextInput(e.target.value || '');
+      if (sanitized !== e.target.value) e.target.value = sanitized;
+      formData.xUrl = sanitized.trim();
       applyTypographyPreview();
     });
 
     section.querySelector('#youtubeUrl')?.addEventListener('input', (e) => {
-      formData.youtubeUrl = e.target.value.trim();
+      const sanitized = sanitizeTextInput(e.target.value || '');
+      if (sanitized !== e.target.value) e.target.value = sanitized;
+      formData.youtubeUrl = sanitized.trim();
       applyTypographyPreview();
     });
 

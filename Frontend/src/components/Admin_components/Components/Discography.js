@@ -16,6 +16,19 @@ function authHeaders() {
   return headers;
 }
 
+function escapeHtml(value = '') {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function stripHtmlTags(value = '') {
+  return String(value).replace(/<[^>]*>/g, '').trim();
+}
+
 async function readJsonSafe(response) {
   try {
     return await response.json();
@@ -232,14 +245,14 @@ function loadCommunityFilter() {
       <tr data-album-id="${album.album_id}" data-site-id="${album.site_id || album.community_id || ''}">
         <td>
           <div class="dg-album-cell">
-            <img src="${album.img_url || album.album_link || '/placeholder.svg?height=80&width=80'}" alt="${album.name}" class="dg-album-image">
+            <img src="${album.img_url || album.album_link || '/placeholder.svg?height=80&width=80'}" alt="${escapeHtml(album.name)}" class="dg-album-image">
             <div>
-              <p class="dg-album-name">${album.name}</p>
+              <p class="dg-album-name">${escapeHtml(album.name)}</p>
               <span class="dg-album-id">#${album.album_id}</span>
             </div>
           </div>
         </td>
-            <td>${album.community_name || album.community || ''}</td>
+            <td>${escapeHtml(album.community_name || album.community || '')}</td>
         <td>${(album.songs ?? album.count_songs)} ${Number(album.songs ?? album.count_songs) === 1 ? 'song' : 'songs'}</td>
         <td>${album.year}</td>
         <td>
@@ -429,7 +442,12 @@ function loadCommunityFilter() {
 
       // Build payload expected by backend
       // For your DB schema we send numeric year, count_songs, and album_link
+      const sanitizedTitle = stripHtmlTags(nameInput.value);
+      const sanitizedDescription = stripHtmlTags(descriptionInput.value);
+      const sanitizedAlbumLink = stripHtmlTags(albumLinkInput.value);
+
       const body = {
+<<<<<<< Updated upstream
         site_id: Number(siteValue) || null,
         title: albumName,
         count_songs: songsValue ? Number(songsValue) : null,
@@ -437,6 +455,15 @@ function loadCommunityFilter() {
         album_link: albumLinkValue || null,
         album_lnk: albumLinkValue || null,
         description: descriptionInput.value.trim() || null,
+=======
+        site_id: Number(communityInput.value) || null,
+        title: sanitizedTitle,
+        count_songs: songsInput.value ? Number(songsInput.value) : null,
+        year: yearInput.value ? Number(yearInput.value) : null,
+        album_link: sanitizedAlbumLink || null,
+        album_lnk: sanitizedAlbumLink || null,
+        description: sanitizedDescription || null,
+>>>>>>> Stashed changes
         img_url: null
       };
       if (imageFile) {
