@@ -59,21 +59,13 @@ Administrative functions for managing the platform.
 - `/api/v1/admin/suggestions` - User suggestions
 - `/api/v1/admin/` - Thread management
 
-### 5. YouTube API (`/api/v1/youtube`)
-Integrates BINI's YouTube content.
 
-#### Endpoints:
-- `GET /api/v1/youtube/videos` - All BINI videos
-- `GET /api/v1/youtube/videos/popular` - Popular videos for carousel
-- `GET /api/v1/youtube/banner/videos` - Banner videos
-- `GET /api/v1/youtube/videos/:videoId` - Specific video details
 
 ## Setup Instructions
 
 ### Prerequisites
 - Node.js (v16+)
-- PostgreSQL database
-- Redis (for caching)
+- MySQL database
 - Cloudinary account (for image uploads)
 
 ### Installation
@@ -132,7 +124,7 @@ Admin endpoints require additional authorization checks.
 This project is configured for deployment on Railway and Netlify.
 
 - Backend: Deploy to Railway using `railway.json`
-- Frontend: Deploy to Netlify using `netlify.toml`
+- Frontend: Deploy to Railway using `railway.json`
 
 ## Contributing
 
